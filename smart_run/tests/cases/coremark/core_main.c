@@ -25,7 +25,7 @@ El Dorado Hills, CA, 95762
 #include "timer.h"
 
 #ifdef VCUNT_SIM
-  //#include "vtimer.h"
+  #include "vtimer.h"
   extern unsigned int get_vtimer();
   int vtimer_start;
   int vtimer_end;

@@ -17,6 +17,6 @@ limitations under the License.
  *
  */
 
-int get_vtimer();
+unsigned int get_vtimer();
 
 void sim_end();

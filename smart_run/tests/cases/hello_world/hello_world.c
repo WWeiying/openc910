@@ -21,6 +21,11 @@ int main (void)
   printf("\nHello Friend!\n");
   printf("Welcome to T-HEAD World!\n");
 
+    __asm__ volatile (
+        ".global perf_monitor_start\n\t"
+        "perf_monitor_start:"
+    );
+
 //Section 2: Embeded ASM in C 
   int a;
   int b;
@@ -31,6 +36,11 @@ int main (void)
   printf("\na is %d!\n",a);
   printf("b is %d!\n",b);
   printf("c is %d!\n",c);
+
+ __asm__ volatile (
+        ".global perf_monitor_end\n\t"
+        "perf_monitor_end:"
+    );
 
 asm(
     "mv  x5,%[a]\n"

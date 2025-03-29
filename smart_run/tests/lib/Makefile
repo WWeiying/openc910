@@ -19,6 +19,7 @@ OBJDUMP = ${TOOL_EXTENSION}/riscv64-unknown-elf-objdump
 OBJCOPY = ${TOOL_EXTENSION}/riscv64-unknown-elf-objcopy
 CONVERT	=../tests/bin/Srec2vmem
 
+INCLUDE = -I${TOOL_EXTENSION}/riscv64-unknown-elf/include
 SSRC = $(wildcard *.S)
 sSRC = $(wildcard *.s)
 CSRC = $(wildcard *.c)
@@ -40,7 +41,7 @@ endif
 CFLAGS = ${FLAG_MARCH} ${FLAG_ABI} 
 
 ifeq (${CASENAME}, coremark)
-  CFLAGS += -c -O3 -mtune=c910 -static -funroll-all-loops -finline-limit=500 -fgcse-sm -fno-schedule-insns --param max-rtl-if-conversion-unpredictable-cost=100 -msignedness-cmpiv -fno-code-hoisting -mno-thread-jumps1 -mno-iv-adjust-addr-cost -mno-expand-split-imm -DITERATIONS=10000
+  CFLAGS += -c -O3 -mtune=c910 ${INCLUDE} -static -funroll-all-loops -finline-limit=500 -fgcse-sm -fno-schedule-insns --param max-rtl-if-conversion-unpredictable-cost=100 -msignedness-cmpiv -fno-code-hoisting -mno-thread-jumps1 -mno-iv-adjust-addr-cost -mno-expand-split-imm -DITERATIONS=10000i -Wimplicit-function-declaration
   # CFLAGS += -c -v -funroll-all-loops -finline-limit=500 -fgcse-sm -fno-schedule-insns --param max-rtl-if-conversion-unpredictable-cost=100 -fno-code-hoisting -mno-thread-jumps1 -mno-iv-adjust-addr-cost -DITERATIONS=10000 -O3 -static -mbit-translate
 else
   CFLAGS += -c -O2
@@ -84,6 +85,9 @@ ${FILE}.hex : ${FILE}.elf
 	${OBJCOPY} ${HEXFLAGS} $< ${DATA_HEX} -j .data*  -j .bss -j .COMMON
 	${OBJCOPY} ${HEXFLAGS} $< $@ 
 
+${FILE}.asm : ${FILE}.elf
+	${OBJDUMP} -d $< > $@	
+
 INST_PAT = inst.pat
 DATA_PAT = data.pat
 FILE_PAT = case.pat
@@ -94,14 +98,16 @@ FILE_PAT = case.pat
 	${CONVERT} ${DATA_HEX} ${DATA_PAT}
 	${CONVERT} ${FILE_HEX} ${FILE_PAT}
 
+symbols.svh : ${FILE}.elf
+	./gen_symbols.py $< 
 
 #--------------------------------------------------------------------
 # target setting
 .PHONY :all
-all : ${FILE}.pat ${FILE}.hex ${FILE}.elf ${FILE}.obj
+all : ${FILE}.pat ${FILE}.hex ${FILE}.elf ${FILE}.obj ${FILE}.asm symbols.svh
 
 #---------------------------------------------------------------------
-# clean some medium code and .pat
+# clean some medium c symbolsode and .pat
 .PHONY :clean 
 clean:
 	rm -rf *.o *.pat *.elf *.obj *.hex

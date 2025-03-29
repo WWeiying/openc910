@@ -32,108 +32,105 @@ CASE_LIST := \
 
 
 ISA_AMO_build:
-	@cp ./tests/cases/ISA/ISA_AMO/* ./work
+	@cp -f ./tests/cases/ISA/ISA_AMO/* ./work
 	@find ./tests/lib/ -maxdepth 1 -type f -exec cp {} ./work/ \; 
-	@cd ./work && make -s clean && make -s all CPU_ARCH_FLAG_0=c910  ENDIAN_MODE=little-endian CASENAME=ISA_AMO FILE=ct_lsu_amo_basic_smart >& ISA_AMO_build.case.log 
+	@cd ./work && make -s clean && make -s all CPU_ARCH_FLAG_0=c910  ENDIAN_MODE=little-endian CASENAME=ISA_AMO FILE=${CASE} >& ISA_AMO_build.case.log 
 
 
 smoke_bus_build:
-	@cp ./tests/cases/smoke/bus_smoke/* ./work
+	@cp -f ./tests/cases/smoke/bus_smoke/* ./work
 	@find ./tests/lib/ -maxdepth 1 -type f -exec cp {} ./work/ \; 
-	@cd ./work && make -s clean && make -s all CPU_ARCH_FLAG_0=c910  ENDIAN_MODE=little-endian CASENAME=smoke_bus FILE=ct_bus_smoke >& smoke_bus_build.case.log 
-
-
- 
+	@cd ./work && make -s clean && make -s all CPU_ARCH_FLAG_0=c910  ENDIAN_MODE=little-endian CASENAME=smoke_bus FILE=${CASE} >& smoke_bus_build.case.log 
 
 
 debug_gpr_build:
-	@cp ./tests/cases/debug/debug_gpr/* ./work
+	@cp -f ./tests/cases/debug/debug_gpr/* ./work
 	@find ./tests/lib/ -maxdepth 1 -type f -exec cp {} ./work/ \; 
-	@cd ./work && make -s clean && make -s all CPU_ARCH_FLAG_0=c910  ENDIAN_MODE=little-endian CASENAME=debug_gpr FILE=debug_read_write_gpr >& debug_gpr_build.case.log 
+	@cd ./work && make -s clean && make -s all CPU_ARCH_FLAG_0=c910  ENDIAN_MODE=little-endian CASENAME=debug_gpr FILE=${CASE} >& debug_gpr_build.case.log 
 
 
 ISA_THEAD_build:
-	@cp ./tests/cases/ISA/ISA_THEAD/* ./work
+	@cp -f ./tests/cases/ISA/ISA_THEAD/* ./work
 	@find ./tests/lib/ -maxdepth 1 -type f -exec cp {} ./work/ \; 
-	@cd ./work && make -s clean && make -s all CPU_ARCH_FLAG_0=c910  ENDIAN_MODE=little-endian CASENAME=ISA_THEAD FILE=isa_thead_smoke >& ISA_THEAD_build.case.log 
+	@cd ./work && make -s clean && make -s all CPU_ARCH_FLAG_0=c910  ENDIAN_MODE=little-endian CASENAME=ISA_THEAD FILE=${CASE} >& ISA_THEAD_build.case.log 
 
 
 cache_op_build:
-	@cp ./tests/cases/cache/idcache_oper/* ./work
+	@cp -f ./tests/cases/cache/idcache_oper/* ./work
 	@find ./tests/lib/ -maxdepth 1 -type f -exec cp {} ./work/ \; 
-	@cd ./work && make -s clean && make -s all CPU_ARCH_FLAG_0=c910  ENDIAN_MODE=little-endian CASENAME=cache_op FILE=ct_idcache_oper >& cache_op_build.case.log 
+	@cd ./work && make -s clean && make -s all CPU_ARCH_FLAG_0=c910  ENDIAN_MODE=little-endian CASENAME=cache_op FILE=${CASE} >& cache_op_build.case.log 
 
 
 debug_memory_build:
-	@cp ./tests/cases/debug/debug_memory/* ./work
+	@cp -f ./tests/cases/debug/debug_memory/* ./work
 	@find ./tests/lib/ -maxdepth 1 -type f -exec cp {} ./work/ \; 
-	@cd ./work && make -s clean && make -s all CPU_ARCH_FLAG_0=c910  ENDIAN_MODE=little-endian CASENAME=debug_memory FILE=debug_read_write_memory >& debug_memory_build.case.log 
+	@cd ./work && make -s clean && make -s all CPU_ARCH_FLAG_0=c910  ENDIAN_MODE=little-endian CASENAME=debug_memory FILE=${CASE} >& debug_memory_build.case.log 
 
 
 ISA_FP_build:
-	@cp ./tests/cases/ISA/ISA_FP/* ./work
+	@cp -f ./tests/cases/ISA/ISA_FP/* ./work
 	@find ./tests/lib/ -maxdepth 1 -type f -exec cp {} ./work/ \; 
-	@cd ./work && make -s clean && make -s all CPU_ARCH_FLAG_0=c910  ENDIAN_MODE=little-endian CASENAME=ISA_FP FILE=ct_fpu_smoke >& ISA_FP_build.case.log 
+	@cd ./work && make -s clean && make -s all CPU_ARCH_FLAG_0=c910  ENDIAN_MODE=little-endian CASENAME=ISA_FP FILE=${CASE} >& ISA_FP_build.case.log 
 
 
 ISA_IMAC_build:
-	@cp ./tests/cases/ISA/ISA_IMAC/* ./work
+	@cp -f ./tests/cases/ISA/ISA_IMAC/* ./work
 	@find ./tests/lib/ -maxdepth 1 -type f -exec cp {} ./work/ \; 
-	@cd ./work && make -s clean && make -s all CPU_ARCH_FLAG_0=c910  ENDIAN_MODE=little-endian CASENAME=ISA_IMAC FILE=ct_imac_smoke >& ISA_IMAC_build.case.log 
+	@cd ./work && make -s clean && make -s all CPU_ARCH_FLAG_0=c910  ENDIAN_MODE=little-endian CASENAME=ISA_IMAC FILE=${CASE} >& ISA_IMAC_build.case.log 
 
 
 coremark_build:
-	@cp ./tests/cases/coremark/* ./work
+	@cp -f ./tests/cases/coremark/* ./work
 	@find ./tests/lib/ -maxdepth 1 -type f -exec cp {} ./work/ \; 
-	@cp ./tests/lib/clib/* ./work
-	@cp ./tests/lib/newlib_wrap/* ./work
-	@cd ./work && make -s clean && make -s all CPU_ARCH_FLAG_0=c910  ENDIAN_MODE=little-endian CASENAME=coremark FILE=core_main >& coremark_build.case.log 
+	@cp -f ./tests/lib/clib/* ./work
+	@cp -f ./tests/lib/newlib_wrap/* ./work
+	@cd ./work && make -s clean && make -s all CPU_ARCH_FLAG_0=c910  ENDIAN_MODE=little-endian CASENAME=coremark FILE=${CASE} >& coremark_build.case.log 
 
 
 hello_world_build:
-	@cp ./tests/cases/hello_world/* ./work
+	@cp -f ./tests/cases/hello_world/* ./work
 	@find ./tests/lib/ -maxdepth 1 -type f -exec cp {} ./work/ \; 
-	@cp ./tests/lib/clib/* ./work
-	@cp ./tests/lib/newlib_wrap/* ./work
-	@cd ./work && make -s clean && make -s all CPU_ARCH_FLAG_0=c910  ENDIAN_MODE=little-endian CASENAME=hello_world FILE=hello_world >& hello_world_build.case.log 
+	@cp -f ./tests/lib/clib/* ./work
+	@cp -f ./tests/lib/newlib_wrap/* ./work
+	@cd ./work && make -s clean && make -s all CPU_ARCH_FLAG_0=c910  ENDIAN_MODE=little-endian CASENAME=hello_world FILE=${CASE} >& hello_world_build.case.log 
 
 
 MMU_build:
-	@cp ./tests/cases/MMU/* ./work
+	@cp -f ./tests/cases/MMU/* ./work
 	@find ./tests/lib/ -maxdepth 1 -type f -exec cp {} ./work/ \; 
-	@cd ./work && make -s clean && make -s all CPU_ARCH_FLAG_0=c910  ENDIAN_MODE=little-endian CASENAME=MMU FILE=ct_mmu_basic >& MMU_build.case.log 
+	@cd ./work && make -s clean && make -s all CPU_ARCH_FLAG_0=c910  ENDIAN_MODE=little-endian CASENAME=MMU FILE=${CASE} >& MMU_build.case.log 
 
 
 ISA_VECTOR_build:
-	@cp ./tests/cases/ISA/ISA_VECTOR/VECTOR_SMOKE/* ./work
+	@cp -f ./tests/cases/ISA/ISA_VECTOR/VECTOR_SMOKE/* ./work
 	@find ./tests/lib/ -maxdepth 1 -type f -exec cp {} ./work/ \; 
-	@cd ./work && make -s clean && make -s all CPU_ARCH_FLAG_0=c910  ENDIAN_MODE=little-endian CASENAME=ISA_VECTOR FILE=ct_vdsp_smoke >& ISA_VECTOR_build.case.log 
+	@cd ./work && make -s clean && make -s all CPU_ARCH_FLAG_0=c910  ENDIAN_MODE=little-endian CASENAME=ISA_VECTOR FILE=${CASE} >& ISA_VECTOR_build.case.log 
 
 
 csr_build:
-	@cp ./tests/cases/csr/* ./work
+	@cp -f ./tests/cases/csr/* ./work
 	@find ./tests/lib/ -maxdepth 1 -type f -exec cp {} ./work/ \; 
-	@cd ./work && make -s clean && make -s all CPU_ARCH_FLAG_0=c910  ENDIAN_MODE=little-endian CASENAME=csr FILE=ct_csr_operate >& csr_build.case.log 
+	@cd ./work && make -s clean && make -s all CPU_ARCH_FLAG_0=c910  ENDIAN_MODE=little-endian CASENAME=csr FILE=${CASE} >& csr_build.case.log 
 
 
 ISA_BARRIER_build:
-	@cp ./tests/cases/ISA/ISA_BARRIER/* ./work
+	@cp -f ./tests/cases/ISA/ISA_BARRIER/* ./work
 	@find ./tests/lib/ -maxdepth 1 -type f -exec cp {} ./work/ \; 
-	@cd ./work && make -s clean && make -s all CPU_ARCH_FLAG_0=c910  ENDIAN_MODE=little-endian CASENAME=ISA_BARRIER FILE=ct_lsu_barrier_smart >& ISA_BARRIER_build.case.log 
+	@cd ./work && make -s clean && make -s all CPU_ARCH_FLAG_0=c910  ENDIAN_MODE=little-endian CASENAME=ISA_BARRIER FILE=${CASE} >& ISA_BARRIER_build.case.log 
 
 
 plic_int_build:
-	@cp ./tests/cases/interrupt/int_smoke/* ./work
+	@cp -f ./tests/cases/interrupt/int_smoke/* ./work
 	@find ./tests/lib/ -maxdepth 1 -type f -exec cp {} ./work/ \; 
-	@cd ./work && make -s clean && make -s all CPU_ARCH_FLAG_0=c910  ENDIAN_MODE=little-endian CASENAME=plic_int FILE=ct_plic_int_smoke >& plic_int_build.case.log 
+	@cd ./work && make -s clean && make -s all CPU_ARCH_FLAG_0=c910  ENDIAN_MODE=little-endian CASENAME=plic_int FILE=${CASE} >& plic_int_build.case.log 
 
 
 sleep_build:
-	@cp ./tests/cases/sleep/* ./work
+	@cp -f ./tests/cases/sleep/* ./work
 	@find ./tests/lib/ -maxdepth 1 -type f -exec cp {} ./work/ \; 
-	@cp ./tests/lib/clib/* ./work
-	@cp ./tests/lib/newlib_wrap/* ./work
-	@cd ./work && make -s clean && make -s all CPU_ARCH_FLAG_0=c910  ENDIAN_MODE=little-endian CASENAME=sleep FILE=sleep_test >& sleep_build.case.log 
+	@cp -f ./tests/lib/clib/* ./work
+	@cp -f ./tests/lib/newlib_wrap/* ./work
+	@cd ./work && make -s clean && make -s all CPU_ARCH_FLAG_0=c910  ENDIAN_MODE=little-endian CASENAME=sleep FILE=${CASE} >& sleep_build.case.log 
 
 
 # Adjust verilog filelist for *.v case...

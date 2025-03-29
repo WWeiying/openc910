@@ -26,7 +26,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-
+`include "../../work/symbols.svh"
 `timescale 1ns/100ps
 
 `define CLK_PERIOD          10
@@ -38,11 +38,11 @@ limitations under the License.
 
 `define CPU_TOP             tb.x_soc.x_cpu_sub_system_axi.x_rv_integration_platform.x_cpu_top
 `define tb_retire0          `CPU_TOP.core0_pad_retire0
-`define retire0_pc          `CPU_TOP.core0_pad_retire0_pc[39:0]
+`define retire0_pc          `CPU_TOP.core0_pad_retire0_pc[31:0]
 `define tb_retire1          `CPU_TOP.core0_pad_retire1
-`define retire1_pc          `CPU_TOP.core0_pad_retire1_pc[39:0]
+`define retire1_pc          `CPU_TOP.core0_pad_retire1_pc[31:0]
 `define tb_retire2          `CPU_TOP.core0_pad_retire2
-`define retire2_pc          `CPU_TOP.core0_pad_retire2_pc[39:0]
+`define retire2_pc          `CPU_TOP.core0_pad_retire2_pc[31:0]
 `define CPU_CLK             `CPU_TOP.pll_cpu_clk
 `define CPU_RST             `CPU_TOP.pad_cpu_rst_b
 `define clk_en              `CPU_TOP.axim_clk_en
@@ -191,33 +191,111 @@ module tb();
   begin
   #(`MAX_RUN_TIME * `CLK_PERIOD);
     $display("**********************************************");
-    $display("*   meeting max simulation time, stop!       *");
+    $display("  Error: Simulation Timeout (Max %0d cycles)!  ", `MAX_RUN_TIME);
     $display("**********************************************");
     FILE = $fopen("run_case.report","w");
-    $fwrite(FILE,"TEST FAIL");   
+    $fwrite(FILE, "TEST FAIL: Timeout after %d cycles", `MAX_RUN_TIME);
+
+    $fclose(FILE); 
   $finish;
   end
   
-  reg [31:0] retire_inst_in_period;
+  reg [31:0] retire_inst_count;
   reg [31:0] cycle_count;
-  
+  real cpi =0.0;
+  reg [31:0] main_retire_inst_count_start;
+  reg [31:0] main_retire_inst_count_end;
+  reg [31:0] main_cycle_count_start;
+  reg [31:0] main_cycle_count_end;
+  real main_cpi =0.0;
+  reg [31:0] kernel_retire_inst_count_start;
+  reg [31:0] kernel_retire_inst_count_end;
+  reg [31:0] kernel_cycle_count_start;
+  reg [31:0] kernel_cycle_count_end;
+  real kernel_cpi =0.0;
+
   `define LAST_CYCLE 50000
   always @(posedge clk or negedge rst_b)
   begin
     if(!rst_b)
-      cycle_count[31:0] <= 32'b1;
+      cycle_count[31:0] <= 32'b0;
     else 
       cycle_count[31:0] <= cycle_count[31:0] + 1'b1;
   end
   
+  always @(posedge clk or negedge rst_b)
+  begin
+    if(!rst_b) begin
+      main_cycle_count_start[31:0] <= 32'b0;
+      main_retire_inst_count_start[31:0] <= 32'b0;
+    end
+    else if ((`retire0_pc == `main_ADDR) || (`retire1_pc == `main_ADDR) || (`retire2_pc == `main_ADDR)) begin
+      main_cycle_count_start[31:0] <= cycle_count[31:0];
+      main_retire_inst_count_start[31:0] <= retire_inst_count[31:0] + `tb_retire0 + `tb_retire1 + `tb_retire2;
+    end
+    else begin
+      main_cycle_count_start[31:0] <= main_cycle_count_start[31:0];
+      main_retire_inst_count_start[31:0] <= main_retire_inst_count_start[31:0];
+    end
+  end
   
   always @(posedge clk or negedge rst_b)
   begin
+    if(!rst_b) begin
+      main_cycle_count_end[31:0] <= 32'b0;
+      main_retire_inst_count_end[31:0] <= 32'b0;
+    end
+    else if ((`retire0_pc == `__exit_ADDR) || (`retire1_pc == `__exit_ADDR) || (`retire2_pc == `__exit_ADDR)) begin
+      main_cycle_count_end[31:0] <= cycle_count[31:0];
+      main_retire_inst_count_end[31:0] <= retire_inst_count[31:0] + `tb_retire0 + `tb_retire1 + `tb_retire2;
+    end
+    else begin
+      main_cycle_count_end[31:0] <= main_cycle_count_end[31:0];
+      main_retire_inst_count_end[31:0] <= main_retire_inst_count_end[31:0];
+    end
+  end
+
+  always @(posedge clk or negedge rst_b)
+  begin
+    if(!rst_b) begin
+      kernel_cycle_count_start[31:0] <= 32'b0;
+      kernel_retire_inst_count_start[31:0] <= 32'b0;
+    end
+    else if (((`retire0_pc == `perf_monitor_start_ADDR) || (`retire1_pc == `perf_monitor_start_ADDR) || (`retire2_pc == `perf_monitor_start_ADDR)) &&
+             (`perf_monitor_start_ADDR != 32'b0)) begin
+      kernel_cycle_count_start[31:0] <= cycle_count[31:0];
+      kernel_retire_inst_count_start[31:0] <= retire_inst_count[31:0] + `tb_retire0 + `tb_retire1 + `tb_retire2;
+    end
+    else begin
+      kernel_cycle_count_start[31:0] <= kernel_cycle_count_start[31:0];
+      kernel_retire_inst_count_start[31:0] <= kernel_retire_inst_count_start[31:0];
+    end
+  end
+
+  always @(posedge clk or negedge rst_b)
+  begin
+    if(!rst_b) begin
+      kernel_cycle_count_end[31:0] <= 32'b0;
+      kernel_retire_inst_count_end[31:0] <= 32'b0;
+    end
+    else if (((`retire0_pc == `perf_monitor_end_ADDR) || (`retire1_pc == `perf_monitor_end_ADDR) || (`retire2_pc == `perf_monitor_end_ADDR)) &&
+             (`perf_monitor_end_ADDR != 32'b0)) begin
+      kernel_cycle_count_end[31:0] <= cycle_count[31:0];
+      kernel_retire_inst_count_end[31:0] <= retire_inst_count[31:0] + `tb_retire0 + `tb_retire1 + `tb_retire2;
+    end
+    else begin
+      kernel_cycle_count_end[31:0] <= kernel_cycle_count_end[31:0];
+      kernel_retire_inst_count_end[31:0] <= kernel_retire_inst_count_end[31:0];
+    end
+  end
+
+  always @(posedge clk or negedge rst_b)
+  begin
     if(!rst_b) //reset to zero
-      retire_inst_in_period[31:0] <= 32'b0;
-    else if( (cycle_count[31:0] % `LAST_CYCLE) == 0)//check and reset retire_inst_in_period every 50000 cycles
+      retire_inst_count[31:0] <= 32'b0;
+    else if((cycle_count[31:0] !=0) && (cycle_count[31:0] % `LAST_CYCLE) == 0)//check and reset retire_inst_count every 50000 cycles
     begin
-      if(retire_inst_in_period[31:0] == 0)begin
+      if(retire_inst_count[31:0] == 0)begin
         $display("*************************************************************");
         $display("* Error: There is no instructions retired in the last %d cycles! *", `LAST_CYCLE);
         $display("*              Simulation Fail and Finished!                *");
@@ -226,12 +304,13 @@ module tb();
         FILE = $fopen("run_case.report","w");
         $fwrite(FILE,"TEST FAIL");   
   
+	$fclose(FILE); 
         $finish;
       end
-      retire_inst_in_period[31:0] <= 32'b0;
+      retire_inst_count[31:0] <= 32'b0;
     end
-    else if(`tb_retire0 || `tb_retire1 || `tb_retire2)
-      retire_inst_in_period[31:0] <= retire_inst_in_period[31:0] + 1'b1;
+    else
+      retire_inst_count[31:0] <= retire_inst_count[31:0] + `tb_retire0 + `tb_retire1 + `tb_retire2;
   end
   
   
@@ -258,29 +337,76 @@ module tb();
     value1              <= `CPU_TOP.x_ct_top_0.x_ct_core.x_ct_iu_top.x_ct_iu_rbus.rbus_pipe1_wb_data[63:0];
     value2              <= `CPU_TOP.x_ct_top_0.x_ct_core.x_ct_lsu_top.x_ct_lsu_ld_wb.ld_wb_preg_data_sign_extend[63:0];
   end
-  
+
   always @(posedge clk)
   begin
-      if(value0 == 64'h444333222 || value1 == 64'h444333222 || value2 == 64'h444333222)
+    if(value0 == 64'h444333222 || value1 == 64'h444333222 || value2 == 64'h444333222)
     begin
-      $display("**********************************************");
-      $display("*    simulation finished successfully        *");
-      $display("**********************************************");
+      cpi = real'(cycle_count) / retire_inst_count;
+      main_cpi = real'($signed(main_cycle_count_end - main_cycle_count_start)) / ($signed(main_retire_inst_count_end - main_retire_inst_count_start));
+      kernel_cpi = real'($signed(kernel_cycle_count_end - kernel_cycle_count_start)) / ($signed(kernel_retire_inst_count_end - kernel_retire_inst_count_start));
+      $display("******************************************************************");
+      $display("*                  simulation finished successfully              *");
+      $display("******************************************************************");
+      $display("\n===================== Performance Statistics =====================");
+      $display("|     Phase     |     Cycles     |  Retired Inst  |     CPI      |");
+      $display("|---------------|----------------|----------------|--------------|");
+      $display("|     Total     |   %-10d   |   %-10d   |   %-8.3f   |", 
+              cycle_count, 
+              retire_inst_count,
+              cpi);
+      $display("|----------------------------------------------------------------|");
+      
+      $display("|     Main      |   %-10d   |   %-10d   |   %-8.3f   |", 
+              $signed(main_cycle_count_end - main_cycle_count_start),
+              $signed(main_retire_inst_count_end - main_retire_inst_count_start),
+              main_cpi);
+
+      $display("|     Kernel    |   %-10d   |   %-10d   |   %-8.3f   |", 
+              $signed(kernel_cycle_count_end - kernel_cycle_count_start),
+              $signed(kernel_retire_inst_count_end - kernel_retire_inst_count_start),
+              kernel_cpi);
+      $display("==================================================================\n");
+
      #10;
      FILE = $fopen("run_case.report","w");
      $fwrite(FILE,"TEST PASS");   
-  
+
+     $fclose(FILE); 
      $finish;
     end
-      else if (value0 == 64'h2382348720 || value1 == 64'h2382348720 || value2 == 64'h444333222)
+    else if (value0 == 64'h2382348720 || value1 == 64'h2382348720 || value2 == 64'h2382348720)
     begin
-     $display("**********************************************");
-     $display("*    simulation finished with error          *");
-     $display("**********************************************");
+      cpi = real'(cycle_count) / retire_inst_count;
+      main_cpi = real'($signed(main_cycle_count_end - main_cycle_count_start)) / ($signed(main_retire_inst_count_end - main_retire_inst_count_start));
+      kernel_cpi = real'($signed(kernel_cycle_count_end - kernel_cycle_count_start)) / ($signed(kernel_retire_inst_count_end - kernel_retire_inst_count_start));
+      $display("******************************************************************");
+      $display("*                   simulation finished with error               *");
+      $display("******************************************************************");
+      $display("\n===================== Performance Statistics =====================");
+      $display("|     Phase     |     Cycles     |  Retired Inst  |     CPI      |");
+      $display("|---------------|----------------|----------------|--------------|");
+      $display("|     Total     |   %-10d   |   %-10d   |   %-8.3f   |", 
+              cycle_count, 
+              retire_inst_count,
+              cpi);
+      $display("|----------------------------------------------------------------|");
+      
+      $display("|     Main      |   %-10d   |   %-10d   |   %-8.3f   |", 
+              $signed(main_cycle_count_end - main_cycle_count_start),
+              $signed(main_retire_inst_count_end - main_retire_inst_count_start),
+              main_cpi);
+
+      $display("|     Kernel    |   %-10d   |   %-10d   |   %-8.3f   |", 
+              $signed(kernel_cycle_count_end - kernel_cycle_count_start),
+              $signed(kernel_retire_inst_count_end - kernel_retire_inst_count_start),
+              kernel_cpi);
+      $display("==================================================================\n");
      #10;
      FILE = $fopen("run_case.report","w");
      $fwrite(FILE,"TEST FAIL");   
-  
+
+     $fclose(FILE); 
      $finish;
     end
   
@@ -311,7 +437,21 @@ module tb();
   
   end
   
+  integer fd;
+  initial begin
+      fd = $fopen("pc_trace.log", "w");
+  end
   
+  always @(posedge clk) begin
+      if (`tb_retire0) $fdisplay(fd, "slot1@%10d:%08h", cycle_count, `retire0_pc);
+      if (`tb_retire1) $fdisplay(fd, "slot2@%10d:%08h", cycle_count, `retire1_pc);
+      if (`tb_retire2) $fdisplay(fd, "slot3@%10d:%08h", cycle_count, `retire2_pc);
+  end
+  
+  final begin
+      $fclose(fd);
+  end
+
   
   parameter cpu_cycle = 110;
   `ifndef NO_DUMP

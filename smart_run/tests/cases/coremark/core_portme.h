@@ -38,7 +38,7 @@
 	Define to 1 if the platform has stdio.h.
 */
 #ifndef HAS_STDIO
-#define HAS_STDIO 0
+#define HAS_STDIO 1
 #endif
 /* Configuration : HAS_PRINTF
 	Define to 1 if the platform has stdio.h and implements the printf function.
@@ -79,7 +79,7 @@ typedef signed int ee_s32;
 typedef double ee_f32;
 typedef unsigned char ee_u8;
 typedef unsigned int ee_u32;
-typedef ee_u32 ee_ptr_int;
+typedef unsigned long ee_ptr_int;
 // typedef size_t ee_size_t;
 typedef unsigned int ee_size_t;
 

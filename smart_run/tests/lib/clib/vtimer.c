@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-int get_vtimer()
+unsigned int get_vtimer()
 {
   volatile unsigned int   LoadCount;
   asm ("csrr %[LoadCount], time\n"
@@ -28,7 +28,7 @@ int get_vtimer()
 void sim_end()
 {
   int *END_ADDR;
-  END_ADDR = 0xA001FF48;
+  END_ADDR = (int *)0xA001FF48;
   unsigned int END_DATA;
   // END_DATA= 0xFFF;
   END_DATA= 0x444333222;
