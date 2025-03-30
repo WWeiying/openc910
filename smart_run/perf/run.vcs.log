@@ -1,0 +1,52 @@
+Command: /home/wangwy/brook/hardware/deps/openc910/smart_run/work/./simv -l run.vcs.log
+Chronologic VCS simulator copyright 1991-2023
+Contains Synopsys proprietary information.
+Compiler version V-2023.12-SP1_Full64; Runtime version V-2023.12-SP1_Full64;  Mar 30 16:50 2025
+	********* Init Program *********
+	********* Wipe memory to 0 *********
+	********* Read program *********
+	********* Load program to memory *********
+*Verdi* Loading libsscore_vcs202312.so
+FSDB Dumper for VCS, Release Verdi_V-2023.12-SP1, Linux x86_64/64bit, 03/03/2024
+(C) 1996 - 2024 by Synopsys, Inc.
+*Verdi* : Create FSDB file 'novas.fsdb'
+*Verdi* : Begin traversing the scopes, layer (0).
+*Verdi* : End of traversing.
+
+VCUNT_IM:: CoreMark has been run 2 times, one times cost 162188 cycles !
+
+VCUNT_SIM: CoreMark 1.0 : 6.165684 (iterations/sec)/MHz
+K perrformance run parameters for coremark.
+CoreMark Size    : 666
+Total ticks      : -1
+Total time (secs): 42
+Iterations/Sec   : 0
+Iterations       : 2
+Compiler version : GCC14.1.1 20240710
+Compiler flags   : -O
+Memory location  : STACK
+seedcrc          : 0xe9f5
+[0]crclist       : 0xe714
+[0]crcmatrix     : 0x1fd7
+[0]crcstate      : 0x8e3a
+[0]crcfinal      : 0x72be
+Correct operation validated. See readme.txt for run and reporting rules.
+******************************************************************
+*                  simulation finished successfully              *
+******************************************************************
+
+===================== Performance Statistics ====================================
+|     Phase     |     Cycles     |  Retired Inst  |     CPI      |     IPC      |
+|---------------|----------------|----------------|--------------|--------------|
+|     Total     |   360545       |   486620       |      0.741   |      1.350   |
+|-------------------------------------------------------------------------------|
+|     Main      |   356495       |   486546       |      0.733   |      1.365   |
+|     Kernel    |   0            |   0            |       -nan   |       -nan   |
+=================================================================================
+
+$finish called from file "../logical/tb/tb.v", line 369.
+$finish at simulation time          36057450000
+           V C S   S i m u l a t i o n   R e p o r t 
+Time: 3605745000000 fs
+CPU Time:   1134.800 seconds;       Data structure size:  89.6Mb
+Sun Mar 30 17:06:54 2025
