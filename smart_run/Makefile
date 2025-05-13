@@ -14,7 +14,6 @@
 #*/
 
 include ./setup/smart_cfg.mk
-include ./setup/env_check.mk
 
 ################################################################################
 # Simulation related
@@ -23,8 +22,11 @@ SIM = vcs
 DUMP = on
 UPF = off 
 THREADS = 4
+export COMPILER = gcc 
+
 export CODE_BASE_PATH = /home/wangwy/brook/hardware/deps/openc910/C910_RTL_FACTORY
-export TOOL_EXTENSION= /home/wangwy/brook/toolchains/Xuantie-900-gcc-elf-newlib-x86_64-V3.0.1/bin/
+export GCC_PATH = /home/wangwy/brook/toolchains/Xuantie-900-gcc-elf-newlib-x86_64-V3.0.1/bin/
+export LLVM_PATH = /home/wangwy/brook/toolchains/Xuantie-900-llvm-elf-newlib-x86_64-V2.0.1/bin
 
 # Generate C++ in executable form
 VERILATOR_FLAGS += -cc --exe
@@ -63,7 +65,7 @@ endif
 
 ifeq (${SIM}, vcs)
 TIMESCALE := -timescale=1ns/100fs
-SIMULATOR_OPT := -sverilog -full64 -Mupdate -j64 -lca -kdb -debug_access +nospecify +notimingchecks +lint=TFIPC-L 
+SIMULATOR_OPT := -full64 -sverilog -Mupdate -j64 -lca -kdb -debug_access +nospecify +notimingchecks +lint=TFIPC-L 
 SIMULATOR_DEF := +define+no_warning +define+TSMC_NO_WARNING
 SIMULATOR_LOG := -l comp.vcs.log
 ifeq (${UPF}, on)
@@ -149,7 +151,7 @@ showcase:
           echo "    $$case"; \
         done
 
-buildcase: tool-chain-chk
+buildcase: 
 ifeq (${CASE},)
 	$(error Please specify CASE=xxx on the command line, like: \
         $(newline)   > make buildcase CASE=xxx... \

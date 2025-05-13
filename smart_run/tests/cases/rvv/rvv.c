@@ -16,7 +16,9 @@ limitations under the License.
 
 int main (void)
 {
-
+asm(
+  "vsetvli t0, a0, e64, mf8;vsetvli t0, a0, e8, m2;vsetvli t0, a0, e32, mf2"
+);
 //Section 1: Hello World!
   printf("\nHello Friend!\n");
   printf("Welcome to T-HEAD World!\n");
