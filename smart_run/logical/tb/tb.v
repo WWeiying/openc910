@@ -50,8 +50,8 @@ limitations under the License.
 `define CP0_RSLT_VLD        `CPU_TOP.x_ct_top_0.x_ct_core.x_ct_cp0_top.x_ct_cp0_iui.cp0_iu_ex3_rslt_vld
 `define CP0_RSLT            `CPU_TOP.x_ct_top_0.x_ct_core.x_ct_cp0_top.x_ct_cp0_iui.cp0_iu_ex3_rslt_data[63:0]
 
-`define mcycle_value        `CPU_TOP.x_ct_top_0.x_ct_hpcp_top.mcycle_value[63:0]
-`define minstret_value      `CPU_TOP.x_ct_top_0.x_ct_hpcp_top.minstret_value[63:0]
+`define mcycle_value   `CPU_TOP.x_ct_top_0.x_ct_hpcp_top.mcycle_value[63:0]
+`define minstret_value `CPU_TOP.x_ct_top_0.x_ct_hpcp_top.minstret_value[63:0]
 `define event1_value  `CPU_TOP.x_ct_top_0.x_ct_hpcp_top.event01_adder[3:0]
 `define event2_value  `CPU_TOP.x_ct_top_0.x_ct_hpcp_top.event02_adder[3:0]
 `define event3_value  `CPU_TOP.x_ct_top_0.x_ct_hpcp_top.event03_adder[3:0]
