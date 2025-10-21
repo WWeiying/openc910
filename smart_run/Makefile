@@ -24,7 +24,7 @@ UPF = off
 THREADS = 4
 export COMPILER = gcc 
 
-export CODE_BASE_PATH = /home/wangwy/brook/hardware/deps/openc910/C910_RTL_FACTORY
+export CODE_BASE_PATH = /home/wangwy/openc910/C910_RTL_FACTORY
 export GCC_PATH = /home/wangwy/brook/toolchains/Xuantie-900-gcc-elf-newlib-x86_64-V3.0.1/bin/
 export LLVM_PATH = /home/wangwy/brook/toolchains/Xuantie-900-llvm-elf-newlib-x86_64-V2.0.1/bin
 
@@ -114,6 +114,7 @@ compile:
 	@echo "  [THead-smart] CODE_BASE_PATH = ${CODE_BASE_PATH}"
 ifeq (${SIM}, vcs)
 	@make -s cleansim
+	@mkdir -p ./work
 	@cd ./work && vcs ${SIMULATOR_OPT} ${TIMESCALE} ${SIMULATOR_DEF} ${SIM_FILELIST} ${SIM_DUMP} ${SIMULATOR_LOG} ${SIMULATOR_POWER_OPT} 
 else 
     ifeq (${SIM}, nc) 

@@ -118,6 +118,7 @@ ISA_VECTOR_build:
 csr_build:
 	@cp -f ./tests/cases/csr/* ./work
 	@find ./tests/lib/ -maxdepth 1 -type f -exec cp {} ./work/ \; 
+	echo $(GCC_PATH)
 	@cd ./work && make -s clean && make -s all CPU_ARCH_FLAG_0=c910 COMPILER=${COMPILER} ENDIAN_MODE=little-endian CASENAME=csr FILE=${CASE} >& csr_build.case.log 
 
 
