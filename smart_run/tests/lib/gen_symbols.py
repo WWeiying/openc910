@@ -43,12 +43,26 @@ def main():
     if missing:
         print(f"Warning: Symbols not found - {', '.join(missing)}")
     
+    addr_map = {
+        'main':                symbols.get('main',                "40'h0000000000"),
+        '__exit':              symbols.get('__exit',              "40'h0000000000"),
+        'perf_monitor_start':  symbols.get('perf_monitor_start',  "40'h0000000000"),
+        'perf_monitor_end':    symbols.get('perf_monitor_end',    "40'h0000000000"),
+    }
+
     with open('symbols.svh', 'w') as f:
-        for sym in [s for s in symbols if s not in missing]:
-            f.write(f'`define {sym}_ADDR {symbols[sym]}\n')
-        for sym in missing:
-            f.write(f'`define {sym}_ADDR 40\'h0000000000\n')
-#    print("Generated symbols.svh")
+        for sym, val in addr_map.items():
+            f.write(f'`define {sym}_ADDR {val}\n')
+
+    # plusargs format for runtime passing to simv (decouples RTL compile from program addresses)
+    def to_hex(verilog_val):
+        return verilog_val.split("'h")[1].lstrip('0') or '0'
+
+    with open('symbols.args', 'w') as f:
+        f.write(f'+sym_main={to_hex(addr_map["main"])}\n')
+        f.write(f'+sym_exit={to_hex(addr_map["__exit"])}\n')
+        f.write(f'+sym_perf_start={to_hex(addr_map["perf_monitor_start"])}\n')
+        f.write(f'+sym_perf_end={to_hex(addr_map["perf_monitor_end"])}\n')
 
 if __name__ == '__main__':
     main()

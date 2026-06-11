@@ -29,7 +29,17 @@ CASE_LIST := \
       ISA_BARRIER \
       plic_int \
       sleep \
-      rvv
+      rvv \
+      bench_branch \
+      bench_mem \
+      bench_ilp \
+      bench_frontend \
+      bench_fp \
+      bench_br_bimodal \
+      bench_br_ras \
+      bench_br_indirect \
+      bench_br_corr \
+      bench_cache_stride
 
 ISA_AMO_build:
 	@cp -f ./tests/cases/ISA/ISA_AMO/* ./work
@@ -140,6 +150,94 @@ sleep_build:
 	@cp -f ./tests/lib/clib/* ./work
 	@cp -f ./tests/lib/newlib_wrap/* ./work
 	@cd ./work && make -s clean && make -s all CPU_ARCH_FLAG_0=c910 COMPILER=${COMPILER} ENDIAN_MODE=little-endian CASENAME=sleep FILE=${CASE} >& sleep_build.case.log 
+
+
+bench_br_bimodal_build:
+	@cp -f ./tests/cases/bench_br_bimodal/* ./work
+	@find ./tests/lib/ -maxdepth 1 -type f -exec cp {} ./work/ \;
+	@cp -f ./tests/lib/clib/* ./work
+	@cp -f ./tests/lib/newlib_wrap/* ./work
+	@cd ./work && make -s clean && make -s all CPU_ARCH_FLAG_0=c910 COMPILER=${COMPILER} ENDIAN_MODE=little-endian CASENAME=bench_br_bimodal FILE=${CASE} >& bench_br_bimodal_build.case.log
+
+
+bench_br_ras_build:
+	@cp -f ./tests/cases/bench_br_ras/* ./work
+	@find ./tests/lib/ -maxdepth 1 -type f -exec cp {} ./work/ \;
+	@cp -f ./tests/lib/clib/* ./work
+	@cp -f ./tests/lib/newlib_wrap/* ./work
+	@cd ./work && make -s clean && make -s all CPU_ARCH_FLAG_0=c910 COMPILER=${COMPILER} ENDIAN_MODE=little-endian CASENAME=bench_br_ras FILE=${CASE} >& bench_br_ras_build.case.log
+
+
+bench_br_indirect_build:
+	@cp -f ./tests/cases/bench_br_indirect/* ./work
+	@find ./tests/lib/ -maxdepth 1 -type f -exec cp {} ./work/ \;
+	@cp -f ./tests/lib/clib/* ./work
+	@cp -f ./tests/lib/newlib_wrap/* ./work
+	@cd ./work && make -s clean && make -s all CPU_ARCH_FLAG_0=c910 COMPILER=${COMPILER} ENDIAN_MODE=little-endian CASENAME=bench_br_indirect FILE=${CASE} >& bench_br_indirect_build.case.log
+
+
+bench_br_corr_build:
+	@cp -f ./tests/cases/bench_br_corr/* ./work
+	@find ./tests/lib/ -maxdepth 1 -type f -exec cp {} ./work/ \;
+	@cp -f ./tests/lib/clib/* ./work
+	@cp -f ./tests/lib/newlib_wrap/* ./work
+	@cd ./work && make -s clean && make -s all CPU_ARCH_FLAG_0=c910 COMPILER=${COMPILER} ENDIAN_MODE=little-endian CASENAME=bench_br_corr FILE=${CASE} >& bench_br_corr_build.case.log
+
+
+bench_cache_cap_build:
+	@cp -f ./tests/cases/bench_cache_cap/* ./work
+	@find ./tests/lib/ -maxdepth 1 -type f -exec cp {} ./work/ \;
+	@cp -f ./tests/lib/clib/* ./work
+	@cp -f ./tests/lib/newlib_wrap/* ./work
+	@cd ./work && make -s clean && make -s all CPU_ARCH_FLAG_0=c910 COMPILER=${COMPILER} ENDIAN_MODE=little-endian CASENAME=bench_cache_cap FILE=${CASE} >& bench_cache_cap_build.case.log
+
+
+bench_cache_stride_build:
+	@cp -f ./tests/cases/bench_cache_stride/* ./work
+	@find ./tests/lib/ -maxdepth 1 -type f -exec cp {} ./work/ \;
+	@cp -f ./tests/lib/clib/* ./work
+	@cp -f ./tests/lib/newlib_wrap/* ./work
+	@cd ./work && make -s clean && make -s all CPU_ARCH_FLAG_0=c910 COMPILER=${COMPILER} ENDIAN_MODE=little-endian CASENAME=bench_cache_stride FILE=${CASE} >& bench_cache_stride_build.case.log
+
+
+bench_branch_build:
+	@cp -f ./tests/cases/bench_branch/* ./work
+	@find ./tests/lib/ -maxdepth 1 -type f -exec cp {} ./work/ \;
+	@cp -f ./tests/lib/clib/* ./work
+	@cp -f ./tests/lib/newlib_wrap/* ./work
+	@cd ./work && make -s clean && make -s all CPU_ARCH_FLAG_0=c910 COMPILER=${COMPILER} ENDIAN_MODE=little-endian CASENAME=bench_branch FILE=${CASE} >& bench_branch_build.case.log
+
+
+bench_mem_build:
+	@cp -f ./tests/cases/bench_mem/* ./work
+	@find ./tests/lib/ -maxdepth 1 -type f -exec cp {} ./work/ \;
+	@cp -f ./tests/lib/clib/* ./work
+	@cp -f ./tests/lib/newlib_wrap/* ./work
+	@cd ./work && make -s clean && make -s all CPU_ARCH_FLAG_0=c910 COMPILER=${COMPILER} ENDIAN_MODE=little-endian CASENAME=bench_mem FILE=${CASE} >& bench_mem_build.case.log
+
+
+bench_ilp_build:
+	@cp -f ./tests/cases/bench_ilp/* ./work
+	@find ./tests/lib/ -maxdepth 1 -type f -exec cp {} ./work/ \;
+	@cp -f ./tests/lib/clib/* ./work
+	@cp -f ./tests/lib/newlib_wrap/* ./work
+	@cd ./work && make -s clean && make -s all CPU_ARCH_FLAG_0=c910 COMPILER=${COMPILER} ENDIAN_MODE=little-endian CASENAME=bench_ilp FILE=${CASE} >& bench_ilp_build.case.log
+
+
+bench_frontend_build:
+	@cp -f ./tests/cases/bench_frontend/* ./work
+	@find ./tests/lib/ -maxdepth 1 -type f -exec cp {} ./work/ \;
+	@cp -f ./tests/lib/clib/* ./work
+	@cp -f ./tests/lib/newlib_wrap/* ./work
+	@cd ./work && make -s clean && make -s all CPU_ARCH_FLAG_0=c910 COMPILER=${COMPILER} ENDIAN_MODE=little-endian CASENAME=bench_frontend FILE=${CASE} >& bench_frontend_build.case.log
+
+
+bench_fp_build:
+	@cp -f ./tests/cases/bench_fp/* ./work
+	@find ./tests/lib/ -maxdepth 1 -type f -exec cp {} ./work/ \;
+	@cp -f ./tests/lib/clib/* ./work
+	@cp -f ./tests/lib/newlib_wrap/* ./work
+	@cd ./work && make -s clean && make -s all CPU_ARCH_FLAG_0=c910 COMPILER=${COMPILER} ENDIAN_MODE=little-endian CASENAME=bench_fp FILE=${CASE} >& bench_fp_build.case.log
 
 
 # Adjust verilog filelist for *.v case...

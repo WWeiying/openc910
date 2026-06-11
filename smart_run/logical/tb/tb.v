@@ -745,90 +745,111 @@ module tb();
       $display("|       ALU         |        %-10d |        %-10d |    %-8.2f%%      |",
               $signed(main_event_counter_end[29] - main_event_counter_start[29]),
               $signed(main_retire_inst_count_end - main_retire_inst_count_start),
-              100*real'($signed(main_event_counter_end[29] - main_event_counter_start[29])) / ($signed(main_retire_inst_count_end - main_retire_inst_count_start)));
+              ($signed(main_retire_inst_count_end - main_retire_inst_count_start) != 0) ?
+              100*real'($signed(main_event_counter_end[29] - main_event_counter_start[29])) / ($signed(main_retire_inst_count_end - main_retire_inst_count_start)) : 0.0);
       $display("|    Float Point    |        %-10d |        %-10d |    %-8.2f%%      |",
               $signed(main_event_counter_end[42] - main_event_counter_start[42]),
               $signed(main_retire_inst_count_end - main_retire_inst_count_start),
-              100*real'($signed(main_event_counter_end[42] - main_event_counter_start[42])) / ($signed(main_retire_inst_count_end - main_retire_inst_count_start)));
+              ($signed(main_retire_inst_count_end - main_retire_inst_count_start) != 0) ?
+              100*real'($signed(main_event_counter_end[42] - main_event_counter_start[42])) / ($signed(main_retire_inst_count_end - main_retire_inst_count_start)) : 0.0);
       $display("|      Store        |        %-10d |        %-10d |    %-8.2f%%      |",
               $signed(main_event_counter_end[11] - main_event_counter_start[11]),
               $signed(main_retire_inst_count_end - main_retire_inst_count_start),
-              100*real'($signed(main_event_counter_end[11] - main_event_counter_start[11])) / ($signed(main_retire_inst_count_end - main_retire_inst_count_start)));
+              ($signed(main_retire_inst_count_end - main_retire_inst_count_start) != 0) ?
+              100*real'($signed(main_event_counter_end[11] - main_event_counter_start[11])) / ($signed(main_retire_inst_count_end - main_retire_inst_count_start)) : 0.0);
       $display("|       LDST        |        %-10d |        %-10d |    %-8.2f%%      |",
               $signed(main_event_counter_end[30] - main_event_counter_start[30]),
               $signed(main_retire_inst_count_end - main_retire_inst_count_start),
-              100*real'($signed(main_event_counter_end[30] - main_event_counter_start[30])) / ($signed(main_retire_inst_count_end - main_retire_inst_count_start)));
+              ($signed(main_retire_inst_count_end - main_retire_inst_count_start) != 0) ?
+              100*real'($signed(main_event_counter_end[30] - main_event_counter_start[30])) / ($signed(main_retire_inst_count_end - main_retire_inst_count_start)) : 0.0);
       $display("|    Cond Branch    |        %-10d |        %-10d |    %-8.2f%%      |",
               $signed(main_event_counter_end[7] - main_event_counter_start[7]),
               $signed(main_retire_inst_count_end - main_retire_inst_count_start),
-              100*real'($signed(main_event_counter_end[7] - main_event_counter_start[7])) / ($signed(main_retire_inst_count_end - main_retire_inst_count_start)));
+              ($signed(main_retire_inst_count_end - main_retire_inst_count_start) != 0) ?
+              100*real'($signed(main_event_counter_end[7] - main_event_counter_start[7])) / ($signed(main_retire_inst_count_end - main_retire_inst_count_start)) : 0.0);
       $display("|    Indir Branch   |        %-10d |        %-10d |    %-8.2f%%      |",
               $signed(main_event_counter_end[9] - main_event_counter_start[9]),
               $signed(main_retire_inst_count_end - main_retire_inst_count_start),
-              100*real'($signed(main_event_counter_end[9] - main_event_counter_start[9])) / ($signed(main_retire_inst_count_end - main_retire_inst_count_start)));
+              ($signed(main_retire_inst_count_end - main_retire_inst_count_start) != 0) ?
+              100*real'($signed(main_event_counter_end[9] - main_event_counter_start[9])) / ($signed(main_retire_inst_count_end - main_retire_inst_count_start)) : 0.0);
       $display("|     Long Jump     |        %-10d |        %-10d |    %-8.2f%%      |",
               $signed(main_event_counter_end[38] - main_event_counter_start[38]),
               $signed(main_retire_inst_count_end - main_retire_inst_count_start),
-              100*real'($signed(main_event_counter_end[38] - main_event_counter_start[38])) / ($signed(main_retire_inst_count_end - main_retire_inst_count_start)));
+              ($signed(main_retire_inst_count_end - main_retire_inst_count_start) != 0) ?
+              100*real'($signed(main_event_counter_end[38] - main_event_counter_start[38])) / ($signed(main_retire_inst_count_end - main_retire_inst_count_start)) : 0.0);
       $display("|        Vec        |        %-10d |        %-10d |    %-8.2f%%      |",
               $signed(main_event_counter_end[31] - main_event_counter_start[31]),
               $signed(main_retire_inst_count_end - main_retire_inst_count_start),
-              100*real'($signed(main_event_counter_end[31] - main_event_counter_start[31])) / ($signed(main_retire_inst_count_end - main_retire_inst_count_start)));
+              ($signed(main_retire_inst_count_end - main_retire_inst_count_start) != 0) ?
+              100*real'($signed(main_event_counter_end[31] - main_event_counter_start[31])) / ($signed(main_retire_inst_count_end - main_retire_inst_count_start)) : 0.0);
       $display("|        CSR        |        %-10d |        %-10d |    %-8.2f%%      |",
               $signed(main_event_counter_end[32] - main_event_counter_start[32]),
               $signed(main_retire_inst_count_end - main_retire_inst_count_start),
-              100*real'($signed(main_event_counter_end[32] - main_event_counter_start[32])) / ($signed(main_retire_inst_count_end - main_retire_inst_count_start)));
+              ($signed(main_retire_inst_count_end - main_retire_inst_count_start) != 0) ?
+              100*real'($signed(main_event_counter_end[32] - main_event_counter_start[32])) / ($signed(main_retire_inst_count_end - main_retire_inst_count_start)) : 0.0);
       $display("|       Sync        |        %-10d |        %-10d |    %-8.2f%%      |",
               $signed(main_event_counter_end[33] - main_event_counter_start[33]),
               $signed(main_retire_inst_count_end - main_retire_inst_count_start),
-              100*real'($signed(main_event_counter_end[33] - main_event_counter_start[33])) / ($signed(main_retire_inst_count_end - main_retire_inst_count_start)));
+              ($signed(main_retire_inst_count_end - main_retire_inst_count_start) != 0) ?
+              100*real'($signed(main_event_counter_end[33] - main_event_counter_start[33])) / ($signed(main_retire_inst_count_end - main_retire_inst_count_start)) : 0.0);
       $display("|       Ecall       |        %-10d |        %-10d |    %-8.2f%%      |",
               $signed(main_event_counter_end[37] - main_event_counter_start[37]),
               $signed(main_retire_inst_count_end - main_retire_inst_count_start),
-              100*real'($signed(main_event_counter_end[37] - main_event_counter_start[37])) / ($signed(main_retire_inst_count_end - main_retire_inst_count_start)));
-      $display("|        RF         |        %-10d |        %-10d |    %-8.2f%%      |",
-              $signed(main_event_counter_end[22] - main_event_counter_start[22]),
-              $signed(main_retire_inst_count_end - main_retire_inst_count_start),
-              100*real'($signed(main_event_counter_end[22] - main_event_counter_start[22])) / ($signed(main_retire_inst_count_end - main_retire_inst_count_start)));
+              ($signed(main_retire_inst_count_end - main_retire_inst_count_start) != 0) ?
+              100*real'($signed(main_event_counter_end[37] - main_event_counter_start[37])) / ($signed(main_retire_inst_count_end - main_retire_inst_count_start)) : 0.0);
       $display("|-------------------------------------------------------------------------------|");
       $display("|     Main Monitor  |    Perf Count     |    Total Perf     |    Percentage     |");
       $display("|-------------------------------------------------------------------------------|");
+      $display("| RF Pipe Launches  |        %-10d |        %-10d |    %-8.2f%%      |",
+              $signed(main_event_counter_end[22] - main_event_counter_start[22]),
+              $signed(main_retire_inst_count_end - main_retire_inst_count_start),
+              ($signed(main_retire_inst_count_end - main_retire_inst_count_start) != 0) ?
+                  100*real'($signed(main_event_counter_end[22] - main_event_counter_start[22])) / ($signed(main_retire_inst_count_end - main_retire_inst_count_start)) : 0.0);
       $display("|      L1I Miss     |        %-10d |        %-10d |    %-8.2f%%      |",
               $signed(main_event_counter_end[2] - main_event_counter_start[2]),
               $signed(main_event_counter_end[1] - main_event_counter_start[1]),
-              100*real'($signed(main_event_counter_end[2] - main_event_counter_start[2])) / ($signed(main_event_counter_end[1] - main_event_counter_start[1])));
-      $display("|   L1D Store Miss  |        %-10d |        %-10d |    %-8.2f%%      |",
+              ($signed(main_event_counter_end[1] - main_event_counter_start[1]) != 0) ?
+                  100*real'($signed(main_event_counter_end[2] - main_event_counter_start[2])) / ($signed(main_event_counter_end[1] - main_event_counter_start[1])) : 0.0);
+      $display("|   L1D Load Miss   |        %-10d |        %-10d |    %-8.2f%%      |",
               $signed(main_event_counter_end[13] - main_event_counter_start[13]),
               $signed(main_event_counter_end[12] - main_event_counter_start[12]),
-              100*real'($signed(main_event_counter_end[13] - main_event_counter_start[13])) / ($signed(main_event_counter_end[12] - main_event_counter_start[12])));
-      $display("|   L1D Load Miss   |        %-10d |        %-10d |    %-8.2f%%      |",
+              ($signed(main_event_counter_end[12] - main_event_counter_start[12]) != 0) ?
+                  100*real'($signed(main_event_counter_end[13] - main_event_counter_start[13])) / ($signed(main_event_counter_end[12] - main_event_counter_start[12])) : 0.0);
+      $display("|   L1D Store Miss  |        %-10d |        %-10d |    %-8.2f%%      |",
               $signed(main_event_counter_end[15] - main_event_counter_start[15]),
               $signed(main_event_counter_end[14] - main_event_counter_start[14]),
-              100*real'($signed(main_event_counter_end[15] - main_event_counter_start[15])) / ($signed(main_event_counter_end[14] - main_event_counter_start[14])));
+              ($signed(main_event_counter_end[14] - main_event_counter_start[14]) != 0) ?
+                  100*real'($signed(main_event_counter_end[15] - main_event_counter_start[15])) / ($signed(main_event_counter_end[14] - main_event_counter_start[14])) : 0.0);
       $display("|  Cond Branch Misp |        %-10d |        %-10d |    %-8.2f%%      |",
               $signed(main_event_counter_end[6] - main_event_counter_start[6]),
               $signed(main_event_counter_end[7] - main_event_counter_start[7]),
-              100*real'($signed(main_event_counter_end[6] - main_event_counter_start[6])) / ($signed(main_event_counter_end[7] - main_event_counter_start[7])));
+              ($signed(main_event_counter_end[7] - main_event_counter_start[7]) != 0) ?
+              100*real'($signed(main_event_counter_end[6] - main_event_counter_start[6])) / ($signed(main_event_counter_end[7] - main_event_counter_start[7])) : 0.0);
       $display("| Indir Branch Misp |        %-10d |        %-10d |    %-8.2f%%      |",
               $signed(main_event_counter_end[8] - main_event_counter_start[8]),
               $signed(main_event_counter_end[9] - main_event_counter_start[9]),
-              100*real'($signed(main_event_counter_end[8] - main_event_counter_start[8])) / ($signed(main_event_counter_end[9] - main_event_counter_start[9])));
+              ($signed(main_event_counter_end[9] - main_event_counter_start[9]) != 0) ?
+              100*real'($signed(main_event_counter_end[8] - main_event_counter_start[8])) / ($signed(main_event_counter_end[9] - main_event_counter_start[9])) : 0.0);
       $display("| IFU Bran Tar Misp |        %-10d |        %-10d |    %-8.2f%%      |",
               $signed(main_event_counter_end[27] - main_event_counter_start[27]),
               $signed(main_event_counter_end[28] - main_event_counter_start[28]),
-              100*real'($signed(main_event_counter_end[27] - main_event_counter_start[27])) / ($signed(main_event_counter_end[28] - main_event_counter_start[28])));
+              ($signed(main_event_counter_end[28] - main_event_counter_start[28]) != 0) ?
+              100*real'($signed(main_event_counter_end[27] - main_event_counter_start[27])) / ($signed(main_event_counter_end[28] - main_event_counter_start[28])) : 0.0);
       $display("|    Sync Stall     |        %-10d |        %-10d |    %-8.2f%%      |",
               $signed(main_event_counter_end[41] - main_event_counter_start[41]),
               $signed(main_cycle_count_end - main_cycle_count_start),
-              100*real'($signed(main_event_counter_end[41] - main_event_counter_start[41])) / ($signed(main_cycle_count_end - main_cycle_count_start)));
+              ($signed(main_cycle_count_end - main_cycle_count_start) != 0) ?
+              100*real'($signed(main_event_counter_end[41] - main_event_counter_start[41])) / ($signed(main_cycle_count_end - main_cycle_count_start)) : 0.0);
       $display("|   Frontend Stall  |        %-10d |        %-10d |    %-8.2f%%      |",
               $signed(main_event_counter_end[39] - main_event_counter_start[39]),
               $signed(main_cycle_count_end - main_cycle_count_start),
-              100*real'($signed(main_event_counter_end[39] - main_event_counter_start[39])) / ($signed(main_cycle_count_end - main_cycle_count_start)));
+              ($signed(main_cycle_count_end - main_cycle_count_start) != 0) ?
+              100*real'($signed(main_event_counter_end[39] - main_event_counter_start[39])) / ($signed(main_cycle_count_end - main_cycle_count_start)) : 0.0);
       $display("|   Backend Stall   |        %-10d |        %-10d |    %-8.2f%%      |",
               $signed(main_event_counter_end[40] - main_event_counter_start[40]),
               $signed(main_cycle_count_end - main_cycle_count_start),
-              100*real'($signed(main_event_counter_end[40] - main_event_counter_start[40])) / ($signed(main_cycle_count_end - main_cycle_count_start)));
+              ($signed(main_cycle_count_end - main_cycle_count_start) != 0) ?
+              100*real'($signed(main_event_counter_end[40] - main_event_counter_start[40])) / ($signed(main_cycle_count_end - main_cycle_count_start)) : 0.0);
       $display("|    I-UTLB Miss    |        %-10d |                   |                   |",
               $signed(main_event_counter_end[3] - main_event_counter_start[3]));
       $display("|    D-UTLB Miss    |        %-10d |                   |                   |",
@@ -857,90 +878,111 @@ module tb();
       $display("|       ALU         |        %-10d |        %-10d |    %-8.2f%%      |",
               $signed(kernel_event_counter_end[29] - kernel_event_counter_start[29]),
               $signed(kernel_retire_inst_count_end - kernel_retire_inst_count_start),
-              100*real'($signed(kernel_event_counter_end[29] - kernel_event_counter_start[29])) / ($signed(kernel_retire_inst_count_end - kernel_retire_inst_count_start)));
+              ($signed(kernel_retire_inst_count_end - kernel_retire_inst_count_start) != 0) ?
+              100*real'($signed(kernel_event_counter_end[29] - kernel_event_counter_start[29])) / ($signed(kernel_retire_inst_count_end - kernel_retire_inst_count_start)) : 0.0);
       $display("|    Float Point    |        %-10d |        %-10d |    %-8.2f%%      |",
               $signed(kernel_event_counter_end[42] - kernel_event_counter_start[42]),
               $signed(kernel_retire_inst_count_end - kernel_retire_inst_count_start),
-              100*real'($signed(kernel_event_counter_end[42] - kernel_event_counter_start[42])) / ($signed(kernel_retire_inst_count_end - kernel_retire_inst_count_start)));
+              ($signed(kernel_retire_inst_count_end - kernel_retire_inst_count_start) != 0) ?
+              100*real'($signed(kernel_event_counter_end[42] - kernel_event_counter_start[42])) / ($signed(kernel_retire_inst_count_end - kernel_retire_inst_count_start)) : 0.0);
       $display("|      Store        |        %-10d |        %-10d |    %-8.2f%%      |",
               $signed(kernel_event_counter_end[11] - kernel_event_counter_start[11]),
               $signed(kernel_retire_inst_count_end - kernel_retire_inst_count_start),
-              100*real'($signed(kernel_event_counter_end[11] - kernel_event_counter_start[11])) / ($signed(kernel_retire_inst_count_end - kernel_retire_inst_count_start)));
+              ($signed(kernel_retire_inst_count_end - kernel_retire_inst_count_start) != 0) ?
+              100*real'($signed(kernel_event_counter_end[11] - kernel_event_counter_start[11])) / ($signed(kernel_retire_inst_count_end - kernel_retire_inst_count_start)) : 0.0);
       $display("|       LDST        |        %-10d |        %-10d |    %-8.2f%%      |",
               $signed(kernel_event_counter_end[30] - kernel_event_counter_start[30]),
               $signed(kernel_retire_inst_count_end - kernel_retire_inst_count_start),
-              100*real'($signed(kernel_event_counter_end[30] - kernel_event_counter_start[30])) / ($signed(kernel_retire_inst_count_end - kernel_retire_inst_count_start)));
+              ($signed(kernel_retire_inst_count_end - kernel_retire_inst_count_start) != 0) ?
+              100*real'($signed(kernel_event_counter_end[30] - kernel_event_counter_start[30])) / ($signed(kernel_retire_inst_count_end - kernel_retire_inst_count_start)) : 0.0);
       $display("|    Cond Branch    |        %-10d |        %-10d |    %-8.2f%%      |",
               $signed(kernel_event_counter_end[7] - kernel_event_counter_start[7]),
               $signed(kernel_retire_inst_count_end - kernel_retire_inst_count_start),
-              100*real'($signed(kernel_event_counter_end[7] - kernel_event_counter_start[7])) / ($signed(kernel_retire_inst_count_end - kernel_retire_inst_count_start)));
+              ($signed(kernel_retire_inst_count_end - kernel_retire_inst_count_start) != 0) ?
+              100*real'($signed(kernel_event_counter_end[7] - kernel_event_counter_start[7])) / ($signed(kernel_retire_inst_count_end - kernel_retire_inst_count_start)) : 0.0);
       $display("|    Indir Branch   |        %-10d |        %-10d |    %-8.2f%%      |",
               $signed(kernel_event_counter_end[9] - kernel_event_counter_start[9]),
               $signed(kernel_retire_inst_count_end - kernel_retire_inst_count_start),
-              100*real'($signed(kernel_event_counter_end[9] - kernel_event_counter_start[9])) / ($signed(kernel_retire_inst_count_end - kernel_retire_inst_count_start)));
+              ($signed(kernel_retire_inst_count_end - kernel_retire_inst_count_start) != 0) ?
+              100*real'($signed(kernel_event_counter_end[9] - kernel_event_counter_start[9])) / ($signed(kernel_retire_inst_count_end - kernel_retire_inst_count_start)) : 0.0);
       $display("|     Long Jump     |        %-10d |        %-10d |    %-8.2f%%      |",
               $signed(kernel_event_counter_end[38] - kernel_event_counter_start[38]),
               $signed(kernel_retire_inst_count_end - kernel_retire_inst_count_start),
-              100*real'($signed(kernel_event_counter_end[38] - kernel_event_counter_start[38])) / ($signed(kernel_retire_inst_count_end - kernel_retire_inst_count_start)));
+              ($signed(kernel_retire_inst_count_end - kernel_retire_inst_count_start) != 0) ?
+              100*real'($signed(kernel_event_counter_end[38] - kernel_event_counter_start[38])) / ($signed(kernel_retire_inst_count_end - kernel_retire_inst_count_start)) : 0.0);
       $display("|        Vec        |        %-10d |        %-10d |    %-8.2f%%      |",
               $signed(kernel_event_counter_end[31] - kernel_event_counter_start[31]),
               $signed(kernel_retire_inst_count_end - kernel_retire_inst_count_start),
-              100*real'($signed(kernel_event_counter_end[31] - kernel_event_counter_start[31])) / ($signed(kernel_retire_inst_count_end - kernel_retire_inst_count_start)));
+              ($signed(kernel_retire_inst_count_end - kernel_retire_inst_count_start) != 0) ?
+              100*real'($signed(kernel_event_counter_end[31] - kernel_event_counter_start[31])) / ($signed(kernel_retire_inst_count_end - kernel_retire_inst_count_start)) : 0.0);
       $display("|        CSR        |        %-10d |        %-10d |    %-8.2f%%      |",
               $signed(kernel_event_counter_end[32] - kernel_event_counter_start[32]),
               $signed(kernel_retire_inst_count_end - kernel_retire_inst_count_start),
-              100*real'($signed(kernel_event_counter_end[32] - kernel_event_counter_start[32])) / ($signed(kernel_retire_inst_count_end - kernel_retire_inst_count_start)));
+              ($signed(kernel_retire_inst_count_end - kernel_retire_inst_count_start) != 0) ?
+              100*real'($signed(kernel_event_counter_end[32] - kernel_event_counter_start[32])) / ($signed(kernel_retire_inst_count_end - kernel_retire_inst_count_start)) : 0.0);
       $display("|       Sync        |        %-10d |        %-10d |    %-8.2f%%      |",
               $signed(kernel_event_counter_end[33] - kernel_event_counter_start[33]),
               $signed(kernel_retire_inst_count_end - kernel_retire_inst_count_start),
-              100*real'($signed(kernel_event_counter_end[33] - kernel_event_counter_start[33])) / ($signed(kernel_retire_inst_count_end - kernel_retire_inst_count_start)));
+              ($signed(kernel_retire_inst_count_end - kernel_retire_inst_count_start) != 0) ?
+              100*real'($signed(kernel_event_counter_end[33] - kernel_event_counter_start[33])) / ($signed(kernel_retire_inst_count_end - kernel_retire_inst_count_start)) : 0.0);
       $display("|       Ecall       |        %-10d |        %-10d |    %-8.2f%%      |",
               $signed(kernel_event_counter_end[37] - kernel_event_counter_start[37]),
               $signed(kernel_retire_inst_count_end - kernel_retire_inst_count_start),
-              100*real'($signed(kernel_event_counter_end[37] - kernel_event_counter_start[37])) / ($signed(kernel_retire_inst_count_end - kernel_retire_inst_count_start)));
-      $display("|        RF         |        %-10d |        %-10d |    %-8.2f%%      |",
-              $signed(kernel_event_counter_end[22] - kernel_event_counter_start[22]),
-              $signed(kernel_retire_inst_count_end - kernel_retire_inst_count_start),
-              100*real'($signed(kernel_event_counter_end[22] - kernel_event_counter_start[22])) / ($signed(kernel_retire_inst_count_end - kernel_retire_inst_count_start)));
+              ($signed(kernel_retire_inst_count_end - kernel_retire_inst_count_start) != 0) ?
+              100*real'($signed(kernel_event_counter_end[37] - kernel_event_counter_start[37])) / ($signed(kernel_retire_inst_count_end - kernel_retire_inst_count_start)) : 0.0);
       $display("|-------------------------------------------------------------------------------|");
       $display("|   Kernel Monitor  |    Perf Count     |    Total Perf     |    Percentage     |");
       $display("|-------------------------------------------------------------------------------|");
+      $display("| RF Pipe Launches  |        %-10d |        %-10d |    %-8.2f%%      |",
+              $signed(kernel_event_counter_end[22] - kernel_event_counter_start[22]),
+              $signed(kernel_retire_inst_count_end - kernel_retire_inst_count_start),
+              ($signed(kernel_retire_inst_count_end - kernel_retire_inst_count_start) != 0) ?
+                  100*real'($signed(kernel_event_counter_end[22] - kernel_event_counter_start[22])) / ($signed(kernel_retire_inst_count_end - kernel_retire_inst_count_start)) : 0.0);
       $display("|      L1I Miss     |        %-10d |        %-10d |    %-8.2f%%      |",
               $signed(kernel_event_counter_end[2] - kernel_event_counter_start[2]),
               $signed(kernel_event_counter_end[1] - kernel_event_counter_start[1]),
-              100*real'($signed(kernel_event_counter_end[2] - kernel_event_counter_start[2])) / ($signed(kernel_event_counter_end[1] - kernel_event_counter_start[1])));
-      $display("|   L1D Store Miss  |        %-10d |        %-10d |    %-8.2f%%      |",
+              ($signed(kernel_event_counter_end[1] - kernel_event_counter_start[1]) != 0) ?
+                  100*real'($signed(kernel_event_counter_end[2] - kernel_event_counter_start[2])) / ($signed(kernel_event_counter_end[1] - kernel_event_counter_start[1])) : 0.0);
+      $display("|   L1D Load Miss   |        %-10d |        %-10d |    %-8.2f%%      |",
               $signed(kernel_event_counter_end[13] - kernel_event_counter_start[13]),
               $signed(kernel_event_counter_end[12] - kernel_event_counter_start[12]),
-              100*real'($signed(kernel_event_counter_end[13] - kernel_event_counter_start[13])) / ($signed(kernel_event_counter_end[12] - kernel_event_counter_start[12])));
-      $display("|   L1D Load Miss   |        %-10d |        %-10d |    %-8.2f%%      |",
+              ($signed(kernel_event_counter_end[12] - kernel_event_counter_start[12]) != 0) ?
+                  100*real'($signed(kernel_event_counter_end[13] - kernel_event_counter_start[13])) / ($signed(kernel_event_counter_end[12] - kernel_event_counter_start[12])) : 0.0);
+      $display("|   L1D Store Miss  |        %-10d |        %-10d |    %-8.2f%%      |",
               $signed(kernel_event_counter_end[15] - kernel_event_counter_start[15]),
               $signed(kernel_event_counter_end[14] - kernel_event_counter_start[14]),
-              100*real'($signed(kernel_event_counter_end[15] - kernel_event_counter_start[15])) / ($signed(kernel_event_counter_end[14] - kernel_event_counter_start[14])));
+              ($signed(kernel_event_counter_end[14] - kernel_event_counter_start[14]) != 0) ?
+                  100*real'($signed(kernel_event_counter_end[15] - kernel_event_counter_start[15])) / ($signed(kernel_event_counter_end[14] - kernel_event_counter_start[14])) : 0.0);
       $display("|  Cond Branch Misp |        %-10d |        %-10d |    %-8.2f%%      |",
               $signed(kernel_event_counter_end[6] - kernel_event_counter_start[6]),
               $signed(kernel_event_counter_end[7] - kernel_event_counter_start[7]),
-              100*real'($signed(kernel_event_counter_end[6] - kernel_event_counter_start[6])) / ($signed(kernel_event_counter_end[7] - kernel_event_counter_start[7])));
+              ($signed(kernel_event_counter_end[7] - kernel_event_counter_start[7]) != 0) ?
+              100*real'($signed(kernel_event_counter_end[6] - kernel_event_counter_start[6])) / ($signed(kernel_event_counter_end[7] - kernel_event_counter_start[7])) : 0.0);
       $display("| Indir Branch Misp |        %-10d |        %-10d |    %-8.2f%%      |",
               $signed(kernel_event_counter_end[8] - kernel_event_counter_start[8]),
               $signed(kernel_event_counter_end[9] - kernel_event_counter_start[9]),
-              100*real'($signed(kernel_event_counter_end[8] - kernel_event_counter_start[8])) / ($signed(kernel_event_counter_end[9] - kernel_event_counter_start[9])));
+              ($signed(kernel_event_counter_end[9] - kernel_event_counter_start[9]) != 0) ?
+              100*real'($signed(kernel_event_counter_end[8] - kernel_event_counter_start[8])) / ($signed(kernel_event_counter_end[9] - kernel_event_counter_start[9])) : 0.0);
       $display("| IFU Bran Tar Misp |        %-10d |        %-10d |    %-8.2f%%      |",
               $signed(kernel_event_counter_end[27] - kernel_event_counter_start[27]),
               $signed(kernel_event_counter_end[28] - kernel_event_counter_start[28]),
-              100*real'($signed(kernel_event_counter_end[27] - kernel_event_counter_start[27])) / ($signed(kernel_event_counter_end[28] - kernel_event_counter_start[28])));
+              ($signed(kernel_event_counter_end[28] - kernel_event_counter_start[28]) != 0) ?
+              100*real'($signed(kernel_event_counter_end[27] - kernel_event_counter_start[27])) / ($signed(kernel_event_counter_end[28] - kernel_event_counter_start[28])) : 0.0);
       $display("|    Sync Stall     |        %-10d |        %-10d |    %-8.2f%%      |",
               $signed(kernel_event_counter_end[41] - kernel_event_counter_start[41]),
               $signed(kernel_cycle_count_end - kernel_cycle_count_start),
-              100*real'($signed(kernel_event_counter_end[41] - kernel_event_counter_start[41])) / ($signed(kernel_cycle_count_end - kernel_cycle_count_start)));
+              ($signed(kernel_cycle_count_end - kernel_cycle_count_start) != 0) ?
+              100*real'($signed(kernel_event_counter_end[41] - kernel_event_counter_start[41])) / ($signed(kernel_cycle_count_end - kernel_cycle_count_start)) : 0.0);
       $display("|   Frontend Stall  |        %-10d |        %-10d |    %-8.2f%%      |",
               $signed(kernel_event_counter_end[39] - kernel_event_counter_start[39]),
               $signed(kernel_cycle_count_end - kernel_cycle_count_start),
-              100*real'($signed(kernel_event_counter_end[39] - kernel_event_counter_start[39])) / ($signed(kernel_cycle_count_end - kernel_cycle_count_start)));
+              ($signed(kernel_cycle_count_end - kernel_cycle_count_start) != 0) ?
+              100*real'($signed(kernel_event_counter_end[39] - kernel_event_counter_start[39])) / ($signed(kernel_cycle_count_end - kernel_cycle_count_start)) : 0.0);
       $display("|   Backend Stall   |        %-10d |        %-10d |    %-8.2f%%      |",
               $signed(kernel_event_counter_end[40] - kernel_event_counter_start[40]),
               $signed(kernel_cycle_count_end - kernel_cycle_count_start),
-              100*real'($signed(kernel_event_counter_end[40] - kernel_event_counter_start[40])) / ($signed(kernel_cycle_count_end - kernel_cycle_count_start)));
+              ($signed(kernel_cycle_count_end - kernel_cycle_count_start) != 0) ?
+              100*real'($signed(kernel_event_counter_end[40] - kernel_event_counter_start[40])) / ($signed(kernel_cycle_count_end - kernel_cycle_count_start)) : 0.0);
       $display("|    I-UTLB Miss    |        %-10d |                   |                   |",
               $signed(kernel_event_counter_end[3] - kernel_event_counter_start[3]));
       $display("|    D-UTLB Miss    |        %-10d |                   |                   |",

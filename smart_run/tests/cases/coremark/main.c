@@ -291,7 +291,9 @@ MAIN_RETURN_TYPE main(int argc, char *argv[]) {
 		core_stop_parallel(&results[i]);
 	}
 #else
+	asm volatile(".global perf_monitor_start\n\t" "perf_monitor_start:");
 	iterate(&results[0]);
+	asm volatile(".global perf_monitor_end\n\t"   "perf_monitor_end:");
 #endif
 	current_time = get_timer();
 	stop_timer();

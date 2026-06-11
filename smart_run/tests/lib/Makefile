@@ -113,7 +113,7 @@ FILE_PAT = case.pat
 	${CONVERT} ${FILE_HEX} ${FILE_PAT}
 
 symbols.svh : ${FILE}.elf
-	./gen_symbols.py $< 
+	PATH=${GCC_PATH}:$$PATH ./gen_symbols.py $<
 
 #--------------------------------------------------------------------
 # target setting
