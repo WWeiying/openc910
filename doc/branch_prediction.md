@@ -568,3 +568,235 @@ RTU 退休时做"重量"恢复（精确恢复所有预测器状态）。
 （BJU 详见 IU 单元，RAS/Ind-BTB 退休恢复详见 RTU 单元）
 
 *文档版本：基于 OpenC910 开源代码（Apache-2.0）*
+
+---
+
+## 12. Verdi 观察指南
+
+> **层次前缀约定**（以下表格中用 `IFU_TOP` / `BJU` 代替完整路径）：
+>
+> ```
+> IFU_TOP = tb.x_soc.x_cpu_sub_system_axi.x_rv_integration_platform
+>           .x_cpu_top.x_ct_top_0.x_ct_core.x_ct_ifu_top
+>
+> BJU     = tb.x_soc.x_cpu_sub_system_axi.x_rv_integration_platform
+>           .x_cpu_top.x_ct_top_0.x_ct_core.x_ct_iu_top.x_ct_iu_bju
+> ```
+>
+> 在 Verdi 信号浏览器中展开上述路径，可直接拖拽信号到波形窗口。
+
+---
+
+### 12.1 BHT（方向预测）关键信号
+
+**模块路径**：`IFU_TOP.x_ct_ifu_bht`
+
+| 信号名 | 位宽 | 流水级 | 功能说明 |
+|--------|------|--------|---------|
+| `vghr_reg` | [21:0] | IP 持续 | **投机全局历史寄存器**。每预测一条条件分支就左移追加预测方向（bit0=最新）。错误路径下会被污染，flush 后从 `rtughr_reg` 恢复。高位是最旧历史，低位是最新。 |
+| `rtughr_reg` | [21:0] | RTU 持续 | **退休全局历史寄存器**。只在 RTU 按程序序退休条件分支时更新，始终保存精确历史。误预测时用它恢复 `vghr_reg`。 |
+| `bht_ipdp_vghr` | [21:0] | IP | 送给 ipdp 的当前 VGHR 值，用于 IP 级计算 Predict Array 读索引。 |
+| `bht_ipdp_sel_array_result` | [1:0] | IP | Select Array 输出。bit[1]=1 选 Taken 表，=0 选 Not-Taken 表；bit[0] 是该表对应的 2-bit 计数器 MSB（即方向预测值）。**这是 BHT 最终方向预测的出口。** |
+| `bht_ipdp_pre_array_data_taken` | [31:0] | IP | Taken 表读出的 32 个 2-bit 计数器打包值（16 个分支×2bit）。 |
+| `bht_ipdp_pre_array_data_ntake` | [31:0] | IP | Not-Taken 表读出的数据，同上。 |
+| `bht_ipdp_pre_offset_onehot` | [15:0] | IP | 当前分支在 32-bit 批读结果中的 one-hot 偏移，用于提取正确的 2-bit 计数器。 |
+| `bht_ind_btb_vghr` | [7:0] | IP | 送给 Indirect BTB 的 VGHR 低 8 位，用于计算间接跳转读索引（折叠异或）。 |
+| `bht_ind_btb_rtu_ghr` | [7:0] | RTU | 送给 Indirect BTB 的 RTUGHR 低 8 位，用于计算间接跳转写索引。 |
+
+**行为说明**：
+- 观察 `vghr_reg` 与 `rtughr_reg` 之差：正常预测期间两者相差 0~几位（投机超前）；误预测后立即看到 `vghr_reg` 跳变（ `← rtughr_reg`）。
+- `bht_ipdp_sel_array_result[1]` 每次 IP 级有分支就更新，0→1 或 1→0 表示同一 PC 的预测在两张表之间切换（Bi-Mode 行为）。
+
+---
+
+### 12.2 L0 BTB（零延迟目标预测）关键信号
+
+**模块路径**：`IFU_TOP.x_ct_ifu_l0_btb`
+
+| 信号名 | 位宽 | 流水级 | 功能说明 |
+|--------|------|--------|---------|
+| `l0_btb_ifdp_hit` | 1 | PCGEN | **L0 BTB 命中标志**。=1 表示当前 PC 在 16 项 L0 BTB 中命中，下一拍直接用 L0 BTB 目标取指，无需等 BTB。 |
+| `l0_btb_ifdp_entry_hit` | [15:0] | PCGEN | 16 项 entry 各自的命中 one-hot 向量。哪一位为 1 表示哪个 entry 命中，可用来追踪是哪条热点分支在驱动 L0 BTB。 |
+| `l0_btb_ifctrl_chglfw_vld` | 1 | PCGEN | L0 BTB 触发改流有效。=1 且 hit=1 时，IF 级接受 L0 BTB 提供的目标。 |
+| `l0_btb_ifctrl_chgflw_pc` | [38:0] | PCGEN | L0 BTB 提供的预测跳转目标 PC。 |
+| `l0_btb_ifctrl_chgflw_way_pred` | [1:0] | PCGEN | 对应 BTB 的 way_pred，传递给 BTB 做 way 预测更新。 |
+| `entry0_vld` ~ `entry15_vld` | 1×16 | — | 每个 entry 的有效位。冷启动时全 0，热点分支 addrgen 更新后置 1。 |
+| `entry0_tag` ~ `entry15_tag` | [14:0]×16 | — | 各 entry 存储的 PC tag（`vpc[15:1]`），用于命中比对。 |
+| `entry0_target` ~ `entry15_target` | [19:0]×16 | — | 各 entry 存储的目标 PC 低 20 位（+高位符号扩展拼出 39 位）。 |
+| `l0_btb_update_vld_bit` | 1 | IB+1 | addrgen 触发 L0 BTB 更新有效脉冲。 |
+
+**行为说明**：
+- 对比 `l0_btb_ifdp_hit` 与 `ipctrl_ibctrl_l0_btb_miss`：hit 说明提前改流成功，miss 说明该分支还未入 L0 BTB（首次或被替换），将走 BTB 路径，多花 1 拍。
+- 观察 `entry_hit` 的 one-hot 分布可知哪几条分支被 L0 BTB 覆盖（热点）。
+
+---
+
+### 12.3 BTB（主目标预测）关键信号
+
+**模块路径**：`IFU_TOP.x_ct_ifu_btb`
+
+| 信号名 | 位宽 | 流水级 | 功能说明 |
+|--------|------|--------|---------|
+| `btb_ifdp_way0_vld` ~ `way3_vld` | 1×4 | IF→IP | 4 路各自的有效位，读出后在 IP 做 tag 比较。 |
+| `btb_ifdp_way0_target` ~ `way3_target` | [19:0]×4 | IF→IP | 4 路各自的目标 PC 低 20 位。 |
+| `btb_ifdp_way0_pred` ~ `way3_pred` | [1:0]×4 | IF→IP | 4 路的 way_pred（2 位 LRU/PLRU 替换预测），用于下次命中时直接选路。 |
+| `refill_buf_target_pc` | [19:0] | — | **Refill Buffer**：BTB miss 时暂存目标，等 2 拍 way_pred 确定后才真正写入 SRAM。 |
+| `refill_buf_way_pred` | [1:0] | — | Refill Buffer 中等待写入的 way_pred。 |
+| `after_addrgen_btb_chgflw_first` | 1 | IB+1 | addrgen 第 1 周期更新 BTB 触发的改流标志。 |
+| `after_addrgen_btb_chgflw_second` | 1 | IB+2 | addrgen 第 2 周期（写 way_pred 补全）触发的改流。 |
+| `btb_target_pc_record` | [19:0] | — | 暂存上一次 BTB target，用于 addrgen 写时比对是否仍需更新。 |
+
+**行为说明**：
+- 4 路 `vld/target/pred` 同时出现：用 `ipctrl_btb_way_pred` 看 IP 级最终选了哪路（即命中路的 way_pred）。
+- `refill_buf_target_pc` 非零时说明有 BTB miss 正在等待补全写入，此时若同一分支再次到来会从 refill buffer bypass。
+
+---
+
+### 12.4 RAS（返回地址栈）关键信号
+
+**模块路径**：`IFU_TOP.x_ct_ifu_ras`
+
+| 信号名 | 位宽 | 流水级 | 功能说明 |
+|--------|------|--------|---------|
+| `top_ptr` | [4:0] | IB 持续 | **IFU 投机栈栈顶指针**。低 4 位是栈顶 index（0~11），bit[4] 是圈数奇偶标志（用于区分空/满，因为 12 非 2 的幂）。call 时 +1（环绕于 12），ret 时 -1。 |
+| `rtu_ptr` | [4:0] | RTU | **RTU 退休栈栈顶指针**（6 项），与投机栈对称。误预测/flush 后投机栈从这里恢复。 |
+| `status_ptr` | [4:0] | IB | 投机栈 status 指针，用于追踪"当前最新压栈后的指针"（区别于 top_ptr 在 pop 之后的值）。 |
+| `ibctrl_ras_pcall_vld` | 1 | IB | **call 压栈有效**。=1 表示 IB 级识别到 call 指令（JAL/JALR rd=ra），触发 RAS push。 |
+| `ibctrl_ras_preturn_vld` | 1 | IB | **ret 弹栈有效**。=1 表示 IB 级识别到 ret（JALR x0,ra,0），触发 RAS pop，用栈顶值作预测目标。 |
+| `ras_ipdp_data_vld` | 1 | IP | RAS 在 IP 级提供的目标有效。=1 表示当前 IP 处理的是 ret 且 RAS 非空，目标有效。 |
+| `ras_l0_btb_push_pc` | [38:0] | IB | push 时写入 RAS 的返回地址（call 的下一条 PC）。 |
+| `ras_l0_btb_ras_push` | 1 | IB | push 触发信号，与 `ibctrl_ras_pcall_vld` 同步。 |
+
+**行为说明**：
+- 跟踪函数调用时：每次看到 `ibctrl_ras_pcall_vld=1`，`top_ptr` 应 +1（环绕）；`ibctrl_ras_preturn_vld=1` 时 -1。
+- 若 `top_ptr` 和 `rtu_ptr` 偏差超过几项，说明有大量投机 call/ret 还未退休。
+- flush 后观察 `top_ptr ← rtu_ptr` 的恢复动作（通常 1 拍内完成）。
+
+---
+
+### 12.5 Indirect BTB（间接跳转预测）关键信号
+
+**模块路径**：`IFU_TOP.x_ct_ifu_ind_btb`
+
+| 信号名 | 位宽 | 流水级 | 功能说明 |
+|--------|------|--------|---------|
+| `path_reg_0` ~ `path_reg_3` | [7:0]×4 | IB 持续 | **投机路径历史寄存器**（共 32 位有效历史）。每检测到一条间接跳转，`path_reg_0 ← ibctrl_ind_btb_path`，其余依次右移。用于计算 Indirect BTB 读索引。 |
+| `rtu_path_reg_0` ~ `rtu_path_reg_3` | [7:0]×4 | RTU | **退休路径历史寄存器**。RTU 按序退休间接跳转时移位更新。误预测/flush 时投机 `path_reg ← rtu_path_reg`（与 BHT 的 VGHR ← RTUGHR 完全对称）。 |
+| `ind_btb_rd_index` | [7:0] | IP | Indirect BTB **读索引**（8 位）：`path_reg[3:0]` 各取 2 位与 `vghr[7:0]` 对应位异或折叠。决定从哪个 SRAM 行读预测目标。 |
+| `ind_btb_wr_index` | [7:0] | RTU | Indirect BTB **写索引**：用 `rtu_path_reg` 与 `rtu_ghr` 同样折叠，退休更新时写入真实目标。 |
+| `ibctrl_ind_btb_check_vld` | 1 | IB | IB 级检测到间接跳转，触发 `path_reg` 投机更新的有效脉冲。 |
+| `ibctrl_ind_btb_path` | [7:0] | IB | 本条间接跳转贡献给 path_reg 的 8 位 hash 值（通常是 PC 的部分位）。 |
+| `ipctrl_ind_btb_con_br_vld` | 1 | IP | IP 级检测到间接跳转（JMP 指令），触发 SRAM 读的有效信号。 |
+
+**行为说明**：
+- `path_reg_0` 存最新一条间接跳转的历史，`path_reg_3` 存最旧。观察多条 JALR 连续执行时，`path_reg` 整体移位变化。
+- `rd_index` 与 `wr_index` 一致时，说明当前路径上下文与训练时完全一致，命中概率最高。
+- `rtu_path_reg` 和 `path_reg` 偏差增大时说明有较多投机间接跳转在飞（未退休）。
+
+---
+
+### 12.6 IP 级预测决策关键信号
+
+**模块路径**：`IFU_TOP.x_ct_ifu_ipctrl`
+
+| 信号名 | 位宽 | 流水级 | 功能说明 |
+|--------|------|--------|---------|
+| `ipctrl_pcgen_chgflw_pcload` | 1 | IP | **IP 级改流触发**。=1 表示 IP 级综合各预测器决策为"预测 taken"，通知 PCGEN 立即改流到 `ipctrl_pcgen_chgflw_pc`。这是分支预测改变取指流向的核心信号。 |
+| `ipctrl_pcgen_chgflw_pc` | [38:0] | IP | IP 级给出的预测跳转目标 PC（来自 BTB/RAS/Ind-BTB 之一）。 |
+| `ipctrl_pcgen_branch_taken` | 1 | IP | BHT 预测该条件分支为 taken（方向预测结果）。 |
+| `ipctrl_pcgen_branch_mistaken` | 1 | IP | BTB 预测的目标与 addrgen 算出的真实目标不匹配（BTB target 错误），触发目标纠正。 |
+| `ipctrl_bht_con_br_vld` | 1 | IP | 通知 BHT "IP 级有条件分支"，触发 BHT 投机更新 VGHR。 |
+| `ipctrl_bht_con_br_taken` | 1 | IP | 告诉 BHT 本次条件分支的预测方向（taken/not-taken），BHT 据此左移 VGHR。 |
+| `ipctrl_btb_chgflw_vld` | 1 | IP | BTB 命中且改流有效。 |
+| `ipctrl_btb_way_pred` | [1:0] | IP | IP 级最终命中的 BTB way（经 tag 比较后确认）。 |
+| `ipctrl_btb_way_pred_error` | 1 | IP | BTB way_pred 预测错误（命中但选路错误），需要更新 way_pred。 |
+| `ipctrl_ibctrl_l0_btb_hit` | 1 | IP | 本条分支已被 L0 BTB 处理（命中）的标志，IP 级看到时无需再触发改流。 |
+| `ipctrl_ibctrl_l0_btb_miss` | 1 | IP | 分支在 L0 BTB 中 miss，将在 IB+1 的 addrgen 后更新 L0 BTB。 |
+| `ipctrl_ipdp_chgflw_pc` | [38:0] | IP | 改流 PC（同 `ipctrl_pcgen_chgflw_pc`，送给 ipdp 做记录）。 |
+
+**行为说明**：
+- `ipctrl_pcgen_chgflw_pcload=1` 是最重要的"预测生效"信号：每次拉高说明 IP 级发出了一次跳转预测，IFU 从下一拍开始从目标地址取指。
+- `ipctrl_bht_con_br_vld` 拉高同拍观察 `vghr_reg`（BHT 模块内），可以看到 GHR 左移追加新方向。
+- `ipctrl_btb_way_pred_error=1` 说明 BTB 命中但选错了 way，此时 addrgen 会用真实目标更新。
+
+---
+
+### 12.7 BJU 预测检查关键信号
+
+**模块路径**：`BJU`（即 `IFU_TOP` 路径前缀中将 `x_ct_ifu_top` 替换为 `x_ct_iu_top.x_ct_iu_bju`）
+
+| 信号名 | 位宽 | 流水级 | 功能说明 |
+|--------|------|--------|---------|
+| `bju_bht_mispred` | 1 | EX1 | **BHT 方向预测失败**。条件分支实际方向 `condbr_taken` 与 PCFIFO 中保存的 `bht_pred` 异或为 1。这是最常见的误预测。 |
+| `bju_jmp_mispred` | 1 | EX1 | **间接跳转目标预测失败**。实际 `src0 ≠ PCFIFO.pc`（jalr 预测目标与寄存器值不符）。 |
+| `bju_tarpc_cmp_fail` | 1 | EX1 | 目标 PC 比较失败原始信号（`ex1_pipe2_pc != ex1_pipe2_src0`）。`bju_jmp_mispred` 由此派生。 |
+| `ex1_pipe2_iid_oldest` | 1 | EX1 | **IID 年龄最老标志**。=1 表示 pipe2 当前执行的分支是 ROB 中程序序最老的，才有资格触发纠错改流。乱序下保证正确性的关键。 |
+| `iu_ifu_chgflw_vld` | 1 | EX2 | **BJU 纠错改流有效**。=1 说明误预测确认，IFU 收到后立即从 `iu_ifu_chgflw_pc` 重新取指。 |
+| `iu_ifu_chgflw_pc` | [62:0] | EX2 | BJU 给出的正确目标 PC（真实分支目标）。 |
+| `iu_idu_mispred_stall` | 1 | EX1→清 | **IDU 误预测 stall**。误预测时拉高，直到 RTU 退休该分支（`rtu_yy_xx_flush`）才清除。期间 IDU 不接受新指令分发，防止错误路径污染后端。 |
+| `iu_ifu_mispred_stall` | 1 | EX1→清 | **IFU 误预测 stall**。与上类似但可被 `rtu_iu_flush_fe` 提前清除，让取指更早重启。 |
+| `bju_top_mispred_iid` | [6:0] | EX1 | 锁存的误预测分支 IID（ROB 入口号），供 RTU 做年龄比较（只 flush 该 IID 及以后的指令）。 |
+| `ex2_pipe2_bht_mispred` | 1 | EX2 | EX2 级寄存的 BHT 方向误预测结果（EX1 打拍）。写回 PCFIFO 和 complete bus 的值。 |
+| `ex2_pipe2_jmp_mispred` | 1 | EX2 | EX2 级寄存的 JMP 目标误预测结果。 |
+| `ex2_pipe2_chgflw_vld` | 1 | EX2 | EX2 级的改流有效（综合 bht+jmp+page_fault），驱动 `iu_ifu_chgflw_vld` 输出。 |
+| `iu_ifu_bht_check_vld` | 1 | EX2 | 通知 IFU/BHT 更新：本条条件分支已执行完毕，请用真实方向 `iu_ifu_bht_condbr_taken` 更新 BHT 计数器。 |
+| `iu_ifu_bht_condbr_taken` | 1 | EX2 | 真实分支方向（taken=1），BHT 更新计数器的依据。 |
+
+**行为说明**：
+- 观察误预测全链路：`bju_bht_mispred=1`（EX1）→ 下一拍 `ex2_pipe2_bht_mispred=1`（EX2）→ `iu_ifu_chgflw_vld=1` + `iu_idu_mispred_stall=1`（EX2）→ 几拍后 RTU flush → `iu_idu_mispred_stall` 清零 → `vghr_reg ← rtughr_reg`。
+- `ex1_pipe2_iid_oldest=0` 时即使 `bju_bht_mispred=1` 也不会触发改流（被更老的误预测抑制），观察这种情况可以理解乱序下的年龄仲裁。
+- `iu_ifu_mispred_stall` 比 `iu_idu_mispred_stall` 先清零可以在波形中直接看到，对应"IFU 提前恢复取指但 IDU 仍 stall"的两阶段设计。
+
+---
+
+### 12.8 推荐 Verdi 观察分组
+
+观察分支预测时建议按以下分组在波形窗口中建立书签：
+
+#### 组 1：预测发出（IP 级）
+```
+IFU_TOP.x_ct_ifu_ipctrl.ipctrl_pcgen_chgflw_pcload
+IFU_TOP.x_ct_ifu_ipctrl.ipctrl_pcgen_chgflw_pc[38:0]
+IFU_TOP.x_ct_ifu_ipctrl.ipctrl_pcgen_branch_taken
+IFU_TOP.x_ct_ifu_l0_btb.l0_btb_ifdp_hit
+IFU_TOP.x_ct_ifu_btb.btb_ifdp_way0_vld  （及 way1/2/3）
+IFU_TOP.x_ct_ifu_bht.bht_ipdp_sel_array_result[1:0]
+IFU_TOP.x_ct_ifu_bht.vghr_reg[21:0]
+```
+
+#### 组 2：BHT 历史（GHR 投机/退休对比）
+```
+IFU_TOP.x_ct_ifu_bht.vghr_reg[21:0]
+IFU_TOP.x_ct_ifu_bht.rtughr_reg[21:0]
+IFU_TOP.x_ct_ifu_bht.bht_ipdp_vghr[21:0]
+```
+
+#### 组 3：纠错检查（BJU EX1/EX2）
+```
+BJU.bju_bht_mispred
+BJU.bju_jmp_mispred
+BJU.bju_tarpc_cmp_fail
+BJU.ex1_pipe2_iid_oldest
+BJU.iu_ifu_chgflw_vld
+BJU.iu_ifu_chgflw_pc[62:0]
+BJU.iu_idu_mispred_stall
+BJU.iu_ifu_mispred_stall
+```
+
+#### 组 4：RAS 压/弹栈
+```
+IFU_TOP.x_ct_ifu_ras.top_ptr[4:0]
+IFU_TOP.x_ct_ifu_ras.rtu_ptr[4:0]
+IFU_TOP.x_ct_ifu_ibctrl.ibctrl_ras_pcall_vld
+IFU_TOP.x_ct_ifu_ibctrl.ibctrl_ras_preturn_vld
+IFU_TOP.x_ct_ifu_ras.ras_ipdp_data_vld
+```
+
+#### 组 5：Indirect BTB 路径历史
+```
+IFU_TOP.x_ct_ifu_ind_btb.path_reg_0[7:0]
+IFU_TOP.x_ct_ifu_ind_btb.path_reg_1[7:0]
+IFU_TOP.x_ct_ifu_ind_btb.rtu_path_reg_0[7:0]
+IFU_TOP.x_ct_ifu_ind_btb.ind_btb_rd_index[7:0]
+IFU_TOP.x_ct_ifu_ind_btb.ibctrl_ind_btb_check_vld
+```

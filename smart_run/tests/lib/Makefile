@@ -41,12 +41,12 @@ OBJECTS = $(SSRC:%.S=%.o) $(sSRC:%.s=%.o) $(CSRC:%.c=%.o)
 FLAG_MARCH = -mtune=c910
 #CPU_ARCH_FLAG_0 => CPU Arch: c910
 ifeq (${CPU_ARCH_FLAG_0}, c910)
-  FLAG_MARCH += -march=rv64imafdcv
-  #FLAG_MARCH += -march=rv64imafdcxtheadc
+  #FLAG_MARCH += -march=rv64imafdcv
+  FLAG_MARCH += -march=rv64imafdcxtheadc
   FLAG_ABI   = -mabi=lp64d
 else
-  FLAG_MARCH += -march=rv64imafdcv
-  #FLAG_MARCH += -march=rv64imafdcvxtheadc
+  #FLAG_MARCH += -march=rv64imafdcv
+  FLAG_MARCH += -march=rv64imafdcvxtheadc
   FLAG_ABI   = -mabi=lp64d
 endif
 CFLAGS = ${FLAG_MARCH} ${FLAG_ABI} ${LLVM_OPTION}
