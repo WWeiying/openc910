@@ -1,0 +1,172 @@
+// C910 微架构总框图  ——  用 graphviz dot 渲染
+//   dot -Tsvg C910_架构框图.dot -o C910_架构框图.svg
+//   dot -Tpng -Gdpi=150 C910_架构框图.dot -o C910_架构框图.png
+digraph C910 {
+    rankdir=TB;
+    compound=true;
+    splines=polyline;
+    nodesep=0.4;
+    ranksep=0.7;
+    bgcolor="white";
+    fontname="Droid Sans Fallback";
+    node  [fontname="Droid Sans Fallback", fontsize=10, shape=box, style="filled,rounded", color="#333333", penwidth=1.2];
+    edge  [fontname="Droid Sans Fallback", fontsize=8, color="#555555", penwidth=1.1];
+
+    labelloc="t";
+    fontsize=20;
+    label="XuanTie C910  微架构框图  (RV64GC + XIE/XMAE,  3-decode / 8-issue 乱序超标量,  12 级整数流水)";
+
+    // ===================== 取指前端 IFU =====================
+    subgraph cluster_ifu {
+        label="IFU 取指单元  (前端·顺序)";
+        style="filled,rounded"; color="#1f6feb"; fillcolor="#eaf2ff"; fontcolor="#1f6feb"; fontsize=13;
+
+        pcgen   [label="PCGEN\nPC 选择/生成\n10 路 PC 来源优先级", fillcolor="#cfe3ff"];
+
+        subgraph cluster_bp {
+            label="分支预测器 (3 级层次)";
+            style="filled,rounded"; color="#7d4dff"; fillcolor="#f3edff"; fontcolor="#7d4dff"; fontsize=10;
+            l0btb [label="L0-BTB\n16 项·寄存器\n零延迟", fillcolor="#e6dcff"];
+            btb   [label="BTB\n1024×4 路 SRAM\n1 拍", fillcolor="#e6dcff"];
+            bht   [label="BHT (Bi-Mode)\n64K bits\n方向预测", fillcolor="#e6dcff"];
+            ras   [label="RAS\n18 项 (12+6)\n返回地址", fillcolor="#e6dcff"];
+            lbuf  [label="Loop Buffer\n循环缓冲", fillcolor="#e6dcff"];
+        }
+
+        icache  [label="L1 I-Cache\n64KB / 2 路 / 64B 行\nVIPT · FIFO 替换\nPredecode 阵列", fillcolor="#cfe3ff"];
+        ibuf    [label="IBUF 指令缓冲\n8 项 × 3 指令/项\n(弹性·支持 bypass)", fillcolor="#cfe3ff"];
+    }
+
+    // ===================== 译码/重命名/发射 IDU =====================
+    subgraph cluster_idu {
+        label="IDU 指令处理单元  (顺序前端 → 乱序转换点)";
+        style="filled,rounded"; color="#1a7f37"; fillcolor="#e9f7ee"; fontcolor="#1a7f37"; fontsize=13;
+
+        id   [label="ID 译码\n3 路并行译码\n复杂/向量指令拆分", fillcolor="#cdeed7"];
+        ir   [label="IR 重命名\n整数RAT / 浮点RAT / 向量RAT\n消除 WAR/WAW 假依赖", fillcolor="#cdeed7"];
+
+        subgraph cluster_iq {
+            label="IS 发射  7 个发射队列 (各 8 项, 唤醒-选择, 乱序)";
+            style="filled,rounded"; color="#1a7f37"; fillcolor="#dff3e6"; fontcolor="#1a7f37"; fontsize=10;
+            aiq0 [label="AIQ0\n→pipe0", fillcolor="#bfe8cc"];
+            aiq1 [label="AIQ1\n→pipe1", fillcolor="#bfe8cc"];
+            biq  [label="BIQ\n→pipe2", fillcolor="#bfe8cc"];
+            lsiq [label="LSIQ\n→pipe3/4", fillcolor="#bfe8cc"];
+            sdiq [label="SDIQ\n→pipe5", fillcolor="#bfe8cc"];
+            viq0 [label="VIQ0\n→pipe6", fillcolor="#bfe8cc"];
+            viq1 [label="VIQ1\n→pipe7", fillcolor="#bfe8cc"];
+        }
+
+        rf   [label="RF 读寄存器 + 前递网络\n物理寄存器堆 PRF (整数 96 / 浮点·向量 64) ·  rf_fwd 旁路", fillcolor="#cdeed7"];
+    }
+
+    // ===================== 执行单元 =====================
+    subgraph cluster_exec {
+        label="执行单元  (8 条执行管线, 乱序)";
+        style="filled,rounded"; color="#bf8700"; fillcolor="#fff8e6"; fontcolor="#9a6700"; fontsize=13;
+
+        subgraph cluster_iu {
+            label="IU 整数单元 (pipe0~2)";
+            style="filled,rounded"; color="#bf8700"; fillcolor="#fff1cc"; fontcolor="#9a6700"; fontsize=10;
+            alu0 [label="pipe0: ALU0 + DIV + SPECIAL\nadd/逻辑/移位 · 除法(SRT16) · CSR/vsetvl", fillcolor="#ffe49c"];
+            alu1 [label="pipe1: ALU1 + MULT\nadd/逻辑/移位 · 乘法/乘累加(4拍)", fillcolor="#ffe49c"];
+            bju  [label="pipe2: BJU 分支单元\n误预测判定 · PCFIFO(32项)", fillcolor="#ffe49c"];
+        }
+        subgraph cluster_vfpu {
+            label="VFPU 浮点/向量 (pipe6~7)";
+            style="filled,rounded"; color="#cf222e"; fillcolor="#ffeef0"; fontcolor="#cf222e"; fontsize=10;
+            vfpu0 [label="pipe6: VFPU0\nF/D 浮点 · 向量\n5 级 (EX1~EX5)", fillcolor="#ffd0d4"];
+            vfpu1 [label="pipe7: VFPU1\nF/D 浮点 · 向量\n5 级 (EX1~EX5)", fillcolor="#ffd0d4"];
+        }
+    }
+
+    // ===================== LSU =====================
+    subgraph cluster_lsu {
+        label="LSU 访存单元  (pipe3 load / pipe4 store-addr / pipe5 store-data, 4 级 AG/DC/DA/WB)";
+        style="filled,rounded"; color="#0969da"; fillcolor="#eaf2ff"; fontcolor="#0969da"; fontsize=13;
+
+        lq   [label="LQ Load 队列\n16 项\nRAW/RAR 违例检测", fillcolor="#cfe3ff"];
+        sq   [label="SQ Store 队列\n12 项 (推测域)\n→load 前递", fillcolor="#cfe3ff"];
+        wmb  [label="WMB 写合并缓冲\n8 项 (已提交域)", fillcolor="#cfe3ff"];
+        dcache [label="L1 D-Cache\n64KB / 2 路 / 64B 行 / 512 组\nPIPT · 双 tag 阵列 · 8 data bank", fillcolor="#cfe3ff"];
+        rb   [label="RB miss 请求缓冲\n8 项 (MLP≈8)", fillcolor="#cfe3ff"];
+        lfb  [label="LFB 行填充缓冲\naddr 8 / data 2\n关键字优先", fillcolor="#cfe3ff"];
+        vb   [label="VB 逐出缓冲\n2 项", fillcolor="#cfe3ff"];
+        pfu  [label="PFU 硬件预取\nPMB→SDB→PFB(8流)", fillcolor="#cfe3ff"];
+        snq  [label="SNQ 侦听队列\n6 项 (一致性)", fillcolor="#cfe3ff"];
+    }
+
+    // ===================== RTU =====================
+    subgraph cluster_rtu {
+        label="RTU 退休单元  (乱序 → 顺序, 精确异常)";
+        style="filled,rounded"; color="#8250df"; fillcolor="#f5f0ff"; fontcolor="#8250df"; fontsize=13;
+        rob  [label="ROB 重排序缓冲\n64 项 × 40 位(瘦)\n指令折叠(≤3/项) · 退休 3 项/拍", fillcolor="#e3d6ff"];
+        expt [label="异常缓冲\n单项擂台\n最老异常胜出", fillcolor="#e3d6ff"];
+        retire [label="退休 + flush 状态机\nrtu_yy_xx_flush", fillcolor="#e3d6ff"];
+        pst  [label="PST 物理寄存器状态表\npreg96 / vreg64 / freg64 / ereg\n5 态生命周期 · 旧 preg 回收", fillcolor="#e3d6ff"];
+    }
+
+    // ===================== 存储/外围 =====================
+    subgraph cluster_mem {
+        label="存储管理 / 总线 / 外围";
+        style="filled,rounded"; color="#57606a"; fillcolor="#f0f1f3"; fontcolor="#57606a"; fontsize=13;
+        mmu  [label="MMU (Sv39)\nI-uTLB 32 / D-uTLB 17 (全相联)\nJTLB 1024×4 路 · 硬件 PTW", fillcolor="#dde1e6"];
+        l2   [label="L2 Cache\n1MB / 16 路 / 64B 行\nPIPT · 预取", fillcolor="#dde1e6"];
+        biu  [label="BIU / AXI4-128 master", fillcolor="#dde1e6"];
+        ciu  [label="CIU 一致性互联\nMOESI · 2 路侦听过滤", fillcolor="#dde1e6"];
+        misc [label="PMP(8区) · PLIC(144源)\nCLINT · PMU/HPCP · CP0 · HAD/JTAG", fillcolor="#dde1e6"];
+    }
+
+    // ===================== 主数据流 =====================
+    pcgen -> icache [style=invis];
+    pcgen -> l0btb  [lhead=cluster_bp, label="查预测"];
+    icache -> ibuf  [label="指令包"];
+    ibuf  -> id     [label="≤3 指令/拍", lhead=cluster_idu, penwidth=2.0, color="#1a7f37"];
+
+    id -> ir   [label="≤4 微操作"];
+    ir -> aiq0 [lhead=cluster_iq, label="dispatch ≤4"];
+    aiq0 -> rf [ltail=cluster_iq, label="launch"];
+
+    // RF -> 执行
+    rf -> alu0 [lhead=cluster_iu, penwidth=2.0, color="#9a6700", label="操作数+控制"];
+    rf -> vfpu0 [lhead=cluster_vfpu, color="#cf222e"];
+    rf -> lq    [lhead=cluster_lsu, color="#0969da", label="访存发射"];
+
+    // 执行 -> 写回/前递 回 RF/PRF
+    alu0 -> rf [label="EX1前递/EX2写回", style=dashed, color="#9a6700", constraint=false];
+    vfpu0 -> rf [label="EX5写回", style=dashed, color="#cf222e", constraint=false];
+
+    // 完成 -> RTU
+    alu0 -> rob [lhead=cluster_rtu, label="cmplt(iid)", style=dashed, color="#8250df", constraint=false];
+    bju  -> rob [label="误预测", style=dashed, color="#8250df", constraint=false];
+    lq   -> rob [label="访存完成/违例", style=dashed, color="#8250df", constraint=false];
+
+    // BJU 闭环回 IFU
+    bju -> pcgen [label="iu_ifu_chgflw 重定向 / BHT 训练", style=bold, color="#cf222e", constraint=false];
+
+    // RTU flush 回前端
+    retire -> pcgen [label="rtu_ifu flush/异常向量", style=bold, color="#8250df", constraint=false];
+    retire -> id    [label="rtu_yy_xx_flush 恢复RAT", style=bold, color="#8250df", constraint=false];
+
+    // LSU 访存层次
+    lq -> dcache  [label="DC/DA 查 cache"];
+    sq -> wmb     [label="退休后提交"];
+    wmb -> dcache [label="写"];
+    dcache -> rb  [label="miss"];
+    rb -> biu     [label="AXI 读", lhead=cluster_mem];
+    lfb -> dcache [label="refill"];
+    dcache -> vb  [label="逐出脏行"];
+
+    // 访存与存储层次
+    dcache -> mmu [label="VA→PA", lhead=cluster_mem, constraint=false, color="#0969da"];
+    biu -> l2   [style=invis];
+    l2 -> ciu   [style=invis];
+
+    // PST 与 ROB
+    rob -> pst  [style=invis];
+
+    // 竖向排版骨架（少量不可见约束边，把主流水拉成自上而下）
+    rf   -> alu0 [style=invis, weight=8];
+    alu0 -> rob  [style=invis, weight=8];
+    rob  -> biu  [style=invis, weight=4];
+}
