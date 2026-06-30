@@ -17,7 +17,7 @@
 | [10_ipctrl.md](10_ipctrl.md) | IP 级控制：分支碰撞检测，Miss 处理，chgflw 生成 | IP 级流水线管理 |
 | [11_ipdp.md](11_ipdp.md) | IP 级数据通路：H0~H8 指令解析，目标 PC 选择，BHT 融合 | IP 级数据处理 |
 | [12_ibctrl.md](12_ibctrl.md) | IB 级控制：IBUF/LBUF 仲裁，RAS push/pop，Indirect BTB | IB 级流水线管理 |
-| [13_ibuf.md](13_ibuf.md) | 指令缓冲队列：8×3 条指令，Bypass 路径，特殊指令标记 | 取指-译码解耦 |
+| [13_ibuf.md](13_ibuf.md) | 指令缓冲队列：32 项（每项 1 个 16 位 half-word），Bypass 路径，特殊指令标记 | 取指-译码解耦 |
 | [14_lbuf.md](14_lbuf.md) | 循环缓冲：4 状态机，循环体缓存，BHT 集成 | 循环性能优化 |
 | [15_addrgen.md](15_addrgen.md) | 分支地址生成：目标计算，mispred 检测，BTB 更新触发 | 分支确认后处理 |
 | [16_l1_refill.md](16_l1_refill.md) | L1 Cache 填充：10 状态机，4 包数据接收，INV 冲突处理 | Cache Miss 处理 |

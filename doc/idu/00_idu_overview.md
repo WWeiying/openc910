@@ -250,17 +250,19 @@ ir_ctrl 注释揭示了一个重要的时序优化：IR 和 IS 阶段采用**精
 
 ### 6.1 七个发射队列
 
-每个发射队列对应一类功能单元，深度均为 **8 项**：
+每个发射队列对应一类功能单元。**深度并非一律相同**：AIQ0/AIQ1/VIQ0/VIQ1 为 **8 项**，
+而 **BIQ/LSIQ/SDIQ 为 12 项**（分支与访存指令更多发、更长延迟，需更深缓冲；总容量
+8+8+12+12+12+8+8 = **68 项**，由各 `*_entry_vld` 位宽 `[7:0]` vs `[11:0]` 可核实）：
 
-| 队列 | 文件 | 服务的功能单元 | 目标管线 |
-|------|------|----------------|----------|
-| `aiq0` | is_aiq0.v | ALU0 + 特殊指令（CSR/同步） | pipe0 |
-| `aiq1` | is_aiq1.v | ALU1 + 乘法 MULT | pipe1 |
-| `biq` | is_biq.v | 分支跳转 BJU | pipe2 |
-| `lsiq` | is_lsiq.v | Load/Store 地址 | pipe3 / pipe4 |
-| `sdiq` | is_sdiq.v | Store 数据 | pipe5 |
-| `viq0` | is_viq0.v | 向量/浮点 0 | pipe6 |
-| `viq1` | is_viq1.v | 向量/浮点 1 | pipe7 |
+| 队列 | 文件 | 深度 | 服务的功能单元 | 目标管线 |
+|------|------|------|----------------|----------|
+| `aiq0` | is_aiq0.v | **8** | ALU0 + 特殊指令（CSR/同步） | pipe0 |
+| `aiq1` | is_aiq1.v | **8** | ALU1 + 乘法 MULT | pipe1 |
+| `biq` | is_biq.v | **12** | 分支跳转 BJU | pipe2 |
+| `lsiq` | is_lsiq.v | **12** | Load/Store 地址 | pipe3 / pipe4 |
+| `sdiq` | is_sdiq.v | **12** | Store 数据 | pipe5 |
+| `viq0` | is_viq0.v | **8** | 向量/浮点 0 | pipe6 |
+| `viq1` | is_viq1.v | **8** | 向量/浮点 1 | pipe7 |
 
 > AIQ = ALU Issue Queue，BIQ = Branch IQ，LSIQ = Load/Store IQ，
 > SDIQ = Store Data IQ，VIQ = Vector IQ。
@@ -472,9 +474,9 @@ ct_idu_top（6622 行）
 │   ├─ ct_idu_is_aiq0       (2124) + entry ×8 (2668)   ALU0 队列
 │   ├─ ct_idu_is_aiq1       (2154) + entry ×8 (2580)   ALU1 队列
 │   │   └─ aiq_lch_rdy_1/2/3 (105/106/106) 发射就绪仲裁
-│   ├─ ct_idu_is_biq        (1999) + entry ×8 (540)    分支队列
-│   ├─ ct_idu_is_lsiq       (4114) + entry ×8 (1325)   访存队列
-│   ├─ ct_idu_is_sdiq       (2637) + entry ×8 (734)    存数据队列
+│   ├─ ct_idu_is_biq        (1999) + entry ×12 (540)   分支队列
+│   ├─ ct_idu_is_lsiq       (4114) + entry ×12 (1325)  访存队列
+│   ├─ ct_idu_is_sdiq       (2637) + entry ×12 (734)   存数据队列
 │   ├─ ct_idu_is_viq0       (1857) + entry ×8 (1492)   向量队列0
 │   └─ ct_idu_is_viq1       (1840) + entry ×8 (1482)   向量队列1
 │

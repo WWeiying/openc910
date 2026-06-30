@@ -51,3 +51,7 @@ RTU（Retire Unit，退休单元）是 C910 乱序执行的**秩序守护者**�
   stall 状态机互为表里；退休 PC 依赖 PCFIFO 弹出（`doc/iu/03_bju_pcfifo.md`）；
 - **perf 统计**：tb.v 采样的 `rtu_yy_xx_retire0/1/2` 和 HPCP 的退休事件都源于
   本模块（见 04_retire.md 性能监控一节）。
+- **RAS 返回栈**：返回地址栈共 **18 项 = IFU 维护 12 项 + RTU 维护 6 项**，但**全部 18 项
+  物理实例都在 `ct_ifu_ras.v`**（`rtu_entry0~5` + `ras_entry0~11`）。RTU 不自存 RAS，而是在退休时
+  通过 `rtu_ifu_retire0/1/2_pcall/preturn` 信号驱动那 6 项的指针更新——**用精确退休的 call/ret
+  纠正前端投机压栈/弹栈的错误**。所以 RAS 的存储归 IFU（见 `doc/ifu/05_ras.md`），但其精确性靠 RTU。

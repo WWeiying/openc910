@@ -827,16 +827,16 @@ IBUF 作为**弹性缓冲**，解耦取指和译码的速率差异，使两端�
 ### 13.2 结构
 
 ```
-IBUF = 8 个 Entry，每 Entry 存 3 条指令（16~32 位）
+IBUF = 32 个 Entry（FIFO，ENTRY_NUM=32），每 Entry 存一个 16 位 half-word
+（C 扩展令指令边界按 16 位对齐，故按 half-word 而非整指令组织）。
+32 个 half-word ≈ 最多 16 条 32 位指令；向译码侧每拍最多送出 3 条指令。
+（每 Entry 的精确字段与指针管理见本目录 13_ibuf.md，为权威详述）
 
-Entry 的关键字段：
-  inst0/1/2[31:0]  — 最多 3 条指令内容
-  vpc[38:0]        — 本 Entry 的起始 PC
-  hn_vld[7:0]      — H1~H8 的有效位（one-hot，哪些 half-word 有效）
-  hn_acc_err[7:0]  — H1~H8 的访问错误标记
-  hn_pgflt[7:0]    — H1~H8 的页故障标记
-  target[38:0]     — 分支目标
-  branch_vld       — 本 Entry 含有分支指令
+读出/译码侧接口（送往 IDU，非单个 Entry 的存储布局）：
+  inst0/1/2[31:0]  — 每拍最多 3 条指令
+  vpc[38:0]        — 起始 PC
+  hn_acc_err / hn_pgflt — 各 half-word 的访问错误 / 页故障标记
+  branch 相关信息  — 由 ibdp 随指令送出
 ```
 
 ### 13.3 Bypass Path（直通路径）
