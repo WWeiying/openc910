@@ -14,7 +14,7 @@
 set -e
 
 TAG=${1:-"run"}
-BENCH_CASES="coremark \
+BENCH_CASES="coremark dhrystone \
     bench_branch bench_mem bench_ilp bench_frontend bench_fp \
     bench_br_bimodal bench_br_ras bench_br_indirect bench_br_corr \
     bench_cache_stride"

@@ -23,6 +23,7 @@ CASE_LIST := \
       ISA_FP \
       ISA_IMAC \
       coremark \
+      dhrystone \
       hello_world \
       MMU \
       csr \
@@ -95,6 +96,14 @@ coremark_build:
 	@cp -f ./tests/lib/clib/* ./work
 	@cp -f ./tests/lib/newlib_wrap/* ./work
 	@cd ./work && make -s clean && make -s all CPU_ARCH_FLAG_0=c910 COMPILER=${COMPILER} ENDIAN_MODE=little-endian CASENAME=coremark FILE=${CASE} >& coremark_build.case.log 
+
+
+dhrystone_build:
+	@cp -f ./tests/cases/dhrystone/* ./work
+	@find ./tests/lib/ -maxdepth 1 -type f -exec cp {} ./work/ \; 
+	@cp -f ./tests/lib/clib/* ./work
+	@cp -f ./tests/lib/newlib_wrap/* ./work
+	@cd ./work && make -s clean && make -s all CPU_ARCH_FLAG_0=c910 COMPILER=${COMPILER} ENDIAN_MODE=little-endian CASENAME=dhrystone FILE=${CASE} >& dhrystone_build.case.log 
 
 
 hello_world_build:
@@ -259,5 +268,4 @@ define newline
 
 
 endef
-
 

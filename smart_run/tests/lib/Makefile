@@ -56,6 +56,9 @@ ifeq (${CASENAME}, coremark)
   CFLAGS += -c -O3 -mtune=c910 -static -funroll-all-loops -finline-limit=500 -fgcse-sm -fno-schedule-insns --param max-rtl-if-conversion-unpredictable-cost=100 -msignedness-cmpiv -fno-code-hoisting -mno-thread-jumps1 -mno-iv-adjust-addr-cost -mno-expand-split-imm -DITERATIONS=10000
   # CFLAGS += -c -v -funroll-all-loops -finline-limit=500 -fgcse-sm -fno-schedule-insns --param max-rtl-if-conversion-unpredictable-cost=100 -fno-code-hoisting -mno-thread-jumps1 -mno-iv-adjust-addr-cost -DITERATIONS=10000 -O3 -static -mbit-translate
   SFLAGS = -march=rv64imafdcvxtheadc -mabi=lp64d -c -O3 -mtune=c910 -static -funroll-all-loops -finline-limit=500 -fgcse-sm -fno-schedule-insns --param max-rtl-if-conversion-unpredictable-cost=100 -msignedness-cmpiv -fno-code-hoisting -mno-thread-jumps1 -mno-iv-adjust-addr-cost -mno-expand-split-imm -DITERATIONS=10000
+else ifeq (${CASENAME}, dhrystone)
+  CFLAGS += -c -O3 -fno-inline -fno-inline-functions -fno-inline-small-functions -std=gnu99 -Wno-implicit-int -Wno-implicit-function-declaration -DSMART_RUN -DDHRYSTONE_RUNS=1000
+  SFLAGS = -march=rv64imafdcvxtheadc -mabi=lp64d -c -O3 -fno-inline -fno-inline-functions -fno-inline-small-functions -std=gnu99 -Wno-implicit-int -Wno-implicit-function-declaration -DSMART_RUN -DDHRYSTONE_RUNS=1000
 else
   CFLAGS += -c -O2
   SFLAGS = -march=rv64imafdcvxtheadc -mabi=lp64d -c -O2
@@ -125,4 +128,3 @@ all : ${FILE}.pat ${FILE}.hex ${FILE}.elf ${FILE}.obj ${FILE}.asm symbols.svh
 .PHONY :clean 
 clean:
 	rm -rf *.o *.pat *.elf *.obj *.hex
-
