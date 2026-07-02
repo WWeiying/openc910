@@ -1,0 +1,112 @@
+Info: [VCS_SAVE_RESTORE_INFO] ASLR (Address Space Layout Randomization) is detected on the machine. To enable $save functionality, ASLR will be switched off and simv re-executed.
+Please use '-no_save' simv switch to avoid re-execution or '-suppress=ASLR_DETECTED_INFO' to suppress this message.
+Notice: timing checks disabled with +notimingcheck at compile-time
+Chronologic VCS simulator copyright 1991-2023
+Contains Synopsys proprietary information.
+Compiler version V-2023.12-SP1_Full64; Runtime version V-2023.12-SP1_Full64;  Jun 11 22:03 2026
+	********* Init Program *********
+	********* Wipe memory to 0 *********
+	********* Read program *********
+	********* Load program to memory *********
+*Verdi* Loading libsscore_vcs202312.so
+FSDB Dumper for VCS, Release Verdi_V-2023.12-SP1, Linux x86_64/64bit, 03/03/2024
+(C) 1996 - 2024 by Synopsys, Inc.
+*Verdi* FSDB WARNING: The FSDB file already exists. Overwriting the FSDB file may crash the programs that are using this file.
+*Verdi* : Create FSDB file 'novas.fsdb'
+*Verdi* : Begin traversing the scopes, layer (0).
+*Verdi* : End of traversing.
+**********************************************************************************
+*                        simulation finished successfully                        *
+**********************************************************************************
+
+=========================== Performance Statistics ==============================
+|     Phase     |     Cycles     |  Retired Inst  |     CPI      |     IPC      |
+|---------------|----------------|----------------|--------------|--------------|
+|     Total     |   19310        |   17659        |      1.093   |      0.915   |
+|-------------------------------------------------------------------------------|
+|     Main      |   15280        |   17585        |      0.869   |      1.151   |
+|     Kernel    |   9710         |   10242        |      0.948   |      1.055   |
+|-------------------------------------------------------------------------------|
+|     Main Inst     |    Inst Count     | Total Inst Count  |    Percentage     |
+|-------------------------------------------------------------------------------|
+|       ALU         |        21123      |        17585      |      120.12%      |
+|    Float Point    |        0          |        17585      |        0.00%      |
+|      Store        |        5          |        17585      |        0.03%      |
+|       LDST        |        929        |        17585      |        5.28%      |
+|    Cond Branch    |        3700       |        17585      |       21.04%      |
+|    Indir Branch   |        0          |        17585      |        0.00%      |
+|     Long Jump     |        0          |        17585      |        0.00%      |
+|        Vec        |        0          |        17585      |        0.00%      |
+|        CSR        |        0          |        17585      |        0.00%      |
+|       Sync        |        0          |        17585      |        0.00%      |
+|       Ecall       |        0          |        17585      |        0.00%      |
+|-------------------------------------------------------------------------------|
+|     Main Monitor  |    Perf Count     |    Total Perf     |    Percentage     |
+|-------------------------------------------------------------------------------|
+| RF Pipe Launches  |        24778      |        17585      |      140.90%      |
+|      L1I Miss     |        5          |        12850      |        0.04%      |
+|   L1D Load Miss   |        1          |        1          |      100.00%      |
+|   L1D Store Miss  |        1          |        646        |        0.15%      |
+|  Cond Branch Misp |        540        |        3700       |       14.59%      |
+| Indir Branch Misp |        0          |        0          |        0.00%      |
+| IFU Bran Tar Misp |        16         |        2534       |        0.63%      |
+|    Sync Stall     |        0          |        15280      |        0.00%      |
+|   Frontend Stall  |        2719       |        15280      |       17.79%      |
+|   Backend Stall   |        4080       |        15280      |       26.70%      |
+|    I-UTLB Miss    |        0          |                   |                   |
+|    D-UTLB Miss    |        0          |                   |                   |
+|    JTLB Miss      |        0          |                   |                   |
+|  LSU Spec Fail    |        0          |                   |                   |
+|  RF Launch Fail   |        487        |                   |                   |
+| RF Reg Launch Fail|        0          |                   |                   |
+| LSU Cross 4K Stall|        799        |                   |                   |
+|  LSU Other Stall  |        5          |                   |                   |
+|   LSU SQ Discard  |        0          |                   |                   |
+|LSU SQ Data Discard|        0          |                   |                   |
+|LDST Unaligh Access|        0          |                   |                   |
+|-------------------------------------------------------------------------------|
+|    Kernel Inst    |    Inst Count     | Total Inst Count  |    Percentage     |
+|-------------------------------------------------------------------------------|
+|       ALU         |        15914      |        10242      |      155.38%      |
+|    Float Point    |        0          |        10242      |        0.00%      |
+|      Store        |        1          |        10242      |        0.01%      |
+|       LDST        |        843        |        10242      |        8.23%      |
+|    Cond Branch    |        1166       |        10242      |       11.38%      |
+|    Indir Branch   |        0          |        10242      |        0.00%      |
+|     Long Jump     |        0          |        10242      |        0.00%      |
+|        Vec        |        0          |        10242      |        0.00%      |
+|        CSR        |        0          |        10242      |        0.00%      |
+|       Sync        |        0          |        10242      |        0.00%      |
+|       Ecall       |        0          |        10242      |        0.00%      |
+|-------------------------------------------------------------------------------|
+|   Kernel Monitor  |    Perf Count     |    Total Perf     |    Percentage     |
+|-------------------------------------------------------------------------------|
+| RF Pipe Launches  |        16792      |        10242      |      163.95%      |
+|      L1I Miss     |        5          |        8135       |        0.06%      |
+|   L1D Load Miss   |        1          |        1          |      100.00%      |
+|   L1D Store Miss  |        1          |        604        |        0.17%      |
+|  Cond Branch Misp |        445        |        1166       |       38.16%      |
+| Indir Branch Misp |        0          |        0          |        0.00%      |
+| IFU Bran Tar Misp |        9          |        974        |        0.92%      |
+|    Sync Stall     |        0          |        9710       |        0.00%      |
+|   Frontend Stall  |        1824       |        9710       |       18.78%      |
+|   Backend Stall   |        2695       |        9710       |       27.75%      |
+|    I-UTLB Miss    |        0          |                   |                   |
+|    D-UTLB Miss    |        0          |                   |                   |
+|    JTLB Miss      |        0          |                   |                   |
+|  LSU Spec Fail    |        0          |                   |                   |
+|  RF Launch Fail   |        430        |                   |                   |
+| RF Reg Launch Fail|        0          |                   |                   |
+| LSU Cross 4K Stall|        740        |                   |                   |
+|  LSU Other Stall  |        5          |                   |                   |
+|   LSU SQ Discard  |        0          |                   |                   |
+|LSU SQ Data Discard|        0          |                   |                   |
+|LDST Unaligh Access|        0          |                   |                   |
+=================================================================================
+
+$finish called from file "../logical/tb/tb.v", line 1016.
+$finish at simulation time           1933950000
+           V C S   S i m u l a t i o n   R e p o r t 
+Time: 193395000000 fs
+CPU Time:     55.250 seconds;       Data structure size:  89.6Mb
+Thu Jun 11 22:04:43 2026

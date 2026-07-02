@@ -22,6 +22,7 @@ SIM = vcs
 DUMP = on
 UPF = off 
 THREADS = 4
+COREMARK_ITERATIONS ?= 30
 export COMPILER = gcc 
 
 export CODE_BASE_PATH = /home/wangwy/openc910/C910_RTL_FACTORY

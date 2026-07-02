@@ -51,14 +51,18 @@ else
 endif
 CFLAGS = ${FLAG_MARCH} ${FLAG_ABI} ${LLVM_OPTION}
 
+COREMARK_ITERATIONS ?= 30
+
 ifeq (${CASENAME}, coremark)
   #CFLAGS += -c -O3 -mtune=c910 -static -funroll-all-loops -finline-limit=500 -fgcse-sm -fno-schedule-insns --param max-rtl-if-conversion-unpredictable-cost=100 -DITERATIONS=10000
-  CFLAGS += -c -O3 -mtune=c910 -static -funroll-all-loops -finline-limit=500 -fgcse-sm -fno-schedule-insns --param max-rtl-if-conversion-unpredictable-cost=100 -msignedness-cmpiv -fno-code-hoisting -mno-thread-jumps1 -mno-iv-adjust-addr-cost -mno-expand-split-imm -DITERATIONS=10000
+  CFLAGS += -c -O3 -mtune=c910 -static -funroll-all-loops -finline-limit=500 -fgcse-sm -fno-schedule-insns --param max-rtl-if-conversion-unpredictable-cost=100 -msignedness-cmpiv -fno-code-hoisting -mno-thread-jumps1 -mno-iv-adjust-addr-cost -mno-expand-split-imm -DITERATIONS=${COREMARK_ITERATIONS}
   # CFLAGS += -c -v -funroll-all-loops -finline-limit=500 -fgcse-sm -fno-schedule-insns --param max-rtl-if-conversion-unpredictable-cost=100 -fno-code-hoisting -mno-thread-jumps1 -mno-iv-adjust-addr-cost -DITERATIONS=10000 -O3 -static -mbit-translate
-  SFLAGS = -march=rv64imafdcvxtheadc -mabi=lp64d -c -O3 -mtune=c910 -static -funroll-all-loops -finline-limit=500 -fgcse-sm -fno-schedule-insns --param max-rtl-if-conversion-unpredictable-cost=100 -msignedness-cmpiv -fno-code-hoisting -mno-thread-jumps1 -mno-iv-adjust-addr-cost -mno-expand-split-imm -DITERATIONS=10000
+  SFLAGS = -march=rv64imafdcvxtheadc -mabi=lp64d -c -O3 -mtune=c910 -static -funroll-all-loops -finline-limit=500 -fgcse-sm -fno-schedule-insns --param max-rtl-if-conversion-unpredictable-cost=100 -msignedness-cmpiv -fno-code-hoisting -mno-thread-jumps1 -mno-iv-adjust-addr-cost -mno-expand-split-imm -DITERATIONS=${COREMARK_ITERATIONS}
 else ifeq (${CASENAME}, dhrystone)
-  CFLAGS += -c -O3 -fno-inline -fno-inline-functions -fno-inline-small-functions -std=gnu99 -Wno-implicit-int -Wno-implicit-function-declaration -DSMART_RUN -DDHRYSTONE_RUNS=1000
-  SFLAGS = -march=rv64imafdcvxtheadc -mabi=lp64d -c -O3 -fno-inline -fno-inline-functions -fno-inline-small-functions -std=gnu99 -Wno-implicit-int -Wno-implicit-function-declaration -DSMART_RUN -DDHRYSTONE_RUNS=1000
+  # Performance-oriented Dhrystone build: allows normal -O3 inlining.
+  # Use the archived dhrystone_std_1000 result for strict no-inline ground rules.
+  CFLAGS += -c -O3 -std=gnu99 -Wno-implicit-int -Wno-implicit-function-declaration -DSMART_RUN -DDHRYSTONE_RUNS=1000
+  SFLAGS = -march=rv64imafdcvxtheadc -mabi=lp64d -c -O3 -std=gnu99 -Wno-implicit-int -Wno-implicit-function-declaration -DSMART_RUN -DDHRYSTONE_RUNS=1000
 else
   CFLAGS += -c -O2
   SFLAGS = -march=rv64imafdcvxtheadc -mabi=lp64d -c -O2

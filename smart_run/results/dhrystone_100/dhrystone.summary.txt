@@ -1,0 +1,13 @@
+Execution starts, 100 runs through Dhrystone
+Cycles for one run through Dhrystone:        116.2 
+Dhrystones per simulated MHz:               8609.6 
+DMIPS/MHz:                                   4.900 
+TEST PASS
+|     Total     |   25591        |   26845        |      0.953   |      1.049   |
+|     Main      |   25537        |   26839        |      0.951   |      1.051   |
+|     Kernel    |   21908        |   23802        |      0.920   |      1.086   |
+|     Main Inst     |    Inst Count     | Total Inst Count  |    Percentage     |
+|     Main Monitor  |    Perf Count     |    Total Perf     |    Percentage     |
+|    Kernel Inst    |    Inst Count     | Total Inst Count  |    Percentage     |
+|   Kernel Monitor  |    Perf Count     |    Total Perf     |    Percentage     |
+CPU Time:     75.110 seconds;       Data structure size:  89.6Mb

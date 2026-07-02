@@ -1,0 +1,91 @@
+=========================== Performance Statistics ==============================
+|     Phase     |     Cycles     |  Retired Inst  |     CPI      |     IPC      |
+|---------------|----------------|----------------|--------------|--------------|
+|     Total     |   14824        |   13156        |      1.127   |      0.887   |
+|-------------------------------------------------------------------------------|
+|     Main      |   10790        |   13082        |      0.825   |      1.212   |
+|     Kernel    |   3977         |   68           |     58.485   |      0.017   |
+|-------------------------------------------------------------------------------|
+|     Main Inst     |    Inst Count     | Total Inst Count  |    Percentage     |
+|-------------------------------------------------------------------------------|
+|       ALU         |        9885       |        13082      |       75.56%      |
+|    Float Point    |        0          |        13082      |        0.00%      |
+|      Store        |        2303       |        13082      |       17.60%      |
+|       LDST        |        6979       |        13082      |       53.35%      |
+|    Cond Branch    |        2051       |        13082      |       15.68%      |
+|    Indir Branch   |        0          |        13082      |        0.00%      |
+|     Long Jump     |        0          |        13082      |        0.00%      |
+|        Vec        |        0          |        13082      |        0.00%      |
+|        CSR        |        0          |        13082      |        0.00%      |
+|       Sync        |        0          |        13082      |        0.00%      |
+|       Ecall       |        0          |        13082      |        0.00%      |
+|-------------------------------------------------------------------------------|
+|     Main Monitor  |    Perf Count     |    Total Perf     |    Percentage     |
+|-------------------------------------------------------------------------------|
+| RF Pipe Launches  |        20133      |        13082      |      153.90%      |
+|      L1I Miss     |        5          |        8712       |        0.06%      |
+|   L1D Load Miss   |        19         |        2908       |        0.65%      |
+|   L1D Store Miss  |        11         |        2813       |        0.39%      |
+|  Cond Branch Misp |        54         |        2051       |        2.63%      |
+| Indir Branch Misp |        0          |        0          |        0.00%      |
+| IFU Bran Tar Misp |        11         |        590        |        1.86%      |
+|    Sync Stall     |        0          |        10790      |        0.00%      |
+|   Frontend Stall  |        2334       |        10790      |       21.63%      |
+|   Backend Stall   |        2986       |        10790      |       27.67%      |
+|    I-UTLB Miss    |        0          |                   |                   |
+|    D-UTLB Miss    |        0          |                   |                   |
+|    JTLB Miss      |        0          |                   |                   |
+|  LSU Spec Fail    |        142        |                   |                   |
+|  RF Launch Fail   |        418        |                   |                   |
+| RF Reg Launch Fail|        0          |                   |                   |
+| LSU Cross 4K Stall|        239        |                   |                   |
+|  LSU Other Stall  |        270        |                   |                   |
+|   LSU SQ Discard  |        0          |                   |                   |
+|LSU SQ Data Discard|        379        |                   |                   |
+|LDST Unaligh Access|        0          |                   |                   |
+|-------------------------------------------------------------------------------|
+|    Kernel Inst    |    Inst Count     | Total Inst Count  |    Percentage     |
+|-------------------------------------------------------------------------------|
+|       ALU         |        52         |        68         |       76.47%      |
+|    Float Point    |        0          |        68         |       -0.00%      |
+|      Store        |        0          |        68         |       -0.00%      |
+|       LDST        |        0          |        68         |       -0.00%      |
+|    Cond Branch    |        0          |        68         |       -0.00%      |
+|    Indir Branch   |        0          |        68         |       -0.00%      |
+|     Long Jump     |        0          |        68         |       -0.00%      |
+|        Vec        |        0          |        68         |       -0.00%      |
+|        CSR        |        14         |        68         |       20.59%      |
+|       Sync        |        0          |        68         |       -0.00%      |
+|       Ecall       |        0          |        68         |       -0.00%      |
+|-------------------------------------------------------------------------------|
+|   Kernel Monitor  |    Perf Count     |    Total Perf     |    Percentage     |
+|-------------------------------------------------------------------------------|
+| RF Pipe Launches  |        69         |        68         |      101.47%      |
+|      L1I Miss     |        2          |        35         |        5.71%      |
+|   L1D Load Miss   |        0          |        0          |        0.00%      |
+|   L1D Store Miss  |        0          |        0          |        0.00%      |
+|  Cond Branch Misp |        0          |        0          |        0.00%      |
+| Indir Branch Misp |        0          |        0          |        0.00%      |
+| IFU Bran Tar Misp |        2          |        4          |       50.00%      |
+|    Sync Stall     |        0          |        3977       |       -0.00%      |
+|   Frontend Stall  |        3839       |        3977       |       96.53%      |
+|   Backend Stall   |        3965       |        3977       |       99.70%      |
+|    I-UTLB Miss    |        0          |                   |                   |
+|    D-UTLB Miss    |        0          |                   |                   |
+|    JTLB Miss      |        0          |                   |                   |
+|  LSU Spec Fail    |        0          |                   |                   |
+|  RF Launch Fail   |        0          |                   |                   |
+| RF Reg Launch Fail|        0          |                   |                   |
+| LSU Cross 4K Stall|        0          |                   |                   |
+|  LSU Other Stall  |        0          |                   |                   |
+|   LSU SQ Discard  |        0          |                   |                   |
+|LSU SQ Data Discard|        0          |                   |                   |
+|LDST Unaligh Access|        0          |                   |                   |
+=================================================================================
+
+$finish called from file "../logical/tb/tb.v", line 1016.
+$finish at simulation time           1485350000
+           V C S   S i m u l a t i o n   R e p o r t 
+Time: 148535000000 fs
+CPU Time:     44.360 seconds;       Data structure size:  89.6Mb
+Thu Jun 11 21:53:21 2026

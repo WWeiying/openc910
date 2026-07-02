@@ -1,0 +1,9 @@
+VCUNT_IM:: CoreMark has been run 10 times, one times cost 151755 cycles !
+VCUNT_SIM: CoreMark 1.0 : 6.589569 (iterations/sec)/MHz
+CoreMark Size    : 666
+Iterations       : 10
+Correct operation validated. See readme.txt for run and reporting rules.
+|     Total     |   1554229      |   2341965      |      0.664   |      1.507   |
+|     Main      |   1550211      |   2341891      |      0.662   |      1.511   |
+|     Kernel    |   14332        |   9388         |      1.527   |      0.655   |
+CPU Time:   3837.720 seconds;       Data structure size:  87.7Mb
