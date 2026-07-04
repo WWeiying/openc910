@@ -23,11 +23,41 @@ DUMP = on
 UPF = off 
 THREADS = 4
 COREMARK_ITERATIONS ?= 30
-export COMPILER = gcc 
+export COMPILER = gcc
 
-export CODE_BASE_PATH = /home/wangwy/openc910/C910_RTL_FACTORY
-export GCC_PATH = /home/wangwy/brook/toolchains/Xuantie-900-gcc-elf-newlib-x86_64-V3.0.1/bin/
-export LLVM_PATH = /home/wangwy/brook/toolchains/Xuantie-900-llvm-elf-newlib-x86_64-V2.0.1/bin
+CODE_BASE_PATH ?= $(abspath ../C910_RTL_FACTORY)
+TOOLCHAIN_ROOT ?= $(abspath ../toolchains/Xuantie-900-gcc-elf-newlib-x86_64-V3.1.0)
+LLVM_TOOLCHAIN_ROOT ?= $(abspath ../toolchains/Xuantie-900-llvm-elf-newlib-x86_64-V2.4.0)
+QEMU_ROOT ?= $(abspath ../toolchains/Xuantie-qemu-x86_64-Ubuntu-20.04-V5.2.8-B20250721-0303)
+TOOL_EXTENSION ?= $(TOOLCHAIN_ROOT)/bin/
+GCC_PATH ?= $(TOOL_EXTENSION)
+LLVM_PATH ?= $(LLVM_TOOLCHAIN_ROOT)/bin
+QEMU_PATH ?= $(QEMU_ROOT)/bin
+export CODE_BASE_PATH
+export TOOLCHAIN_ROOT
+export LLVM_TOOLCHAIN_ROOT
+export QEMU_ROOT
+export TOOL_EXTENSION
+export GCC_PATH
+export LLVM_PATH
+export QEMU_PATH
+
+################################################################################
+# Docker environment for Xuantie QEMU / SimPoint tooling
+################################################################################
+REPO_ROOT := $(abspath ..)
+DOCKER ?= docker
+DOCKER_IMAGE ?= ubuntu:20.04
+DOCKER_CONTAINER ?= openc910-qemu
+DOCKER_WORKDIR ?= /work/smart_run
+DOCKER_MOUNT ?= $(REPO_ROOT):/work
+DOCKER_RUN_FLAGS ?= --network host
+DOCKER_QEMU ?= /work/toolchains/Xuantie-qemu-x86_64-Ubuntu-20.04-V5.2.8-B20250721-0303/bin/qemu-system-riscv64
+DOCKER_APT_DEPS ?= \
+	ca-certificates bash make file less vim-tiny git \
+	build-essential python3 python3-pip python3-venv perl \
+	qemu-system-misc p7zip-full gzip xz-utils time \
+	libcapstone3 pkg-config libglib2.0-dev
 
 # Generate C++ in executable form
 VERILATOR_FLAGS += -cc --exe
@@ -254,10 +284,68 @@ regress:
 ################################################################################
 .DEFAULT_GOAL := help
 
+.PHONY: compile buildVerilator cleansim cleanVerilator verdi showcase buildcase \
+	simcase cleancase runVerilator runcase regress memlist docker-create \
+	docker-start docker-shell docker-root docker-deps docker-qemu-test \
+	docker-stop docker-rm clean help
+
 memlist:
 	@make -s compile
 	${VERDI_HOME}/share/VIA/Apps/Bin/findInstDefWild.pl -dbdir ./work/simv.daidir -pattern "ct_spsram*" -scope "tb.x_soc.x_cpu_sub_system_axi.x_rv_integration_platform.x_cpu_top" -dump_def_name -outlog ./work/memlist.verdi.log
 	perl impl/memlist/memlist.pl 
+
+docker-create:
+	@if $(DOCKER) ps -a --format '{{.Names}}' | grep -qx '$(DOCKER_CONTAINER)'; then \
+	  echo "  [Docker] Container $(DOCKER_CONTAINER) already exists"; \
+	else \
+	  echo "  [Docker] Creating $(DOCKER_CONTAINER) from $(DOCKER_IMAGE)"; \
+	  $(DOCKER) create -it \
+	    --name $(DOCKER_CONTAINER) \
+	    $(DOCKER_RUN_FLAGS) \
+	    -v $(DOCKER_MOUNT) \
+	    -w $(DOCKER_WORKDIR) \
+	    $(DOCKER_IMAGE) \
+	    bash >/dev/null; \
+	fi
+
+docker-start: docker-create
+	@if $(DOCKER) ps --format '{{.Names}}' | grep -qx '$(DOCKER_CONTAINER)'; then \
+	  echo "  [Docker] Container $(DOCKER_CONTAINER) is already running"; \
+	else \
+	  echo "  [Docker] Starting $(DOCKER_CONTAINER)"; \
+	  $(DOCKER) start $(DOCKER_CONTAINER) >/dev/null; \
+	fi
+
+docker-shell: docker-start
+	@$(DOCKER) exec -it $(DOCKER_CONTAINER) bash
+
+docker-root: docker-shell
+
+docker-deps: docker-start
+	@$(DOCKER) exec -it $(DOCKER_CONTAINER) bash -lc \
+	  'export DEBIAN_FRONTEND=noninteractive; \
+	   apt-get update && \
+	   apt-get install -y --no-install-recommends $(DOCKER_APT_DEPS)'
+
+docker-qemu-test: docker-start
+	@$(DOCKER) exec -it $(DOCKER_CONTAINER) bash -lc \
+	  '$(DOCKER_QEMU) --version && ldd $(DOCKER_QEMU) | grep "not found" || true'
+
+docker-stop:
+	@if $(DOCKER) ps --format '{{.Names}}' | grep -qx '$(DOCKER_CONTAINER)'; then \
+	  echo "  [Docker] Stopping $(DOCKER_CONTAINER)"; \
+	  $(DOCKER) stop $(DOCKER_CONTAINER) >/dev/null; \
+	else \
+	  echo "  [Docker] Container $(DOCKER_CONTAINER) is not running"; \
+	fi
+
+docker-rm:
+	@if $(DOCKER) ps -a --format '{{.Names}}' | grep -qx '$(DOCKER_CONTAINER)'; then \
+	  echo "  [Docker] Removing $(DOCKER_CONTAINER)"; \
+	  $(DOCKER) rm -f $(DOCKER_CONTAINER) >/dev/null; \
+	else \
+	  echo "  [Docker] Container $(DOCKER_CONTAINER) does not exist"; \
+	fi
 
 clean:
 	@cd ./work && rm -rf * 
@@ -275,6 +363,13 @@ help:
 	@echo "    simcase CASE=[casename]         : run case without RTL recompile (requires prior compile)";
 	@echo "    regress                         : run all cases and summarize the regress result";
 	@echo "    memlist                         : generate sram list with the help of VCS/Verdi";
+	@echo "    docker-create                   : create Ubuntu container for Xuantie QEMU/SimPoint";
+	@echo "    docker-start                    : start the Docker container";
+	@echo "    docker-shell                    : enter the Docker container";
+	@echo "    docker-deps                     : install runtime deps for bundled Xuantie QEMU";
+	@echo "    docker-qemu-test                : test bundled Xuantie QEMU in the container";
+	@echo "    docker-stop                     : stop the Docker container";
+	@echo "    docker-rm                       : remove the Docker container";
 	@echo "    cleansim                        : clean files generated by simulator in ./work ";
 	@echo "    cleancase                       : clean files generated by GNU in ./work ";
 	@echo "    clean                           : clean ./work ";
@@ -282,6 +377,8 @@ help:
 	@echo "    SIM=                            : options: vcs / nc / verilator(use version 4.215 or newer)"; 
 	@echo "    CASE=                           : options: the list print by 'make showcase'"; 
 	@echo "    DUMP=                           : options: on / off";
+	@echo "    DOCKER_IMAGE=                   : default: $(DOCKER_IMAGE)";
+	@echo "    DOCKER_CONTAINER=               : default: $(DOCKER_CONTAINER)";
 	@echo "  Examples:";
 	@echo "    make runcase CASE=dhry          : run case 'dhry' (by iverilog withtout dump) "; 
 	@echo "    make runcase CASE=dhry SIM=nc   : run case 'dhry' (by nc withtout dump) "; 
@@ -291,3 +388,7 @@ help:
 	@echo "    make compile SIM=verilator DUMP=on THREADS=8  	: run compile with dump (by Verilator with dump) with 8 threads";
 	@echo "    make buildVerilator             			: run build executable file with Verilator";
 	@echo "    make runVerilator	           			: run simulation file with Verilator";
+	@echo "    make docker-create              			: create container $(DOCKER_CONTAINER)";
+	@echo "    make docker-deps                			: install bundled QEMU runtime dependencies";
+	@echo "    make docker-shell               			: enter container shell at $(DOCKER_WORKDIR)";
+	@echo "    make docker-qemu-test           			: verify Xuantie QEMU dynamic libraries";

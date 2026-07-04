@@ -57,6 +57,23 @@ parameter WE_WIDTH   = 64;
 // &Force("bus","A",ADDR_WIDTH-1,0); @36
 // &Force("bus","D",DATA_WIDTH-1,0); @37
 
+`ifdef C910_USE_TSMC_SRAM
+ct_tsmc_spsram #(
+  .ADDR_WIDTH  (ADDR_WIDTH),
+  .DATA_WIDTH  (DATA_WIDTH),
+  .MACRO_WIDTH (64),
+  .MUX         (4),
+  .SLICES      (1)
+) x_ct_tsmc_spsram_1024x64 (
+  .A    (A   ),
+  .CEN  (CEN ),
+  .CLK  (CLK ),
+  .D    (D   ),
+  .GWEN (GWEN),
+  .Q    (Q   ),
+  .WEN  (WEN )
+);
+`else
   //********************************************************
   //*                        FPGA memory                   *
   //********************************************************
@@ -76,8 +93,8 @@ ct_f_spsram_1024x64  x_ct_f_spsram_1024x64 (
 );
 
 //   &Instance("ct_tsmc_spsram_1024x64"); @53
+`endif
 
 // &ModuleEnd; @69
 endmodule
-
 

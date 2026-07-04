@@ -51,6 +51,7 @@ ${CODE_BASE_PATH}/gen_rtl/ciu/rtl/ct_ebiu_read_channel.v
 ${CODE_BASE_PATH}/gen_rtl/ciu/rtl/ct_ebiu_snoop_channel_dummy.v
 ${CODE_BASE_PATH}/gen_rtl/ciu/rtl/ct_ebiu_top.v
 ${CODE_BASE_PATH}/gen_rtl/ciu/rtl/ct_ebiu_write_channel.v
+${CODE_BASE_PATH}/gen_rtl/fpga/rtl/ct_tsmc_spsram.v
 ${CODE_BASE_PATH}/gen_rtl/fpga/rtl/ct_f_spsram_1024x128.v
 ${CODE_BASE_PATH}/gen_rtl/fpga/rtl/ct_f_spsram_1024x144.v
 ${CODE_BASE_PATH}/gen_rtl/fpga/rtl/ct_f_spsram_1024x32.v
@@ -483,4 +484,3 @@ ${CODE_BASE_PATH}/gen_rtl/plic/rtl/plic_top.v
 ${CODE_BASE_PATH}/gen_rtl/common/rtl/sync_level2level.v
 ${CODE_BASE_PATH}/gen_rtl/common/rtl/sync_level2pulse.v
 ${CODE_BASE_PATH}/gen_rtl/cpu/rtl/top_golden_port.v
-

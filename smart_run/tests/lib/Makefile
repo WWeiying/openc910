@@ -63,6 +63,192 @@ else ifeq (${CASENAME}, dhrystone)
   # Use the archived dhrystone_std_1000 result for strict no-inline ground rules.
   CFLAGS += -c -O3 -std=gnu99 -Wno-implicit-int -Wno-implicit-function-declaration -DSMART_RUN -DDHRYSTONE_RUNS=1000
   SFLAGS = -march=rv64imafdcvxtheadc -mabi=lp64d -c -O3 -std=gnu99 -Wno-implicit-int -Wno-implicit-function-declaration -DSMART_RUN -DDHRYSTONE_RUNS=1000
+else ifeq (${CASENAME}, spec_mcf_kernel)
+  ifeq (${SPEC_MCF_REPRESENTATIVE}, 1)
+    SPEC_MCF_NODES ?= 96
+    SPEC_MCF_ARCS ?= 384
+    SPEC_MCF_BASKET ?= 16
+    SPEC_MCF_PASSES ?= 3
+  else
+    SPEC_MCF_NODES ?= 32
+    SPEC_MCF_ARCS ?= 96
+    SPEC_MCF_BASKET ?= 8
+    SPEC_MCF_PASSES ?= 1
+  endif
+  CFLAGS += -c -O2 \
+    -DSPEC_MCF_NODES=${SPEC_MCF_NODES} \
+    -DSPEC_MCF_ARCS=${SPEC_MCF_ARCS} \
+    -DSPEC_MCF_BASKET=${SPEC_MCF_BASKET} \
+    -DSPEC_MCF_PASSES=${SPEC_MCF_PASSES}
+  SFLAGS = -march=rv64imafdcvxtheadc -mabi=lp64d -c -O2
+else ifeq (${CASENAME}, spec_mcf_sort_kernel)
+  ifeq (${SPEC_MCF_SORT_REPRESENTATIVE}, 1)
+    SPEC_MCF_SORT_ITEMS ?= 256
+    SPEC_MCF_SORT_PASSES ?= 3
+  else
+    SPEC_MCF_SORT_ITEMS ?= 96
+    SPEC_MCF_SORT_PASSES ?= 1
+  endif
+  CFLAGS += -c -O2 \
+    -DSPEC_MCF_SORT_ITEMS=${SPEC_MCF_SORT_ITEMS} \
+    -DSPEC_MCF_SORT_PASSES=${SPEC_MCF_SORT_PASSES}
+  SFLAGS = -march=rv64imafdcvxtheadc -mabi=lp64d -c -O2
+else ifeq (${CASENAME}, spec_xz_lzma_kernel)
+  ifeq (${SPEC_XZ_REPRESENTATIVE}, 1)
+    SPEC_XZ_BYTES ?= 2048
+    SPEC_XZ_DICT ?= 4096
+    SPEC_XZ_PASSES ?= 2
+    SPEC_XZ_PROBES ?= 32
+    SPEC_XZ_RANGE_STEPS ?= 8
+  else
+    SPEC_XZ_BYTES ?= 512
+    SPEC_XZ_DICT ?= 1024
+    SPEC_XZ_PASSES ?= 1
+    SPEC_XZ_PROBES ?= 12
+    SPEC_XZ_RANGE_STEPS ?= 4
+  endif
+  CFLAGS += -c -O2 \
+    -DSPEC_XZ_BYTES=${SPEC_XZ_BYTES} \
+    -DSPEC_XZ_DICT=${SPEC_XZ_DICT} \
+    -DSPEC_XZ_PASSES=${SPEC_XZ_PASSES} \
+    -DSPEC_XZ_PROBES=${SPEC_XZ_PROBES} \
+    -DSPEC_XZ_RANGE_STEPS=${SPEC_XZ_RANGE_STEPS}
+  SFLAGS = -march=rv64imafdcvxtheadc -mabi=lp64d -c -O2
+else ifeq (${CASENAME}, spec_x264_pixel_kernel)
+  ifeq (${SPEC_X264_REPRESENTATIVE}, 1)
+    SPEC_X264_WIDTH ?= 48
+    SPEC_X264_HEIGHT ?= 40
+    SPEC_X264_BLOCKS ?= 48
+    SPEC_X264_PASSES ?= 2
+    SPEC_X264_CANDIDATES ?= 8
+  else
+    SPEC_X264_WIDTH ?= 24
+    SPEC_X264_HEIGHT ?= 24
+    SPEC_X264_BLOCKS ?= 1
+    SPEC_X264_PASSES ?= 1
+    SPEC_X264_CANDIDATES ?= 1
+  endif
+  CFLAGS += -c -O2 \
+    -DSPEC_X264_WIDTH=${SPEC_X264_WIDTH} \
+    -DSPEC_X264_HEIGHT=${SPEC_X264_HEIGHT} \
+    -DSPEC_X264_BLOCKS=${SPEC_X264_BLOCKS} \
+    -DSPEC_X264_PASSES=${SPEC_X264_PASSES} \
+    -DSPEC_X264_CANDIDATES=${SPEC_X264_CANDIDATES}
+  SFLAGS = -march=rv64imafdcvxtheadc -mabi=lp64d -c -O2
+else ifeq (${CASENAME}, spec_deepsjeng_search_kernel)
+  ifeq (${SPEC_DEEPSJENG_REPRESENTATIVE}, 1)
+    SPEC_DEEPSJENG_POSITIONS ?= 4
+    SPEC_DEEPSJENG_DEPTH ?= 2
+    SPEC_DEEPSJENG_MOVES ?= 16
+    SPEC_DEEPSJENG_QMOVES ?= 8
+  else
+    SPEC_DEEPSJENG_POSITIONS ?= 1
+    SPEC_DEEPSJENG_DEPTH ?= 1
+    SPEC_DEEPSJENG_MOVES ?= 8
+    SPEC_DEEPSJENG_QMOVES ?= 0
+  endif
+  CFLAGS += -c -O2 \
+    -DSPEC_DEEPSJENG_POSITIONS=${SPEC_DEEPSJENG_POSITIONS} \
+    -DSPEC_DEEPSJENG_DEPTH=${SPEC_DEEPSJENG_DEPTH} \
+    -DSPEC_DEEPSJENG_MOVES=${SPEC_DEEPSJENG_MOVES} \
+    -DSPEC_DEEPSJENG_QMOVES=${SPEC_DEEPSJENG_QMOVES}
+  SFLAGS = -march=rv64imafdcvxtheadc -mabi=lp64d -c -O2
+else ifeq (${CASENAME}, spec_leela_playout_kernel)
+  ifeq (${SPEC_LEELA_REPRESENTATIVE}, 1)
+    SPEC_LEELA_BOARD ?= 13
+    SPEC_LEELA_PLAYOUTS ?= 8
+    SPEC_LEELA_MOVES ?= 32
+    SPEC_LEELA_CHILDREN ?= 64
+  else
+    SPEC_LEELA_BOARD ?= 13
+    SPEC_LEELA_PLAYOUTS ?= 2
+    SPEC_LEELA_MOVES ?= 12
+    SPEC_LEELA_CHILDREN ?= 16
+  endif
+  CFLAGS += -c -O2 \
+    -DSPEC_LEELA_BOARD=${SPEC_LEELA_BOARD} \
+    -DSPEC_LEELA_PLAYOUTS=${SPEC_LEELA_PLAYOUTS} \
+    -DSPEC_LEELA_MOVES=${SPEC_LEELA_MOVES} \
+    -DSPEC_LEELA_CHILDREN=${SPEC_LEELA_CHILDREN}
+  SFLAGS = -march=rv64imafdcvxtheadc -mabi=lp64d -c -O2
+else ifeq (${CASENAME}, spec_exchange2_search_kernel)
+  ifeq (${SPEC_EXCHANGE2_REPRESENTATIVE}, 1)
+    SPEC_EXCHANGE2_POSITIONS ?= 4
+    SPEC_EXCHANGE2_DEPTH ?= 4
+    SPEC_EXCHANGE2_MOVES ?= 14
+    SPEC_EXCHANGE2_TABLE ?= 256
+  else
+    SPEC_EXCHANGE2_POSITIONS ?= 1
+    SPEC_EXCHANGE2_DEPTH ?= 2
+    SPEC_EXCHANGE2_MOVES ?= 6
+    SPEC_EXCHANGE2_TABLE ?= 64
+  endif
+  CFLAGS += -c -O2 \
+    -DSPEC_EXCHANGE2_POSITIONS=${SPEC_EXCHANGE2_POSITIONS} \
+    -DSPEC_EXCHANGE2_DEPTH=${SPEC_EXCHANGE2_DEPTH} \
+    -DSPEC_EXCHANGE2_MOVES=${SPEC_EXCHANGE2_MOVES} \
+    -DSPEC_EXCHANGE2_TABLE=${SPEC_EXCHANGE2_TABLE}
+  SFLAGS = -march=rv64imafdcvxtheadc -mabi=lp64d -c -O2
+else ifeq (${CASENAME}, spec_cactubssn_stencil_kernel)
+  ifeq (${SPEC_CACTU_REPRESENTATIVE}, 1)
+    SPEC_CACTU_N ?= 12
+    SPEC_CACTU_STEPS ?= 3
+    SPEC_CACTU_TENSORS ?= 6
+  else
+    SPEC_CACTU_N ?= 6
+    SPEC_CACTU_STEPS ?= 1
+    SPEC_CACTU_TENSORS ?= 3
+  endif
+  CFLAGS += -c -O2 \
+    -DSPEC_CACTU_N=${SPEC_CACTU_N} \
+    -DSPEC_CACTU_STEPS=${SPEC_CACTU_STEPS} \
+    -DSPEC_CACTU_TENSORS=${SPEC_CACTU_TENSORS}
+  SFLAGS = -march=rv64imafdcvxtheadc -mabi=lp64d -c -O2
+else ifeq (${CASENAME}, spec_lbm_stream_kernel)
+  ifeq (${SPEC_LBM_REPRESENTATIVE}, 1)
+    SPEC_LBM_CELLS ?= 384
+    SPEC_LBM_STEPS ?= 4
+    SPEC_LBM_Q ?= 19
+  else
+    SPEC_LBM_CELLS ?= 24
+    SPEC_LBM_STEPS ?= 1
+    SPEC_LBM_Q ?= 19
+  endif
+  CFLAGS += -c -O2 \
+    -DSPEC_LBM_CELLS=${SPEC_LBM_CELLS} \
+    -DSPEC_LBM_STEPS=${SPEC_LBM_STEPS} \
+    -DSPEC_LBM_Q=${SPEC_LBM_Q}
+  SFLAGS = -march=rv64imafdcvxtheadc -mabi=lp64d -c -O2
+else ifeq (${CASENAME}, spec_parest_sparse_kernel)
+  ifeq (${SPEC_PAREST_REPRESENTATIVE}, 1)
+    SPEC_PAREST_N ?= 128
+    SPEC_PAREST_NNZ_PER_ROW ?= 7
+    SPEC_PAREST_ITERS ?= 5
+  else
+    SPEC_PAREST_N ?= 48
+    SPEC_PAREST_NNZ_PER_ROW ?= 5
+    SPEC_PAREST_ITERS ?= 3
+  endif
+  CFLAGS += -c -O2 \
+    -DSPEC_PAREST_N=${SPEC_PAREST_N} \
+    -DSPEC_PAREST_NNZ_PER_ROW=${SPEC_PAREST_NNZ_PER_ROW} \
+    -DSPEC_PAREST_ITERS=${SPEC_PAREST_ITERS}
+  SFLAGS = -march=rv64imafdcvxtheadc -mabi=lp64d -c -O2
+else ifeq (${CASENAME}, spec_povray_ray_kernel)
+  ifeq (${SPEC_POVRAY_REPRESENTATIVE}, 1)
+    SPEC_POVRAY_RAYS ?= 192
+    SPEC_POVRAY_OBJECTS ?= 32
+    SPEC_POVRAY_BOUNCES ?= 3
+  else
+    SPEC_POVRAY_RAYS ?= 32
+    SPEC_POVRAY_OBJECTS ?= 8
+    SPEC_POVRAY_BOUNCES ?= 1
+  endif
+  CFLAGS += -c -O2 \
+    -DSPEC_POVRAY_RAYS=${SPEC_POVRAY_RAYS} \
+    -DSPEC_POVRAY_OBJECTS=${SPEC_POVRAY_OBJECTS} \
+    -DSPEC_POVRAY_BOUNCES=${SPEC_POVRAY_BOUNCES}
+  SFLAGS = -march=rv64imafdcvxtheadc -mabi=lp64d -c -O2
 else
   CFLAGS += -c -O2
   SFLAGS = -march=rv64imafdcvxtheadc -mabi=lp64d -c -O2

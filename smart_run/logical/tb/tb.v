@@ -539,6 +539,26 @@ module tb();
   reg [63:0] kernel_retire_inst_count_end;
   reg [63:0] kernel_cycle_count_start;
   reg [63:0] kernel_cycle_count_end;
+  reg [39:0] sym_main_addr;
+  reg [39:0] sym_exit_addr;
+  reg [39:0] sym_perf_start_addr;
+  reg [39:0] sym_perf_end_addr;
+
+  initial begin
+    sym_main_addr       = `main_ADDR;
+    sym_exit_addr       = `__exit_ADDR;
+    sym_perf_start_addr = `perf_monitor_start_ADDR;
+    sym_perf_end_addr   = `perf_monitor_end_ADDR;
+
+    if ($value$plusargs("sym_main=%h", sym_main_addr))
+      $display("[sym] main override: 0x%010h", sym_main_addr);
+    if ($value$plusargs("sym_exit=%h", sym_exit_addr))
+      $display("[sym] exit override: 0x%010h", sym_exit_addr);
+    if ($value$plusargs("sym_perf_start=%h", sym_perf_start_addr))
+      $display("[sym] perf_start override: 0x%010h", sym_perf_start_addr);
+    if ($value$plusargs("sym_perf_end=%h", sym_perf_end_addr))
+      $display("[sym] perf_end override: 0x%010h", sym_perf_end_addr);
+  end
 
   parameter NUM = 42; 
   reg [3:0]  event_n_delay[NUM:1]; 
@@ -573,7 +593,7 @@ module tb();
         main_event_counter_start[i] <= 64'b0;
       end
     end
-    else if (((`retire0_pc == `main_ADDR) && `tb_retire0) || ((`retire1_pc == `main_ADDR) && `tb_retire1) || ((`retire2_pc == `main_ADDR) && `tb_retire2)) begin
+    else if (((`retire0_pc == sym_main_addr) && `tb_retire0) || ((`retire1_pc == sym_main_addr) && `tb_retire1) || ((`retire2_pc == sym_main_addr) && `tb_retire2)) begin
       main_cycle_count_start <= `mcycle_value;
       main_retire_inst_count_start <= `minstret_value;
       for (int i=1; i<(NUM+1); i++) begin
@@ -598,7 +618,7 @@ module tb();
         main_event_counter_end[i] <= 64'b0;
       end
     end
-    else if (((`retire0_pc == `__exit_ADDR) && `tb_retire0) || ((`retire1_pc == `__exit_ADDR) && `tb_retire1) || ((`retire2_pc == `__exit_ADDR) && `tb_retire2)) begin
+    else if (((`retire0_pc == sym_exit_addr) && `tb_retire0) || ((`retire1_pc == sym_exit_addr) && `tb_retire1) || ((`retire2_pc == sym_exit_addr) && `tb_retire2)) begin
       main_cycle_count_end <= `mcycle_value;
       main_retire_inst_count_end <= `minstret_value;
       for (int i=1; i<(NUM+1); i++) begin
@@ -623,7 +643,7 @@ module tb();
         kernel_event_counter_start[i] <= 64'b0;
       end
     end
-    else if ((((`retire0_pc == `perf_monitor_start_ADDR) && `tb_retire0) || ((`retire1_pc == `perf_monitor_start_ADDR) && `tb_retire1) || ((`retire2_pc == `perf_monitor_start_ADDR) && `tb_retire2)) && (`perf_monitor_start_ADDR != 32'b0)) begin
+    else if ((((`retire0_pc == sym_perf_start_addr) && `tb_retire0) || ((`retire1_pc == sym_perf_start_addr) && `tb_retire1) || ((`retire2_pc == sym_perf_start_addr) && `tb_retire2)) && (sym_perf_start_addr != 40'b0)) begin
       kernel_cycle_count_start <= `mcycle_value;
       kernel_retire_inst_count_start <= `minstret_value;
       for (int i=1; i<(NUM+1); i++) begin
@@ -648,7 +668,7 @@ module tb();
         kernel_event_counter_end[i] <= 64'b0;
       end
     end
-    else if ((((`retire0_pc == `perf_monitor_end_ADDR) && `tb_retire0) || ((`retire1_pc == `perf_monitor_end_ADDR) && `tb_retire1) || ((`retire2_pc == `perf_monitor_end_ADDR) && `tb_retire2)) && (`perf_monitor_end_ADDR != 32'b0)) begin
+    else if ((((`retire0_pc == sym_perf_end_addr) && `tb_retire0) || ((`retire1_pc == sym_perf_end_addr) && `tb_retire1) || ((`retire2_pc == sym_perf_end_addr) && `tb_retire2)) && (sym_perf_end_addr != 40'b0)) begin
       kernel_cycle_count_end <= `mcycle_value;
       kernel_retire_inst_count_end <= `minstret_value;
       for (int i=1; i<(NUM+1); i++) begin

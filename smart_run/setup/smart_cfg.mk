@@ -40,7 +40,18 @@ CASE_LIST := \
       bench_br_ras \
       bench_br_indirect \
       bench_br_corr \
-      bench_cache_stride
+      bench_cache_stride \
+      spec_mcf_kernel \
+      spec_mcf_sort_kernel \
+      spec_xz_lzma_kernel \
+      spec_x264_pixel_kernel \
+      spec_deepsjeng_search_kernel \
+      spec_leela_playout_kernel \
+      spec_exchange2_search_kernel \
+      spec_cactubssn_stencil_kernel \
+      spec_lbm_stream_kernel \
+      spec_parest_sparse_kernel \
+      spec_povray_ray_kernel
 
 ISA_AMO_build:
 	@cp -f ./tests/cases/ISA/ISA_AMO/* ./work
@@ -224,6 +235,83 @@ bench_mem_build:
 	@cp -f ./tests/lib/newlib_wrap/* ./work
 	@cd ./work && make -s clean && make -s all CPU_ARCH_FLAG_0=c910 COMPILER=${COMPILER} ENDIAN_MODE=little-endian CASENAME=bench_mem FILE=${CASE} >& bench_mem_build.case.log
 
+spec_mcf_kernel_build:
+	@cp -f ./tests/cases/spec_mcf_kernel/* ./work
+	@find ./tests/lib/ -maxdepth 1 -type f -exec cp {} ./work/ \;
+	@cp -f ./tests/lib/clib/* ./work
+	@cp -f ./tests/lib/newlib_wrap/* ./work
+	@cd ./work && make -s clean && make -s all CPU_ARCH_FLAG_0=c910 COMPILER=${COMPILER} ENDIAN_MODE=little-endian CASENAME=spec_mcf_kernel FILE=${CASE} >& spec_mcf_kernel_build.case.log
+
+spec_mcf_sort_kernel_build:
+	@cp -f ./tests/cases/spec_mcf_sort_kernel/* ./work
+	@find ./tests/lib/ -maxdepth 1 -type f -exec cp {} ./work/ \;
+	@cp -f ./tests/lib/clib/* ./work
+	@cp -f ./tests/lib/newlib_wrap/* ./work
+	@cd ./work && make -s clean && make -s all CPU_ARCH_FLAG_0=c910 COMPILER=${COMPILER} ENDIAN_MODE=little-endian CASENAME=spec_mcf_sort_kernel FILE=${CASE} >& spec_mcf_sort_kernel_build.case.log
+
+spec_xz_lzma_kernel_build:
+	@cp -f ./tests/cases/spec_xz_lzma_kernel/* ./work
+	@find ./tests/lib/ -maxdepth 1 -type f -exec cp {} ./work/ \;
+	@cp -f ./tests/lib/clib/* ./work
+	@cp -f ./tests/lib/newlib_wrap/* ./work
+	@cd ./work && make -s clean && make -s all CPU_ARCH_FLAG_0=c910 COMPILER=${COMPILER} ENDIAN_MODE=little-endian CASENAME=spec_xz_lzma_kernel FILE=${CASE} >& spec_xz_lzma_kernel_build.case.log
+
+spec_x264_pixel_kernel_build:
+	@cp -f ./tests/cases/spec_x264_pixel_kernel/* ./work
+	@find ./tests/lib/ -maxdepth 1 -type f -exec cp {} ./work/ \;
+	@cp -f ./tests/lib/clib/* ./work
+	@cp -f ./tests/lib/newlib_wrap/* ./work
+	@cd ./work && make -s clean && make -s all CPU_ARCH_FLAG_0=c910 COMPILER=${COMPILER} ENDIAN_MODE=little-endian CASENAME=spec_x264_pixel_kernel FILE=${CASE} >& spec_x264_pixel_kernel_build.case.log
+
+spec_deepsjeng_search_kernel_build:
+	@cp -f ./tests/cases/spec_deepsjeng_search_kernel/* ./work
+	@find ./tests/lib/ -maxdepth 1 -type f -exec cp {} ./work/ \;
+	@cp -f ./tests/lib/clib/* ./work
+	@cp -f ./tests/lib/newlib_wrap/* ./work
+	@cd ./work && make -s clean && make -s all CPU_ARCH_FLAG_0=c910 COMPILER=${COMPILER} ENDIAN_MODE=little-endian CASENAME=spec_deepsjeng_search_kernel FILE=${CASE} >& spec_deepsjeng_search_kernel_build.case.log
+
+spec_leela_playout_kernel_build:
+	@cp -f ./tests/cases/spec_leela_playout_kernel/* ./work
+	@find ./tests/lib/ -maxdepth 1 -type f -exec cp {} ./work/ \;
+	@cp -f ./tests/lib/clib/* ./work
+	@cp -f ./tests/lib/newlib_wrap/* ./work
+	@cd ./work && make -s clean && make -s all CPU_ARCH_FLAG_0=c910 COMPILER=${COMPILER} ENDIAN_MODE=little-endian CASENAME=spec_leela_playout_kernel FILE=${CASE} >& spec_leela_playout_kernel_build.case.log
+
+spec_exchange2_search_kernel_build:
+	@cp -f ./tests/cases/spec_exchange2_search_kernel/* ./work
+	@find ./tests/lib/ -maxdepth 1 -type f -exec cp {} ./work/ \;
+	@cp -f ./tests/lib/clib/* ./work
+	@cp -f ./tests/lib/newlib_wrap/* ./work
+	@cd ./work && make -s clean && make -s all CPU_ARCH_FLAG_0=c910 COMPILER=${COMPILER} ENDIAN_MODE=little-endian CASENAME=spec_exchange2_search_kernel FILE=${CASE} >& spec_exchange2_search_kernel_build.case.log
+
+spec_cactubssn_stencil_kernel_build:
+	@cp -f ./tests/cases/spec_cactubssn_stencil_kernel/* ./work
+	@find ./tests/lib/ -maxdepth 1 -type f -exec cp {} ./work/ \;
+	@cp -f ./tests/lib/clib/* ./work
+	@cp -f ./tests/lib/newlib_wrap/* ./work
+	@cd ./work && make -s clean && make -s all CPU_ARCH_FLAG_0=c910 COMPILER=${COMPILER} ENDIAN_MODE=little-endian CASENAME=spec_cactubssn_stencil_kernel FILE=${CASE} >& spec_cactubssn_stencil_kernel_build.case.log
+
+spec_lbm_stream_kernel_build:
+	@cp -f ./tests/cases/spec_lbm_stream_kernel/* ./work
+	@find ./tests/lib/ -maxdepth 1 -type f -exec cp {} ./work/ \;
+	@cp -f ./tests/lib/clib/* ./work
+	@cp -f ./tests/lib/newlib_wrap/* ./work
+	@cd ./work && make -s clean && make -s all CPU_ARCH_FLAG_0=c910 COMPILER=${COMPILER} ENDIAN_MODE=little-endian CASENAME=spec_lbm_stream_kernel FILE=${CASE} >& spec_lbm_stream_kernel_build.case.log
+
+spec_parest_sparse_kernel_build:
+	@cp -f ./tests/cases/spec_parest_sparse_kernel/* ./work
+	@find ./tests/lib/ -maxdepth 1 -type f -exec cp {} ./work/ \;
+	@cp -f ./tests/lib/clib/* ./work
+	@cp -f ./tests/lib/newlib_wrap/* ./work
+	@cd ./work && make -s clean && make -s all CPU_ARCH_FLAG_0=c910 COMPILER=${COMPILER} ENDIAN_MODE=little-endian CASENAME=spec_parest_sparse_kernel FILE=${CASE} >& spec_parest_sparse_kernel_build.case.log
+
+spec_povray_ray_kernel_build:
+	@cp -f ./tests/cases/spec_povray_ray_kernel/* ./work
+	@find ./tests/lib/ -maxdepth 1 -type f -exec cp {} ./work/ \;
+	@cp -f ./tests/lib/clib/* ./work
+	@cp -f ./tests/lib/newlib_wrap/* ./work
+	@cd ./work && make -s clean && make -s all CPU_ARCH_FLAG_0=c910 COMPILER=${COMPILER} ENDIAN_MODE=little-endian CASENAME=spec_povray_ray_kernel FILE=${CASE} >& spec_povray_ray_kernel_build.case.log
+
 
 bench_ilp_build:
 	@cp -f ./tests/cases/bench_ilp/* ./work
@@ -268,4 +356,3 @@ define newline
 
 
 endef
-

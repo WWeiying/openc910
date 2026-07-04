@@ -1,0 +1,66 @@
+# Local toolchains and large vendor bundles
+/toolchains/
+/*.tar.gz
+/*.tar.xz
+/*.tgz
+/*.zip
+/*.iso
+
+# Local SPEC CPU installation, ISO extraction, and generated profiles
+/spec2017/
+/spec2017_iso/
+/spec_runs/
+
+# Smart-run generated simulation outputs
+/smart_run/work/
+/smart_run/results/*
+
+# Python/cache artifacts
+__pycache__/
+*.py[cod]
+
+# SimPoint build/install artifacts
+/tools/
+/tools/SimPoint.3.2/
+/tools/SimPoint.3.2.tar.gz
+/tools/bin/
+
+# QEMU plugin build products, keep plugin sources tracked
+/tools/qemu-plugins/*.so
+
+# Local waveform/debug viewer state
+/smart_run/*.rc
+
+# Local vendor documents not needed by source builds
+/doc/*QEMU*.pdf
+
+# Backend / EDA generated outputs and logs
+/backend/
+/backend/syn/**/outputs/*
+!/backend/syn/**/outputs/.gitkeep
+/backend/syn/**/reports/*
+!/backend/syn/**/reports/.gitkeep
+/backend/syn/**/run/
+/backend/sram/generated/*
+!/backend/sram/generated/.gitkeep
+/backend/sram/*.log
+/backend/sram/*_output.txt
+/backend/sram/lc_command.log
+/backend/sram/lc_output.txt
+
+# Common EDA binary/intermediate products
+*.ddc
+*.svf
+*.svf.*
+*.alib
+*.mr
+*.pvl
+*.syn
+*.sdf
+*.spef
+*.saif
+*.vcd
+*.fsdb
+
+# Local SPEC flow scripts/docs
+/spec_flow/

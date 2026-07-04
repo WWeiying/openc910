@@ -1,4 +1,0 @@
-vtimer.c: In function 'sim_end':
-vtimer.c:34:13: warning: unsigned conversion from 'long int' to 'unsigned int' changes value from '18324075042' to '1144205858' [-Woverflow]
-   34 |   END_DATA= 0x444333222;
-      |             ^~~~~~~~~~~

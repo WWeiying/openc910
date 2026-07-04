@@ -15,8 +15,16 @@
 
 #!/bin/csh
 
-setenv TOOL_EXTENSION /tools/riscv/riscv64-elf-x86_64/bin
+setenv TOOLCHAIN_ROOT /home/wangwy/openproject/openc910/toolchains/Xuantie-900-gcc-elf-newlib-x86_64-V3.1.0
+setenv LLVM_TOOLCHAIN_ROOT /home/wangwy/openproject/openc910/toolchains/Xuantie-900-llvm-elf-newlib-x86_64-V2.4.0
+setenv QEMU_ROOT /home/wangwy/openproject/openc910/toolchains/Xuantie-qemu-x86_64-Ubuntu-20.04-V5.2.8-B20250721-0303
+setenv TOOL_EXTENSION ${TOOLCHAIN_ROOT}/bin/
+setenv GCC_PATH ${TOOL_EXTENSION}
+setenv LLVM_PATH ${LLVM_TOOLCHAIN_ROOT}/bin
+setenv QEMU_PATH ${QEMU_ROOT}/bin
 echo 'Toolchain path($TOOL_EXTENSION):'
 echo "    $TOOL_EXTENSION"
-
-
+echo 'LLVM path($LLVM_PATH):'
+echo "    $LLVM_PATH"
+echo 'QEMU path($QEMU_PATH):'
+echo "    $QEMU_PATH"
