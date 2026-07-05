@@ -18,7 +18,7 @@ TAG=${1:-"run"}
 BENCH_CASES=${BENCH_CASES:-"coremark dhrystone \
     bench_branch bench_mem bench_ilp bench_frontend bench_fp \
     bench_br_bimodal bench_br_ras bench_br_indirect bench_br_corr \
-    bench_cache_stride \
+    bench_cache_stride bench_cache_cap \
     spec_cactubssn_stencil_kernel spec_deepsjeng_search_kernel \
     spec_exchange2_search_kernel spec_lbm_stream_kernel \
     spec_leela_playout_kernel spec_mcf_kernel spec_mcf_sort_kernel \
@@ -26,7 +26,11 @@ BENCH_CASES=${BENCH_CASES:-"coremark dhrystone \
     spec_x264_pixel_kernel spec_xz_lzma_kernel"}
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-REPO_ROOT="$(git -C "${SCRIPT_DIR}" rev-parse --show-toplevel 2>/dev/null || cd "${SCRIPT_DIR}/.." && pwd)"
+if REPO_ROOT="$(git -C "${SCRIPT_DIR}" rev-parse --show-toplevel 2>/dev/null)"; then
+    :
+else
+    REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+fi
 GIT_COMMIT="$(git -C "${REPO_ROOT}" rev-parse --short=12 HEAD 2>/dev/null || echo unknown)"
 GIT_COMMIT_FULL="$(git -C "${REPO_ROOT}" rev-parse HEAD 2>/dev/null || echo unknown)"
 GIT_BRANCH="$(git -C "${REPO_ROOT}" rev-parse --abbrev-ref HEAD 2>/dev/null || echo unknown)"
