@@ -44,6 +44,16 @@ assign SE	       = pad_yy_icg_scan_en;
 // //                .external_en      (clk_en_bf_latch), @52
 // //                .clk_out          (clk_out) @53
 // //                ) ; @54
+
+`ifdef C910_USE_TSMC28_ICG
+CKLNQD4BWP12T40P140 x_ct_icg_cell (
+  .TE(SE),
+  .E (clk_en_bf_latch),
+  .CP(clk_in),
+  .Q (clk_out)
+);
+`else
 assign clk_out = clk_in;
+`endif
 
 endmodule   

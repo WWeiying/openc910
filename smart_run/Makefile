@@ -20,6 +20,7 @@ include ./setup/smart_cfg.mk
 ################################################################################
 SIM = vcs
 DUMP = on
+PERF_DETAIL ?= off
 UPF = off 
 THREADS = 4
 COREMARK_ITERATIONS ?= 30
@@ -133,6 +134,18 @@ else
     endif
 endif
 
+ifeq (${PERF_DETAIL}, on)
+ifeq (${SIM}, iverilog)
+SIMULATOR_DEF += -DPERF_DETAIL
+else
+    ifeq (${SIM}, verilator)
+SIMULATOR_DEF += -DPERF_DETAIL
+    else
+SIMULATOR_DEF += +define+PERF_DETAIL
+    endif
+endif
+endif
+
 ifeq (${SIM}, iverilog)
     SIM_FILELIST := ${SIM_FILELIST} -f ${CODE_BASE_PATH}/gen_rtl/filelists/C910_asic_rtl.fl -c ../logical/filelists/smart.fl -c ../logical/filelists/tb.fl
 else
@@ -146,6 +159,7 @@ endif
 compile:
 	@echo "  [THead-smart] Compiling smart now ... "
 	@echo "  [THead-smart] SIM = ${SIM}"
+	@echo "  [THead-smart] PERF_DETAIL = ${PERF_DETAIL}"
 	@echo "  [THead-smart] CODE_BASE_PATH = ${CODE_BASE_PATH}"
 ifeq (${SIM}, vcs)
 	@make -s cleansim
@@ -377,6 +391,7 @@ help:
 	@echo "    SIM=                            : options: vcs / nc / verilator(use version 4.215 or newer)"; 
 	@echo "    CASE=                           : options: the list print by 'make showcase'"; 
 	@echo "    DUMP=                           : options: on / off";
+	@echo "    PERF_DETAIL=                    : options: on / off, enable detailed microarchitecture perf counters";
 	@echo "    DOCKER_IMAGE=                   : default: $(DOCKER_IMAGE)";
 	@echo "    DOCKER_CONTAINER=               : default: $(DOCKER_CONTAINER)";
 	@echo "  Examples:";

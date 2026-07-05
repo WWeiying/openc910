@@ -35,7 +35,6 @@ __pycache__/
 /doc/*QEMU*.pdf
 
 # Backend / EDA generated outputs and logs
-/backend/
 /backend/syn/**/outputs/*
 !/backend/syn/**/outputs/.gitkeep
 /backend/syn/**/reports/*

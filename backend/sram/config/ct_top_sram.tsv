@@ -1,0 +1,14 @@
+logical_name	logical_depth	logical_width	logical_instances	compiler	macro_depth	macro_width	mux	slices	note
+ct_spsram_1024x64	1024	64	1	PUHD	1024	64	4	1	IFU BHT, PUHD mux4 supports depth 32..2048 and width 8..144
+ct_spsram_128x16	128	16	1	PUHD	128	16	1	1	IFU BHT selector, PUHD mux1 supports depth 8..128 and even width 16..288
+ct_spsram_512x22	512	22	2	PUHD	512	24	4	1	IFU BTB tag banks, rounded up to 8-bit aligned macro width
+ct_spsram_512x44	512	44	2	PUHD	512	48	4	1	IFU BTB data banks, rounded up to 8-bit aligned macro width
+ct_spsram_256x23	256	23	1	PUHD	256	24	2	1	IFU indirect BTB, rounded up to 8-bit aligned macro width
+ct_spsram_512x59	512	59	1	PUHD	512	64	4	1	IFU ICache tag, rounded up to 8-bit aligned macro width
+ct_spsram_2048x32_split	2048	32	10	PUHD	2048	32	4	1	IFU ICache data and predecode arrays
+ct_spsram_2048x32	2048	32	8	PUHD	2048	32	4	1	LSU DCache data arrays, same physical macro as ct_spsram_2048x32_split
+ct_spsram_512x52	512	52	1	PUHD	512	56	4	1	LSU DCache store tag, rounded up to 8-bit aligned macro width
+ct_spsram_512x54	512	54	1	PUHD	512	56	4	1	LSU DCache load tag, shares 512x56 macro with store tag
+ct_spsram_512x7	512	7	1	PUHD	512	8	4	1	LSU DCache dirty, rounded up to PUHD minimum useful width
+ct_spsram_256x84	256	84	2	PUHD	256	88	2	1	MMU JTLB data banks, rounded up to 8-bit aligned macro width
+ct_spsram_256x196	256	196	1	PUHD	256	104	2	2	MMU JTLB tag, split into two 104-bit macros with unused spare bits

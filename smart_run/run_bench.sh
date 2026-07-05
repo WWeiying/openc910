@@ -51,6 +51,7 @@ echo ""
     if [ -n "${COREMARK_ITERATIONS:-}" ]; then
         echo "coremark_iterations=${COREMARK_ITERATIONS}"
     fi
+    echo "perf_detail_request=${PERF_DETAIL:-auto}"
 } > "${RESULTS_DIR}/run.info"
 
 git -C "${REPO_ROOT}" status --short > "${RESULTS_DIR}/git.status" 2>/dev/null || true
@@ -83,6 +84,12 @@ for CASE in ${BENCH_CASES}; do
         # extract the performance statistics block
         grep -A 200 "Performance Statistics" "${LOG}" \
             > "${RESULTS_DIR}/${CASE}.perf" 2>/dev/null || true
+
+        DETAIL_LOG="${RESULTS_DIR}/${CASE}.detail.perf"
+        if ! grep -A 2400 "Detailed Performance Statistics" "${LOG}" \
+                > "${DETAIL_LOG}" 2>/dev/null; then
+            rm -f "${DETAIL_LOG}"
+        fi
 
         grep -E "CoreMark has been run|CoreMark 1.0|Dhrystone|Dhrystones per simulated MHz|DMIPS/MHz|Cycles for one run|CoreMark Size|Iterations       :|Correct operation|TEST PASS|TEST FAIL|Total     \\||Main      \\||Kernel    \\||CPU Time" \
             "${LOG}" > "${RESULTS_DIR}/${CASE}.summary.txt" 2>/dev/null || true
