@@ -112,6 +112,7 @@ limitations under the License.
 `define IDU_IR_CTRL    `IDU_TOP.x_ct_idu_ir_ctrl
 `define IDU_IS_CTRL    `IDU_TOP.x_ct_idu_is_ctrl
 `define IDU_RF_CTRL    `IDU_TOP.x_ct_idu_rf_ctrl
+`define IDU_RF_DP      `IDU_TOP.x_ct_idu_rf_dp
 `define IDU_IS_AIQ0    `IDU_TOP.x_ct_idu_is_aiq0
 `define IDU_IS_AIQ1    `IDU_TOP.x_ct_idu_is_aiq1
 `define IDU_IS_BIQ     `IDU_TOP.x_ct_idu_is_biq
@@ -617,8 +618,8 @@ module tb();
   reg [63:0] kernel_event_counter_end[NUM:1];
 
 `ifdef PERF_DETAIL
-  parameter DETAIL_NUM = 700;
-  parameter PROF_NUM   = 104;
+  parameter DETAIL_NUM = 805;
+  parameter PROF_NUM   = 189;
   parameter LAT_NUM    = 54;
   parameter LAT_BUCKET_NUM = 6;
   reg        detail_n_delay[DETAIL_NUM:1];
@@ -804,15 +805,847 @@ module tb();
   end
   endfunction
 
+  function automatic [7:0] aiq0_src0_not_ready_width();
+    logic [7:0] src_not_rdy;
+  begin
+    src_not_rdy = ~{`IDU_IS_AIQ0.x_ct_idu_is_aiq0_entry7.src0_rdy_for_issue,
+                    `IDU_IS_AIQ0.x_ct_idu_is_aiq0_entry6.src0_rdy_for_issue,
+                    `IDU_IS_AIQ0.x_ct_idu_is_aiq0_entry5.src0_rdy_for_issue,
+                    `IDU_IS_AIQ0.x_ct_idu_is_aiq0_entry4.src0_rdy_for_issue,
+                    `IDU_IS_AIQ0.x_ct_idu_is_aiq0_entry3.src0_rdy_for_issue,
+                    `IDU_IS_AIQ0.x_ct_idu_is_aiq0_entry2.src0_rdy_for_issue,
+                    `IDU_IS_AIQ0.x_ct_idu_is_aiq0_entry1.src0_rdy_for_issue,
+                    `IDU_IS_AIQ0.x_ct_idu_is_aiq0_entry0.src0_rdy_for_issue};
+    aiq0_src0_not_ready_width = popcount64({56'b0, `IDU_IS_AIQ0.aiq0_entry_vld[7:0] & ~`IDU_IS_AIQ0.aiq0_entry_ready[7:0] & src_not_rdy});
+  end
+  endfunction
+
+  function automatic [7:0] aiq0_src1_not_ready_width();
+    logic [7:0] src_not_rdy;
+  begin
+    src_not_rdy = ~{`IDU_IS_AIQ0.x_ct_idu_is_aiq0_entry7.src1_rdy_for_issue,
+                    `IDU_IS_AIQ0.x_ct_idu_is_aiq0_entry6.src1_rdy_for_issue,
+                    `IDU_IS_AIQ0.x_ct_idu_is_aiq0_entry5.src1_rdy_for_issue,
+                    `IDU_IS_AIQ0.x_ct_idu_is_aiq0_entry4.src1_rdy_for_issue,
+                    `IDU_IS_AIQ0.x_ct_idu_is_aiq0_entry3.src1_rdy_for_issue,
+                    `IDU_IS_AIQ0.x_ct_idu_is_aiq0_entry2.src1_rdy_for_issue,
+                    `IDU_IS_AIQ0.x_ct_idu_is_aiq0_entry1.src1_rdy_for_issue,
+                    `IDU_IS_AIQ0.x_ct_idu_is_aiq0_entry0.src1_rdy_for_issue};
+    aiq0_src1_not_ready_width = popcount64({56'b0, `IDU_IS_AIQ0.aiq0_entry_vld[7:0] & ~`IDU_IS_AIQ0.aiq0_entry_ready[7:0] & src_not_rdy});
+  end
+  endfunction
+
+  function automatic [7:0] aiq0_src2_not_ready_width();
+    logic [7:0] src_not_rdy;
+  begin
+    src_not_rdy = ~{`IDU_IS_AIQ0.x_ct_idu_is_aiq0_entry7.src2_rdy_for_issue,
+                    `IDU_IS_AIQ0.x_ct_idu_is_aiq0_entry6.src2_rdy_for_issue,
+                    `IDU_IS_AIQ0.x_ct_idu_is_aiq0_entry5.src2_rdy_for_issue,
+                    `IDU_IS_AIQ0.x_ct_idu_is_aiq0_entry4.src2_rdy_for_issue,
+                    `IDU_IS_AIQ0.x_ct_idu_is_aiq0_entry3.src2_rdy_for_issue,
+                    `IDU_IS_AIQ0.x_ct_idu_is_aiq0_entry2.src2_rdy_for_issue,
+                    `IDU_IS_AIQ0.x_ct_idu_is_aiq0_entry1.src2_rdy_for_issue,
+                    `IDU_IS_AIQ0.x_ct_idu_is_aiq0_entry0.src2_rdy_for_issue};
+    aiq0_src2_not_ready_width = popcount64({56'b0, `IDU_IS_AIQ0.aiq0_entry_vld[7:0] & ~`IDU_IS_AIQ0.aiq0_entry_ready[7:0] & src_not_rdy});
+  end
+  endfunction
+
+  function automatic [7:0] aiq1_src0_not_ready_width();
+    logic [7:0] src_not_rdy;
+  begin
+    src_not_rdy = ~{`IDU_IS_AIQ1.x_ct_idu_is_aiq1_entry7.src0_rdy_for_issue,
+                    `IDU_IS_AIQ1.x_ct_idu_is_aiq1_entry6.src0_rdy_for_issue,
+                    `IDU_IS_AIQ1.x_ct_idu_is_aiq1_entry5.src0_rdy_for_issue,
+                    `IDU_IS_AIQ1.x_ct_idu_is_aiq1_entry4.src0_rdy_for_issue,
+                    `IDU_IS_AIQ1.x_ct_idu_is_aiq1_entry3.src0_rdy_for_issue,
+                    `IDU_IS_AIQ1.x_ct_idu_is_aiq1_entry2.src0_rdy_for_issue,
+                    `IDU_IS_AIQ1.x_ct_idu_is_aiq1_entry1.src0_rdy_for_issue,
+                    `IDU_IS_AIQ1.x_ct_idu_is_aiq1_entry0.src0_rdy_for_issue};
+    aiq1_src0_not_ready_width = popcount64({56'b0, `IDU_IS_AIQ1.aiq1_entry_vld[7:0] & ~`IDU_IS_AIQ1.aiq1_entry_ready[7:0] & src_not_rdy});
+  end
+  endfunction
+
+  function automatic [7:0] aiq1_src1_not_ready_width();
+    logic [7:0] src_not_rdy;
+  begin
+    src_not_rdy = ~{`IDU_IS_AIQ1.x_ct_idu_is_aiq1_entry7.src1_rdy_for_issue,
+                    `IDU_IS_AIQ1.x_ct_idu_is_aiq1_entry6.src1_rdy_for_issue,
+                    `IDU_IS_AIQ1.x_ct_idu_is_aiq1_entry5.src1_rdy_for_issue,
+                    `IDU_IS_AIQ1.x_ct_idu_is_aiq1_entry4.src1_rdy_for_issue,
+                    `IDU_IS_AIQ1.x_ct_idu_is_aiq1_entry3.src1_rdy_for_issue,
+                    `IDU_IS_AIQ1.x_ct_idu_is_aiq1_entry2.src1_rdy_for_issue,
+                    `IDU_IS_AIQ1.x_ct_idu_is_aiq1_entry1.src1_rdy_for_issue,
+                    `IDU_IS_AIQ1.x_ct_idu_is_aiq1_entry0.src1_rdy_for_issue};
+    aiq1_src1_not_ready_width = popcount64({56'b0, `IDU_IS_AIQ1.aiq1_entry_vld[7:0] & ~`IDU_IS_AIQ1.aiq1_entry_ready[7:0] & src_not_rdy});
+  end
+  endfunction
+
+  function automatic [7:0] aiq1_src2_not_ready_width();
+    logic [7:0] src_not_rdy;
+  begin
+    src_not_rdy = ~{`IDU_IS_AIQ1.x_ct_idu_is_aiq1_entry7.src2_rdy_for_issue,
+                    `IDU_IS_AIQ1.x_ct_idu_is_aiq1_entry6.src2_rdy_for_issue,
+                    `IDU_IS_AIQ1.x_ct_idu_is_aiq1_entry5.src2_rdy_for_issue,
+                    `IDU_IS_AIQ1.x_ct_idu_is_aiq1_entry4.src2_rdy_for_issue,
+                    `IDU_IS_AIQ1.x_ct_idu_is_aiq1_entry3.src2_rdy_for_issue,
+                    `IDU_IS_AIQ1.x_ct_idu_is_aiq1_entry2.src2_rdy_for_issue,
+                    `IDU_IS_AIQ1.x_ct_idu_is_aiq1_entry1.src2_rdy_for_issue,
+                    `IDU_IS_AIQ1.x_ct_idu_is_aiq1_entry0.src2_rdy_for_issue};
+    aiq1_src2_not_ready_width = popcount64({56'b0, `IDU_IS_AIQ1.aiq1_entry_vld[7:0] & ~`IDU_IS_AIQ1.aiq1_entry_ready[7:0] & src_not_rdy});
+  end
+  endfunction
+
+  function automatic [7:0] biq_src0_not_ready_width();
+    logic [11:0] src_not_rdy;
+  begin
+    src_not_rdy = ~{`IDU_IS_BIQ.x_ct_idu_is_biq_entry11.src0_rdy_for_issue,
+                    `IDU_IS_BIQ.x_ct_idu_is_biq_entry10.src0_rdy_for_issue,
+                    `IDU_IS_BIQ.x_ct_idu_is_biq_entry9.src0_rdy_for_issue,
+                    `IDU_IS_BIQ.x_ct_idu_is_biq_entry8.src0_rdy_for_issue,
+                    `IDU_IS_BIQ.x_ct_idu_is_biq_entry7.src0_rdy_for_issue,
+                    `IDU_IS_BIQ.x_ct_idu_is_biq_entry6.src0_rdy_for_issue,
+                    `IDU_IS_BIQ.x_ct_idu_is_biq_entry5.src0_rdy_for_issue,
+                    `IDU_IS_BIQ.x_ct_idu_is_biq_entry4.src0_rdy_for_issue,
+                    `IDU_IS_BIQ.x_ct_idu_is_biq_entry3.src0_rdy_for_issue,
+                    `IDU_IS_BIQ.x_ct_idu_is_biq_entry2.src0_rdy_for_issue,
+                    `IDU_IS_BIQ.x_ct_idu_is_biq_entry1.src0_rdy_for_issue,
+                    `IDU_IS_BIQ.x_ct_idu_is_biq_entry0.src0_rdy_for_issue};
+    biq_src0_not_ready_width = popcount64({52'b0, `IDU_IS_BIQ.biq_entry_vld[11:0] & ~`IDU_IS_BIQ.biq_entry_ready[11:0] & src_not_rdy});
+  end
+  endfunction
+
+  function automatic [7:0] biq_src1_not_ready_width();
+    logic [11:0] src_not_rdy;
+  begin
+    src_not_rdy = ~{`IDU_IS_BIQ.x_ct_idu_is_biq_entry11.src1_rdy_for_issue,
+                    `IDU_IS_BIQ.x_ct_idu_is_biq_entry10.src1_rdy_for_issue,
+                    `IDU_IS_BIQ.x_ct_idu_is_biq_entry9.src1_rdy_for_issue,
+                    `IDU_IS_BIQ.x_ct_idu_is_biq_entry8.src1_rdy_for_issue,
+                    `IDU_IS_BIQ.x_ct_idu_is_biq_entry7.src1_rdy_for_issue,
+                    `IDU_IS_BIQ.x_ct_idu_is_biq_entry6.src1_rdy_for_issue,
+                    `IDU_IS_BIQ.x_ct_idu_is_biq_entry5.src1_rdy_for_issue,
+                    `IDU_IS_BIQ.x_ct_idu_is_biq_entry4.src1_rdy_for_issue,
+                    `IDU_IS_BIQ.x_ct_idu_is_biq_entry3.src1_rdy_for_issue,
+                    `IDU_IS_BIQ.x_ct_idu_is_biq_entry2.src1_rdy_for_issue,
+                    `IDU_IS_BIQ.x_ct_idu_is_biq_entry1.src1_rdy_for_issue,
+                    `IDU_IS_BIQ.x_ct_idu_is_biq_entry0.src1_rdy_for_issue};
+    biq_src1_not_ready_width = popcount64({52'b0, `IDU_IS_BIQ.biq_entry_vld[11:0] & ~`IDU_IS_BIQ.biq_entry_ready[11:0] & src_not_rdy});
+  end
+  endfunction
+
+  function automatic [7:0] lsiq_src0_not_ready_width();
+    logic [11:0] src_not_rdy;
+  begin
+    src_not_rdy = ~{`IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry11.src0_rdy_for_issue,
+                    `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry10.src0_rdy_for_issue,
+                    `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry9.src0_rdy_for_issue,
+                    `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry8.src0_rdy_for_issue,
+                    `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry7.src0_rdy_for_issue,
+                    `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry6.src0_rdy_for_issue,
+                    `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry5.src0_rdy_for_issue,
+                    `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry4.src0_rdy_for_issue,
+                    `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry3.src0_rdy_for_issue,
+                    `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry2.src0_rdy_for_issue,
+                    `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry1.src0_rdy_for_issue,
+                    `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry0.src0_rdy_for_issue};
+    lsiq_src0_not_ready_width = popcount64({52'b0, `IDU_IS_LSIQ.lsiq_entry_vld[11:0] & ~`IDU_IS_LSIQ.lsiq_entry_ready[11:0] & src_not_rdy});
+  end
+  endfunction
+
+  function automatic [7:0] lsiq_src1_not_ready_width();
+    logic [11:0] src_not_rdy;
+  begin
+    src_not_rdy = ~{`IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry11.src1_rdy_for_issue,
+                    `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry10.src1_rdy_for_issue,
+                    `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry9.src1_rdy_for_issue,
+                    `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry8.src1_rdy_for_issue,
+                    `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry7.src1_rdy_for_issue,
+                    `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry6.src1_rdy_for_issue,
+                    `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry5.src1_rdy_for_issue,
+                    `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry4.src1_rdy_for_issue,
+                    `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry3.src1_rdy_for_issue,
+                    `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry2.src1_rdy_for_issue,
+                    `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry1.src1_rdy_for_issue,
+                    `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry0.src1_rdy_for_issue};
+    lsiq_src1_not_ready_width = popcount64({52'b0, `IDU_IS_LSIQ.lsiq_entry_vld[11:0] & ~`IDU_IS_LSIQ.lsiq_entry_ready[11:0] & src_not_rdy});
+  end
+  endfunction
+
+  function automatic [7:0] lsiq_srcvm_not_ready_width();
+    logic [11:0] src_not_rdy;
+  begin
+    src_not_rdy = ~{`IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry11.srcvm_rdy_for_issue,
+                    `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry10.srcvm_rdy_for_issue,
+                    `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry9.srcvm_rdy_for_issue,
+                    `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry8.srcvm_rdy_for_issue,
+                    `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry7.srcvm_rdy_for_issue,
+                    `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry6.srcvm_rdy_for_issue,
+                    `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry5.srcvm_rdy_for_issue,
+                    `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry4.srcvm_rdy_for_issue,
+                    `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry3.srcvm_rdy_for_issue,
+                    `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry2.srcvm_rdy_for_issue,
+                    `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry1.srcvm_rdy_for_issue,
+                    `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry0.srcvm_rdy_for_issue};
+    lsiq_srcvm_not_ready_width = popcount64({52'b0, `IDU_IS_LSIQ.lsiq_entry_vld[11:0] & ~`IDU_IS_LSIQ.lsiq_entry_ready[11:0] & src_not_rdy});
+  end
+  endfunction
+
+  function automatic [7:0] sdiq_src0_not_ready_width();
+    logic [11:0] src_not_rdy;
+  begin
+    src_not_rdy = ~{`IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry11.src0_rdy_for_issue,
+                    `IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry10.src0_rdy_for_issue,
+                    `IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry9.src0_rdy_for_issue,
+                    `IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry8.src0_rdy_for_issue,
+                    `IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry7.src0_rdy_for_issue,
+                    `IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry6.src0_rdy_for_issue,
+                    `IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry5.src0_rdy_for_issue,
+                    `IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry4.src0_rdy_for_issue,
+                    `IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry3.src0_rdy_for_issue,
+                    `IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry2.src0_rdy_for_issue,
+                    `IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry1.src0_rdy_for_issue,
+                    `IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry0.src0_rdy_for_issue};
+    sdiq_src0_not_ready_width = popcount64({52'b0, `IDU_IS_SDIQ.sdiq_entry_vld[11:0] & ~`IDU_IS_SDIQ.sdiq_entry_ready[11:0] & src_not_rdy});
+  end
+  endfunction
+
+  function automatic [7:0] sdiq_srcv0_not_ready_width();
+    logic [11:0] src_not_rdy;
+  begin
+    src_not_rdy = ~{`IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry11.srcv0_rdy_for_issue,
+                    `IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry10.srcv0_rdy_for_issue,
+                    `IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry9.srcv0_rdy_for_issue,
+                    `IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry8.srcv0_rdy_for_issue,
+                    `IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry7.srcv0_rdy_for_issue,
+                    `IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry6.srcv0_rdy_for_issue,
+                    `IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry5.srcv0_rdy_for_issue,
+                    `IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry4.srcv0_rdy_for_issue,
+                    `IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry3.srcv0_rdy_for_issue,
+                    `IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry2.srcv0_rdy_for_issue,
+                    `IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry1.srcv0_rdy_for_issue,
+                    `IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry0.srcv0_rdy_for_issue};
+    sdiq_srcv0_not_ready_width = popcount64({52'b0, `IDU_IS_SDIQ.sdiq_entry_vld[11:0] & ~`IDU_IS_SDIQ.sdiq_entry_ready[11:0] & src_not_rdy});
+  end
+  endfunction
+
+  function automatic [7:0] sdiq_staddr_not_ready_width();
+    logic [11:0] src_not_rdy;
+  begin
+    src_not_rdy = {(!`IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry11.load && ((!`IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry11.stdata1_vld && !`IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry11.staddr0_rdy) || (`IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry11.stdata1_vld && !`IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry11.staddr1_rdy))),
+                   (!`IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry10.load && ((!`IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry10.stdata1_vld && !`IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry10.staddr0_rdy) || (`IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry10.stdata1_vld && !`IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry10.staddr1_rdy))),
+                   (!`IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry9.load && ((!`IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry9.stdata1_vld && !`IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry9.staddr0_rdy) || (`IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry9.stdata1_vld && !`IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry9.staddr1_rdy))),
+                   (!`IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry8.load && ((!`IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry8.stdata1_vld && !`IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry8.staddr0_rdy) || (`IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry8.stdata1_vld && !`IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry8.staddr1_rdy))),
+                   (!`IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry7.load && ((!`IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry7.stdata1_vld && !`IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry7.staddr0_rdy) || (`IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry7.stdata1_vld && !`IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry7.staddr1_rdy))),
+                   (!`IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry6.load && ((!`IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry6.stdata1_vld && !`IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry6.staddr0_rdy) || (`IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry6.stdata1_vld && !`IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry6.staddr1_rdy))),
+                   (!`IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry5.load && ((!`IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry5.stdata1_vld && !`IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry5.staddr0_rdy) || (`IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry5.stdata1_vld && !`IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry5.staddr1_rdy))),
+                   (!`IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry4.load && ((!`IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry4.stdata1_vld && !`IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry4.staddr0_rdy) || (`IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry4.stdata1_vld && !`IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry4.staddr1_rdy))),
+                   (!`IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry3.load && ((!`IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry3.stdata1_vld && !`IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry3.staddr0_rdy) || (`IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry3.stdata1_vld && !`IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry3.staddr1_rdy))),
+                   (!`IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry2.load && ((!`IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry2.stdata1_vld && !`IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry2.staddr0_rdy) || (`IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry2.stdata1_vld && !`IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry2.staddr1_rdy))),
+                   (!`IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry1.load && ((!`IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry1.stdata1_vld && !`IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry1.staddr0_rdy) || (`IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry1.stdata1_vld && !`IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry1.staddr1_rdy))),
+                   (!`IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry0.load && ((!`IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry0.stdata1_vld && !`IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry0.staddr0_rdy) || (`IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry0.stdata1_vld && !`IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry0.staddr1_rdy)))};
+    sdiq_staddr_not_ready_width = popcount64({52'b0, `IDU_IS_SDIQ.sdiq_entry_vld[11:0] & ~`IDU_IS_SDIQ.sdiq_entry_ready[11:0] & src_not_rdy});
+  end
+  endfunction
+
+  function automatic [7:0] viq0_srcv0_not_ready_width();
+    logic [7:0] src_not_rdy;
+  begin
+    src_not_rdy = ~{`IDU_IS_VIQ0.x_ct_idu_is_viq0_entry7.srcv0_rdy_for_issue,
+                    `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry6.srcv0_rdy_for_issue,
+                    `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry5.srcv0_rdy_for_issue,
+                    `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry4.srcv0_rdy_for_issue,
+                    `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry3.srcv0_rdy_for_issue,
+                    `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry2.srcv0_rdy_for_issue,
+                    `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry1.srcv0_rdy_for_issue,
+                    `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry0.srcv0_rdy_for_issue};
+    viq0_srcv0_not_ready_width = popcount64({56'b0, `IDU_IS_VIQ0.viq0_entry_vld[7:0] & ~`IDU_IS_VIQ0.viq0_entry_ready[7:0] & src_not_rdy});
+  end
+  endfunction
+
+  function automatic [7:0] viq0_srcv1_not_ready_width();
+    logic [7:0] src_not_rdy;
+  begin
+    src_not_rdy = ~{`IDU_IS_VIQ0.x_ct_idu_is_viq0_entry7.srcv1_rdy_for_issue,
+                    `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry6.srcv1_rdy_for_issue,
+                    `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry5.srcv1_rdy_for_issue,
+                    `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry4.srcv1_rdy_for_issue,
+                    `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry3.srcv1_rdy_for_issue,
+                    `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry2.srcv1_rdy_for_issue,
+                    `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry1.srcv1_rdy_for_issue,
+                    `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry0.srcv1_rdy_for_issue};
+    viq0_srcv1_not_ready_width = popcount64({56'b0, `IDU_IS_VIQ0.viq0_entry_vld[7:0] & ~`IDU_IS_VIQ0.viq0_entry_ready[7:0] & src_not_rdy});
+  end
+  endfunction
+
+  function automatic [7:0] viq0_srcv2_not_ready_width();
+    logic [7:0] src_not_rdy;
+  begin
+    src_not_rdy = ~{`IDU_IS_VIQ0.x_ct_idu_is_viq0_entry7.srcv2_rdy_for_issue,
+                    `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry6.srcv2_rdy_for_issue,
+                    `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry5.srcv2_rdy_for_issue,
+                    `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry4.srcv2_rdy_for_issue,
+                    `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry3.srcv2_rdy_for_issue,
+                    `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry2.srcv2_rdy_for_issue,
+                    `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry1.srcv2_rdy_for_issue,
+                    `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry0.srcv2_rdy_for_issue};
+    viq0_srcv2_not_ready_width = popcount64({56'b0, `IDU_IS_VIQ0.viq0_entry_vld[7:0] & ~`IDU_IS_VIQ0.viq0_entry_ready[7:0] & src_not_rdy});
+  end
+  endfunction
+
+  function automatic [7:0] viq0_srcvm_not_ready_width();
+    logic [7:0] src_not_rdy;
+  begin
+    src_not_rdy = ~{`IDU_IS_VIQ0.x_ct_idu_is_viq0_entry7.srcvm_rdy_for_issue,
+                    `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry6.srcvm_rdy_for_issue,
+                    `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry5.srcvm_rdy_for_issue,
+                    `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry4.srcvm_rdy_for_issue,
+                    `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry3.srcvm_rdy_for_issue,
+                    `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry2.srcvm_rdy_for_issue,
+                    `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry1.srcvm_rdy_for_issue,
+                    `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry0.srcvm_rdy_for_issue};
+    viq0_srcvm_not_ready_width = popcount64({56'b0, `IDU_IS_VIQ0.viq0_entry_vld[7:0] & ~`IDU_IS_VIQ0.viq0_entry_ready[7:0] & src_not_rdy});
+  end
+  endfunction
+
+  function automatic [7:0] viq1_srcv0_not_ready_width();
+    logic [7:0] src_not_rdy;
+  begin
+    src_not_rdy = ~{`IDU_IS_VIQ1.x_ct_idu_is_viq1_entry7.srcv0_rdy_for_issue,
+                    `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry6.srcv0_rdy_for_issue,
+                    `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry5.srcv0_rdy_for_issue,
+                    `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry4.srcv0_rdy_for_issue,
+                    `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry3.srcv0_rdy_for_issue,
+                    `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry2.srcv0_rdy_for_issue,
+                    `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry1.srcv0_rdy_for_issue,
+                    `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry0.srcv0_rdy_for_issue};
+    viq1_srcv0_not_ready_width = popcount64({56'b0, `IDU_IS_VIQ1.viq1_entry_vld[7:0] & ~`IDU_IS_VIQ1.viq1_entry_ready[7:0] & src_not_rdy});
+  end
+  endfunction
+
+  function automatic [7:0] viq1_srcv1_not_ready_width();
+    logic [7:0] src_not_rdy;
+  begin
+    src_not_rdy = ~{`IDU_IS_VIQ1.x_ct_idu_is_viq1_entry7.srcv1_rdy_for_issue,
+                    `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry6.srcv1_rdy_for_issue,
+                    `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry5.srcv1_rdy_for_issue,
+                    `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry4.srcv1_rdy_for_issue,
+                    `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry3.srcv1_rdy_for_issue,
+                    `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry2.srcv1_rdy_for_issue,
+                    `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry1.srcv1_rdy_for_issue,
+                    `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry0.srcv1_rdy_for_issue};
+    viq1_srcv1_not_ready_width = popcount64({56'b0, `IDU_IS_VIQ1.viq1_entry_vld[7:0] & ~`IDU_IS_VIQ1.viq1_entry_ready[7:0] & src_not_rdy});
+  end
+  endfunction
+
+  function automatic [7:0] viq1_srcv2_not_ready_width();
+    logic [7:0] src_not_rdy;
+  begin
+    src_not_rdy = ~{`IDU_IS_VIQ1.x_ct_idu_is_viq1_entry7.srcv2_rdy_for_issue,
+                    `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry6.srcv2_rdy_for_issue,
+                    `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry5.srcv2_rdy_for_issue,
+                    `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry4.srcv2_rdy_for_issue,
+                    `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry3.srcv2_rdy_for_issue,
+                    `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry2.srcv2_rdy_for_issue,
+                    `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry1.srcv2_rdy_for_issue,
+                    `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry0.srcv2_rdy_for_issue};
+    viq1_srcv2_not_ready_width = popcount64({56'b0, `IDU_IS_VIQ1.viq1_entry_vld[7:0] & ~`IDU_IS_VIQ1.viq1_entry_ready[7:0] & src_not_rdy});
+  end
+  endfunction
+
+  function automatic [7:0] viq1_srcvm_not_ready_width();
+    logic [7:0] src_not_rdy;
+  begin
+    src_not_rdy = ~{`IDU_IS_VIQ1.x_ct_idu_is_viq1_entry7.srcvm_rdy_for_issue,
+                    `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry6.srcvm_rdy_for_issue,
+                    `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry5.srcvm_rdy_for_issue,
+                    `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry4.srcvm_rdy_for_issue,
+                    `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry3.srcvm_rdy_for_issue,
+                    `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry2.srcvm_rdy_for_issue,
+                    `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry1.srcvm_rdy_for_issue,
+                    `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry0.srcvm_rdy_for_issue};
+    viq1_srcvm_not_ready_width = popcount64({56'b0, `IDU_IS_VIQ1.viq1_entry_vld[7:0] & ~`IDU_IS_VIQ1.viq1_entry_ready[7:0] & src_not_rdy});
+  end
+  endfunction
+
+  function automatic [7:0] aiq0_load_dep_not_ready_width();
+    logic [7:0] entry_wait;
+    logic [7:0] src0_load;
+    logic [7:0] src1_load;
+    logic [7:0] src2_load;
+  begin
+    entry_wait = `IDU_IS_AIQ0.aiq0_entry_vld[7:0] & ~`IDU_IS_AIQ0.aiq0_entry_ready[7:0];
+    src0_load = ~{`IDU_IS_AIQ0.x_ct_idu_is_aiq0_entry7.src0_rdy_for_issue, `IDU_IS_AIQ0.x_ct_idu_is_aiq0_entry6.src0_rdy_for_issue,
+                  `IDU_IS_AIQ0.x_ct_idu_is_aiq0_entry5.src0_rdy_for_issue, `IDU_IS_AIQ0.x_ct_idu_is_aiq0_entry4.src0_rdy_for_issue,
+                  `IDU_IS_AIQ0.x_ct_idu_is_aiq0_entry3.src0_rdy_for_issue, `IDU_IS_AIQ0.x_ct_idu_is_aiq0_entry2.src0_rdy_for_issue,
+                  `IDU_IS_AIQ0.x_ct_idu_is_aiq0_entry1.src0_rdy_for_issue, `IDU_IS_AIQ0.x_ct_idu_is_aiq0_entry0.src0_rdy_for_issue}
+                & {`IDU_IS_AIQ0.x_ct_idu_is_aiq0_entry7.x_ct_idu_is_aiq0_src0_entry.lsu_match, `IDU_IS_AIQ0.x_ct_idu_is_aiq0_entry6.x_ct_idu_is_aiq0_src0_entry.lsu_match,
+                   `IDU_IS_AIQ0.x_ct_idu_is_aiq0_entry5.x_ct_idu_is_aiq0_src0_entry.lsu_match, `IDU_IS_AIQ0.x_ct_idu_is_aiq0_entry4.x_ct_idu_is_aiq0_src0_entry.lsu_match,
+                   `IDU_IS_AIQ0.x_ct_idu_is_aiq0_entry3.x_ct_idu_is_aiq0_src0_entry.lsu_match, `IDU_IS_AIQ0.x_ct_idu_is_aiq0_entry2.x_ct_idu_is_aiq0_src0_entry.lsu_match,
+                   `IDU_IS_AIQ0.x_ct_idu_is_aiq0_entry1.x_ct_idu_is_aiq0_src0_entry.lsu_match, `IDU_IS_AIQ0.x_ct_idu_is_aiq0_entry0.x_ct_idu_is_aiq0_src0_entry.lsu_match};
+    src1_load = ~{`IDU_IS_AIQ0.x_ct_idu_is_aiq0_entry7.src1_rdy_for_issue, `IDU_IS_AIQ0.x_ct_idu_is_aiq0_entry6.src1_rdy_for_issue,
+                  `IDU_IS_AIQ0.x_ct_idu_is_aiq0_entry5.src1_rdy_for_issue, `IDU_IS_AIQ0.x_ct_idu_is_aiq0_entry4.src1_rdy_for_issue,
+                  `IDU_IS_AIQ0.x_ct_idu_is_aiq0_entry3.src1_rdy_for_issue, `IDU_IS_AIQ0.x_ct_idu_is_aiq0_entry2.src1_rdy_for_issue,
+                  `IDU_IS_AIQ0.x_ct_idu_is_aiq0_entry1.src1_rdy_for_issue, `IDU_IS_AIQ0.x_ct_idu_is_aiq0_entry0.src1_rdy_for_issue}
+                & {`IDU_IS_AIQ0.x_ct_idu_is_aiq0_entry7.x_ct_idu_is_aiq0_src1_entry.lsu_match, `IDU_IS_AIQ0.x_ct_idu_is_aiq0_entry6.x_ct_idu_is_aiq0_src1_entry.lsu_match,
+                   `IDU_IS_AIQ0.x_ct_idu_is_aiq0_entry5.x_ct_idu_is_aiq0_src1_entry.lsu_match, `IDU_IS_AIQ0.x_ct_idu_is_aiq0_entry4.x_ct_idu_is_aiq0_src1_entry.lsu_match,
+                   `IDU_IS_AIQ0.x_ct_idu_is_aiq0_entry3.x_ct_idu_is_aiq0_src1_entry.lsu_match, `IDU_IS_AIQ0.x_ct_idu_is_aiq0_entry2.x_ct_idu_is_aiq0_src1_entry.lsu_match,
+                   `IDU_IS_AIQ0.x_ct_idu_is_aiq0_entry1.x_ct_idu_is_aiq0_src1_entry.lsu_match, `IDU_IS_AIQ0.x_ct_idu_is_aiq0_entry0.x_ct_idu_is_aiq0_src1_entry.lsu_match};
+    src2_load = ~{`IDU_IS_AIQ0.x_ct_idu_is_aiq0_entry7.src2_rdy_for_issue, `IDU_IS_AIQ0.x_ct_idu_is_aiq0_entry6.src2_rdy_for_issue,
+                  `IDU_IS_AIQ0.x_ct_idu_is_aiq0_entry5.src2_rdy_for_issue, `IDU_IS_AIQ0.x_ct_idu_is_aiq0_entry4.src2_rdy_for_issue,
+                  `IDU_IS_AIQ0.x_ct_idu_is_aiq0_entry3.src2_rdy_for_issue, `IDU_IS_AIQ0.x_ct_idu_is_aiq0_entry2.src2_rdy_for_issue,
+                  `IDU_IS_AIQ0.x_ct_idu_is_aiq0_entry1.src2_rdy_for_issue, `IDU_IS_AIQ0.x_ct_idu_is_aiq0_entry0.src2_rdy_for_issue}
+                & {`IDU_IS_AIQ0.x_ct_idu_is_aiq0_entry7.x_ct_idu_is_aiq0_src2_entry.lsu_match, `IDU_IS_AIQ0.x_ct_idu_is_aiq0_entry6.x_ct_idu_is_aiq0_src2_entry.lsu_match,
+                   `IDU_IS_AIQ0.x_ct_idu_is_aiq0_entry5.x_ct_idu_is_aiq0_src2_entry.lsu_match, `IDU_IS_AIQ0.x_ct_idu_is_aiq0_entry4.x_ct_idu_is_aiq0_src2_entry.lsu_match,
+                   `IDU_IS_AIQ0.x_ct_idu_is_aiq0_entry3.x_ct_idu_is_aiq0_src2_entry.lsu_match, `IDU_IS_AIQ0.x_ct_idu_is_aiq0_entry2.x_ct_idu_is_aiq0_src2_entry.lsu_match,
+                   `IDU_IS_AIQ0.x_ct_idu_is_aiq0_entry1.x_ct_idu_is_aiq0_src2_entry.lsu_match, `IDU_IS_AIQ0.x_ct_idu_is_aiq0_entry0.x_ct_idu_is_aiq0_src2_entry.lsu_match};
+    aiq0_load_dep_not_ready_width = popcount64({56'b0, entry_wait & src0_load})
+                                  + popcount64({56'b0, entry_wait & src1_load})
+                                  + popcount64({56'b0, entry_wait & src2_load});
+  end
+  endfunction
+
+  function automatic [7:0] aiq0_nonload_dep_not_ready_width();
+  begin
+    aiq0_nonload_dep_not_ready_width = aiq0_src0_not_ready_width()
+                                     + aiq0_src1_not_ready_width()
+                                     + aiq0_src2_not_ready_width()
+                                     - aiq0_load_dep_not_ready_width();
+  end
+  endfunction
+
+  function automatic [7:0] aiq1_load_dep_not_ready_width();
+    logic [7:0] entry_wait;
+    logic [7:0] src0_load;
+    logic [7:0] src1_load;
+    logic [7:0] src2_load;
+  begin
+    entry_wait = `IDU_IS_AIQ1.aiq1_entry_vld[7:0] & ~`IDU_IS_AIQ1.aiq1_entry_ready[7:0];
+    src0_load = ~{`IDU_IS_AIQ1.x_ct_idu_is_aiq1_entry7.src0_rdy_for_issue, `IDU_IS_AIQ1.x_ct_idu_is_aiq1_entry6.src0_rdy_for_issue,
+                  `IDU_IS_AIQ1.x_ct_idu_is_aiq1_entry5.src0_rdy_for_issue, `IDU_IS_AIQ1.x_ct_idu_is_aiq1_entry4.src0_rdy_for_issue,
+                  `IDU_IS_AIQ1.x_ct_idu_is_aiq1_entry3.src0_rdy_for_issue, `IDU_IS_AIQ1.x_ct_idu_is_aiq1_entry2.src0_rdy_for_issue,
+                  `IDU_IS_AIQ1.x_ct_idu_is_aiq1_entry1.src0_rdy_for_issue, `IDU_IS_AIQ1.x_ct_idu_is_aiq1_entry0.src0_rdy_for_issue}
+                & {`IDU_IS_AIQ1.x_ct_idu_is_aiq1_entry7.x_ct_idu_is_aiq1_src0_entry.lsu_match, `IDU_IS_AIQ1.x_ct_idu_is_aiq1_entry6.x_ct_idu_is_aiq1_src0_entry.lsu_match,
+                   `IDU_IS_AIQ1.x_ct_idu_is_aiq1_entry5.x_ct_idu_is_aiq1_src0_entry.lsu_match, `IDU_IS_AIQ1.x_ct_idu_is_aiq1_entry4.x_ct_idu_is_aiq1_src0_entry.lsu_match,
+                   `IDU_IS_AIQ1.x_ct_idu_is_aiq1_entry3.x_ct_idu_is_aiq1_src0_entry.lsu_match, `IDU_IS_AIQ1.x_ct_idu_is_aiq1_entry2.x_ct_idu_is_aiq1_src0_entry.lsu_match,
+                   `IDU_IS_AIQ1.x_ct_idu_is_aiq1_entry1.x_ct_idu_is_aiq1_src0_entry.lsu_match, `IDU_IS_AIQ1.x_ct_idu_is_aiq1_entry0.x_ct_idu_is_aiq1_src0_entry.lsu_match};
+    src1_load = ~{`IDU_IS_AIQ1.x_ct_idu_is_aiq1_entry7.src1_rdy_for_issue, `IDU_IS_AIQ1.x_ct_idu_is_aiq1_entry6.src1_rdy_for_issue,
+                  `IDU_IS_AIQ1.x_ct_idu_is_aiq1_entry5.src1_rdy_for_issue, `IDU_IS_AIQ1.x_ct_idu_is_aiq1_entry4.src1_rdy_for_issue,
+                  `IDU_IS_AIQ1.x_ct_idu_is_aiq1_entry3.src1_rdy_for_issue, `IDU_IS_AIQ1.x_ct_idu_is_aiq1_entry2.src1_rdy_for_issue,
+                  `IDU_IS_AIQ1.x_ct_idu_is_aiq1_entry1.src1_rdy_for_issue, `IDU_IS_AIQ1.x_ct_idu_is_aiq1_entry0.src1_rdy_for_issue}
+                & {`IDU_IS_AIQ1.x_ct_idu_is_aiq1_entry7.x_ct_idu_is_aiq1_src1_entry.lsu_match, `IDU_IS_AIQ1.x_ct_idu_is_aiq1_entry6.x_ct_idu_is_aiq1_src1_entry.lsu_match,
+                   `IDU_IS_AIQ1.x_ct_idu_is_aiq1_entry5.x_ct_idu_is_aiq1_src1_entry.lsu_match, `IDU_IS_AIQ1.x_ct_idu_is_aiq1_entry4.x_ct_idu_is_aiq1_src1_entry.lsu_match,
+                   `IDU_IS_AIQ1.x_ct_idu_is_aiq1_entry3.x_ct_idu_is_aiq1_src1_entry.lsu_match, `IDU_IS_AIQ1.x_ct_idu_is_aiq1_entry2.x_ct_idu_is_aiq1_src1_entry.lsu_match,
+                   `IDU_IS_AIQ1.x_ct_idu_is_aiq1_entry1.x_ct_idu_is_aiq1_src1_entry.lsu_match, `IDU_IS_AIQ1.x_ct_idu_is_aiq1_entry0.x_ct_idu_is_aiq1_src1_entry.lsu_match};
+    src2_load = ~{`IDU_IS_AIQ1.x_ct_idu_is_aiq1_entry7.src2_rdy_for_issue, `IDU_IS_AIQ1.x_ct_idu_is_aiq1_entry6.src2_rdy_for_issue,
+                  `IDU_IS_AIQ1.x_ct_idu_is_aiq1_entry5.src2_rdy_for_issue, `IDU_IS_AIQ1.x_ct_idu_is_aiq1_entry4.src2_rdy_for_issue,
+                  `IDU_IS_AIQ1.x_ct_idu_is_aiq1_entry3.src2_rdy_for_issue, `IDU_IS_AIQ1.x_ct_idu_is_aiq1_entry2.src2_rdy_for_issue,
+                  `IDU_IS_AIQ1.x_ct_idu_is_aiq1_entry1.src2_rdy_for_issue, `IDU_IS_AIQ1.x_ct_idu_is_aiq1_entry0.src2_rdy_for_issue}
+                & {`IDU_IS_AIQ1.x_ct_idu_is_aiq1_entry7.x_ct_idu_is_aiq1_src2_entry.lsu_match, `IDU_IS_AIQ1.x_ct_idu_is_aiq1_entry6.x_ct_idu_is_aiq1_src2_entry.lsu_match,
+                   `IDU_IS_AIQ1.x_ct_idu_is_aiq1_entry5.x_ct_idu_is_aiq1_src2_entry.lsu_match, `IDU_IS_AIQ1.x_ct_idu_is_aiq1_entry4.x_ct_idu_is_aiq1_src2_entry.lsu_match,
+                   `IDU_IS_AIQ1.x_ct_idu_is_aiq1_entry3.x_ct_idu_is_aiq1_src2_entry.lsu_match, `IDU_IS_AIQ1.x_ct_idu_is_aiq1_entry2.x_ct_idu_is_aiq1_src2_entry.lsu_match,
+                   `IDU_IS_AIQ1.x_ct_idu_is_aiq1_entry1.x_ct_idu_is_aiq1_src2_entry.lsu_match, `IDU_IS_AIQ1.x_ct_idu_is_aiq1_entry0.x_ct_idu_is_aiq1_src2_entry.lsu_match};
+    aiq1_load_dep_not_ready_width = popcount64({56'b0, entry_wait & src0_load})
+                                  + popcount64({56'b0, entry_wait & src1_load})
+                                  + popcount64({56'b0, entry_wait & src2_load});
+  end
+  endfunction
+
+  function automatic [7:0] aiq1_nonload_dep_not_ready_width();
+  begin
+    aiq1_nonload_dep_not_ready_width = aiq1_src0_not_ready_width()
+                                     + aiq1_src1_not_ready_width()
+                                     + aiq1_src2_not_ready_width()
+                                     - aiq1_load_dep_not_ready_width();
+  end
+  endfunction
+
+  function automatic [7:0] biq_load_dep_not_ready_width();
+    logic [11:0] entry_wait;
+    logic [11:0] src0_load;
+    logic [11:0] src1_load;
+  begin
+    entry_wait = `IDU_IS_BIQ.biq_entry_vld[11:0] & ~`IDU_IS_BIQ.biq_entry_ready[11:0];
+    src0_load = ~{`IDU_IS_BIQ.x_ct_idu_is_biq_entry11.src0_rdy_for_issue, `IDU_IS_BIQ.x_ct_idu_is_biq_entry10.src0_rdy_for_issue,
+                  `IDU_IS_BIQ.x_ct_idu_is_biq_entry9.src0_rdy_for_issue,  `IDU_IS_BIQ.x_ct_idu_is_biq_entry8.src0_rdy_for_issue,
+                  `IDU_IS_BIQ.x_ct_idu_is_biq_entry7.src0_rdy_for_issue,  `IDU_IS_BIQ.x_ct_idu_is_biq_entry6.src0_rdy_for_issue,
+                  `IDU_IS_BIQ.x_ct_idu_is_biq_entry5.src0_rdy_for_issue,  `IDU_IS_BIQ.x_ct_idu_is_biq_entry4.src0_rdy_for_issue,
+                  `IDU_IS_BIQ.x_ct_idu_is_biq_entry3.src0_rdy_for_issue,  `IDU_IS_BIQ.x_ct_idu_is_biq_entry2.src0_rdy_for_issue,
+                  `IDU_IS_BIQ.x_ct_idu_is_biq_entry1.src0_rdy_for_issue,  `IDU_IS_BIQ.x_ct_idu_is_biq_entry0.src0_rdy_for_issue}
+                & {`IDU_IS_BIQ.x_ct_idu_is_biq_entry11.x_ct_idu_is_biq_src0_entry.lsu_match, `IDU_IS_BIQ.x_ct_idu_is_biq_entry10.x_ct_idu_is_biq_src0_entry.lsu_match,
+                   `IDU_IS_BIQ.x_ct_idu_is_biq_entry9.x_ct_idu_is_biq_src0_entry.lsu_match,  `IDU_IS_BIQ.x_ct_idu_is_biq_entry8.x_ct_idu_is_biq_src0_entry.lsu_match,
+                   `IDU_IS_BIQ.x_ct_idu_is_biq_entry7.x_ct_idu_is_biq_src0_entry.lsu_match,  `IDU_IS_BIQ.x_ct_idu_is_biq_entry6.x_ct_idu_is_biq_src0_entry.lsu_match,
+                   `IDU_IS_BIQ.x_ct_idu_is_biq_entry5.x_ct_idu_is_biq_src0_entry.lsu_match,  `IDU_IS_BIQ.x_ct_idu_is_biq_entry4.x_ct_idu_is_biq_src0_entry.lsu_match,
+                   `IDU_IS_BIQ.x_ct_idu_is_biq_entry3.x_ct_idu_is_biq_src0_entry.lsu_match,  `IDU_IS_BIQ.x_ct_idu_is_biq_entry2.x_ct_idu_is_biq_src0_entry.lsu_match,
+                   `IDU_IS_BIQ.x_ct_idu_is_biq_entry1.x_ct_idu_is_biq_src0_entry.lsu_match,  `IDU_IS_BIQ.x_ct_idu_is_biq_entry0.x_ct_idu_is_biq_src0_entry.lsu_match};
+    src1_load = ~{`IDU_IS_BIQ.x_ct_idu_is_biq_entry11.src1_rdy_for_issue, `IDU_IS_BIQ.x_ct_idu_is_biq_entry10.src1_rdy_for_issue,
+                  `IDU_IS_BIQ.x_ct_idu_is_biq_entry9.src1_rdy_for_issue,  `IDU_IS_BIQ.x_ct_idu_is_biq_entry8.src1_rdy_for_issue,
+                  `IDU_IS_BIQ.x_ct_idu_is_biq_entry7.src1_rdy_for_issue,  `IDU_IS_BIQ.x_ct_idu_is_biq_entry6.src1_rdy_for_issue,
+                  `IDU_IS_BIQ.x_ct_idu_is_biq_entry5.src1_rdy_for_issue,  `IDU_IS_BIQ.x_ct_idu_is_biq_entry4.src1_rdy_for_issue,
+                  `IDU_IS_BIQ.x_ct_idu_is_biq_entry3.src1_rdy_for_issue,  `IDU_IS_BIQ.x_ct_idu_is_biq_entry2.src1_rdy_for_issue,
+                  `IDU_IS_BIQ.x_ct_idu_is_biq_entry1.src1_rdy_for_issue,  `IDU_IS_BIQ.x_ct_idu_is_biq_entry0.src1_rdy_for_issue}
+                & {`IDU_IS_BIQ.x_ct_idu_is_biq_entry11.x_ct_idu_is_biq_src1_entry.lsu_match, `IDU_IS_BIQ.x_ct_idu_is_biq_entry10.x_ct_idu_is_biq_src1_entry.lsu_match,
+                   `IDU_IS_BIQ.x_ct_idu_is_biq_entry9.x_ct_idu_is_biq_src1_entry.lsu_match,  `IDU_IS_BIQ.x_ct_idu_is_biq_entry8.x_ct_idu_is_biq_src1_entry.lsu_match,
+                   `IDU_IS_BIQ.x_ct_idu_is_biq_entry7.x_ct_idu_is_biq_src1_entry.lsu_match,  `IDU_IS_BIQ.x_ct_idu_is_biq_entry6.x_ct_idu_is_biq_src1_entry.lsu_match,
+                   `IDU_IS_BIQ.x_ct_idu_is_biq_entry5.x_ct_idu_is_biq_src1_entry.lsu_match,  `IDU_IS_BIQ.x_ct_idu_is_biq_entry4.x_ct_idu_is_biq_src1_entry.lsu_match,
+                   `IDU_IS_BIQ.x_ct_idu_is_biq_entry3.x_ct_idu_is_biq_src1_entry.lsu_match,  `IDU_IS_BIQ.x_ct_idu_is_biq_entry2.x_ct_idu_is_biq_src1_entry.lsu_match,
+                   `IDU_IS_BIQ.x_ct_idu_is_biq_entry1.x_ct_idu_is_biq_src1_entry.lsu_match,  `IDU_IS_BIQ.x_ct_idu_is_biq_entry0.x_ct_idu_is_biq_src1_entry.lsu_match};
+    biq_load_dep_not_ready_width = popcount64({52'b0, entry_wait & src0_load})
+                                 + popcount64({52'b0, entry_wait & src1_load});
+  end
+  endfunction
+
+  function automatic [7:0] biq_nonload_dep_not_ready_width();
+  begin
+    biq_nonload_dep_not_ready_width = biq_src0_not_ready_width()
+                                    + biq_src1_not_ready_width()
+                                    - biq_load_dep_not_ready_width();
+  end
+  endfunction
+
+  function automatic [7:0] lsiq_load_dep_not_ready_width();
+    logic [11:0] entry_wait;
+    logic [11:0] src0_load;
+    logic [11:0] src1_load;
+    logic [11:0] srcvm_load;
+  begin
+    entry_wait = `IDU_IS_LSIQ.lsiq_entry_vld[11:0] & ~`IDU_IS_LSIQ.lsiq_entry_ready[11:0];
+    src0_load = ~{`IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry11.src0_rdy_for_issue, `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry10.src0_rdy_for_issue,
+                  `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry9.src0_rdy_for_issue,  `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry8.src0_rdy_for_issue,
+                  `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry7.src0_rdy_for_issue,  `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry6.src0_rdy_for_issue,
+                  `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry5.src0_rdy_for_issue,  `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry4.src0_rdy_for_issue,
+                  `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry3.src0_rdy_for_issue,  `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry2.src0_rdy_for_issue,
+                  `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry1.src0_rdy_for_issue,  `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry0.src0_rdy_for_issue}
+                & {`IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry11.x_ct_idu_is_lsiq_src0_entry.lsu_match, `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry10.x_ct_idu_is_lsiq_src0_entry.lsu_match,
+                   `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry9.x_ct_idu_is_lsiq_src0_entry.lsu_match,  `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry8.x_ct_idu_is_lsiq_src0_entry.lsu_match,
+                   `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry7.x_ct_idu_is_lsiq_src0_entry.lsu_match,  `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry6.x_ct_idu_is_lsiq_src0_entry.lsu_match,
+                   `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry5.x_ct_idu_is_lsiq_src0_entry.lsu_match,  `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry4.x_ct_idu_is_lsiq_src0_entry.lsu_match,
+                   `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry3.x_ct_idu_is_lsiq_src0_entry.lsu_match,  `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry2.x_ct_idu_is_lsiq_src0_entry.lsu_match,
+                   `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry1.x_ct_idu_is_lsiq_src0_entry.lsu_match,  `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry0.x_ct_idu_is_lsiq_src0_entry.lsu_match};
+    src1_load = ~{`IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry11.src1_rdy_for_issue, `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry10.src1_rdy_for_issue,
+                  `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry9.src1_rdy_for_issue,  `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry8.src1_rdy_for_issue,
+                  `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry7.src1_rdy_for_issue,  `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry6.src1_rdy_for_issue,
+                  `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry5.src1_rdy_for_issue,  `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry4.src1_rdy_for_issue,
+                  `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry3.src1_rdy_for_issue,  `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry2.src1_rdy_for_issue,
+                  `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry1.src1_rdy_for_issue,  `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry0.src1_rdy_for_issue}
+                & {`IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry11.x_ct_idu_is_lsiq_src1_entry.lsu_match, `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry10.x_ct_idu_is_lsiq_src1_entry.lsu_match,
+                   `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry9.x_ct_idu_is_lsiq_src1_entry.lsu_match,  `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry8.x_ct_idu_is_lsiq_src1_entry.lsu_match,
+                   `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry7.x_ct_idu_is_lsiq_src1_entry.lsu_match,  `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry6.x_ct_idu_is_lsiq_src1_entry.lsu_match,
+                   `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry5.x_ct_idu_is_lsiq_src1_entry.lsu_match,  `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry4.x_ct_idu_is_lsiq_src1_entry.lsu_match,
+                   `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry3.x_ct_idu_is_lsiq_src1_entry.lsu_match,  `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry2.x_ct_idu_is_lsiq_src1_entry.lsu_match,
+                   `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry1.x_ct_idu_is_lsiq_src1_entry.lsu_match,  `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry0.x_ct_idu_is_lsiq_src1_entry.lsu_match};
+    srcvm_load = ~{`IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry11.srcvm_rdy_for_issue, `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry10.srcvm_rdy_for_issue,
+                   `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry9.srcvm_rdy_for_issue,  `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry8.srcvm_rdy_for_issue,
+                   `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry7.srcvm_rdy_for_issue,  `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry6.srcvm_rdy_for_issue,
+                   `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry5.srcvm_rdy_for_issue,  `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry4.srcvm_rdy_for_issue,
+                   `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry3.srcvm_rdy_for_issue,  `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry2.srcvm_rdy_for_issue,
+                   `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry1.srcvm_rdy_for_issue,  `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry0.srcvm_rdy_for_issue}
+                 & {`IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry11.x_ct_idu_is_lsiq_srcvm_entry.lsu_match, `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry10.x_ct_idu_is_lsiq_srcvm_entry.lsu_match,
+                    `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry9.x_ct_idu_is_lsiq_srcvm_entry.lsu_match,  `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry8.x_ct_idu_is_lsiq_srcvm_entry.lsu_match,
+                    `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry7.x_ct_idu_is_lsiq_srcvm_entry.lsu_match,  `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry6.x_ct_idu_is_lsiq_srcvm_entry.lsu_match,
+                    `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry5.x_ct_idu_is_lsiq_srcvm_entry.lsu_match,  `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry4.x_ct_idu_is_lsiq_srcvm_entry.lsu_match,
+                    `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry3.x_ct_idu_is_lsiq_srcvm_entry.lsu_match,  `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry2.x_ct_idu_is_lsiq_srcvm_entry.lsu_match,
+                    `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry1.x_ct_idu_is_lsiq_srcvm_entry.lsu_match,  `IDU_IS_LSIQ.x_ct_idu_is_lsiq_entry0.x_ct_idu_is_lsiq_srcvm_entry.lsu_match};
+    lsiq_load_dep_not_ready_width = popcount64({52'b0, entry_wait & src0_load})
+                                  + popcount64({52'b0, entry_wait & src1_load})
+                                  + popcount64({52'b0, entry_wait & srcvm_load});
+  end
+  endfunction
+
+  function automatic [7:0] lsiq_nonload_dep_not_ready_width();
+  begin
+    lsiq_nonload_dep_not_ready_width = lsiq_src0_not_ready_width()
+                                     + lsiq_src1_not_ready_width()
+                                     + lsiq_srcvm_not_ready_width()
+                                     - lsiq_load_dep_not_ready_width();
+  end
+  endfunction
+
+  function automatic [7:0] sdiq_load_dep_not_ready_width();
+    logic [11:0] entry_wait;
+    logic [11:0] src0_load;
+    logic [11:0] srcv0_load;
+  begin
+    entry_wait = `IDU_IS_SDIQ.sdiq_entry_vld[11:0] & ~`IDU_IS_SDIQ.sdiq_entry_ready[11:0];
+    src0_load = ~{`IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry11.src0_rdy_for_issue, `IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry10.src0_rdy_for_issue,
+                  `IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry9.src0_rdy_for_issue,  `IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry8.src0_rdy_for_issue,
+                  `IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry7.src0_rdy_for_issue,  `IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry6.src0_rdy_for_issue,
+                  `IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry5.src0_rdy_for_issue,  `IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry4.src0_rdy_for_issue,
+                  `IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry3.src0_rdy_for_issue,  `IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry2.src0_rdy_for_issue,
+                  `IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry1.src0_rdy_for_issue,  `IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry0.src0_rdy_for_issue}
+                & {`IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry11.x_ct_idu_is_sdiq_src0_entry.lsu_match, `IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry10.x_ct_idu_is_sdiq_src0_entry.lsu_match,
+                   `IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry9.x_ct_idu_is_sdiq_src0_entry.lsu_match,  `IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry8.x_ct_idu_is_sdiq_src0_entry.lsu_match,
+                   `IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry7.x_ct_idu_is_sdiq_src0_entry.lsu_match,  `IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry6.x_ct_idu_is_sdiq_src0_entry.lsu_match,
+                   `IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry5.x_ct_idu_is_sdiq_src0_entry.lsu_match,  `IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry4.x_ct_idu_is_sdiq_src0_entry.lsu_match,
+                   `IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry3.x_ct_idu_is_sdiq_src0_entry.lsu_match,  `IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry2.x_ct_idu_is_sdiq_src0_entry.lsu_match,
+                   `IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry1.x_ct_idu_is_sdiq_src0_entry.lsu_match,  `IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry0.x_ct_idu_is_sdiq_src0_entry.lsu_match};
+    srcv0_load = ~{`IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry11.srcv0_rdy_for_issue, `IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry10.srcv0_rdy_for_issue,
+                   `IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry9.srcv0_rdy_for_issue,  `IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry8.srcv0_rdy_for_issue,
+                   `IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry7.srcv0_rdy_for_issue,  `IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry6.srcv0_rdy_for_issue,
+                   `IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry5.srcv0_rdy_for_issue,  `IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry4.srcv0_rdy_for_issue,
+                   `IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry3.srcv0_rdy_for_issue,  `IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry2.srcv0_rdy_for_issue,
+                   `IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry1.srcv0_rdy_for_issue,  `IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry0.srcv0_rdy_for_issue}
+                 & {`IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry11.x_ct_idu_is_sdiq_srcv0_entry.lsu_match, `IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry10.x_ct_idu_is_sdiq_srcv0_entry.lsu_match,
+                    `IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry9.x_ct_idu_is_sdiq_srcv0_entry.lsu_match,  `IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry8.x_ct_idu_is_sdiq_srcv0_entry.lsu_match,
+                    `IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry7.x_ct_idu_is_sdiq_srcv0_entry.lsu_match,  `IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry6.x_ct_idu_is_sdiq_srcv0_entry.lsu_match,
+                    `IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry5.x_ct_idu_is_sdiq_srcv0_entry.lsu_match,  `IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry4.x_ct_idu_is_sdiq_srcv0_entry.lsu_match,
+                    `IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry3.x_ct_idu_is_sdiq_srcv0_entry.lsu_match,  `IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry2.x_ct_idu_is_sdiq_srcv0_entry.lsu_match,
+                    `IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry1.x_ct_idu_is_sdiq_srcv0_entry.lsu_match,  `IDU_IS_SDIQ.x_ct_idu_is_sdiq_entry0.x_ct_idu_is_sdiq_srcv0_entry.lsu_match};
+    sdiq_load_dep_not_ready_width = popcount64({52'b0, entry_wait & src0_load})
+                                  + popcount64({52'b0, entry_wait & srcv0_load});
+  end
+  endfunction
+
+  function automatic [7:0] sdiq_nonload_dep_not_ready_width();
+  begin
+    sdiq_nonload_dep_not_ready_width = sdiq_src0_not_ready_width()
+                                     + sdiq_srcv0_not_ready_width()
+                                     - sdiq_load_dep_not_ready_width();
+  end
+  endfunction
+
+  function automatic [7:0] viq0_load_dep_not_ready_width();
+    logic [7:0] entry_wait;
+    logic [7:0] srcv0_load;
+    logic [7:0] srcv1_load;
+    logic [7:0] srcv2_load;
+    logic [7:0] srcvm_load;
+  begin
+    entry_wait = `IDU_IS_VIQ0.viq0_entry_vld[7:0] & ~`IDU_IS_VIQ0.viq0_entry_ready[7:0];
+    srcv0_load = ~{`IDU_IS_VIQ0.x_ct_idu_is_viq0_entry7.srcv0_rdy_for_issue, `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry6.srcv0_rdy_for_issue,
+                   `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry5.srcv0_rdy_for_issue, `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry4.srcv0_rdy_for_issue,
+                   `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry3.srcv0_rdy_for_issue, `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry2.srcv0_rdy_for_issue,
+                   `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry1.srcv0_rdy_for_issue, `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry0.srcv0_rdy_for_issue}
+                 & {`IDU_IS_VIQ0.x_ct_idu_is_viq0_entry7.x_ct_idu_is_viq0_srcv0_entry.lsu_match, `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry6.x_ct_idu_is_viq0_srcv0_entry.lsu_match,
+                    `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry5.x_ct_idu_is_viq0_srcv0_entry.lsu_match, `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry4.x_ct_idu_is_viq0_srcv0_entry.lsu_match,
+                    `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry3.x_ct_idu_is_viq0_srcv0_entry.lsu_match, `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry2.x_ct_idu_is_viq0_srcv0_entry.lsu_match,
+                    `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry1.x_ct_idu_is_viq0_srcv0_entry.lsu_match, `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry0.x_ct_idu_is_viq0_srcv0_entry.lsu_match};
+    srcv1_load = ~{`IDU_IS_VIQ0.x_ct_idu_is_viq0_entry7.srcv1_rdy_for_issue, `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry6.srcv1_rdy_for_issue,
+                   `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry5.srcv1_rdy_for_issue, `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry4.srcv1_rdy_for_issue,
+                   `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry3.srcv1_rdy_for_issue, `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry2.srcv1_rdy_for_issue,
+                   `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry1.srcv1_rdy_for_issue, `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry0.srcv1_rdy_for_issue}
+                 & {`IDU_IS_VIQ0.x_ct_idu_is_viq0_entry7.x_ct_idu_is_viq0_srcv1_entry.lsu_match, `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry6.x_ct_idu_is_viq0_srcv1_entry.lsu_match,
+                    `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry5.x_ct_idu_is_viq0_srcv1_entry.lsu_match, `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry4.x_ct_idu_is_viq0_srcv1_entry.lsu_match,
+                    `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry3.x_ct_idu_is_viq0_srcv1_entry.lsu_match, `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry2.x_ct_idu_is_viq0_srcv1_entry.lsu_match,
+                    `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry1.x_ct_idu_is_viq0_srcv1_entry.lsu_match, `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry0.x_ct_idu_is_viq0_srcv1_entry.lsu_match};
+    srcv2_load = ~{`IDU_IS_VIQ0.x_ct_idu_is_viq0_entry7.srcv2_rdy_for_issue, `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry6.srcv2_rdy_for_issue,
+                   `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry5.srcv2_rdy_for_issue, `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry4.srcv2_rdy_for_issue,
+                   `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry3.srcv2_rdy_for_issue, `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry2.srcv2_rdy_for_issue,
+                   `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry1.srcv2_rdy_for_issue, `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry0.srcv2_rdy_for_issue}
+                 & {`IDU_IS_VIQ0.x_ct_idu_is_viq0_entry7.x_ct_idu_is_viq0_srcv2_entry.lsu_match, `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry6.x_ct_idu_is_viq0_srcv2_entry.lsu_match,
+                    `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry5.x_ct_idu_is_viq0_srcv2_entry.lsu_match, `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry4.x_ct_idu_is_viq0_srcv2_entry.lsu_match,
+                    `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry3.x_ct_idu_is_viq0_srcv2_entry.lsu_match, `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry2.x_ct_idu_is_viq0_srcv2_entry.lsu_match,
+                    `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry1.x_ct_idu_is_viq0_srcv2_entry.lsu_match, `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry0.x_ct_idu_is_viq0_srcv2_entry.lsu_match};
+    srcvm_load = ~{`IDU_IS_VIQ0.x_ct_idu_is_viq0_entry7.srcvm_rdy_for_issue, `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry6.srcvm_rdy_for_issue,
+                   `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry5.srcvm_rdy_for_issue, `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry4.srcvm_rdy_for_issue,
+                   `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry3.srcvm_rdy_for_issue, `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry2.srcvm_rdy_for_issue,
+                   `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry1.srcvm_rdy_for_issue, `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry0.srcvm_rdy_for_issue}
+                 & {`IDU_IS_VIQ0.x_ct_idu_is_viq0_entry7.x_ct_idu_is_viq0_srcvm_entry.lsu_match, `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry6.x_ct_idu_is_viq0_srcvm_entry.lsu_match,
+                    `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry5.x_ct_idu_is_viq0_srcvm_entry.lsu_match, `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry4.x_ct_idu_is_viq0_srcvm_entry.lsu_match,
+                    `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry3.x_ct_idu_is_viq0_srcvm_entry.lsu_match, `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry2.x_ct_idu_is_viq0_srcvm_entry.lsu_match,
+                    `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry1.x_ct_idu_is_viq0_srcvm_entry.lsu_match, `IDU_IS_VIQ0.x_ct_idu_is_viq0_entry0.x_ct_idu_is_viq0_srcvm_entry.lsu_match};
+    viq0_load_dep_not_ready_width = popcount64({56'b0, entry_wait & srcv0_load})
+                                  + popcount64({56'b0, entry_wait & srcv1_load})
+                                  + popcount64({56'b0, entry_wait & srcv2_load})
+                                  + popcount64({56'b0, entry_wait & srcvm_load});
+  end
+  endfunction
+
+  function automatic [7:0] viq0_nonload_dep_not_ready_width();
+  begin
+    viq0_nonload_dep_not_ready_width = viq0_srcv0_not_ready_width()
+                                     + viq0_srcv1_not_ready_width()
+                                     + viq0_srcv2_not_ready_width()
+                                     + viq0_srcvm_not_ready_width()
+                                     - viq0_load_dep_not_ready_width();
+  end
+  endfunction
+
+  function automatic [7:0] viq1_load_dep_not_ready_width();
+    logic [7:0] entry_wait;
+    logic [7:0] srcv0_load;
+    logic [7:0] srcv1_load;
+    logic [7:0] srcv2_load;
+    logic [7:0] srcvm_load;
+  begin
+    entry_wait = `IDU_IS_VIQ1.viq1_entry_vld[7:0] & ~`IDU_IS_VIQ1.viq1_entry_ready[7:0];
+    srcv0_load = ~{`IDU_IS_VIQ1.x_ct_idu_is_viq1_entry7.srcv0_rdy_for_issue, `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry6.srcv0_rdy_for_issue,
+                   `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry5.srcv0_rdy_for_issue, `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry4.srcv0_rdy_for_issue,
+                   `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry3.srcv0_rdy_for_issue, `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry2.srcv0_rdy_for_issue,
+                   `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry1.srcv0_rdy_for_issue, `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry0.srcv0_rdy_for_issue}
+                 & {`IDU_IS_VIQ1.x_ct_idu_is_viq1_entry7.x_ct_idu_is_viq1_srcv0_entry.lsu_match, `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry6.x_ct_idu_is_viq1_srcv0_entry.lsu_match,
+                    `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry5.x_ct_idu_is_viq1_srcv0_entry.lsu_match, `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry4.x_ct_idu_is_viq1_srcv0_entry.lsu_match,
+                    `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry3.x_ct_idu_is_viq1_srcv0_entry.lsu_match, `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry2.x_ct_idu_is_viq1_srcv0_entry.lsu_match,
+                    `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry1.x_ct_idu_is_viq1_srcv0_entry.lsu_match, `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry0.x_ct_idu_is_viq1_srcv0_entry.lsu_match};
+    srcv1_load = ~{`IDU_IS_VIQ1.x_ct_idu_is_viq1_entry7.srcv1_rdy_for_issue, `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry6.srcv1_rdy_for_issue,
+                   `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry5.srcv1_rdy_for_issue, `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry4.srcv1_rdy_for_issue,
+                   `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry3.srcv1_rdy_for_issue, `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry2.srcv1_rdy_for_issue,
+                   `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry1.srcv1_rdy_for_issue, `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry0.srcv1_rdy_for_issue}
+                 & {`IDU_IS_VIQ1.x_ct_idu_is_viq1_entry7.x_ct_idu_is_viq1_srcv1_entry.lsu_match, `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry6.x_ct_idu_is_viq1_srcv1_entry.lsu_match,
+                    `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry5.x_ct_idu_is_viq1_srcv1_entry.lsu_match, `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry4.x_ct_idu_is_viq1_srcv1_entry.lsu_match,
+                    `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry3.x_ct_idu_is_viq1_srcv1_entry.lsu_match, `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry2.x_ct_idu_is_viq1_srcv1_entry.lsu_match,
+                    `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry1.x_ct_idu_is_viq1_srcv1_entry.lsu_match, `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry0.x_ct_idu_is_viq1_srcv1_entry.lsu_match};
+    srcv2_load = ~{`IDU_IS_VIQ1.x_ct_idu_is_viq1_entry7.srcv2_rdy_for_issue, `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry6.srcv2_rdy_for_issue,
+                   `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry5.srcv2_rdy_for_issue, `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry4.srcv2_rdy_for_issue,
+                   `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry3.srcv2_rdy_for_issue, `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry2.srcv2_rdy_for_issue,
+                   `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry1.srcv2_rdy_for_issue, `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry0.srcv2_rdy_for_issue}
+                 & {`IDU_IS_VIQ1.x_ct_idu_is_viq1_entry7.x_ct_idu_is_viq1_srcv2_entry.lsu_match, `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry6.x_ct_idu_is_viq1_srcv2_entry.lsu_match,
+                    `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry5.x_ct_idu_is_viq1_srcv2_entry.lsu_match, `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry4.x_ct_idu_is_viq1_srcv2_entry.lsu_match,
+                    `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry3.x_ct_idu_is_viq1_srcv2_entry.lsu_match, `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry2.x_ct_idu_is_viq1_srcv2_entry.lsu_match,
+                    `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry1.x_ct_idu_is_viq1_srcv2_entry.lsu_match, `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry0.x_ct_idu_is_viq1_srcv2_entry.lsu_match};
+    srcvm_load = ~{`IDU_IS_VIQ1.x_ct_idu_is_viq1_entry7.srcvm_rdy_for_issue, `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry6.srcvm_rdy_for_issue,
+                   `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry5.srcvm_rdy_for_issue, `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry4.srcvm_rdy_for_issue,
+                   `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry3.srcvm_rdy_for_issue, `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry2.srcvm_rdy_for_issue,
+                   `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry1.srcvm_rdy_for_issue, `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry0.srcvm_rdy_for_issue}
+                 & {`IDU_IS_VIQ1.x_ct_idu_is_viq1_entry7.x_ct_idu_is_viq1_srcvm_entry.lsu_match, `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry6.x_ct_idu_is_viq1_srcvm_entry.lsu_match,
+                    `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry5.x_ct_idu_is_viq1_srcvm_entry.lsu_match, `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry4.x_ct_idu_is_viq1_srcvm_entry.lsu_match,
+                    `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry3.x_ct_idu_is_viq1_srcvm_entry.lsu_match, `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry2.x_ct_idu_is_viq1_srcvm_entry.lsu_match,
+                    `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry1.x_ct_idu_is_viq1_srcvm_entry.lsu_match, `IDU_IS_VIQ1.x_ct_idu_is_viq1_entry0.x_ct_idu_is_viq1_srcvm_entry.lsu_match};
+    viq1_load_dep_not_ready_width = popcount64({56'b0, entry_wait & srcv0_load})
+                                  + popcount64({56'b0, entry_wait & srcv1_load})
+                                  + popcount64({56'b0, entry_wait & srcv2_load})
+                                  + popcount64({56'b0, entry_wait & srcvm_load});
+  end
+  endfunction
+
+  function automatic [7:0] viq1_nonload_dep_not_ready_width();
+  begin
+    viq1_nonload_dep_not_ready_width = viq1_srcv0_not_ready_width()
+                                     + viq1_srcv1_not_ready_width()
+                                     + viq1_srcv2_not_ready_width()
+                                     + viq1_srcvm_not_ready_width()
+                                     - viq1_load_dep_not_ready_width();
+  end
+  endfunction
+
+  function automatic [7:0] iq_load_dep_not_ready_width();
+  begin
+    iq_load_dep_not_ready_width = aiq0_load_dep_not_ready_width()
+                                + aiq1_load_dep_not_ready_width()
+                                + biq_load_dep_not_ready_width()
+                                + lsiq_load_dep_not_ready_width()
+                                + sdiq_load_dep_not_ready_width()
+                                + viq0_load_dep_not_ready_width()
+                                + viq1_load_dep_not_ready_width();
+  end
+  endfunction
+
+  function automatic [7:0] iq_nonload_dep_not_ready_width();
+  begin
+    iq_nonload_dep_not_ready_width = aiq0_nonload_dep_not_ready_width()
+                                   + aiq1_nonload_dep_not_ready_width()
+                                   + biq_nonload_dep_not_ready_width()
+                                   + lsiq_nonload_dep_not_ready_width()
+                                   + sdiq_nonload_dep_not_ready_width()
+                                   + viq0_nonload_dep_not_ready_width()
+                                   + viq1_nonload_dep_not_ready_width();
+  end
+  endfunction
+
   function automatic [7:0] iq_issue_select_width();
   begin
-    iq_issue_select_width = popcount64({56'b0, `IDU_IS_AIQ0.aiq0_entry_issue_en[7:0]})
-                          + popcount64({56'b0, `IDU_IS_AIQ1.aiq1_entry_issue_en[7:0]})
-                          + popcount64({52'b0, `IDU_IS_BIQ.biq_entry_issue_en[11:0]})
-                          + popcount64({52'b0, `IDU_IS_LSIQ.lsiq_entry_issue_en[11:0]})
-                          + popcount64({52'b0, `IDU_IS_SDIQ.sdiq_entry_issue_en[11:0]})
-                          + popcount64({56'b0, `IDU_IS_VIQ0.viq0_entry_issue_en[7:0]})
-                          + popcount64({56'b0, `IDU_IS_VIQ1.viq1_entry_issue_en[7:0]});
+    iq_issue_select_width = aiq0_issue_select_width()
+                          + aiq1_issue_select_width()
+                          + biq_issue_select_width()
+                          + lsiq_issue_select_width()
+                          + sdiq_issue_select_width()
+                          + viq0_issue_select_width()
+                          + viq1_issue_select_width();
+  end
+  endfunction
+
+  function automatic [7:0] aiq0_issue_select_width();
+  begin
+    aiq0_issue_select_width = popcount64({56'b0, `IDU_IS_AIQ0.aiq0_entry_issue_en[7:0]});
+  end
+  endfunction
+
+  function automatic [7:0] aiq1_issue_select_width();
+  begin
+    aiq1_issue_select_width = popcount64({56'b0, `IDU_IS_AIQ1.aiq1_entry_issue_en[7:0]});
+  end
+  endfunction
+
+  function automatic [7:0] biq_issue_select_width();
+  begin
+    biq_issue_select_width = popcount64({52'b0, `IDU_IS_BIQ.biq_entry_issue_en[11:0]});
+  end
+  endfunction
+
+  function automatic [7:0] lsiq_issue_select_width();
+  begin
+    lsiq_issue_select_width = popcount64({52'b0, `IDU_IS_LSIQ.lsiq_entry_issue_en[11:0]});
+  end
+  endfunction
+
+  function automatic [7:0] sdiq_issue_select_width();
+  begin
+    sdiq_issue_select_width = popcount64({52'b0, `IDU_IS_SDIQ.sdiq_entry_issue_en[11:0]});
+  end
+  endfunction
+
+  function automatic [7:0] viq0_issue_select_width();
+  begin
+    viq0_issue_select_width = popcount64({56'b0, `IDU_IS_VIQ0.viq0_entry_issue_en[7:0]});
+  end
+  endfunction
+
+  function automatic [7:0] viq1_issue_select_width();
+  begin
+    viq1_issue_select_width = popcount64({56'b0, `IDU_IS_VIQ1.viq1_entry_issue_en[7:0]});
+  end
+  endfunction
+
+  function automatic [7:0] aiq0_ready_not_issued_width();
+  begin
+    aiq0_ready_not_issued_width = popcount64({56'b0, `IDU_IS_AIQ0.aiq0_entry_ready[7:0] & ~`IDU_IS_AIQ0.aiq0_entry_issue_en[7:0]});
+  end
+  endfunction
+
+  function automatic [7:0] aiq1_ready_not_issued_width();
+  begin
+    aiq1_ready_not_issued_width = popcount64({56'b0, `IDU_IS_AIQ1.aiq1_entry_ready[7:0] & ~`IDU_IS_AIQ1.aiq1_entry_issue_en[7:0]});
+  end
+  endfunction
+
+  function automatic [7:0] biq_ready_not_issued_width();
+  begin
+    biq_ready_not_issued_width = popcount64({52'b0, `IDU_IS_BIQ.biq_entry_ready[11:0] & ~`IDU_IS_BIQ.biq_entry_issue_en[11:0]});
+  end
+  endfunction
+
+  function automatic [7:0] lsiq_ready_not_issued_width();
+  begin
+    lsiq_ready_not_issued_width = popcount64({52'b0, `IDU_IS_LSIQ.lsiq_entry_ready[11:0] & ~`IDU_IS_LSIQ.lsiq_entry_issue_en[11:0]});
+  end
+  endfunction
+
+  function automatic [7:0] sdiq_ready_not_issued_width();
+  begin
+    sdiq_ready_not_issued_width = popcount64({52'b0, `IDU_IS_SDIQ.sdiq_entry_ready[11:0] & ~`IDU_IS_SDIQ.sdiq_entry_issue_en[11:0]});
+  end
+  endfunction
+
+  function automatic [7:0] viq0_ready_not_issued_width();
+  begin
+    viq0_ready_not_issued_width = popcount64({56'b0, `IDU_IS_VIQ0.viq0_entry_ready[7:0] & ~`IDU_IS_VIQ0.viq0_entry_issue_en[7:0]});
+  end
+  endfunction
+
+  function automatic [7:0] viq1_ready_not_issued_width();
+  begin
+    viq1_ready_not_issued_width = popcount64({56'b0, `IDU_IS_VIQ1.viq1_entry_ready[7:0] & ~`IDU_IS_VIQ1.viq1_entry_issue_en[7:0]});
+  end
+  endfunction
+
+  function automatic [7:0] iq_ready_not_issued_width();
+  begin
+    iq_ready_not_issued_width = aiq0_ready_not_issued_width()
+                              + aiq1_ready_not_issued_width()
+                              + biq_ready_not_issued_width()
+                              + lsiq_ready_not_issued_width()
+                              + sdiq_ready_not_issued_width()
+                              + viq0_ready_not_issued_width()
+                              + viq1_ready_not_issued_width();
   end
   endfunction
 
@@ -835,6 +1668,158 @@ module tb();
                         || `LSU_LD_DA.ld_da_wmb_discard_vld
                         || `LSU_LD_DA.ld_da_wb_spec_fail
                         || `LSU_ST_DA.st_da_wb_spec_fail;
+  end
+  endfunction
+
+  function automatic [7:0] rf_pipe0_src_no_rdy_width();
+  begin
+    rf_pipe0_src_no_rdy_width = {7'b0, `IDU_RF_CTRL.ctrl_rf_pipe0_inst_vld && `IDU_RF_DP.rf_pipe0_src0_no_rdy}
+                              + {7'b0, `IDU_RF_CTRL.ctrl_rf_pipe0_inst_vld && `IDU_RF_DP.rf_pipe0_src1_no_rdy}
+                              + {7'b0, `IDU_RF_CTRL.ctrl_rf_pipe0_inst_vld && `IDU_RF_DP.rf_pipe0_src2_no_rdy};
+  end
+  endfunction
+
+  function automatic [7:0] rf_pipe1_src_no_rdy_width();
+  begin
+    rf_pipe1_src_no_rdy_width = {7'b0, `IDU_RF_CTRL.ctrl_rf_pipe1_inst_vld && `IDU_RF_DP.rf_pipe1_src0_no_rdy}
+                              + {7'b0, `IDU_RF_CTRL.ctrl_rf_pipe1_inst_vld && `IDU_RF_DP.rf_pipe1_src1_no_rdy}
+                              + {7'b0, `IDU_RF_CTRL.ctrl_rf_pipe1_inst_vld && `IDU_RF_DP.rf_pipe1_src2_no_rdy};
+  end
+  endfunction
+
+  function automatic [7:0] rf_pipe2_src_no_rdy_width();
+  begin
+    rf_pipe2_src_no_rdy_width = {7'b0, `IDU_RF_CTRL.ctrl_rf_pipe2_inst_vld && `IDU_RF_DP.rf_pipe2_src0_no_rdy}
+                              + {7'b0, `IDU_RF_CTRL.ctrl_rf_pipe2_inst_vld && `IDU_RF_DP.rf_pipe2_src1_no_rdy};
+  end
+  endfunction
+
+  function automatic [7:0] rf_pipe3_src_no_rdy_width();
+  begin
+    rf_pipe3_src_no_rdy_width = {7'b0, `IDU_RF_CTRL.ctrl_rf_pipe3_inst_vld && `IDU_RF_DP.rf_pipe3_src0_no_rdy}
+                              + {7'b0, `IDU_RF_CTRL.ctrl_rf_pipe3_inst_vld && `IDU_RF_DP.rf_pipe3_src1_no_rdy}
+                              + {7'b0, `IDU_RF_CTRL.ctrl_rf_pipe3_inst_vld && `IDU_RF_DP.rf_pipe3_srcvm_no_rdy};
+  end
+  endfunction
+
+  function automatic [7:0] rf_pipe4_src_no_rdy_width();
+  begin
+    rf_pipe4_src_no_rdy_width = {7'b0, `IDU_RF_CTRL.ctrl_rf_pipe4_inst_vld && `IDU_RF_DP.rf_pipe4_src0_no_rdy}
+                              + {7'b0, `IDU_RF_CTRL.ctrl_rf_pipe4_inst_vld && `IDU_RF_DP.rf_pipe4_src1_no_rdy}
+                              + {7'b0, `IDU_RF_CTRL.ctrl_rf_pipe4_inst_vld && `IDU_RF_DP.rf_pipe4_srcvm_no_rdy};
+  end
+  endfunction
+
+  function automatic [7:0] rf_pipe5_src_no_rdy_width();
+  begin
+    rf_pipe5_src_no_rdy_width = {7'b0, `IDU_RF_CTRL.ctrl_rf_pipe5_inst_vld && `IDU_RF_DP.rf_pipe5_src0_no_rdy}
+                              + {7'b0, `IDU_RF_CTRL.ctrl_rf_pipe5_inst_vld && `IDU_RF_DP.rf_pipe5_srcv0_no_rdy}
+                              + {7'b0, `IDU_RF_CTRL.ctrl_rf_pipe5_inst_vld && `IDU_RF_DP.rf_pipe5_staddr_no_rdy};
+  end
+  endfunction
+
+  function automatic [7:0] rf_pipe6_src_no_rdy_width();
+  begin
+    rf_pipe6_src_no_rdy_width = {7'b0, `IDU_RF_CTRL.ctrl_rf_pipe6_inst_vld && `IDU_RF_DP.rf_pipe6_srcv0_no_rdy}
+                              + {7'b0, `IDU_RF_CTRL.ctrl_rf_pipe6_inst_vld && `IDU_RF_DP.rf_pipe6_srcv1_no_rdy}
+                              + {7'b0, `IDU_RF_CTRL.ctrl_rf_pipe6_inst_vld && `IDU_RF_DP.rf_pipe6_srcv2_no_rdy}
+                              + {7'b0, `IDU_RF_CTRL.ctrl_rf_pipe6_inst_vld && `IDU_RF_DP.rf_pipe6_srcvm_no_rdy};
+  end
+  endfunction
+
+  function automatic [7:0] rf_pipe7_src_no_rdy_width();
+  begin
+    rf_pipe7_src_no_rdy_width = {7'b0, `IDU_RF_CTRL.ctrl_rf_pipe7_inst_vld && `IDU_RF_DP.rf_pipe7_srcv0_no_rdy}
+                              + {7'b0, `IDU_RF_CTRL.ctrl_rf_pipe7_inst_vld && `IDU_RF_DP.rf_pipe7_srcv1_no_rdy}
+                              + {7'b0, `IDU_RF_CTRL.ctrl_rf_pipe7_inst_vld && `IDU_RF_DP.rf_pipe7_srcv2_no_rdy}
+                              + {7'b0, `IDU_RF_CTRL.ctrl_rf_pipe7_inst_vld && `IDU_RF_DP.rf_pipe7_srcvm_no_rdy};
+  end
+  endfunction
+
+  function automatic [7:0] rf_src_no_rdy_width();
+  begin
+    rf_src_no_rdy_width = rf_pipe0_src_no_rdy_width()
+                        + rf_pipe1_src_no_rdy_width()
+                        + rf_pipe2_src_no_rdy_width()
+                        + rf_pipe3_src_no_rdy_width()
+                        + rf_pipe4_src_no_rdy_width()
+                        + rf_pipe5_src_no_rdy_width()
+                        + rf_pipe6_src_no_rdy_width()
+                        + rf_pipe7_src_no_rdy_width();
+  end
+  endfunction
+
+  function automatic [7:0] rf_other_lch_fail_width();
+  begin
+    rf_other_lch_fail_width = {7'b0, `IDU_RF_CTRL.ctrl_rf_pipe0_vdiv_mtvr_lch_fail}
+                            + {7'b0, `IDU_RF_CTRL.ctrl_rf_pipe3_preg_lch_fail}
+                            + {7'b0, `IDU_RF_CTRL.ctrl_rf_pipe3_vreg_lch_fail}
+                            + {7'b0, `IDU_RF_CTRL.ctrl_rf_pipe4_vreg_lch_fail}
+                            + {7'b0, `IDU_RF_CTRL.ctrl_rf_pipe5_preg_lch_fail}
+                            + {7'b0, `IDU_RF_CTRL.ctrl_rf_pipe6_div_mfvr_lch_fail}
+                            + {7'b0, `IDU_RF_CTRL.ctrl_rf_pipe6_vmul_unsplit_lch_fail}
+                            + {7'b0, `IDU_RF_CTRL.ctrl_rf_pipe7_mult_mfvr_lch_fail};
+  end
+  endfunction
+
+  function automatic [7:0] lsu_replay_discard_width();
+  begin
+    lsu_replay_discard_width = {7'b0, `LSU_TOP.lsu_hpcp_replay_data_discard}
+                             + {7'b0, `LSU_TOP.lsu_hpcp_replay_discard_sq}
+                             + {7'b0, `LSU_LD_DA.ld_da_lfb_discard_grnt}
+                             + {7'b0, `LSU_LD_DA.ld_da_lm_discard_grnt}
+                             + {7'b0, `LSU_LD_DA.ld_da_rb_discard_grnt}
+                             + {7'b0, `LSU_LD_DA.ld_da_sq_data_discard_vld}
+                             + {7'b0, `LSU_LD_DA.ld_da_sq_global_discard_vld}
+                             + {7'b0, `LSU_LD_DA.ld_da_wmb_discard_vld};
+  end
+  endfunction
+
+  function automatic [7:0] lsu_sq_fwd_width();
+  begin
+    lsu_sq_fwd_width = {7'b0, `LSU_SQ.sq_ld_dc_has_fwd_req}
+                     + {7'b0, `LSU_SQ.sq_ld_dc_fwd_req}
+                     + {7'b0, `LSU_SQ.sq_ld_dc_fwd_bypass_req}
+                     + {7'b0, `LSU_SQ.sq_ld_dc_fwd_bypass_multi}
+                     + {7'b0, `LSU_SQ.sq_ld_dc_fwd_multi}
+                     + {7'b0, `LSU_SQ.sq_ld_dc_fwd_multi_mask};
+  end
+  endfunction
+
+  function automatic [7:0] lsu_sq_cancel_width();
+  begin
+    lsu_sq_cancel_width = {7'b0, `LSU_SQ.sq_ld_dc_cancel_acc_req}
+                         + {7'b0, `LSU_SQ.sq_ld_dc_cancel_ahead_wb};
+  end
+  endfunction
+
+  function automatic [7:0] lsu_wait_old_width();
+  begin
+    lsu_wait_old_width = popcount64({52'b0, `LSU_TOP.lsu_idu_ld_ag_wait_old[11:0]})
+                       + popcount64({52'b0, `LSU_TOP.lsu_idu_ld_da_wait_old[11:0]})
+                       + popcount64({52'b0, `LSU_TOP.lsu_idu_st_ag_wait_old[11:0]})
+                       + popcount64({52'b0, `LSU_TOP.lsu_idu_wait_old[11:0]});
+  end
+  endfunction
+
+  function automatic [7:0] lsu_queue_full_width();
+  begin
+    lsu_queue_full_width = {7'b0, !`LSU_TOP.lsu_idu_lq_not_full}
+                         + {7'b0, !`LSU_TOP.lsu_idu_sq_not_full}
+                         + {7'b0, !`LSU_TOP.lsu_idu_rb_not_full};
+  end
+  endfunction
+
+  function automatic [7:0] producer_wakeup_width();
+  begin
+    producer_wakeup_width = {7'b0, `IDU_TOP.ctrl_xx_rf_pipe0_preg_lch_vld_dup0}
+                          + {7'b0, `IDU_TOP.ctrl_xx_rf_pipe1_preg_lch_vld_dup0}
+                          + {7'b0, `IU_TOP.iu_idu_ex2_pipe1_mult_inst_vld_dup0}
+                          + {7'b0, `IU_TOP.iu_idu_div_inst_vld}
+                          + {7'b0, `LSU_TOP.lsu_idu_dc_pipe3_load_fwd_inst_vld_dup1}
+                          + {7'b0, `LSU_TOP.lsu_idu_dc_pipe3_vload_fwd_inst_vld}
+                          + {7'b0, `VFPU_TOP.vfpu_idu_ex1_pipe6_data_vld_dup0}
+                          + {7'b0, `VFPU_TOP.vfpu_idu_ex1_pipe7_data_vld_dup0};
   end
   endfunction
 
@@ -1271,6 +2256,91 @@ module tb();
       102: get_profile_value = popcount64({56'b0, (`IDU_IS_VIQ1.viq1_entry_vld[7:0] & ~`IDU_IS_VIQ1.viq1_entry_ready[7:0])});
       103: get_profile_value = popcount64({56'b0, `LSU_WMB.wmb_entry_pop_vld[7:0]});
       104: get_profile_value = popcount64({52'b0, `LSU_SQ.sq_entry_pop_to_ce_grnt[11:0]});
+      105: get_profile_value = aiq0_src0_not_ready_width();
+      106: get_profile_value = aiq0_src1_not_ready_width();
+      107: get_profile_value = aiq0_src2_not_ready_width();
+      108: get_profile_value = aiq1_src0_not_ready_width();
+      109: get_profile_value = aiq1_src1_not_ready_width();
+      110: get_profile_value = aiq1_src2_not_ready_width();
+      111: get_profile_value = biq_src0_not_ready_width();
+      112: get_profile_value = biq_src1_not_ready_width();
+      113: get_profile_value = lsiq_src0_not_ready_width();
+      114: get_profile_value = lsiq_src1_not_ready_width();
+      115: get_profile_value = lsiq_srcvm_not_ready_width();
+      116: get_profile_value = sdiq_src0_not_ready_width();
+      117: get_profile_value = sdiq_srcv0_not_ready_width();
+      118: get_profile_value = sdiq_staddr_not_ready_width();
+      119: get_profile_value = viq0_srcv0_not_ready_width();
+      120: get_profile_value = viq0_srcv1_not_ready_width();
+      121: get_profile_value = viq0_srcv2_not_ready_width();
+      122: get_profile_value = viq0_srcvm_not_ready_width();
+      123: get_profile_value = viq1_srcv0_not_ready_width();
+      124: get_profile_value = viq1_srcv1_not_ready_width();
+      125: get_profile_value = viq1_srcv2_not_ready_width();
+      126: get_profile_value = viq1_srcvm_not_ready_width();
+      127: get_profile_value = iq_load_dep_not_ready_width();
+      128: get_profile_value = iq_nonload_dep_not_ready_width();
+      129: get_profile_value = aiq0_load_dep_not_ready_width();
+      130: get_profile_value = aiq0_nonload_dep_not_ready_width();
+      131: get_profile_value = aiq1_load_dep_not_ready_width();
+      132: get_profile_value = aiq1_nonload_dep_not_ready_width();
+      133: get_profile_value = biq_load_dep_not_ready_width();
+      134: get_profile_value = biq_nonload_dep_not_ready_width();
+      135: get_profile_value = lsiq_load_dep_not_ready_width();
+      136: get_profile_value = lsiq_nonload_dep_not_ready_width();
+      137: get_profile_value = sdiq_load_dep_not_ready_width();
+      138: get_profile_value = sdiq_nonload_dep_not_ready_width();
+      139: get_profile_value = viq0_load_dep_not_ready_width();
+      140: get_profile_value = viq0_nonload_dep_not_ready_width();
+      141: get_profile_value = viq1_load_dep_not_ready_width();
+      142: get_profile_value = viq1_nonload_dep_not_ready_width();
+      143: get_profile_value = aiq0_issue_select_width();
+      144: get_profile_value = aiq1_issue_select_width();
+      145: get_profile_value = biq_issue_select_width();
+      146: get_profile_value = lsiq_issue_select_width();
+      147: get_profile_value = sdiq_issue_select_width();
+      148: get_profile_value = viq0_issue_select_width();
+      149: get_profile_value = viq1_issue_select_width();
+      150: get_profile_value = iq_ready_not_issued_width();
+      151: get_profile_value = aiq0_ready_not_issued_width();
+      152: get_profile_value = aiq1_ready_not_issued_width();
+      153: get_profile_value = biq_ready_not_issued_width();
+      154: get_profile_value = lsiq_ready_not_issued_width();
+      155: get_profile_value = sdiq_ready_not_issued_width();
+      156: get_profile_value = viq0_ready_not_issued_width();
+      157: get_profile_value = viq1_ready_not_issued_width();
+      158: get_profile_value = rf_src_no_rdy_width();
+      159: get_profile_value = rf_pipe0_src_no_rdy_width();
+      160: get_profile_value = rf_pipe1_src_no_rdy_width();
+      161: get_profile_value = rf_pipe2_src_no_rdy_width();
+      162: get_profile_value = rf_pipe3_src_no_rdy_width();
+      163: get_profile_value = rf_pipe4_src_no_rdy_width();
+      164: get_profile_value = rf_pipe5_src_no_rdy_width();
+      165: get_profile_value = rf_pipe6_src_no_rdy_width();
+      166: get_profile_value = rf_pipe7_src_no_rdy_width();
+      167: get_profile_value = rf_other_lch_fail_width();
+      168: get_profile_value = {7'b0, `IDU_RF_CTRL.ctrl_rf_pipe0_vdiv_mtvr_lch_fail};
+      169: get_profile_value = {7'b0, `IDU_RF_CTRL.ctrl_rf_pipe3_preg_lch_fail};
+      170: get_profile_value = {7'b0, `IDU_RF_CTRL.ctrl_rf_pipe3_vreg_lch_fail};
+      171: get_profile_value = {7'b0, `IDU_RF_CTRL.ctrl_rf_pipe4_vreg_lch_fail};
+      172: get_profile_value = {7'b0, `IDU_RF_CTRL.ctrl_rf_pipe5_preg_lch_fail};
+      173: get_profile_value = {7'b0, `IDU_RF_CTRL.ctrl_rf_pipe6_div_mfvr_lch_fail};
+      174: get_profile_value = {7'b0, `IDU_RF_CTRL.ctrl_rf_pipe6_vmul_unsplit_lch_fail};
+      175: get_profile_value = {7'b0, `IDU_RF_CTRL.ctrl_rf_pipe7_mult_mfvr_lch_fail};
+      176: get_profile_value = lsu_replay_discard_width();
+      177: get_profile_value = lsu_sq_fwd_width();
+      178: get_profile_value = lsu_sq_cancel_width();
+      179: get_profile_value = lsu_wait_old_width();
+      180: get_profile_value = lsu_queue_full_width();
+      181: get_profile_value = {7'b0, `IDU_TOP.ctrl_xx_rf_pipe0_preg_lch_vld_dup0};
+      182: get_profile_value = {7'b0, `IDU_TOP.ctrl_xx_rf_pipe1_preg_lch_vld_dup0};
+      183: get_profile_value = {7'b0, `IU_TOP.iu_idu_ex2_pipe1_mult_inst_vld_dup0};
+      184: get_profile_value = {7'b0, `IU_TOP.iu_idu_div_inst_vld};
+      185: get_profile_value = {7'b0, `LSU_TOP.lsu_idu_dc_pipe3_load_fwd_inst_vld_dup1};
+      186: get_profile_value = {7'b0, `LSU_TOP.lsu_idu_dc_pipe3_vload_fwd_inst_vld};
+      187: get_profile_value = {7'b0, `VFPU_TOP.vfpu_idu_ex1_pipe6_data_vld_dup0};
+      188: get_profile_value = {7'b0, `VFPU_TOP.vfpu_idu_ex1_pipe7_data_vld_dup0};
+      189: get_profile_value = producer_wakeup_width();
       default: get_profile_value = 8'b0;
     endcase
   end
@@ -2060,6 +3130,111 @@ module tb();
       698: get_detail_value = `IFU_IFCTRL.ifctrl_ipctrl_vld;
       699: get_detail_value = `IDU_ID_CTRL.ctrl_top_id_inst0_vld;
       700: get_detail_value = `RTU_TOP.rtu_yy_xx_flush && (retire_width() == 4'd0);
+      701: get_detail_value = (aiq0_src0_not_ready_width() != 8'd0);
+      702: get_detail_value = (aiq0_src1_not_ready_width() != 8'd0);
+      703: get_detail_value = (aiq0_src2_not_ready_width() != 8'd0);
+      704: get_detail_value = (aiq1_src0_not_ready_width() != 8'd0);
+      705: get_detail_value = (aiq1_src1_not_ready_width() != 8'd0);
+      706: get_detail_value = (aiq1_src2_not_ready_width() != 8'd0);
+      707: get_detail_value = (biq_src0_not_ready_width() != 8'd0);
+      708: get_detail_value = (biq_src1_not_ready_width() != 8'd0);
+      709: get_detail_value = (lsiq_src0_not_ready_width() != 8'd0);
+      710: get_detail_value = (lsiq_src1_not_ready_width() != 8'd0);
+      711: get_detail_value = (lsiq_srcvm_not_ready_width() != 8'd0);
+      712: get_detail_value = (sdiq_src0_not_ready_width() != 8'd0);
+      713: get_detail_value = (sdiq_srcv0_not_ready_width() != 8'd0);
+      714: get_detail_value = (sdiq_staddr_not_ready_width() != 8'd0);
+      715: get_detail_value = (viq0_srcv0_not_ready_width() != 8'd0);
+      716: get_detail_value = (viq0_srcv1_not_ready_width() != 8'd0);
+      717: get_detail_value = (viq0_srcv2_not_ready_width() != 8'd0);
+      718: get_detail_value = (viq0_srcvm_not_ready_width() != 8'd0);
+      719: get_detail_value = (viq1_srcv0_not_ready_width() != 8'd0);
+      720: get_detail_value = (viq1_srcv1_not_ready_width() != 8'd0);
+      721: get_detail_value = (viq1_srcv2_not_ready_width() != 8'd0);
+      722: get_detail_value = (viq1_srcvm_not_ready_width() != 8'd0);
+      723: get_detail_value = (iq_load_dep_not_ready_width() != 8'd0);
+      724: get_detail_value = (iq_nonload_dep_not_ready_width() != 8'd0);
+      725: get_detail_value = (aiq0_load_dep_not_ready_width() != 8'd0);
+      726: get_detail_value = (aiq0_nonload_dep_not_ready_width() != 8'd0);
+      727: get_detail_value = (aiq1_load_dep_not_ready_width() != 8'd0);
+      728: get_detail_value = (aiq1_nonload_dep_not_ready_width() != 8'd0);
+      729: get_detail_value = (biq_load_dep_not_ready_width() != 8'd0);
+      730: get_detail_value = (biq_nonload_dep_not_ready_width() != 8'd0);
+      731: get_detail_value = (lsiq_load_dep_not_ready_width() != 8'd0);
+      732: get_detail_value = (lsiq_nonload_dep_not_ready_width() != 8'd0);
+      733: get_detail_value = (sdiq_load_dep_not_ready_width() != 8'd0);
+      734: get_detail_value = (sdiq_nonload_dep_not_ready_width() != 8'd0);
+      735: get_detail_value = (viq0_load_dep_not_ready_width() != 8'd0);
+      736: get_detail_value = (viq0_nonload_dep_not_ready_width() != 8'd0);
+      737: get_detail_value = (viq1_load_dep_not_ready_width() != 8'd0);
+      738: get_detail_value = (viq1_nonload_dep_not_ready_width() != 8'd0);
+      739: get_detail_value = (iq_ready_not_issued_width() != 8'd0);
+      740: get_detail_value = (aiq0_ready_not_issued_width() != 8'd0);
+      741: get_detail_value = (aiq1_ready_not_issued_width() != 8'd0);
+      742: get_detail_value = (biq_ready_not_issued_width() != 8'd0);
+      743: get_detail_value = (lsiq_ready_not_issued_width() != 8'd0);
+      744: get_detail_value = (sdiq_ready_not_issued_width() != 8'd0);
+      745: get_detail_value = (viq0_ready_not_issued_width() != 8'd0);
+      746: get_detail_value = (viq1_ready_not_issued_width() != 8'd0);
+      747: get_detail_value = `IDU_RF_CTRL.ctrl_rf_pipe0_inst_vld && `IDU_RF_DP.rf_pipe0_src0_no_rdy;
+      748: get_detail_value = `IDU_RF_CTRL.ctrl_rf_pipe0_inst_vld && `IDU_RF_DP.rf_pipe0_src1_no_rdy;
+      749: get_detail_value = `IDU_RF_CTRL.ctrl_rf_pipe0_inst_vld && `IDU_RF_DP.rf_pipe0_src2_no_rdy;
+      750: get_detail_value = `IDU_RF_CTRL.ctrl_rf_pipe1_inst_vld && `IDU_RF_DP.rf_pipe1_src0_no_rdy;
+      751: get_detail_value = `IDU_RF_CTRL.ctrl_rf_pipe1_inst_vld && `IDU_RF_DP.rf_pipe1_src1_no_rdy;
+      752: get_detail_value = `IDU_RF_CTRL.ctrl_rf_pipe1_inst_vld && `IDU_RF_DP.rf_pipe1_src2_no_rdy;
+      753: get_detail_value = `IDU_RF_CTRL.ctrl_rf_pipe2_inst_vld && `IDU_RF_DP.rf_pipe2_src0_no_rdy;
+      754: get_detail_value = `IDU_RF_CTRL.ctrl_rf_pipe2_inst_vld && `IDU_RF_DP.rf_pipe2_src1_no_rdy;
+      755: get_detail_value = `IDU_RF_CTRL.ctrl_rf_pipe3_inst_vld && `IDU_RF_DP.rf_pipe3_src0_no_rdy;
+      756: get_detail_value = `IDU_RF_CTRL.ctrl_rf_pipe3_inst_vld && `IDU_RF_DP.rf_pipe3_src1_no_rdy;
+      757: get_detail_value = `IDU_RF_CTRL.ctrl_rf_pipe3_inst_vld && `IDU_RF_DP.rf_pipe3_srcvm_no_rdy;
+      758: get_detail_value = `IDU_RF_CTRL.ctrl_rf_pipe4_inst_vld && `IDU_RF_DP.rf_pipe4_src0_no_rdy;
+      759: get_detail_value = `IDU_RF_CTRL.ctrl_rf_pipe4_inst_vld && `IDU_RF_DP.rf_pipe4_src1_no_rdy;
+      760: get_detail_value = `IDU_RF_CTRL.ctrl_rf_pipe4_inst_vld && `IDU_RF_DP.rf_pipe4_srcvm_no_rdy;
+      761: get_detail_value = `IDU_RF_CTRL.ctrl_rf_pipe5_inst_vld && `IDU_RF_DP.rf_pipe5_src0_no_rdy;
+      762: get_detail_value = `IDU_RF_CTRL.ctrl_rf_pipe5_inst_vld && `IDU_RF_DP.rf_pipe5_srcv0_no_rdy;
+      763: get_detail_value = `IDU_RF_CTRL.ctrl_rf_pipe5_inst_vld && `IDU_RF_DP.rf_pipe5_staddr_no_rdy;
+      764: get_detail_value = `IDU_RF_CTRL.ctrl_rf_pipe6_inst_vld && `IDU_RF_DP.rf_pipe6_srcv0_no_rdy;
+      765: get_detail_value = `IDU_RF_CTRL.ctrl_rf_pipe6_inst_vld && `IDU_RF_DP.rf_pipe6_srcv1_no_rdy;
+      766: get_detail_value = `IDU_RF_CTRL.ctrl_rf_pipe6_inst_vld && `IDU_RF_DP.rf_pipe6_srcv2_no_rdy;
+      767: get_detail_value = `IDU_RF_CTRL.ctrl_rf_pipe6_inst_vld && `IDU_RF_DP.rf_pipe6_srcvm_no_rdy;
+      768: get_detail_value = `IDU_RF_CTRL.ctrl_rf_pipe7_inst_vld && `IDU_RF_DP.rf_pipe7_srcv0_no_rdy;
+      769: get_detail_value = `IDU_RF_CTRL.ctrl_rf_pipe7_inst_vld && `IDU_RF_DP.rf_pipe7_srcv1_no_rdy;
+      770: get_detail_value = `IDU_RF_CTRL.ctrl_rf_pipe7_inst_vld && `IDU_RF_DP.rf_pipe7_srcv2_no_rdy;
+      771: get_detail_value = `IDU_RF_CTRL.ctrl_rf_pipe7_inst_vld && `IDU_RF_DP.rf_pipe7_srcvm_no_rdy;
+      772: get_detail_value = (rf_src_no_rdy_width() != 8'd0);
+      773: get_detail_value = `IDU_RF_CTRL.ctrl_rf_pipe0_vdiv_mtvr_lch_fail;
+      774: get_detail_value = `IDU_RF_CTRL.ctrl_rf_pipe3_preg_lch_fail;
+      775: get_detail_value = `IDU_RF_CTRL.ctrl_rf_pipe3_vreg_lch_fail;
+      776: get_detail_value = `IDU_RF_CTRL.ctrl_rf_pipe4_vreg_lch_fail;
+      777: get_detail_value = `IDU_RF_CTRL.ctrl_rf_pipe5_preg_lch_fail;
+      778: get_detail_value = `IDU_RF_CTRL.ctrl_rf_pipe6_div_mfvr_lch_fail;
+      779: get_detail_value = `IDU_RF_CTRL.ctrl_rf_pipe6_vmul_unsplit_lch_fail;
+      780: get_detail_value = `IDU_RF_CTRL.ctrl_rf_pipe7_mult_mfvr_lch_fail;
+      781: get_detail_value = `LSU_TOP.lsu_hpcp_replay_data_discard;
+      782: get_detail_value = `LSU_TOP.lsu_hpcp_replay_discard_sq;
+      783: get_detail_value = `LSU_SQ.sq_ld_dc_has_fwd_req;
+      784: get_detail_value = `LSU_SQ.sq_ld_dc_fwd_req;
+      785: get_detail_value = `LSU_SQ.sq_ld_dc_fwd_bypass_req;
+      786: get_detail_value = `LSU_SQ.sq_ld_dc_fwd_bypass_multi;
+      787: get_detail_value = `LSU_SQ.sq_ld_dc_fwd_multi;
+      788: get_detail_value = `LSU_SQ.sq_ld_dc_fwd_multi_mask;
+      789: get_detail_value = `LSU_SQ.sq_ld_dc_cancel_acc_req;
+      790: get_detail_value = `LSU_SQ.sq_ld_dc_cancel_ahead_wb;
+      791: get_detail_value = |`LSU_TOP.lsu_idu_ld_ag_wait_old[11:0];
+      792: get_detail_value = |`LSU_TOP.lsu_idu_ld_da_wait_old[11:0];
+      793: get_detail_value = |`LSU_TOP.lsu_idu_st_ag_wait_old[11:0];
+      794: get_detail_value = |`LSU_TOP.lsu_idu_wait_old[11:0];
+      795: get_detail_value = !`LSU_TOP.lsu_idu_lq_not_full;
+      796: get_detail_value = !`LSU_TOP.lsu_idu_sq_not_full;
+      797: get_detail_value = !`LSU_TOP.lsu_idu_rb_not_full;
+      798: get_detail_value = `IDU_TOP.ctrl_xx_rf_pipe0_preg_lch_vld_dup0;
+      799: get_detail_value = `IDU_TOP.ctrl_xx_rf_pipe1_preg_lch_vld_dup0;
+      800: get_detail_value = `IU_TOP.iu_idu_ex2_pipe1_mult_inst_vld_dup0;
+      801: get_detail_value = `IU_TOP.iu_idu_div_inst_vld;
+      802: get_detail_value = `LSU_TOP.lsu_idu_dc_pipe3_load_fwd_inst_vld_dup1;
+      803: get_detail_value = `LSU_TOP.lsu_idu_dc_pipe3_vload_fwd_inst_vld;
+      804: get_detail_value = `VFPU_TOP.vfpu_idu_ex1_pipe6_data_vld_dup0;
+      805: get_detail_value = `VFPU_TOP.vfpu_idu_ex1_pipe7_data_vld_dup0;
       default: get_detail_value = 1'b0;
     endcase
   end
@@ -2791,6 +3966,111 @@ module tb();
     print_detail_row(phase, "ifctrl_ipctrl_vld",         698, use_kernel);
     print_detail_row(phase, "id_inst0_valid",            699, use_kernel);
     print_detail_row(phase, "global_flush_zero_retire",  700, use_kernel);
+    print_detail_row(phase, "aiq0_src0_not_ready",       701, use_kernel);
+    print_detail_row(phase, "aiq0_src1_not_ready",       702, use_kernel);
+    print_detail_row(phase, "aiq0_src2_not_ready",       703, use_kernel);
+    print_detail_row(phase, "aiq1_src0_not_ready",       704, use_kernel);
+    print_detail_row(phase, "aiq1_src1_not_ready",       705, use_kernel);
+    print_detail_row(phase, "aiq1_src2_not_ready",       706, use_kernel);
+    print_detail_row(phase, "biq_src0_not_ready",        707, use_kernel);
+    print_detail_row(phase, "biq_src1_not_ready",        708, use_kernel);
+    print_detail_row(phase, "lsiq_src0_not_ready",       709, use_kernel);
+    print_detail_row(phase, "lsiq_src1_not_ready",       710, use_kernel);
+    print_detail_row(phase, "lsiq_srcvm_not_ready",      711, use_kernel);
+    print_detail_row(phase, "sdiq_src0_not_ready",       712, use_kernel);
+    print_detail_row(phase, "sdiq_srcv0_not_ready",      713, use_kernel);
+    print_detail_row(phase, "sdiq_staddr_not_ready",     714, use_kernel);
+    print_detail_row(phase, "viq0_srcv0_not_ready",      715, use_kernel);
+    print_detail_row(phase, "viq0_srcv1_not_ready",      716, use_kernel);
+    print_detail_row(phase, "viq0_srcv2_not_ready",      717, use_kernel);
+    print_detail_row(phase, "viq0_srcvm_not_ready",      718, use_kernel);
+    print_detail_row(phase, "viq1_srcv0_not_ready",      719, use_kernel);
+    print_detail_row(phase, "viq1_srcv1_not_ready",      720, use_kernel);
+    print_detail_row(phase, "viq1_srcv2_not_ready",      721, use_kernel);
+    print_detail_row(phase, "viq1_srcvm_not_ready",      722, use_kernel);
+    print_detail_row(phase, "iq_load_dep_not_ready",     723, use_kernel);
+    print_detail_row(phase, "iq_nonload_dep_not_ready",  724, use_kernel);
+    print_detail_row(phase, "aiq0_load_dep_not_ready",   725, use_kernel);
+    print_detail_row(phase, "aiq0_nonload_dep_not_ready",726, use_kernel);
+    print_detail_row(phase, "aiq1_load_dep_not_ready",   727, use_kernel);
+    print_detail_row(phase, "aiq1_nonload_dep_not_ready",728, use_kernel);
+    print_detail_row(phase, "biq_load_dep_not_ready",    729, use_kernel);
+    print_detail_row(phase, "biq_nonload_dep_not_ready", 730, use_kernel);
+    print_detail_row(phase, "lsiq_load_dep_not_ready",   731, use_kernel);
+    print_detail_row(phase, "lsiq_nonload_dep_not_ready",732, use_kernel);
+    print_detail_row(phase, "sdiq_load_dep_not_ready",   733, use_kernel);
+    print_detail_row(phase, "sdiq_nonload_dep_not_ready",734, use_kernel);
+    print_detail_row(phase, "viq0_load_dep_not_ready",   735, use_kernel);
+    print_detail_row(phase, "viq0_nonload_dep_not_ready",736, use_kernel);
+    print_detail_row(phase, "viq1_load_dep_not_ready",   737, use_kernel);
+    print_detail_row(phase, "viq1_nonload_dep_not_ready",738, use_kernel);
+    print_detail_row(phase, "iq_ready_not_issued",        739, use_kernel);
+    print_detail_row(phase, "aiq0_ready_not_issued",      740, use_kernel);
+    print_detail_row(phase, "aiq1_ready_not_issued",      741, use_kernel);
+    print_detail_row(phase, "biq_ready_not_issued",       742, use_kernel);
+    print_detail_row(phase, "lsiq_ready_not_issued",      743, use_kernel);
+    print_detail_row(phase, "sdiq_ready_not_issued",      744, use_kernel);
+    print_detail_row(phase, "viq0_ready_not_issued",      745, use_kernel);
+    print_detail_row(phase, "viq1_ready_not_issued",      746, use_kernel);
+    print_detail_row(phase, "rf_pipe0_src0_no_rdy",       747, use_kernel);
+    print_detail_row(phase, "rf_pipe0_src1_no_rdy",       748, use_kernel);
+    print_detail_row(phase, "rf_pipe0_src2_no_rdy",       749, use_kernel);
+    print_detail_row(phase, "rf_pipe1_src0_no_rdy",       750, use_kernel);
+    print_detail_row(phase, "rf_pipe1_src1_no_rdy",       751, use_kernel);
+    print_detail_row(phase, "rf_pipe1_src2_no_rdy",       752, use_kernel);
+    print_detail_row(phase, "rf_pipe2_src0_no_rdy",       753, use_kernel);
+    print_detail_row(phase, "rf_pipe2_src1_no_rdy",       754, use_kernel);
+    print_detail_row(phase, "rf_pipe3_src0_no_rdy_deep",  755, use_kernel);
+    print_detail_row(phase, "rf_pipe3_src1_no_rdy_deep",  756, use_kernel);
+    print_detail_row(phase, "rf_pipe3_srcvm_no_rdy",      757, use_kernel);
+    print_detail_row(phase, "rf_pipe4_src0_no_rdy_deep",  758, use_kernel);
+    print_detail_row(phase, "rf_pipe4_src1_no_rdy_deep",  759, use_kernel);
+    print_detail_row(phase, "rf_pipe4_srcvm_no_rdy",      760, use_kernel);
+    print_detail_row(phase, "rf_pipe5_src0_no_rdy",       761, use_kernel);
+    print_detail_row(phase, "rf_pipe5_srcv0_no_rdy",      762, use_kernel);
+    print_detail_row(phase, "rf_pipe5_staddr_no_rdy",     763, use_kernel);
+    print_detail_row(phase, "rf_pipe6_srcv0_no_rdy",      764, use_kernel);
+    print_detail_row(phase, "rf_pipe6_srcv1_no_rdy",      765, use_kernel);
+    print_detail_row(phase, "rf_pipe6_srcv2_no_rdy",      766, use_kernel);
+    print_detail_row(phase, "rf_pipe6_srcvm_no_rdy",      767, use_kernel);
+    print_detail_row(phase, "rf_pipe7_srcv0_no_rdy",      768, use_kernel);
+    print_detail_row(phase, "rf_pipe7_srcv1_no_rdy",      769, use_kernel);
+    print_detail_row(phase, "rf_pipe7_srcv2_no_rdy",      770, use_kernel);
+    print_detail_row(phase, "rf_pipe7_srcvm_no_rdy",      771, use_kernel);
+    print_detail_row(phase, "rf_src_no_rdy_any_deep",     772, use_kernel);
+    print_detail_row(phase, "rf_pipe0_vdiv_mtvr_fail",    773, use_kernel);
+    print_detail_row(phase, "rf_pipe3_preg_lch_fail",     774, use_kernel);
+    print_detail_row(phase, "rf_pipe3_vreg_lch_fail",     775, use_kernel);
+    print_detail_row(phase, "rf_pipe4_vreg_lch_fail",     776, use_kernel);
+    print_detail_row(phase, "rf_pipe5_preg_lch_fail",     777, use_kernel);
+    print_detail_row(phase, "rf_pipe6_div_mfvr_fail",     778, use_kernel);
+    print_detail_row(phase, "rf_pipe6_vmul_unsplit_fail", 779, use_kernel);
+    print_detail_row(phase, "rf_pipe7_mult_mfvr_fail",    780, use_kernel);
+    print_detail_row(phase, "lsu_replay_data_discard",    781, use_kernel);
+    print_detail_row(phase, "lsu_replay_discard_sq",      782, use_kernel);
+    print_detail_row(phase, "sq_has_fwd_req",             783, use_kernel);
+    print_detail_row(phase, "sq_fwd_req",                 784, use_kernel);
+    print_detail_row(phase, "sq_fwd_bypass_req",          785, use_kernel);
+    print_detail_row(phase, "sq_fwd_bypass_multi",        786, use_kernel);
+    print_detail_row(phase, "sq_fwd_multi",               787, use_kernel);
+    print_detail_row(phase, "sq_fwd_multi_mask",          788, use_kernel);
+    print_detail_row(phase, "sq_cancel_acc_req",          789, use_kernel);
+    print_detail_row(phase, "sq_cancel_ahead_wb",         790, use_kernel);
+    print_detail_row(phase, "lsu_ld_ag_wait_old",         791, use_kernel);
+    print_detail_row(phase, "lsu_ld_da_wait_old",         792, use_kernel);
+    print_detail_row(phase, "lsu_st_ag_wait_old",         793, use_kernel);
+    print_detail_row(phase, "lsu_wait_old",               794, use_kernel);
+    print_detail_row(phase, "lsu_lq_full_from_idu",       795, use_kernel);
+    print_detail_row(phase, "lsu_sq_full_from_idu",       796, use_kernel);
+    print_detail_row(phase, "lsu_rb_full_from_idu",       797, use_kernel);
+    print_detail_row(phase, "producer_alu0_wakeup",       798, use_kernel);
+    print_detail_row(phase, "producer_alu1_wakeup",       799, use_kernel);
+    print_detail_row(phase, "producer_mult_wakeup",       800, use_kernel);
+    print_detail_row(phase, "producer_div_wakeup",        801, use_kernel);
+    print_detail_row(phase, "producer_load_fwd_wakeup",   802, use_kernel);
+    print_detail_row(phase, "producer_vload_fwd_wakeup",  803, use_kernel);
+    print_detail_row(phase, "producer_vfpu6_wakeup",      804, use_kernel);
+    print_detail_row(phase, "producer_vfpu7_wakeup",      805, use_kernel);
   end
   endtask
 
@@ -2919,6 +4199,91 @@ module tb();
     print_profile_row(phase, "viq1_not_ready_avg",     102, use_kernel);
     print_profile_row(phase, "wmb_pop_width_avg",      103, use_kernel);
     print_profile_row(phase, "sq_pop_width_avg",       104, use_kernel);
+    print_profile_row(phase, "aiq0_src0_not_ready_avg", 105, use_kernel);
+    print_profile_row(phase, "aiq0_src1_not_ready_avg", 106, use_kernel);
+    print_profile_row(phase, "aiq0_src2_not_ready_avg", 107, use_kernel);
+    print_profile_row(phase, "aiq1_src0_not_ready_avg", 108, use_kernel);
+    print_profile_row(phase, "aiq1_src1_not_ready_avg", 109, use_kernel);
+    print_profile_row(phase, "aiq1_src2_not_ready_avg", 110, use_kernel);
+    print_profile_row(phase, "biq_src0_not_ready_avg", 111, use_kernel);
+    print_profile_row(phase, "biq_src1_not_ready_avg", 112, use_kernel);
+    print_profile_row(phase, "lsiq_src0_not_ready_avg", 113, use_kernel);
+    print_profile_row(phase, "lsiq_src1_not_ready_avg", 114, use_kernel);
+    print_profile_row(phase, "lsiq_srcvm_not_ready_avg", 115, use_kernel);
+    print_profile_row(phase, "sdiq_src0_not_ready_avg", 116, use_kernel);
+    print_profile_row(phase, "sdiq_srcv0_not_ready_avg", 117, use_kernel);
+    print_profile_row(phase, "sdiq_staddr_not_ready_avg",118, use_kernel);
+    print_profile_row(phase, "viq0_srcv0_not_ready_avg",119, use_kernel);
+    print_profile_row(phase, "viq0_srcv1_not_ready_avg",120, use_kernel);
+    print_profile_row(phase, "viq0_srcv2_not_ready_avg",121, use_kernel);
+    print_profile_row(phase, "viq0_srcvm_not_ready_avg",122, use_kernel);
+    print_profile_row(phase, "viq1_srcv0_not_ready_avg",123, use_kernel);
+    print_profile_row(phase, "viq1_srcv1_not_ready_avg",124, use_kernel);
+    print_profile_row(phase, "viq1_srcv2_not_ready_avg",125, use_kernel);
+    print_profile_row(phase, "viq1_srcvm_not_ready_avg",126, use_kernel);
+    print_profile_row(phase, "iq_load_dep_not_ready_avg", 127, use_kernel);
+    print_profile_row(phase, "iq_nonload_dep_not_ready_avg",128, use_kernel);
+    print_profile_row(phase, "aiq0_load_dep_not_ready_avg",129, use_kernel);
+    print_profile_row(phase, "aiq0_nonload_dep_not_ready_avg",130, use_kernel);
+    print_profile_row(phase, "aiq1_load_dep_not_ready_avg",131, use_kernel);
+    print_profile_row(phase, "aiq1_nonload_dep_not_ready_avg",132, use_kernel);
+    print_profile_row(phase, "biq_load_dep_not_ready_avg", 133, use_kernel);
+    print_profile_row(phase, "biq_nonload_dep_not_ready_avg",134, use_kernel);
+    print_profile_row(phase, "lsiq_load_dep_not_ready_avg",135, use_kernel);
+    print_profile_row(phase, "lsiq_nonload_dep_not_ready_avg",136, use_kernel);
+    print_profile_row(phase, "sdiq_load_dep_not_ready_avg",137, use_kernel);
+    print_profile_row(phase, "sdiq_nonload_dep_not_ready_avg",138, use_kernel);
+    print_profile_row(phase, "viq0_load_dep_not_ready_avg",139, use_kernel);
+    print_profile_row(phase, "viq0_nonload_dep_not_ready_avg",140, use_kernel);
+    print_profile_row(phase, "viq1_load_dep_not_ready_avg",141, use_kernel);
+    print_profile_row(phase, "viq1_nonload_dep_not_ready_avg",142, use_kernel);
+    print_profile_row(phase, "aiq0_issue_select_avg", 143, use_kernel);
+    print_profile_row(phase, "aiq1_issue_select_avg", 144, use_kernel);
+    print_profile_row(phase, "biq_issue_select_avg",  145, use_kernel);
+    print_profile_row(phase, "lsiq_issue_select_avg", 146, use_kernel);
+    print_profile_row(phase, "sdiq_issue_select_avg", 147, use_kernel);
+    print_profile_row(phase, "viq0_issue_select_avg", 148, use_kernel);
+    print_profile_row(phase, "viq1_issue_select_avg", 149, use_kernel);
+    print_profile_row(phase, "iq_ready_not_issued_avg",150, use_kernel);
+    print_profile_row(phase, "aiq0_ready_not_issued_avg",151, use_kernel);
+    print_profile_row(phase, "aiq1_ready_not_issued_avg",152, use_kernel);
+    print_profile_row(phase, "biq_ready_not_issued_avg",153, use_kernel);
+    print_profile_row(phase, "lsiq_ready_not_issued_avg",154, use_kernel);
+    print_profile_row(phase, "sdiq_ready_not_issued_avg",155, use_kernel);
+    print_profile_row(phase, "viq0_ready_not_issued_avg",156, use_kernel);
+    print_profile_row(phase, "viq1_ready_not_issued_avg",157, use_kernel);
+    print_profile_row(phase, "rf_src_no_rdy_width_avg",158, use_kernel);
+    print_profile_row(phase, "rf_pipe0_src_no_rdy_avg",159, use_kernel);
+    print_profile_row(phase, "rf_pipe1_src_no_rdy_avg",160, use_kernel);
+    print_profile_row(phase, "rf_pipe2_src_no_rdy_avg",161, use_kernel);
+    print_profile_row(phase, "rf_pipe3_src_no_rdy_avg",162, use_kernel);
+    print_profile_row(phase, "rf_pipe4_src_no_rdy_avg",163, use_kernel);
+    print_profile_row(phase, "rf_pipe5_src_no_rdy_avg",164, use_kernel);
+    print_profile_row(phase, "rf_pipe6_src_no_rdy_avg",165, use_kernel);
+    print_profile_row(phase, "rf_pipe7_src_no_rdy_avg",166, use_kernel);
+    print_profile_row(phase, "rf_other_fail_width_avg",167, use_kernel);
+    print_profile_row(phase, "rf_pipe0_vdiv_mtvr_avg",168, use_kernel);
+    print_profile_row(phase, "rf_pipe3_preg_fail_avg",169, use_kernel);
+    print_profile_row(phase, "rf_pipe3_vreg_fail_avg",170, use_kernel);
+    print_profile_row(phase, "rf_pipe4_vreg_fail_avg",171, use_kernel);
+    print_profile_row(phase, "rf_pipe5_preg_fail_avg",172, use_kernel);
+    print_profile_row(phase, "rf_pipe6_div_mfvr_avg",173, use_kernel);
+    print_profile_row(phase, "rf_pipe6_vmul_unsplit_avg",174, use_kernel);
+    print_profile_row(phase, "rf_pipe7_mult_mfvr_avg",175, use_kernel);
+    print_profile_row(phase, "lsu_replay_discard_avg",176, use_kernel);
+    print_profile_row(phase, "lsu_sq_fwd_width_avg",177, use_kernel);
+    print_profile_row(phase, "lsu_sq_cancel_width_avg",178, use_kernel);
+    print_profile_row(phase, "lsu_wait_old_width_avg",179, use_kernel);
+    print_profile_row(phase, "lsu_queue_full_width_avg",180, use_kernel);
+    print_profile_row(phase, "producer_alu0_avg",181, use_kernel);
+    print_profile_row(phase, "producer_alu1_avg",182, use_kernel);
+    print_profile_row(phase, "producer_mult_avg",183, use_kernel);
+    print_profile_row(phase, "producer_div_avg",184, use_kernel);
+    print_profile_row(phase, "producer_load_fwd_avg",185, use_kernel);
+    print_profile_row(phase, "producer_vload_fwd_avg",186, use_kernel);
+    print_profile_row(phase, "producer_vfpu6_avg",187, use_kernel);
+    print_profile_row(phase, "producer_vfpu7_avg",188, use_kernel);
+    print_profile_row(phase, "producer_wakeup_width_avg",189, use_kernel);
   end
   endtask
 

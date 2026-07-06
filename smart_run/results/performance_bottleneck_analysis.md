@@ -47,7 +47,7 @@
 | 文件 | 用途 |
 |---|---|
 | `<case>.perf` | IPC、CPI、Frontend Stall、Backend Stall、cache miss、branch miss 等粗粒度结果 |
-| `<case>.detail.perf` | 700 个 detail 事件、104 个 profile 平均值、54 个 latency 分布 |
+| `<case>.detail.perf` | 805 个 detail 事件、189 个 profile 平均值、54 个 latency 分布 |
 | `<case>.summary.txt` | benchmark 成绩与运行基本信息 |
 
 分析口径：
@@ -143,12 +143,21 @@ RTU 退休端是最终观察点。`retire_width_avg` 低和 `retire_width0_cycle
 | `zero_memory_raw` / `Zmem` | CPI proxy | zero-retire 周期中是否有 memory 因素 | 可能是 cache miss、LSU 队列、BIU、load/store replay | 当前多数 case 不高，所以外部 memory 不是主线 |
 | `zero_backend_raw` / `Zbe` | CPI proxy | zero-retire 周期中是否有后端 core 因素 | IQ 未就绪、RF launch 失败、执行端口、ROB head 等 | 当前最强的粗粒度后端证据 |
 | `iq_not_ready_width_avg` | IDU/Issue Queue | 队列里平均有多少 valid 但不能发射的项 | 操作数未 ready、producer 晚、wakeup/forward 保守、长依赖链 | 当前 P0 瓶颈的核心指标 |
+| `*_src*_not_ready_avg` | IDU/Issue Queue | 各 IQ not-ready entry 分别在等哪个源操作数 ready | 可区分 src0/src1/src2、srcv0/srcv1/srcv2、srcvm、SDIQ store-address 条件 | 新增源操作数级拆分；可定位等待入口，但仍不是 producer 类型 |
+| `*_load_dep_not_ready_avg` | IDU/Issue Queue | not-ready 源操作数中带有 dep-entry `lsu_match` 的数量 | 可区分等待 load/vload producer 与等待非 load/未知 producer | 这是 producer 粗分类 proxy，不是完整 producer 类型 |
 | `iq_select_width_avg` | IDU/Issue Select | 平均每周期有多少 IQ 项被选中发射 | 低说明 ready 指令少、select/端口受限或被 flush/replay 打断 | 与 `iq_not_ready` 配合判断调度效率 |
+| `*_issue_select_avg` | IDU/Issue Select | 各个 IQ 平均每周期被 `issue_en` 选中的 entry 数 | 可区分 AIQ/BIQ/SDIQ/VIQ 哪个队列 age-select 后发射候选不足；LSIQ 口径等同 ready | 和同队列 ready/not-ready/ready-not-issued 配合使用 |
+| `*_ready_not_issued_avg` | IDU/Issue Select | 各个 IQ 已 ready 但没有 `issue_en` 的 entry 数 | ready 工作被队列内 older-ready age-select 压住 | 如果高，说明瓶颈不再是源操作数 ready，而是队列选择排队或执行入口吞吐；LSIQ 通常不贡献该项 |
 | `rf_pipe*_src_no_rdy` | IDU/RF | 指令进入 RF 后发现源操作数仍未就绪 | IS 阶段过于乐观、producer 晚、forward/wakeup 时序不准 | Dhrystone 中 `pipe5` 异常高，指向 LSU/RF 耦合 |
+| `rf_pipe*_src*_no_rdy` / `rf_pipe*_srcv*_no_rdy` | IDU/RF | RF 阶段逐 pipe、逐源操作数确认哪个 operand 未就绪 | 能把 pipe 级 no-ready 继续拆到 src0/src1/src2/srcv0/srcv1/srcv2/srcvm/staddr | 用来解释 `rf_pipe5_src_no_rdy` 到底是 store 地址、store 数据还是普通源等待 |
+| `rf_pipe*_preg/vreg/*_fail` | IDU/RF | RF launch fail 中非普通源未就绪的子原因 | PREG/VREG 读条件、vdiv/mtvr、mfvr、vmul unsplit 等特殊结构限制 | 用来区分“等待 producer”和“RF/寄存器端口/特殊执行路径限制” |
 | `rf_pipe*_lch_fail` | IDU/RF | RF launch 总失败次数 | 源未就绪、读端口冲突、forward 不满足、结构条件不满足 | 用来判断 issue 到 RF 之间是否存在打回 |
 | `lsiq_not_ready_avg` | LSU IQ | load 侧队列中 valid 但未 ready 的项 | load 依赖、地址生成、cache/DC/DA、replay、forward 等等待 | 判断 load 路径是否参与瓶颈 |
 | `sdiq_not_ready_avg` | LSU IQ | store 侧队列中 valid 但未 ready 的项 | store 地址/数据等待、WMB/SQ、store commit 路径压力 | 判断 store 路径是否参与瓶颈 |
 | `lsu_spec_fail_deep` | LSU/RTU | LSU 推测失败或相关深层 spec fail 事件 | load/store 顺序、地址未知、forward 失败、replay 等可能较多 | Dhrystone 和 mcf 的核心 LSU 证据 |
+| `lsu_replay_*` / `sq_*fwd*` / `sq_cancel_*` | LSU/SQ | replay discard、SQ forward、SQ cancel 的细分事件 | 判断 store-load forwarding 是顺利供数，还是伴随 cancel/discard/replay | 用来把 LSU/RF 耦合拆到 SQ forward 或 replay 子路径 |
+| `lsu_*wait_old` / `lsu_*_full_from_idu` | LSU/ordering/resource | 等待更老访存、LQ/SQ/RB 对 IDU 可见 full | 判断 LSU 是否因 memory ordering 或队列资源限制上游 | 若这些高，优化方向不同于单纯 forward/wakeup |
+| `producer_*_wakeup` | IDU/IU/LSU/VFPU | ALU、mult/div、load/vload、VFPU producer 活动 | 粗看 producer 结果/前递活动是否足够、是否与消费者等待错位 | 它不是消费者等待 producer 类型的精确分类，只能辅助解释 |
 | `ld_ag_cross_req` | LSU AG | load 地址生成阶段触发 cross/boundary 类请求 | 跨边界、split、地址特殊路径或相关 replay 风险 | 判断是否是地址模式触发 LSU 特殊路径 |
 | `ld_sq_data_discard_deep` | LSU/SQ | load 从 SQ 取数或相关路径发生 discard | store-load forwarding 数据晚到、地址冲突、SQ 相关性失败 | bench_mem 的核心证据 |
 | `ld_replay_pressure` | LSU/replay | load replay 造成的平均压力或等待 | replay 不只是次数多，而且每次代价可能大 | 判断 LSU replay 是否会传导到 RF/IQ |
@@ -169,7 +178,7 @@ RTU 退休端是最终观察点。`retire_width_avg` 低和 `retire_width0_cycle
 | `Zbe` 高 + `iq_not_ready` 高 + `iq_select` 低 | 后端窗口里很多指令不能发射 | ready/wakeup/select 是主嫌疑 | 不等于 IQ 容量不足 |
 | `Zbe` 高 + `ROB full` 低 + `preg_alloc_block_avg` 低 | 后端差但不是窗口容量卡住 | 不应优先扩大 ROB/PREG | 后续优化后容量可能变成新瓶颈 |
 | `LSU spec/KI` 高 + `LD cross/KI` 高 + L1D miss 低 | 访存问题不来自 cache 容量 miss | LSU 内部地址/依赖/replay 更可疑 | 还要拆 spec fail 具体原因 |
-| `rf_pipe*_src_no_rdy` 高 + `lsiq_not_ready` 高 + `ld_replay_pressure` 高 | RF 源未就绪可能由 LSU producer/replay 传导 | LSU/RF/wakeup 存在耦合 | producer 类型还需细分 |
+| `rf_pipe*_src_no_rdy` 高 + `lsiq_not_ready` 高 + `ld_replay_pressure` 高 | RF 源未就绪可能由 LSU producer/replay 传导 | LSU/RF/wakeup 存在耦合 | 现在可继续看 `rf_pipe*_src*_no_rdy`、`sq_*fwd*`、`producer_load_fwd_wakeup`，但非 load producer 精确归因仍有限 |
 | `BHT mis/KI` 高 + `Flush/KI` 高 + `Zbad` 高 | 错误推测会频繁清空窗口 | branch/flush 是主方向 | 要区分 direction、target、indirect、RAS |
 | `FE%` 高 + `icache_refill_busy` 低 + `ifu_ibuf_full` 高 | 前端 stall 不一定是 I-cache miss | 可能是后端反压或 redirect | 不能直接改 I-cache |
 | `FE%` 高 + `Flush/KI` 高 + `Zbad` 高 | 前端气泡可能由分支重定向造成 | 先看 predictor/flush recovery | 不要把它归为纯 fetch 带宽不足 |
@@ -327,17 +336,13 @@ load 发射到 LSU
 
 `bench_ilp` 是这条线的关键反证 case。它 FE% 只有 1.45%，`zero_memory_raw=0`，但 `zero_backend_raw=73.70%`、`iq_select_width_avg=0.78`，所以瓶颈不能推给取指或 cache miss。若 wakeup/select/RF 改动有效，`bench_ilp` 应最敏感；若 CoreMark/Dhrystone 提升但 `bench_ilp` 不动，说明改动更可能击中了 LSU 或代码形态，而不是通用后端调度能力。
 
-### 5.5 需要补充的细粒度观测
+### 5.5 已补齐的细粒度观测和仍然存在的边界
 
-当前指标已经能证明“ready/select 有问题”，但还不能完全回答“谁是 producer”。下一步应增加：
+当前指标已经从“能证明 ready/select 有问题”推进到“能把问题拆到 RF operand、RF launch fail 子原因、LSU replay/forward/cancel/wait-old 和 producer 活动”。`*_src*_not_ready_avg` 回答 IQ 里未 ready 的 entry 在等哪个源操作数；`*_load_dep_not_ready_avg`/`*_nonload_dep_not_ready_avg` 回答这些等待是否带有 dep-entry 的 `lsu_match`；`*_issue_select_avg` 和 `*_ready_not_issued_avg` 回答 ready 后是否被队列内 age-select 压住。新增的 `rf_pipe*_src*_no_rdy` 则把 RF 阶段的打回继续拆到具体 pipe 和具体 operand，比如 Dhrystone 里如果 `rf_pipe5_src_no_rdy` 高，现在可以继续判断是 `src0`、`srcv0` 还是 `staddr`。
 
-| 新指标 | 用途 |
-|---|---|
-| `iq_not_ready_by_src_type` | 区分 load、ALU、mult/div、FP、branch、CSR producer |
-| `rf_src_no_rdy_by_pipe_and_producer` | 解释 `rf_pipe5_src_no_rdy` 到底等谁 |
-| `load_use_distance_hist` | 判断 load-use 间隔是否过短 |
-| `iq_entry_age_hist` | 找长期滞留 IQ 的 entry |
-| `select_block_reason` | 区分 not-ready、FU busy、port busy、age priority、flush |
+LSU 侧新增的 `lsu_replay_data_discard`、`lsu_replay_discard_sq`、`sq_has_fwd_req`、`sq_fwd_req`、`sq_fwd_bypass_req`、`sq_fwd_multi`、`sq_cancel_acc_req`、`sq_cancel_ahead_wb` 可以把“LSU replay/forward 有问题”进一步拆成：是否真的发生 SQ forward、是否 forward 多匹配、是否提前访问被取消、是否 replay 与 SQ discard 相关。`lsu_ld_ag_wait_old`、`lsu_st_ag_wait_old`、`lsu_wait_old`、`lsu_lq/sq/rb_full_from_idu` 则用于判断问题是否来自 memory ordering 或 LSU 队列资源，而不是单纯 load-use timing。
+
+仍然要保留一个准确性边界：现有 dep-entry 只保存 `lsu_match`，没有保存“这个未 ready 源正在等待 ALU、MUL、DIV、VFPU、CSR 中的哪一种 producer”。因此 `producer_alu0_wakeup`、`producer_mult_wakeup`、`producer_load_fwd_wakeup` 等新增项只能表示 producer 活动/唤醒机会，不能直接当作消费者等待对象的精确分类。若未来要做严格 producer attribution，需要在 IQ/dep entry 里额外保存 producer class，或建立逐 entry trace，记录 create、producer tag、ready、select、RF fail、replay 的时间线。
 
 ### 5.6 改进方案
 

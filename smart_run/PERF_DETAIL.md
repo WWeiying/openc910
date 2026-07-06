@@ -30,7 +30,7 @@ smart_run/results/<tag>_<git>_<clean|dirty>/
 | 文件 | 内容 |
 |---|---|
 | `<case>.perf` | 原有 HPCP 粗粒度计数：周期、IPC、cache miss、branch miss、frontend/backend stall、LSU/RF 事件 |
-| `<case>.detail.perf` | 本文档说明的细粒度指标：700 个 detail 事件、104 个 profile 平均值、54 个 latency 分布 |
+| `<case>.detail.perf` | 本文档说明的细粒度指标：805 个 detail 事件、189 个 profile 平均值、54 个 latency 分布 |
 | `<case>.summary.txt` | benchmark 简要结果 |
 | `<case>.run.vcs.log` | 完整仿真日志，包含 `.perf` 和 `.detail.perf` 表格 |
 
@@ -80,11 +80,11 @@ smart_run/results/<tag>_<git>_<clean|dirty>/
 
 | 核查项 | 结果 |
 |---|---|
-| RTL 层级宏 | 45 个 |
-| RTL 信号引用 | 663 个 `` `MACRO.signal`` 引用 |
-| RTL 源码匹配 | 全部能在 `C910_RTL_FACTORY/gen_rtl` 对应模块源码中找到 |
-| Detail 编号 | 1-700 连续，无重复、无缺号 |
-| Profile 编号 | 1-104 连续，无重复、无缺号 |
+| RTL 层级宏 | 约 52 个层级/信号辅助宏，包含新增 `IDU_RF_DP` |
+| RTL 信号引用 | 约 2000 个以上 `` `MACRO.signal`` 层级引用，包含 IQ entry source-ready、dep-entry `lsu_match`、entry `issue_en`、RF DP 源 no-ready、RF CTRL launch fail 子原因、LSU SQ/replay/wait-old 引用 |
+| RTL 源码匹配 | `src*_rdy_for_issue`、`srcv*_rdy_for_issue`、`srcvm_rdy_for_issue`、SDIQ `staddr*_rdy`、dep-entry `lsu_match`、各 IQ `entry_ready/entry_issue_en`、`ct_idu_rf_dp` 的 `rf_pipe*_src*_no_rdy`、`ct_idu_rf_ctrl` 的 `ctrl_rf_pipe*_lch_fail` 子原因、`ct_lsu_top/ct_lsu_sq` 的 replay/forward/cancel/wait-old 已静态核对 |
+| Detail 编号 | 1-805 连续，无重复、无缺号 |
+| Profile 编号 | 1-189 连续，无重复、无缺号 |
 | Latency 编号 | 1-54 连续，无重复、无缺号 |
 
 注意：这是静态源码核查，不等同于 EDA elaboration。它能确认信号名和模块来源正确，但不能替代一次真正的 `make compile PERF_DETAIL=on`。
@@ -99,10 +99,16 @@ smart_run/results/<tag>_<git>_<clean|dirty>/
 | BHT | `ct_ifu_bht.v` 中 `bht_pred_array_rd`、`bht_sel_array_rd`、`wr_buf_hit`、`bju_mispred` | 是 BHT 活动/旁路/误预测侧信号，不是完整预测准确率 |
 | Rename / PST | `ct_idu_id_ctrl.v`、`ct_idu_ir_ctrl.v`、`ct_rtu_pst_*` | ID/IR stall 和物理寄存器 alloc valid/block 直接来自 RTL |
 | ROB | `rtu_had_debug_info[24:18]`、`ct_rtu_rob_rt.v` | 适合看 ROB 饱和、head 阻塞和 commit，不是逐 entry age |
-| IQ ready/select | `ct_idu_is_aiq*`、`biq`、`lsiq`、`sdiq`、`viq*` 中 entry valid/ready/issue_en | entry 向量直接可见，ready/not-ready 个数可信 |
+| IQ ready/select | `ct_idu_is_aiq*`、`biq`、`lsiq`、`sdiq`、`viq*` 中 entry valid/ready/issue_en | entry 向量直接可见；AIQ/BIQ/SDIQ/VIQ 的 `issue_en` 是 ready 后经过 older-ready age-select 的结果，LSIQ 的 `issue_en` 直接等于 ready |
+| IQ source ready | 各 IQ entry 内部 `src*_rdy_for_issue`、`srcv*_rdy_for_issue`、`srcvm_rdy_for_issue`、SDIQ `staddr*_rdy` | 直接读取 entry ready 逻辑使用的源操作数 ready 条件，可拆分 not-ready entry 在等待哪个源操作数 |
+| IQ load dependency | 各 dep-entry 内部 `lsu_match` | 将源操作数等待进一步拆成 load producer 相关与非 load/未知 producer 相关两类 |
+| RF source no-ready | `ct_idu_rf_dp.v` 内 `rf_pipe*_src*_no_rdy`、`rf_pipe*_srcv*_no_rdy`、`rf_pipe*_srcvm_no_rdy`、`rf_pipe5_staddr_no_rdy` | RF launch 阶段逐 pipe、逐源操作数确认源未就绪，比原 `rf_pipe*_src_no_rdy` 更细 |
+| RF launch fail 子原因 | `ct_idu_rf_ctrl.v` 内 `ctrl_rf_pipe0_vdiv_mtvr_lch_fail`、`ctrl_rf_pipe3/5_preg_lch_fail`、`ctrl_rf_pipe3/4_vreg_lch_fail`、`ctrl_rf_pipe6_div_mfvr_lch_fail`、`ctrl_rf_pipe6_vmul_unsplit_lch_fail`、`ctrl_rf_pipe7_mult_mfvr_lch_fail` | 拆分 RF `other_lch_fail` 的具体结构原因，用于区分源未就绪和特殊执行/寄存器端口限制 |
+| Producer wakeup activity | IDU/IU/LSU/VFPU 顶层 producer valid，如 `ctrl_xx_rf_pipe0/1_preg_lch_vld_dup0`、`iu_idu_ex2_pipe1_mult_inst_vld_dup0`、`lsu_idu_dc_pipe3_load_fwd_inst_vld_dup1`、`vfpu_idu_ex1_pipe6/7_data_vld_dup0` | 统计 producer 结果/前递活动强度，只能表示唤醒机会，不等于消费者正在等待该 producer 的精确分类 |
 | LSU queue/buffer | LQ/SQ/RB/LFB/WMB entry valid/full/create/pop 信号 | 能反映资源占用、生命周期和结构阻塞 |
 | D-cache arbiter | `ct_lsu_dcache_arb.v` 中 request/grant/tag/data/dirty/borrow/serial 信号 | 能看仲裁源和 tag/data 请求，没有完整 bank conflict 统计 |
-| Load replay/spec fail | `ct_lsu_ld_da.v`、`ct_lsu_st_da.v` discard/spec_fail 信号 | 能看 replay/discard/spec fail 压力，没有逐 load violation age |
+| Load replay/spec fail | `ct_lsu_ld_da.v`、`ct_lsu_st_da.v` discard/spec_fail 信号，以及 `ct_lsu_top.v` 的 `lsu_hpcp_replay_data_discard`、`lsu_hpcp_replay_discard_sq` | 能看 replay/discard/spec fail 压力，没有逐 load violation age |
+| SQ forward/cancel/wait-old | `ct_lsu_sq.v` 的 `sq_ld_dc_*fwd*`、`sq_ld_dc_cancel_*`，`ct_lsu_top.v` 的 `lsu_idu_*wait_old`、`lsu_idu_*_not_full` | 用于判断 store-load forwarding、取消访问、等待更老访存、LSU 队列满是否参与瓶颈 |
 | BIU/AXI | `ct_biu_read_channel.v`、`ct_biu_write_channel.v` 中 AR/R/W/B valid/ready/last | handshake 准确；outstanding 是 testbench AXI-facing 维护口径 |
 | MMU/TLB/PTW | `ct_mmu_top.v`、IUTLB/DUTLB/JTLB/PTW 请求和完成信号 | 能观察 TLB miss、refill arbitration 和 page walk 活动 |
 
@@ -113,7 +119,7 @@ smart_run/results/<tag>_<git>_<clean|dirty>/
 3. 看 `cpi_stack_*` 和 `zero_*_raw`，判断大方向是 bad speculation、frontend、memory 还是 backend core。
 4. 如果是 frontend：看 `icache_refill_*`、`ifu_ibuf_full`、`ifu_pcfifo_full_stall`、`l0_btb_*`、`ind_btb_*`、`bht_*`、`flush_to_fetch`。
 5. 如果是 memory：看 `dcache_*_miss`、`ld/st_utlb_miss`、`lq/sq/rb/lfb/wmb_*`、`dca_*`、`biu_*backpressure`、`*_to_pop` latency。
-6. 如果是 backend core：看 `rob_occ_avg/ge*`、`rob_head_block_latency`、`iq_ready/not_ready/select`、`rf_pipe*_src_no_rdy`、`preg/ereg_alloc*_block`。
+6. 如果是 backend core：看 `rob_occ_avg/ge*`、`rob_head_block_latency`、`iq_ready/not_ready/select`、`rf_pipe*_src_no_rdy`、`*_src*_not_ready_avg`、`preg/ereg_alloc*_block`。
 7. 如果是 bad speculation：看 `retire_*mispred`、`iu_*mispred`、`l0_btb_mispred`、`bht_bju_mispred`、`ld/st_spec_fail`、`flush_to_*`。
 
 常见判断：
@@ -122,8 +128,8 @@ smart_run/results/<tag>_<git>_<clean|dirty>/
 |---|---|
 | IPC 低但 miss 不高 | `id/ir/is/rf/retire_width_avg`、`retire_width0_cycle` |
 | ROB 满 | `rob_occ_avg`、`rob_occ_ge64/ge96`、`rob_head_block_latency`、`retire_width_avg` |
-| IQ 满或 ready 但发不出 | `*_full`、`*_ready_any`、`*_issue_select_any`、`*_ready_to_issue` |
-| 源操作数未就绪 | `rf_pipe*_src_no_rdy`、`*_wait_to_ready`、`iq_not_ready_width_avg` |
+| IQ 满或 ready 但发不出 | `*_full`、`*_ready_any`、`*_issue_select_any`、`*_ready_not_issued_avg` |
+| 源操作数未就绪 | `rf_pipe*_src_no_rdy`、`*_wait_to_ready`、`iq_not_ready_width_avg`、`*_src*_not_ready_avg`、`*_load_dep_not_ready_avg` |
 | free-list 限制 rename | `preg/ereg_alloc*_block`、`preg_alloc_avail0`、`ereg_alloc_avail0` |
 | D-cache/LSU 限制 | `dca_*`、`lfb_*`、`rb_*`、`wmb_*`、`sq_*`、`ld_*discard*` |
 | 总线/内存系统限制 | `biu_*backpressure`、`biu_ar_to_rlast`、`biu_aw_to_b_full`，outstanding 只作辅助 |
@@ -837,6 +843,111 @@ smart_run/results/<tag>_<git>_<clean|dirty>/
 | 698 | `ifctrl_ipctrl_vld` | 其他 | flush 恢复路径或有效指令状态。 | 判断 flush 后 fetch/ID/retire 是否出现气泡。 | 完整恢复时间看 latency 的 flush_to_*。 |
 | 699 | `id_inst0_valid` | IDU/IQ/RF | flush 恢复路径或有效指令状态。 | 判断 flush 后 fetch/ID/retire 是否出现气泡。 | 完整恢复时间看 latency 的 flush_to_*。 |
 | 700 | `global_flush_zero_retire` | 其他 | flush 恢复路径或有效指令状态。 | 判断 flush 后 fetch/ID/retire 是否出现气泡。 | 完整恢复时间看 latency 的 flush_to_*。 |
+| 701 | `aiq0_src0_not_ready` | IDU/IQ/RF | AIQ0 中至少一个 valid 且未 ready 的 entry 正在等待整数源操作数 src0 ready。 | 判断 ALU0 侧 IQ 等待是否集中在 src0 依赖链。 | 事件按周期计数；同一 entry 多个源同时未 ready 时会和其他源指标重叠。 |
+| 702 | `aiq0_src1_not_ready` | IDU/IQ/RF | AIQ0 中至少一个 valid 且未 ready 的 entry 正在等待整数源操作数 src1 ready。 | 判断 ALU0 侧 IQ 等待是否集中在 src1 依赖链。 | 事件按周期计数；同一 entry 多个源同时未 ready 时会和其他源指标重叠。 |
+| 703 | `aiq0_src2_not_ready` | IDU/IQ/RF | AIQ0 中至少一个 valid 且未 ready 的 entry 正在等待整数源操作数 src2 ready。 | 判断 ALU0 三源或特殊整数操作是否造成等待。 | 事件按周期计数；同一 entry 多个源同时未 ready 时会和其他源指标重叠。 |
+| 704 | `aiq1_src0_not_ready` | IDU/IQ/RF | AIQ1 中至少一个 valid 且未 ready 的 entry 正在等待整数源操作数 src0 ready。 | 判断 ALU1/乘法相关 IQ 等待是否集中在 src0 依赖链。 | 事件按周期计数；同一 entry 多个源同时未 ready 时会和其他源指标重叠。 |
+| 705 | `aiq1_src1_not_ready` | IDU/IQ/RF | AIQ1 中至少一个 valid 且未 ready 的 entry 正在等待整数源操作数 src1 ready。 | 判断 ALU1/乘法相关 IQ 等待是否集中在 src1 依赖链。 | 事件按周期计数；同一 entry 多个源同时未 ready 时会和其他源指标重叠。 |
+| 706 | `aiq1_src2_not_ready` | IDU/IQ/RF | AIQ1 中至少一个 valid 且未 ready 的 entry 正在等待整数源操作数 src2 ready。 | 判断 AIQ1 三源或特殊整数操作是否造成等待。 | 事件按周期计数；同一 entry 多个源同时未 ready 时会和其他源指标重叠。 |
+| 707 | `biq_src0_not_ready` | IDU/IQ/RF | BIQ 中至少一个 valid 且未 ready 的 branch entry 正在等待 src0 ready。 | 判断分支比较或跳转源寄存器依赖是否阻塞分支发射。 | 只说明源操作数未 ready，不直接说明 producer 类型。 |
+| 708 | `biq_src1_not_ready` | IDU/IQ/RF | BIQ 中至少一个 valid 且未 ready 的 branch entry 正在等待 src1 ready。 | 判断条件分支第二源依赖是否阻塞分支发射。 | 只说明源操作数未 ready，不直接说明 producer 类型。 |
+| 709 | `lsiq_src0_not_ready` | LSU/Cache | LSIQ 中至少一个 valid 且未 ready 的 load entry 正在等待 src0 ready。 | 判断 load 地址基址或整数源依赖是否阻塞 load issue。 | 若高，应结合 producer、RF launch 和 LSU replay 指标分析。 |
+| 710 | `lsiq_src1_not_ready` | LSU/Cache | LSIQ 中至少一个 valid 且未 ready 的 load entry 正在等待 src1 ready。 | 判断 load 第二整数源或地址相关源依赖是否阻塞 load issue。 | 若高，应结合 producer、RF launch 和 LSU replay 指标分析。 |
+| 711 | `lsiq_srcvm_not_ready` | LSU/Cache | LSIQ 中至少一个 valid 且未 ready 的 load entry 正在等待 vector mask/source ready。 | 判断向量或带 mask load 是否被向量源依赖阻塞。 | 标量负载通常应低；向量 case 中更有意义。 |
+| 712 | `sdiq_src0_not_ready` | LSU/Cache | SDIQ 中至少一个 valid 且未 ready 的 store entry 正在等待整数源 src0 ready。 | 判断 store 地址或整数源依赖是否阻塞 store issue。 | 需要和 `sdiq_staddr_not_ready` 区分：前者是寄存器源，后者是 store address 顺序条件。 |
+| 713 | `sdiq_srcv0_not_ready` | LSU/Cache | SDIQ 中至少一个 valid 且未 ready 的 store entry 正在等待向量/浮点 store data 源 ready。 | 判断 store data 依赖是否造成 SDIQ 等待。 | 对向量/浮点 store 更敏感，标量 store 不一定高。 |
+| 714 | `sdiq_staddr_not_ready` | LSU/Cache | SDIQ 中至少一个 valid 且未 ready 的 store entry 因 store address 条件未满足而不能 ready。 | 判断 store address 顺序、store data lane 选择或 STQ 相关条件是否阻塞。 | 这是 SDIQ ready 逻辑中的地址条件，不是寄存器源 ready。 |
+| 715 | `viq0_srcv0_not_ready` | IDU/IQ/RF | VIQ0 中至少一个 valid 且未 ready 的 vector/FP entry 正在等待 srcv0 ready。 | 判断 VFPU pipe6/VIQ0 操作数 0 依赖是否阻塞。 | 与 FP/vector producer、vreg/freg writeback/forward 共同分析。 |
+| 716 | `viq0_srcv1_not_ready` | IDU/IQ/RF | VIQ0 中至少一个 valid 且未 ready 的 vector/FP entry 正在等待 srcv1 ready。 | 判断 VFPU pipe6/VIQ0 操作数 1 依赖是否阻塞。 | 与 FP/vector producer、vreg/freg writeback/forward 共同分析。 |
+| 717 | `viq0_srcv2_not_ready` | IDU/IQ/RF | VIQ0 中至少一个 valid 且未 ready 的 vector/FP entry 正在等待 srcv2 ready。 | 判断三源向量/FP 操作是否被第三源依赖限制。 | 与 FP/vector producer、vreg/freg writeback/forward 共同分析。 |
+| 718 | `viq0_srcvm_not_ready` | IDU/IQ/RF | VIQ0 中至少一个 valid 且未 ready 的 vector entry 正在等待 mask 源 ready。 | 判断向量 mask 依赖是否阻塞 VIQ0。 | 仅对使用 mask 的向量指令有解释价值。 |
+| 719 | `viq1_srcv0_not_ready` | IDU/IQ/RF | VIQ1 中至少一个 valid 且未 ready 的 vector/FP entry 正在等待 srcv0 ready。 | 判断 VFPU pipe7/VIQ1 操作数 0 依赖是否阻塞。 | 与 FP/vector producer、vreg/freg writeback/forward 共同分析。 |
+| 720 | `viq1_srcv1_not_ready` | IDU/IQ/RF | VIQ1 中至少一个 valid 且未 ready 的 vector/FP entry 正在等待 srcv1 ready。 | 判断 VFPU pipe7/VIQ1 操作数 1 依赖是否阻塞。 | 与 FP/vector producer、vreg/freg writeback/forward 共同分析。 |
+| 721 | `viq1_srcv2_not_ready` | IDU/IQ/RF | VIQ1 中至少一个 valid 且未 ready 的 vector/FP entry 正在等待 srcv2 ready。 | 判断三源向量/FP 操作是否被第三源依赖限制。 | 与 FP/vector producer、vreg/freg writeback/forward 共同分析。 |
+| 722 | `viq1_srcvm_not_ready` | IDU/IQ/RF | VIQ1 中至少一个 valid 且未 ready 的 vector entry 正在等待 mask 源 ready。 | 判断向量 mask 依赖是否阻塞 VIQ1。 | 仅对使用 mask 的向量指令有解释价值。 |
+| 723 | `iq_load_dep_not_ready` | IDU/IQ/RF | 所有 IQ 中至少一个 not-ready 源操作数带有 dep-entry `lsu_match`。 | 判断 IQ 等待是否与 load/vload producer 相关。 | 这是 load dependency proxy，不等于完整 producer 类型。 |
+| 724 | `iq_nonload_dep_not_ready` | IDU/IQ/RF | 所有 IQ 中至少一个 not-ready 源操作数不带 dep-entry `lsu_match`。 | 判断非 load 或未知 producer 是否主导 IQ 等待。 | 包含 ALU、mult/div、VFPU、CSR/特殊路径等，当前不再细分。 |
+| 725 | `aiq0_load_dep_not_ready` | IDU/IQ/RF | AIQ0 中至少一个 not-ready 源操作数带有 `lsu_match`。 | 判断 ALU0 队列是否等待 load producer。 | 多源可重叠；按源操作数统计。 |
+| 726 | `aiq0_nonload_dep_not_ready` | IDU/IQ/RF | AIQ0 中至少一个 not-ready 源操作数不带 `lsu_match`。 | 判断 ALU0 队列是否等待非 load/未知 producer。 | 不区分 ALU、乘除、VFPU 等 producer。 |
+| 727 | `aiq1_load_dep_not_ready` | IDU/IQ/RF | AIQ1 中至少一个 not-ready 源操作数带有 `lsu_match`。 | 判断 ALU1/乘法队列是否等待 load producer。 | 多源可重叠；按源操作数统计。 |
+| 728 | `aiq1_nonload_dep_not_ready` | IDU/IQ/RF | AIQ1 中至少一个 not-ready 源操作数不带 `lsu_match`。 | 判断 ALU1/乘法队列是否等待非 load/未知 producer。 | 不区分 ALU、乘除、VFPU 等 producer。 |
+| 729 | `biq_load_dep_not_ready` | IDU/IQ/RF | BIQ 中至少一个 not-ready 源操作数带有 `lsu_match`。 | 判断分支条件是否等待 load producer，进而推迟分支解析。 | 对 load-to-branch 场景有解释力。 |
+| 730 | `biq_nonload_dep_not_ready` | IDU/IQ/RF | BIQ 中至少一个 not-ready 源操作数不带 `lsu_match`。 | 判断分支条件是否等待非 load/未知 producer。 | 不区分 ALU、CSR、特殊路径等 producer。 |
+| 731 | `lsiq_load_dep_not_ready` | LSU/Cache | LSIQ 中至少一个 not-ready 源操作数带有 `lsu_match`。 | 判断 load 指令自身是否等待 older load/vload producer。 | 可用于识别 load-load 依赖链。 |
+| 732 | `lsiq_nonload_dep_not_ready` | LSU/Cache | LSIQ 中至少一个 not-ready 源操作数不带 `lsu_match`。 | 判断 load 地址或 mask 是否等待非 load/未知 producer。 | 地址基址等待 ALU producer 时通常落在这里。 |
+| 733 | `sdiq_load_dep_not_ready` | LSU/Cache | SDIQ 中至少一个 not-ready 源操作数带有 `lsu_match`。 | 判断 store 地址或数据是否等待 load/vload producer。 | 不包含 `sdiq_staddr_not_ready` 地址顺序条件。 |
+| 734 | `sdiq_nonload_dep_not_ready` | LSU/Cache | SDIQ 中至少一个 not-ready 源操作数不带 `lsu_match`。 | 判断 store 地址或数据是否等待非 load/未知 producer。 | 不包含 `sdiq_staddr_not_ready` 地址顺序条件。 |
+| 735 | `viq0_load_dep_not_ready` | IDU/IQ/RF | VIQ0 中至少一个 not-ready 源操作数带有 `lsu_match`。 | 判断 VFPU pipe6/VIQ0 是否等待 vload/load producer。 | 向量 load-use 场景中重点关注。 |
+| 736 | `viq0_nonload_dep_not_ready` | IDU/IQ/RF | VIQ0 中至少一个 not-ready 源操作数不带 `lsu_match`。 | 判断 VFPU pipe6/VIQ0 是否等待非 load/未知 producer。 | 可能包含 VFPU producer、mask、vreg writeback 等。 |
+| 737 | `viq1_load_dep_not_ready` | IDU/IQ/RF | VIQ1 中至少一个 not-ready 源操作数带有 `lsu_match`。 | 判断 VFPU pipe7/VIQ1 是否等待 vload/load producer。 | 向量 load-use 场景中重点关注。 |
+| 738 | `viq1_nonload_dep_not_ready` | IDU/IQ/RF | VIQ1 中至少一个 not-ready 源操作数不带 `lsu_match`。 | 判断 VFPU pipe7/VIQ1 是否等待非 load/未知 producer。 | 可能包含 VFPU producer、mask、vreg writeback 等。 |
+| 739 | `iq_ready_not_issued` | IDU/IQ/RF | 所有 IQ 中至少一个 entry 已 ready 但本周期没有 `issue_en`。 | 判断 ready 指令是否被 age-select 或队列局部选择规则压住。 | 这是 ready 和 issue_en 的差集，不表示源操作数未 ready；LSIQ 通常不贡献该项。 |
+| 740 | `aiq0_ready_not_issued` | IDU/IQ/RF | AIQ0 中至少一个 entry 已 ready 但被更老 ready entry 压住。 | 判断 ALU0 侧 ready 工作是否被 age-select 排队。 | 需要和 `aiq0_issue_select_avg`、RF pipe0 launch fail 一起看。 |
+| 741 | `aiq1_ready_not_issued` | IDU/IQ/RF | AIQ1 中至少一个 entry 已 ready 但被更老 ready entry 压住。 | 判断 ALU1/乘法侧 ready 工作是否被 age-select 排队。 | 需要和 `aiq1_issue_select_avg`、RF pipe1 launch fail 一起看。 |
+| 742 | `biq_ready_not_issued` | IDU/IQ/RF | BIQ 中至少一个 branch entry 已 ready 但被更老 ready entry 压住。 | 判断分支解析是否在 BIQ 内部等待更老分支。 | 高时会推迟分支解析，可能放大前端错误路径成本。 |
+| 743 | `lsiq_ready_not_issued` | LSU/Cache | LSIQ 中至少一个 load entry 已 ready 但本周期没有 issue。 | 作为一致性占位，通常应接近 0。 | RTL 中 `lsiq_entry_issue_en = lsiq_entry_ready`，load 下游限制应看 pop/LSU 接收侧指标。 |
+| 744 | `sdiq_ready_not_issued` | LSU/Cache | SDIQ 中至少一个 store entry 已 ready 但被更老 ready store 压住。 | 判断 store 发射是否在 SDIQ age-select 中排队。 | 下游 WMB/SQ 限制还要结合 WMB/SQ pop 和 store path 指标。 |
+| 745 | `viq0_ready_not_issued` | IDU/IQ/RF | VIQ0 中至少一个 vector/FP entry 已 ready 但被更老 ready entry 压住。 | 判断 VFPU pipe6 侧 ready 工作是否被 age-select 排队。 | 结合 VFPU issue、RF pipe6 launch fail 和 vreg forward 看。 |
+| 746 | `viq1_ready_not_issued` | IDU/IQ/RF | VIQ1 中至少一个 vector/FP entry 已 ready 但被更老 ready entry 压住。 | 判断 VFPU pipe7 侧 ready 工作是否被 age-select 排队。 | 结合 VFPU issue、RF pipe7 launch fail 和 vreg forward 看。 |
+| 747 | `rf_pipe0_src0_no_rdy` | IDU/RF | pipe0 RF launch 时 src0 未就绪。 | 定位 ALU0/整数消费者源 0 是否在 RF 阶段仍等 producer。 | 已用 `ctrl_rf_pipe0_inst_vld` 门控，只统计有效 pipe0 指令。 |
+| 748 | `rf_pipe0_src1_no_rdy` | IDU/RF | pipe0 RF launch 时 src1 未就绪。 | 定位 ALU0/整数消费者源 1 是否在 RF 阶段仍等 producer。 | 已用 `ctrl_rf_pipe0_inst_vld` 门控。 |
+| 749 | `rf_pipe0_src2_no_rdy` | IDU/RF | pipe0 RF launch 时 src2 未就绪。 | 定位三源/特殊整数操作在 pipe0 的第三源等待。 | 已用 `ctrl_rf_pipe0_inst_vld` 门控。 |
+| 750 | `rf_pipe1_src0_no_rdy` | IDU/RF | pipe1 RF launch 时 src0 未就绪。 | 定位 ALU1/乘法相关消费者源 0 等待。 | 已用 `ctrl_rf_pipe1_inst_vld` 门控。 |
+| 751 | `rf_pipe1_src1_no_rdy` | IDU/RF | pipe1 RF launch 时 src1 未就绪。 | 定位 ALU1/乘法相关消费者源 1 等待。 | 已用 `ctrl_rf_pipe1_inst_vld` 门控。 |
+| 752 | `rf_pipe1_src2_no_rdy` | IDU/RF | pipe1 RF launch 时 src2 未就绪。 | 定位 ALU1 三源/特殊操作第三源等待。 | 已用 `ctrl_rf_pipe1_inst_vld` 门控。 |
+| 753 | `rf_pipe2_src0_no_rdy` | IDU/RF | pipe2 RF launch 时 src0 未就绪。 | 定位 branch/整数 pipe2 的源 0 等待。 | 若高，可能推迟分支解析。 |
+| 754 | `rf_pipe2_src1_no_rdy` | IDU/RF | pipe2 RF launch 时 src1 未就绪。 | 定位 branch/整数 pipe2 的源 1 等待。 | 若高，可能推迟条件分支比较。 |
+| 755 | `rf_pipe3_src0_no_rdy_deep` | IDU/RF | pipe3 RF launch 时 src0 未就绪。 | 定位 load 相关 pipe3 的地址基址或整数源等待。 | 需要和 LSIQ、load replay、dcache 指标联合看。 |
+| 756 | `rf_pipe3_src1_no_rdy_deep` | IDU/RF | pipe3 RF launch 时 src1 未就绪。 | 定位 pipe3 第二源等待。 | 具体含义取决于指令类型。 |
+| 757 | `rf_pipe3_srcvm_no_rdy` | IDU/RF | pipe3 RF launch 时 mask/vector 源未就绪。 | 定位 vload/向量相关 mask 源等待。 | 对 vector/vload case 更有意义。 |
+| 758 | `rf_pipe4_src0_no_rdy_deep` | IDU/RF | pipe4 RF launch 时 src0 未就绪。 | 定位 pipe4 源 0 等待。 | 需要结合 pipe4 指令类型解释。 |
+| 759 | `rf_pipe4_src1_no_rdy_deep` | IDU/RF | pipe4 RF launch 时 src1 未就绪。 | 定位 pipe4 源 1 等待。 | 需要结合 pipe4 指令类型解释。 |
+| 760 | `rf_pipe4_srcvm_no_rdy` | IDU/RF | pipe4 RF launch 时 mask/vector 源未就绪。 | 定位 pipe4 vector/mask 源等待。 | 对 FP/vector case 更有意义。 |
+| 761 | `rf_pipe5_src0_no_rdy` | IDU/RF | pipe5 RF launch 时 src0 未就绪。 | 定位 store 地址/数据相关整数源等待。 | Dhrystone 中若 pipe5 高，优先查 store 地址/数据 producer。 |
+| 762 | `rf_pipe5_srcv0_no_rdy` | IDU/RF | pipe5 RF launch 时 vector/store-data 源未就绪。 | 定位 store data 或 vector store 源等待。 | 对 store-data 路径敏感。 |
+| 763 | `rf_pipe5_staddr_no_rdy` | IDU/RF | pipe5 RF launch 时 store-address ready 条件未满足。 | 判断 store 地址顺序或地址生成条件是否限制 store 发射。 | 与 SQ、older store、LSU wait-old 指标一起看。 |
+| 764 | `rf_pipe6_srcv0_no_rdy` | IDU/RF | VFPU pipe6 RF launch 时 srcv0 未就绪。 | 定位 VIQ0/VFPU pipe6 源 0 等待。 | FP/vector case 重点。 |
+| 765 | `rf_pipe6_srcv1_no_rdy` | IDU/RF | VFPU pipe6 RF launch 时 srcv1 未就绪。 | 定位 VIQ0/VFPU pipe6 源 1 等待。 | FP/vector case 重点。 |
+| 766 | `rf_pipe6_srcv2_no_rdy` | IDU/RF | VFPU pipe6 RF launch 时 srcv2 未就绪。 | 定位三源 vector/FP 操作第三源等待。 | FP/vector case 重点。 |
+| 767 | `rf_pipe6_srcvm_no_rdy` | IDU/RF | VFPU pipe6 RF launch 时 mask 源未就绪。 | 定位向量 mask 依赖。 | 仅对使用 mask 的指令有解释价值。 |
+| 768 | `rf_pipe7_srcv0_no_rdy` | IDU/RF | VFPU pipe7 RF launch 时 srcv0 未就绪。 | 定位 VIQ1/VFPU pipe7 源 0 等待。 | FP/vector case 重点。 |
+| 769 | `rf_pipe7_srcv1_no_rdy` | IDU/RF | VFPU pipe7 RF launch 时 srcv1 未就绪。 | 定位 VIQ1/VFPU pipe7 源 1 等待。 | FP/vector case 重点。 |
+| 770 | `rf_pipe7_srcv2_no_rdy` | IDU/RF | VFPU pipe7 RF launch 时 srcv2 未就绪。 | 定位三源 vector/FP 操作第三源等待。 | FP/vector case 重点。 |
+| 771 | `rf_pipe7_srcvm_no_rdy` | IDU/RF | VFPU pipe7 RF launch 时 mask 源未就绪。 | 定位向量 mask 依赖。 | 仅对使用 mask 的指令有解释价值。 |
+| 772 | `rf_src_no_rdy_any_deep` | IDU/RF | 任意 RF pipe 的任意源操作数 no-ready。 | 作为 RF 源未就绪总开关，快速判断是否需要看 747-771。 | 事件周期数，不表示同周期有几个源未就绪；数量看 profile 158。 |
+| 773 | `rf_pipe0_vdiv_mtvr_fail` | IDU/RF | pipe0 因 vdiv/mtvr 特殊结构条件 launch fail。 | 区分 pipe0 源未就绪和特殊执行/传送路径限制。 | 普通整数 case 通常应很低。 |
+| 774 | `rf_pipe3_preg_lch_fail` | IDU/RF | pipe3 因 PREG 读/端口相关条件 launch fail。 | 判断 load pipe 的整数寄存器读结构限制。 | 与旧 35 同源，作为 other fail 子原因保留。 |
+| 775 | `rf_pipe3_vreg_lch_fail` | IDU/RF | pipe3 因 VREG/FREG 读/端口相关条件 launch fail。 | 判断 vload/vector 相关寄存器读限制。 | 主要用于 FP/vector case。 |
+| 776 | `rf_pipe4_vreg_lch_fail` | IDU/RF | pipe4 因 VREG/FREG 读/端口相关条件 launch fail。 | 判断 pipe4 向量寄存器读限制。 | 主要用于 FP/vector case。 |
+| 777 | `rf_pipe5_preg_lch_fail` | IDU/RF | pipe5 因 PREG 读/端口相关条件 launch fail。 | 判断 store pipe 的整数寄存器读结构限制。 | 与旧 36 同源，作为 other fail 子原因保留。 |
+| 778 | `rf_pipe6_div_mfvr_fail` | IDU/RF | pipe6 因 div/mfvr 特殊路径 launch fail。 | 定位 VFPU pipe6 与特殊数据传送/除法路径冲突。 | 普通整数 case 通常应低。 |
+| 779 | `rf_pipe6_vmul_unsplit_fail` | IDU/RF | pipe6 因 vmul unsplit 条件 launch fail。 | 定位向量乘法拆分/未拆分路径限制。 | vector case 重点。 |
+| 780 | `rf_pipe7_mult_mfvr_fail` | IDU/RF | pipe7 因 mult/mfvr 特殊路径 launch fail。 | 定位 VFPU pipe7 与乘法/特殊传送路径冲突。 | 普通整数 case 通常应低。 |
+| 781 | `lsu_replay_data_discard` | LSU/Cache | LSU HPCP replay data discard 事件。 | 判断 load replay 中数据丢弃类压力。 | 来自 LSU 顶层 `lsu_hpcp_replay_data_discard`。 |
+| 782 | `lsu_replay_discard_sq` | LSU/Cache | LSU HPCP replay discard SQ 事件。 | 判断 replay 是否与 SQ/store-load 相关。 | 来自 LSU 顶层 `lsu_hpcp_replay_discard_sq`。 |
+| 783 | `sq_has_fwd_req` | LSU/Cache | SQ 存在对当前 load 的 forward 请求。 | 判断 store-to-load forwarding 是否活跃。 | forward 活跃本身不一定是坏事。 |
+| 784 | `sq_fwd_req` | LSU/Cache | SQ newest forward 请求有效。 | 判断 load 是否从最新 store forward。 | 与 discard/cancel 一起判断 forward 是否稳定。 |
+| 785 | `sq_fwd_bypass_req` | LSU/Cache | SQ forward bypass 请求。 | 判断 bypass 路径是否参与 load 数据供给。 | 高时关注 bypass 与普通 forward 冲突。 |
+| 786 | `sq_fwd_bypass_multi` | LSU/Cache | SQ forward bypass multi 条件。 | 判断多重 bypass/forward 复杂场景。 | 高时 store-load 相关性更复杂。 |
+| 787 | `sq_fwd_multi` | LSU/Cache | SQ 多重 forward 匹配。 | 判断多个 store 可能影响同一 load。 | 高时可能增加选择或 replay 风险。 |
+| 788 | `sq_fwd_multi_mask` | LSU/Cache | SQ multi forward mask 事件。 | 判断 newest forward 与多匹配掩码相关情况。 | 与 787 联合解释。 |
+| 789 | `sq_cancel_acc_req` | LSU/Cache | SQ 请求取消 load 访问。 | 判断 store-load 条件变化是否取消当前访问。 | 高时常和 replay/discard 相关。 |
+| 790 | `sq_cancel_ahead_wb` | LSU/Cache | SQ ahead writeback cancel 请求。 | 判断提前写回/前递路径是否被取消。 | 高时需查 forward 时序和 older store 条件。 |
+| 791 | `lsu_ld_ag_wait_old` | LSU/Cache | load AG 阶段等待更老访存/atomic/restart 条件。 | 判断 load 地址生成阶段是否受 older memory ordering 限制。 | 来自 12-bit LSIQ mask OR。 |
+| 792 | `lsu_ld_da_wait_old` | LSU/Cache | load DA 阶段等待更老访存条件。 | 判断 load 数据访问阶段是否受 older memory ordering 限制。 | 当前 RTL 中该信号可能恒 0，需结合运行结果确认。 |
+| 793 | `lsu_st_ag_wait_old` | LSU/Cache | store AG 阶段等待更老访存/atomic/restart 条件。 | 判断 store 地址阶段是否被 older memory ordering 限制。 | 来自 12-bit LSIQ mask OR。 |
+| 794 | `lsu_wait_old` | LSU/Cache | LSU 汇总 wait-old 条件。 | 快速判断 wait-old 是否整体参与瓶颈。 | 具体阶段看 791-793。 |
+| 795 | `lsu_lq_full_from_idu` | LSU/Cache | IDU 可见 LQ not-full 为假。 | 判断 LQ 满是否对上游形成资源限制。 | 这是 IDU 接口口径。 |
+| 796 | `lsu_sq_full_from_idu` | LSU/Cache | IDU 可见 SQ not-full 为假。 | 判断 SQ 满是否对上游形成资源限制。 | 这是 IDU 接口口径。 |
+| 797 | `lsu_rb_full_from_idu` | LSU/Cache | IDU 可见 RB not-full 为假。 | 判断 RB 满是否对上游形成资源限制。 | 这是 IDU 接口口径。 |
+| 798 | `producer_alu0_wakeup` | IDU/RF | ALU0/PREG producer launch valid 活动。 | 粗看 ALU0 producer 唤醒机会。 | 活动计数，不是消费者等待 ALU0 的精确归因。 |
+| 799 | `producer_alu1_wakeup` | IDU/RF | ALU1/PREG producer launch valid 活动。 | 粗看 ALU1 producer 唤醒机会。 | 活动计数，不是消费者等待 ALU1 的精确归因。 |
+| 800 | `producer_mult_wakeup` | IU | 乘法 producer valid 活动。 | 粗看乘法结果唤醒机会。 | 活动计数，不是等待分类。 |
+| 801 | `producer_div_wakeup` | IU | 除法 producer valid 活动。 | 粗看除法结果唤醒机会。 | 除法低频但长延迟，需结合 DIV stall/latency。 |
+| 802 | `producer_load_fwd_wakeup` | LSU/Cache | 标量 load forward producer 活动。 | 粗看 load producer 唤醒机会。 | 与 load dependency 和 RF no-ready 联合判断 load-use。 |
+| 803 | `producer_vload_fwd_wakeup` | LSU/Cache | vector load forward producer 活动。 | 粗看 vload producer 唤醒机会。 | 主要用于 FP/vector case。 |
+| 804 | `producer_vfpu6_wakeup` | VFPU | VFPU pipe6 data valid producer 活动。 | 粗看 VFPU pipe6 结果供给。 | 活动计数，不是等待分类。 |
+| 805 | `producer_vfpu7_wakeup` | VFPU | VFPU pipe7 data valid producer 活动。 | 粗看 VFPU pipe7 结果供给。 | 活动计数，不是等待分类。 |
 
 ## Profile 平均宽度/占用完整字典
 
@@ -946,6 +1057,91 @@ smart_run/results/<tag>_<git>_<clean|dirty>/
 | 102 | `viq1_not_ready_avg` | IDU/IQ/RF | 每周期平均 valid 但未 ready 的 entry 数量。 | 定位 wakeup、forward、依赖链或执行单元等待。 | 这是队列级统计，不能直接给出 producer 类型。 |
 | 103 | `wmb_pop_width_avg` | LSU/Cache | 每周期平均宽度或请求/创建/弹出数量。 | 衡量吞吐能力、并发度和端口利用率。 | 平均值低不一定是瓶颈，需要结合 ready、full、stall。 |
 | 104 | `sq_pop_width_avg` | LSU/Cache | 每周期平均宽度或请求/创建/弹出数量。 | 衡量吞吐能力、并发度和端口利用率。 | 平均值低不一定是瓶颈，需要结合 ready、full、stall。 |
+| 105 | `aiq0_src0_not_ready_avg` | IDU/IQ/RF | 平均每周期 AIQ0 中等待 src0 ready 的 not-ready entry 数。 | 判断 ALU0 侧等待是否集中在 src0 依赖链。 | 子项可重叠，不能简单相加等于 `aiq0_not_ready_avg`。 |
+| 106 | `aiq0_src1_not_ready_avg` | IDU/IQ/RF | 平均每周期 AIQ0 中等待 src1 ready 的 not-ready entry 数。 | 判断 ALU0 侧等待是否集中在 src1 依赖链。 | 子项可重叠，不能简单相加等于 `aiq0_not_ready_avg`。 |
+| 107 | `aiq0_src2_not_ready_avg` | IDU/IQ/RF | 平均每周期 AIQ0 中等待 src2 ready 的 not-ready entry 数。 | 判断 ALU0 三源或特殊整数操作源依赖压力。 | 子项可重叠，不能简单相加等于 `aiq0_not_ready_avg`。 |
+| 108 | `aiq1_src0_not_ready_avg` | IDU/IQ/RF | 平均每周期 AIQ1 中等待 src0 ready 的 not-ready entry 数。 | 判断 ALU1/乘法相关队列等待是否集中在 src0。 | 子项可重叠，不能简单相加等于 `aiq1_not_ready_avg`。 |
+| 109 | `aiq1_src1_not_ready_avg` | IDU/IQ/RF | 平均每周期 AIQ1 中等待 src1 ready 的 not-ready entry 数。 | 判断 ALU1/乘法相关队列等待是否集中在 src1。 | 子项可重叠，不能简单相加等于 `aiq1_not_ready_avg`。 |
+| 110 | `aiq1_src2_not_ready_avg` | IDU/IQ/RF | 平均每周期 AIQ1 中等待 src2 ready 的 not-ready entry 数。 | 判断 AIQ1 三源或特殊整数操作源依赖压力。 | 子项可重叠，不能简单相加等于 `aiq1_not_ready_avg`。 |
+| 111 | `biq_src0_not_ready_avg` | IDU/IQ/RF | 平均每周期 BIQ 中等待 src0 ready 的 not-ready entry 数。 | 判断分支源 0 依赖是否推迟分支解析。 | 只定位到源操作数，不定位到 producer 类型。 |
+| 112 | `biq_src1_not_ready_avg` | IDU/IQ/RF | 平均每周期 BIQ 中等待 src1 ready 的 not-ready entry 数。 | 判断条件分支源 1 依赖是否推迟分支解析。 | 只定位到源操作数，不定位到 producer 类型。 |
+| 113 | `lsiq_src0_not_ready_avg` | LSU/Cache | 平均每周期 LSIQ 中等待 src0 ready 的 not-ready entry 数。 | 判断 load 地址基址/整数源依赖是否限制 load 发射。 | 高时应结合 load-use、RF launch 和 LSU replay 指标。 |
+| 114 | `lsiq_src1_not_ready_avg` | LSU/Cache | 平均每周期 LSIQ 中等待 src1 ready 的 not-ready entry 数。 | 判断 load 第二源或地址相关源依赖是否限制 load 发射。 | 高时应结合 load-use、RF launch 和 LSU replay 指标。 |
+| 115 | `lsiq_srcvm_not_ready_avg` | LSU/Cache | 平均每周期 LSIQ 中等待 vector mask/source ready 的 not-ready entry 数。 | 判断向量或 masked load 是否受向量源依赖限制。 | 标量 case 中通常应低。 |
+| 116 | `sdiq_src0_not_ready_avg` | LSU/Cache | 平均每周期 SDIQ 中等待整数源 src0 ready 的 not-ready entry 数。 | 判断 store 地址/整数源依赖是否限制 store 发射。 | 与 `sdiq_staddr_not_ready_avg` 区分使用。 |
+| 117 | `sdiq_srcv0_not_ready_avg` | LSU/Cache | 平均每周期 SDIQ 中等待向量/浮点 store data 源 ready 的 not-ready entry 数。 | 判断 store data 依赖是否限制 store 发射。 | 对向量/浮点 store 更有解释力。 |
+| 118 | `sdiq_staddr_not_ready_avg` | LSU/Cache | 平均每周期 SDIQ 中因 store address 条件未满足而 not-ready 的 entry 数。 | 判断 store address 顺序、STQ 条件或 lane 选择是否限制 SDIQ。 | 不是寄存器源 ready，而是 SDIQ ready 逻辑中的地址条件。 |
+| 119 | `viq0_srcv0_not_ready_avg` | IDU/IQ/RF | 平均每周期 VIQ0 中等待 srcv0 ready 的 not-ready entry 数。 | 判断 VFPU pipe6/VIQ0 操作数 0 依赖。 | 结合 FP/vector producer 与 vreg/freg writeback/forward 分析。 |
+| 120 | `viq0_srcv1_not_ready_avg` | IDU/IQ/RF | 平均每周期 VIQ0 中等待 srcv1 ready 的 not-ready entry 数。 | 判断 VFPU pipe6/VIQ0 操作数 1 依赖。 | 结合 FP/vector producer 与 vreg/freg writeback/forward 分析。 |
+| 121 | `viq0_srcv2_not_ready_avg` | IDU/IQ/RF | 平均每周期 VIQ0 中等待 srcv2 ready 的 not-ready entry 数。 | 判断三源 vector/FP 操作的第三源依赖。 | 结合 FP/vector producer 与 vreg/freg writeback/forward 分析。 |
+| 122 | `viq0_srcvm_not_ready_avg` | IDU/IQ/RF | 平均每周期 VIQ0 中等待 mask 源 ready 的 not-ready entry 数。 | 判断向量 mask 依赖是否限制 VIQ0。 | 仅对使用 mask 的向量指令有解释价值。 |
+| 123 | `viq1_srcv0_not_ready_avg` | IDU/IQ/RF | 平均每周期 VIQ1 中等待 srcv0 ready 的 not-ready entry 数。 | 判断 VFPU pipe7/VIQ1 操作数 0 依赖。 | 结合 FP/vector producer 与 vreg/freg writeback/forward 分析。 |
+| 124 | `viq1_srcv1_not_ready_avg` | IDU/IQ/RF | 平均每周期 VIQ1 中等待 srcv1 ready 的 not-ready entry 数。 | 判断 VFPU pipe7/VIQ1 操作数 1 依赖。 | 结合 FP/vector producer 与 vreg/freg writeback/forward 分析。 |
+| 125 | `viq1_srcv2_not_ready_avg` | IDU/IQ/RF | 平均每周期 VIQ1 中等待 srcv2 ready 的 not-ready entry 数。 | 判断三源 vector/FP 操作的第三源依赖。 | 结合 FP/vector producer 与 vreg/freg writeback/forward 分析。 |
+| 126 | `viq1_srcvm_not_ready_avg` | IDU/IQ/RF | 平均每周期 VIQ1 中等待 mask 源 ready 的 not-ready entry 数。 | 判断向量 mask 依赖是否限制 VIQ1。 | 仅对使用 mask 的向量指令有解释价值。 |
+| 127 | `iq_load_dep_not_ready_avg` | IDU/IQ/RF | 平均每周期所有 IQ 中等待 load/vload producer 的 not-ready 源操作数个数。 | 判断 load producer 是否是全局 IQ 等待主因。 | 由 dep-entry `lsu_match` 分类，是 proxy 而非完整 producer 类型。 |
+| 128 | `iq_nonload_dep_not_ready_avg` | IDU/IQ/RF | 平均每周期所有 IQ 中等待非 load/未知 producer 的 not-ready 源操作数个数。 | 判断 ALU、mult/div、VFPU 或特殊 producer 是否可能主导。 | 当前不继续细分非 load producer。 |
+| 129 | `aiq0_load_dep_not_ready_avg` | IDU/IQ/RF | 平均每周期 AIQ0 中等待 load producer 的 not-ready 源操作数个数。 | 判断 ALU0 消费者是否被 load-use 限制。 | 同一 entry 多个源可重复计数。 |
+| 130 | `aiq0_nonload_dep_not_ready_avg` | IDU/IQ/RF | 平均每周期 AIQ0 中等待非 load/未知 producer 的 not-ready 源操作数个数。 | 判断 ALU0 消费者是否被非 load producer 限制。 | 非 load 内部类型仍需更细计数。 |
+| 131 | `aiq1_load_dep_not_ready_avg` | IDU/IQ/RF | 平均每周期 AIQ1 中等待 load producer 的 not-ready 源操作数个数。 | 判断 ALU1/乘法消费者是否被 load-use 限制。 | 同一 entry 多个源可重复计数。 |
+| 132 | `aiq1_nonload_dep_not_ready_avg` | IDU/IQ/RF | 平均每周期 AIQ1 中等待非 load/未知 producer 的 not-ready 源操作数个数。 | 判断 ALU1/乘法消费者是否被非 load producer 限制。 | 非 load 内部类型仍需更细计数。 |
+| 133 | `biq_load_dep_not_ready_avg` | IDU/IQ/RF | 平均每周期 BIQ 中等待 load producer 的 not-ready 源操作数个数。 | 判断 load-to-branch 依赖是否推迟控制流解析。 | 高时会放大分支恢复和前端供给问题。 |
+| 134 | `biq_nonload_dep_not_ready_avg` | IDU/IQ/RF | 平均每周期 BIQ 中等待非 load/未知 producer 的 not-ready 源操作数个数。 | 判断 branch 是否主要等 ALU/CSR/特殊 producer。 | 需要结合分支误预测与 flush 指标。 |
+| 135 | `lsiq_load_dep_not_ready_avg` | LSU/Cache | 平均每周期 LSIQ 中等待 load/vload producer 的 not-ready 源操作数个数。 | 判断 load-load 或 vload-load 依赖链。 | 与 dcache/replay 指标一起判断是否为 LSU 主因。 |
+| 136 | `lsiq_nonload_dep_not_ready_avg` | LSU/Cache | 平均每周期 LSIQ 中等待非 load/未知 producer 的 not-ready 源操作数个数。 | 判断 load 地址基址或 mask 是否主要来自 ALU/VFPU 等 producer。 | 对地址生成瓶颈很关键。 |
+| 137 | `sdiq_load_dep_not_ready_avg` | LSU/Cache | 平均每周期 SDIQ 中等待 load/vload producer 的 not-ready 源操作数个数。 | 判断 store 地址或数据是否被 load-use 限制。 | 不包含 store address 顺序条件。 |
+| 138 | `sdiq_nonload_dep_not_ready_avg` | LSU/Cache | 平均每周期 SDIQ 中等待非 load/未知 producer 的 not-ready 源操作数个数。 | 判断 store 地址或数据是否主要等 ALU/VFPU 等 producer。 | 不包含 store address 顺序条件。 |
+| 139 | `viq0_load_dep_not_ready_avg` | IDU/IQ/RF | 平均每周期 VIQ0 中等待 load/vload producer 的 not-ready 源操作数个数。 | 判断向量/FP 消费者是否被 vload/load-use 限制。 | 对 FP/vector case 更有意义。 |
+| 140 | `viq0_nonload_dep_not_ready_avg` | IDU/IQ/RF | 平均每周期 VIQ0 中等待非 load/未知 producer 的 not-ready 源操作数个数。 | 判断 VFPU producer、mask 或 vreg 路径是否可能主导。 | 非 load 内部类型仍需更细计数。 |
+| 141 | `viq1_load_dep_not_ready_avg` | IDU/IQ/RF | 平均每周期 VIQ1 中等待 load/vload producer 的 not-ready 源操作数个数。 | 判断向量/FP 消费者是否被 vload/load-use 限制。 | 对 FP/vector case 更有意义。 |
+| 142 | `viq1_nonload_dep_not_ready_avg` | IDU/IQ/RF | 平均每周期 VIQ1 中等待非 load/未知 producer 的 not-ready 源操作数个数。 | 判断 VFPU producer、mask 或 vreg 路径是否可能主导。 | 非 load 内部类型仍需更细计数。 |
+| 143 | `aiq0_issue_select_avg` | IDU/IQ/RF | 平均每周期 AIQ0 被 `issue_en` 选中的 entry 数。 | 判断 ALU0 队列 age-select 后的发射候选吞吐。 | 与 `aiq0_ready_not_issued_avg` 对比可区分 ready 不足和队列内 age-select 排队。 |
+| 144 | `aiq1_issue_select_avg` | IDU/IQ/RF | 平均每周期 AIQ1 被 `issue_en` 选中的 entry 数。 | 判断 ALU1/乘法队列 age-select 后的发射候选吞吐。 | 与 `aiq1_ready_not_issued_avg` 和乘法/除法路径一起看。 |
+| 145 | `biq_issue_select_avg` | IDU/IQ/RF | 平均每周期 BIQ 被 `issue_en` 选中的 branch entry 数。 | 判断分支发射和解析吞吐。 | 与分支误预测、flush 和 `biq_ready_not_issued_avg` 一起看。 |
+| 146 | `lsiq_issue_select_avg` | LSU/Cache | 平均每周期 LSIQ ready entry 数；RTL 中 `issue_en` 直接等于 ready。 | 判断 load 侧 ready 候选数量。 | 真实 load 下游吞吐还要看 LSIQ pop、AG/DC、dcache 和 replay 指标。 |
+| 147 | `sdiq_issue_select_avg` | LSU/Cache | 平均每周期 SDIQ 被 `issue_en` 选中的 store entry 数。 | 判断 store 发射吞吐。 | 与 WMB/SQ、store address/data ready 一起看。 |
+| 148 | `viq0_issue_select_avg` | IDU/IQ/RF | 平均每周期 VIQ0 被 `issue_en` 选中的 vector/FP entry 数。 | 判断 VFPU pipe6 侧发射吞吐。 | 与 VFPU pipe6 选择、vreg forward 和 ready-not-issued 一起看。 |
+| 149 | `viq1_issue_select_avg` | IDU/IQ/RF | 平均每周期 VIQ1 被 `issue_en` 选中的 vector/FP entry 数。 | 判断 VFPU pipe7 侧发射吞吐。 | 与 VFPU pipe7 选择、vreg forward 和 ready-not-issued 一起看。 |
+| 150 | `iq_ready_not_issued_avg` | IDU/IQ/RF | 平均每周期所有 IQ 中 ready 但没有 `issue_en` 的 entry 数。 | 判断全局 ready entry 是否在队列局部 age-select 中排队。 | 高时说明瓶颈已从源操作数等待转向队列选择或执行入口；LSIQ 通常不贡献该项。 |
+| 151 | `aiq0_ready_not_issued_avg` | IDU/IQ/RF | 平均每周期 AIQ0 中 ready 但被更老 ready entry 压住的 entry 数。 | 判断 ALU0 队列内 age-select 排队强度。 | 需要和 `aiq0_issue_select_avg`、RF pipe0 指标配合。 |
+| 152 | `aiq1_ready_not_issued_avg` | IDU/IQ/RF | 平均每周期 AIQ1 中 ready 但被更老 ready entry 压住的 entry 数。 | 判断 ALU1/乘法队列内 age-select 排队强度。 | 需要和 `aiq1_issue_select_avg`、RF pipe1 指标配合。 |
+| 153 | `biq_ready_not_issued_avg` | IDU/IQ/RF | 平均每周期 BIQ 中 ready 但被更老 ready branch 压住的 entry 数。 | 判断 branch ready 后是否在 BIQ 内部排队。 | 高时可能推迟分支解析并增加错误路径执行时间。 |
+| 154 | `lsiq_ready_not_issued_avg` | LSU/Cache | 平均每周期 LSIQ 中 ready 但没有 issue_en 的 load entry 数。 | 一致性占位，通常应接近 0。 | RTL 中 `lsiq_entry_issue_en = lsiq_entry_ready`，下游限制看 LSIQ pop、AG/DC 和 replay。 |
+| 155 | `sdiq_ready_not_issued_avg` | LSU/Cache | 平均每周期 SDIQ 中 ready 但被更老 ready store 压住的 entry 数。 | 判断 store 队列内 age-select 排队强度。 | 下游 WMB/SQ 限制还要结合 WMB/SQ pop、store commit 和 store data path。 |
+| 156 | `viq0_ready_not_issued_avg` | IDU/IQ/RF | 平均每周期 VIQ0 中 ready 但被更老 ready vector/FP entry 压住的 entry 数。 | 判断 VFPU pipe6 侧队列内 age-select 排队强度。 | 结合 VFPU pipe6 issue 和 RF pipe6 launch fail。 |
+| 157 | `viq1_ready_not_issued_avg` | IDU/IQ/RF | 平均每周期 VIQ1 中 ready 但被更老 ready vector/FP entry 压住的 entry 数。 | 判断 VFPU pipe7 侧队列内 age-select 排队强度。 | 结合 VFPU pipe7 issue 和 RF pipe7 launch fail。 |
+| 158 | `rf_src_no_rdy_width_avg` | IDU/RF | 平均每周期 RF 阶段所有 pipe、所有源操作数 no-ready 的数量。 | 判断 issue 后进入 RF 的源未就绪压力总量。 | 同一周期多个 pipe/多个源可同时计数；它比 `rf_pipe*_src_no_rdy` 更能看总压力。 |
+| 159 | `rf_pipe0_src_no_rdy_avg` | IDU/RF | 平均每周期 pipe0 的 src0/src1/src2 no-ready 数量。 | 判断 ALU0/整数 pipe0 的 RF 源等待压力。 | 需和 747-749 看具体源。 |
+| 160 | `rf_pipe1_src_no_rdy_avg` | IDU/RF | 平均每周期 pipe1 的 src0/src1/src2 no-ready 数量。 | 判断 ALU1/乘法相关 pipe1 的 RF 源等待压力。 | 需和 750-752 看具体源。 |
+| 161 | `rf_pipe2_src_no_rdy_avg` | IDU/RF | 平均每周期 pipe2 的 src0/src1 no-ready 数量。 | 判断 branch/整数 pipe2 的 RF 源等待压力。 | 需和 753-754 看具体源。 |
+| 162 | `rf_pipe3_src_no_rdy_avg` | IDU/RF | 平均每周期 pipe3 的 src0/src1/srcvm no-ready 数量。 | 判断 load 相关 pipe3 的地址、数据或 mask 源等待。 | 需结合 LSIQ、load replay 和 dcache 指标。 |
+| 163 | `rf_pipe4_src_no_rdy_avg` | IDU/RF | 平均每周期 pipe4 的 src0/src1/srcvm no-ready 数量。 | 判断 vector/FP 或 load 相关 pipe4 的源等待。 | 需结合 VIQ/VFPU 和 vreg 指标。 |
+| 164 | `rf_pipe5_src_no_rdy_avg` | IDU/RF | 平均每周期 pipe5 的 src0/srcv0/staddr no-ready 数量。 | 判断 store 相关 pipe5 的地址、数据、store-address ready 压力。 | Dhrystone 中 pipe5 异常时优先看 761-763。 |
+| 165 | `rf_pipe6_src_no_rdy_avg` | IDU/RF | 平均每周期 pipe6 的 srcv0/srcv1/srcv2/srcvm no-ready 数量。 | 判断 VFPU pipe6 源等待压力。 | 只对 FP/vector case 解释价值高。 |
+| 166 | `rf_pipe7_src_no_rdy_avg` | IDU/RF | 平均每周期 pipe7 的 srcv0/srcv1/srcv2/srcvm no-ready 数量。 | 判断 VFPU pipe7 源等待压力。 | 只对 FP/vector case 解释价值高。 |
+| 167 | `rf_other_fail_width_avg` | IDU/RF | 平均每周期 RF other launch fail 子原因数量。 | 判断 RF 失败是否来自特殊结构原因，而不是普通源未就绪。 | 具体原因看 168-175 或 detail 773-780。 |
+| 168 | `rf_pipe0_vdiv_mtvr_avg` | IDU/RF | pipe0 因 vdiv/mtvr 相关结构条件导致 launch fail 的平均强度。 | 定位 pipe0 与向量/特殊传送路径冲突。 | 普通整数 case 中通常应低。 |
+| 169 | `rf_pipe3_preg_fail_avg` | IDU/RF | pipe3 因整数物理寄存器读条件导致 launch fail 的平均强度。 | 判断 load 地址 pipe 的 PREG 读端口/条件压力。 | 与 35 旧指标同源，但这里纳入 other fail 汇总。 |
+| 170 | `rf_pipe3_vreg_fail_avg` | IDU/RF | pipe3 因 vreg/freg 读条件导致 launch fail 的平均强度。 | 判断 pipe3 向量寄存器相关结构限制。 | 主要用于 FP/vector 或 vload 场景。 |
+| 171 | `rf_pipe4_vreg_fail_avg` | IDU/RF | pipe4 因 vreg/freg 读条件导致 launch fail 的平均强度。 | 判断 pipe4 向量寄存器相关结构限制。 | 主要用于 FP/vector 场景。 |
+| 172 | `rf_pipe5_preg_fail_avg` | IDU/RF | pipe5 因整数物理寄存器读条件导致 launch fail 的平均强度。 | 判断 store address/data 相关 PREG 条件是否限制发射。 | 与 36 旧指标同源，但这里纳入 other fail 汇总。 |
+| 173 | `rf_pipe6_div_mfvr_avg` | IDU/RF | pipe6 因 div/mfvr 相关结构条件导致 launch fail 的平均强度。 | 定位 VFPU pipe6 与特殊数据传送/除法路径冲突。 | 普通整数 case 中通常应低。 |
+| 174 | `rf_pipe6_vmul_unsplit_avg` | IDU/RF | pipe6 因 vmul unsplit 相关条件导致 launch fail 的平均强度。 | 定位向量乘法拆分/未拆分路径限制。 | 主要用于 vector case。 |
+| 175 | `rf_pipe7_mult_mfvr_avg` | IDU/RF | pipe7 因 mult/mfvr 相关结构条件导致 launch fail 的平均强度。 | 定位 VFPU pipe7 与乘法/特殊数据传送路径冲突。 | 普通整数 case 中通常应低。 |
+| 176 | `lsu_replay_discard_avg` | LSU/Cache | 平均每周期 LSU replay/discard 相关事件数量。 | 判断 LSU 内部 replay、SQ discard、LFB/RB/LM discard 压力。 | 是多个 replay/discard 源的宽度求和，具体原因看 detail 781-782、667-670 等。 |
+| 177 | `lsu_sq_fwd_width_avg` | LSU/Cache | 平均每周期 SQ 到 load DC 的 forward 相关事件数量。 | 判断 store-to-load forwarding 活跃度和复杂度。 | forward 活跃不一定是坏事，需结合 cancel/discard/spec fail。 |
+| 178 | `lsu_sq_cancel_width_avg` | LSU/Cache | 平均每周期 SQ cancel access 或 ahead writeback cancel 数量。 | 判断 SQ forward/访问取消是否造成 replay 或访问浪费。 | 高时优先查 store-load 相关性和数据/地址 ready。 |
+| 179 | `lsu_wait_old_width_avg` | LSU/Cache | 平均每周期 LSIQ entry 因等待更老访存/atomic/restart 条件的数量。 | 判断 load/store 是否被 older memory ordering 限制。 | `ld_da_wait_old` 在当前 RTL 中可能为 0，需看 `ld_ag/st_ag/wait_old` 主项。 |
+| 180 | `lsu_queue_full_width_avg` | LSU/Cache | 平均每周期 LQ/SQ/RB 不可再接收的队列数量。 | 判断 LSU 资源满是否反压 issue/dispatch。 | 这是 IDU 可见 not-full 口径，不等于所有 LSU 内部 buffer 都满。 |
+| 181 | `producer_alu0_avg` | IDU/RF | 平均每周期 ALU0/PREG producer launch valid 活动。 | 估计整数 producer 唤醒机会。 | 这是 producer 活动，不是消费者等待 ALU0 的精确归因。 |
+| 182 | `producer_alu1_avg` | IDU/RF | 平均每周期 ALU1/PREG producer launch valid 活动。 | 估计整数 producer 唤醒机会。 | 这是 producer 活动，不是消费者等待 ALU1 的精确归因。 |
+| 183 | `producer_mult_avg` | IU | 平均每周期乘法 producer valid 活动。 | 估计乘法结果/唤醒活动。 | 这是 producer 活动，不是消费者等待乘法的精确归因。 |
+| 184 | `producer_div_avg` | IU | 平均每周期除法 producer valid 活动。 | 估计长延迟除法结果活动。 | 除法低频但单次代价可能大，需结合 DIV latency/issue。 |
+| 185 | `producer_load_fwd_avg` | LSU/Cache | 平均每周期标量 load forward producer 活动。 | 观察 load producer 唤醒机会。 | 高时结合 load dependency not-ready 和 RF no-ready 判断 load-use。 |
+| 186 | `producer_vload_fwd_avg` | LSU/Cache | 平均每周期 vector load forward producer 活动。 | 观察 vload producer 唤醒机会。 | 主要用于 FP/vector benchmark。 |
+| 187 | `producer_vfpu6_avg` | VFPU | 平均每周期 VFPU pipe6 producer 数据 valid 活动。 | 观察 VFPU pipe6 结果活动。 | 这是活动计数，不是消费者等待分类。 |
+| 188 | `producer_vfpu7_avg` | VFPU | 平均每周期 VFPU pipe7 producer 数据 valid 活动。 | 观察 VFPU pipe7 结果活动。 | 这是活动计数，不是消费者等待分类。 |
+| 189 | `producer_wakeup_width_avg` | IDU/IU/LSU/VFPU | 平均每周期所有已暴露 producer 活动数量。 | 粗看生产者结果/前递供给强度，与 IQ 等待压力对照。 | 不能作为“等待谁”的精确分母；精确 producer 等待需要 dep entry 保存 producer 类型或增加逐 entry trace。 |
 
 ## Latency 延迟分布完整字典
 
@@ -1015,12 +1211,13 @@ smart_run/results/<tag>_<git>_<clean|dirty>/
 | 每个 ROB entry age | 现在有 ROB head 和 occupancy | 在 ROB entry 内加 create/complete/commit 时间戳 |
 | 全 outstanding transaction latency | 现在有 outstanding depth 和单 active 延迟窗口 | 按 AXI ID 或 miss entry 建多槽计时器 |
 | store-to-load forwarding 成功率 | 现在有 forward request、cancel、discard、spec fail | 定义统一 attempt/success/fail/violation 事件，并按 load 追踪 |
+| 非 load producer 精确等待分类 | 现在有 IQ 源等待、load/nonload 粗分类、RF 源 no-ready、producer 活动计数 | 在 dep entry 或 trace 中保存 producer class，才能精确区分等待 ALU、MUL、DIV、VFPU、CSR |
 | 完整 predictor 表质量 | 现在有 L0/indirect/RAS/BHT 侧信号 | 每个 predictor lookup/hit/miss/correct/update/alias 统计 |
 | cache bank/tag/data conflict | 现在有 D-cache arbiter req/grant/tag/data | cache 内部 bank/port/MSHR/LFB allocate fail 计数 |
 
 ## 对当前指标正确性的结论
 
-1. 层级引用和信号拼写是正确的：静态检查 663 个引用无缺失。
+1. 本次新增的 IQ source-ready、RF DP source no-ready、RF CTRL launch fail 子原因、LSU SQ/replay/wait-old 层级引用已逐项核对到对应 RTL，信号拼写和模块来源一致。
 2. 直接事件和 profile 的准确性较高，适合做性能瓶颈定位。
 3. latency 类指标有意保持轻量，属于代表性 episode，不是全量事务追踪。
 4. CPI stack 是 testbench 近似分类，不是硬件正式 PMU 归因。
