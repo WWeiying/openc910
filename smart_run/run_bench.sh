@@ -18,7 +18,7 @@ TAG=${1:-"run"}
 BENCH_CASES=${BENCH_CASES:-"coremark dhrystone \
     bench_branch bench_mem bench_ilp bench_frontend bench_fp \
     bench_br_bimodal bench_br_ras bench_br_indirect bench_br_corr \
-    bench_cache_stride bench_cache_cap \
+    bench_cache_stride \
     spec_cactubssn_stencil_kernel spec_deepsjeng_search_kernel \
     spec_exchange2_search_kernel spec_lbm_stream_kernel \
     spec_leela_playout_kernel spec_mcf_kernel spec_mcf_sort_kernel \
