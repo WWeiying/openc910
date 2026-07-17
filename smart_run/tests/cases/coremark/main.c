@@ -24,7 +24,7 @@ El Dorado Hills, CA, 95762
 #include "coremark.h"
 #include "timer.h"
 
-#ifdef VCUNT_SIM
+	#ifdef VCUNT_SIM
   #include "vtimer.h"
   extern unsigned int get_vtimer();
   int vtimer_start;
@@ -58,7 +58,7 @@ void *iterate(void *pres) {
 	res->crcmatrix=0;
 	res->crcstate=0;
 
-#ifdef VCUNT_SIM
+	#if defined(VCUNT_SIM) && !defined(KERNEL_CHARACTERIZATION)
   vtimer_start= get_vtimer();
 #endif
 	for (i=0; i<iterations; i++) {
@@ -69,7 +69,7 @@ void *iterate(void *pres) {
 		if (i==0) res->crclist=res->crc;
 	}
 
-#ifdef VCUNT_SIM
+#if defined(VCUNT_SIM) && !defined(KERNEL_CHARACTERIZATION)
 
   #define FREQ 100000000 
   
@@ -423,4 +423,3 @@ MAIN_RETURN_TYPE main(int argc, char *argv[]) {
 
 	return MAIN_RETURN_VAL;	
 }
-

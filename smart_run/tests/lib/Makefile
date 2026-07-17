@@ -52,6 +52,43 @@ endif
 CFLAGS = ${FLAG_MARCH} ${FLAG_ABI} ${LLVM_OPTION}
 
 COREMARK_ITERATIONS ?= 30
+EXTRA_CFLAGS ?=
+KERNEL_CHARACTERIZATION ?= 0
+SPEC_COMPOSITION_SCALE ?= 1
+SPEC_SPEED_INDEPENDENT_CASES := \
+  spec_600_perlbench_speed_kernel spec_602_gcc_speed_kernel \
+  spec_603_bwaves_speed_kernel spec_607_cactubssn_speed_kernel \
+  spec_619_lbm_speed_kernel spec_620_omnetpp_speed_kernel \
+  spec_621_wrf_speed_kernel spec_623_xalancbmk_speed_kernel \
+  spec_625_x264_speed_kernel spec_627_cam4_speed_kernel \
+  spec_631_deepsjeng_speed_kernel spec_638_imagick_speed_kernel \
+  spec_641_leela_speed_kernel spec_644_nab_speed_kernel \
+  spec_648_exchange2_speed_kernel spec_649_fotonik3d_speed_kernel \
+  spec_654_roms_speed_kernel spec_657_xz_speed_kernel
+ifeq (${SPEC_COMPOSITE_PROFILE}, full)
+ifneq ($(filter ${CASENAME},spec_644_nab_speed_kernel),)
+SPEC_COMPOSITION_SCALE := 1
+else ifneq ($(filter ${CASENAME},spec_607_cactubssn_speed_kernel spec_620_omnetpp_speed_kernel spec_627_cam4_speed_kernel),)
+SPEC_COMPOSITION_SCALE := 2
+else ifneq ($(filter ${CASENAME},spec_600_perlbench_speed_kernel spec_619_lbm_speed_kernel spec_621_wrf_speed_kernel spec_649_fotonik3d_speed_kernel spec_657_xz_speed_kernel),)
+SPEC_COMPOSITION_SCALE := 3
+else ifneq ($(filter ${CASENAME},spec_654_roms_speed_kernel),)
+SPEC_COMPOSITION_SCALE := 4
+else ifneq ($(filter ${CASENAME},spec_623_xalancbmk_speed_kernel spec_638_imagick_speed_kernel),)
+SPEC_COMPOSITION_SCALE := 7
+else ifneq ($(filter ${CASENAME},spec_603_bwaves_speed_kernel),)
+SPEC_COMPOSITION_SCALE := 8
+else ifneq ($(filter ${CASENAME},spec_602_gcc_speed_kernel spec_625_x264_speed_kernel),)
+SPEC_COMPOSITION_SCALE := 9
+else ifneq ($(filter ${CASENAME},spec_641_leela_speed_kernel),)
+SPEC_COMPOSITION_SCALE := 10
+else ifneq ($(filter ${CASENAME},spec_648_exchange2_speed_kernel),)
+SPEC_COMPOSITION_SCALE := 17
+else ifneq ($(filter ${CASENAME},spec_631_deepsjeng_speed_kernel),)
+SPEC_COMPOSITION_SCALE := 24
+endif
+endif
+CFLAGS += -DSPEC_COMPOSITION_SCALE=${SPEC_COMPOSITION_SCALE}
 
 ifeq (${CASENAME}, coremark)
   #CFLAGS += -c -O3 -mtune=c910 -static -funroll-all-loops -finline-limit=500 -fgcse-sm -fno-schedule-insns --param max-rtl-if-conversion-unpredictable-cost=100 -DITERATIONS=10000
@@ -93,8 +130,81 @@ else ifeq (${CASENAME}, spec_mcf_sort_kernel)
     -DSPEC_MCF_SORT_ITEMS=${SPEC_MCF_SORT_ITEMS} \
     -DSPEC_MCF_SORT_PASSES=${SPEC_MCF_SORT_PASSES}
   SFLAGS = -march=rv64imafdcvxtheadc -mabi=lp64d -c -O2
+else ifeq (${CASENAME}, spec_505_mcf_composite_kernel)
+  SPEC_COMPOSITE_PROFILE ?= quick
+  ifeq (${SPEC_COMPOSITE_PROFILE}, full)
+    SPEC_MCF_COMPOSITE_SORT_ITEMS ?= 1400
+    SPEC_MCF_COMPOSITE_PRICE_NODES ?= 4096
+    SPEC_MCF_COMPOSITE_PRICE_ARCS ?= 13250
+    SPEC_MCF_COMPOSITE_PRICE_BASKET ?= 8
+    SPEC_MCF_COMPOSITE_SORT_ROUNDS ?= 1
+    SPEC_MCF_COMPOSITE_SORT_TAIL_ITEMS ?= 0
+    SPEC_MCF_COMPOSITE_PRICE_ROUNDS ?= 1
+    SPEC_MCF_COMPOSITE_WARMUP ?= 1
+  else ifeq (${SPEC_COMPOSITE_PROFILE}, quick)
+    SPEC_MCF_COMPOSITE_SORT_ITEMS ?= 96
+    SPEC_MCF_COMPOSITE_PRICE_NODES ?= 32
+    SPEC_MCF_COMPOSITE_PRICE_ARCS ?= 96
+    SPEC_MCF_COMPOSITE_PRICE_BASKET ?= 8
+    SPEC_MCF_COMPOSITE_SORT_ROUNDS ?= 1
+    SPEC_MCF_COMPOSITE_SORT_TAIL_ITEMS ?= 8
+    SPEC_MCF_COMPOSITE_PRICE_ROUNDS ?= 4
+    SPEC_MCF_COMPOSITE_WARMUP ?= 0
+  else
+    $(error SPEC_COMPOSITE_PROFILE must be quick or full)
+  endif
+  CFLAGS += -c -O2 \
+    -DMCF_SORT_ITEMS=${SPEC_MCF_COMPOSITE_SORT_ITEMS} \
+    -DMCF_PRICE_NODES=${SPEC_MCF_COMPOSITE_PRICE_NODES} \
+    -DMCF_PRICE_ARCS=${SPEC_MCF_COMPOSITE_PRICE_ARCS} \
+    -DMCF_PRICE_BASKET=${SPEC_MCF_COMPOSITE_PRICE_BASKET} \
+    -DSPEC_MCF_COMPOSITE_SORT_ROUNDS=${SPEC_MCF_COMPOSITE_SORT_ROUNDS} \
+    -DSPEC_MCF_COMPOSITE_SORT_TAIL_ITEMS=${SPEC_MCF_COMPOSITE_SORT_TAIL_ITEMS} \
+    -DSPEC_MCF_COMPOSITE_PRICE_ROUNDS=${SPEC_MCF_COMPOSITE_PRICE_ROUNDS} \
+    -DSPEC_MCF_COMPOSITE_WARMUP=${SPEC_MCF_COMPOSITE_WARMUP}
+  SFLAGS = -march=rv64imafdcvxtheadc -mabi=lp64d -c -O2
+else ifeq (${CASENAME}, spec_605_mcf_composite_kernel)
+  SPEC_COMPOSITE_PROFILE ?= quick
+  ifeq (${SPEC_COMPOSITE_PROFILE}, full)
+    SPEC_MCF_COMPOSITE_SORT_ITEMS ?= 1400
+    SPEC_MCF_COMPOSITE_PRICE_NODES ?= 4096
+    SPEC_MCF_COMPOSITE_PRICE_ARCS ?= 10330
+    SPEC_MCF_COMPOSITE_PRICE_BASKET ?= 8
+    SPEC_MCF_COMPOSITE_SORT_ROUNDS ?= 1
+    SPEC_MCF_COMPOSITE_SORT_TAIL_ITEMS ?= 0
+    SPEC_MCF_COMPOSITE_PRICE_ROUNDS ?= 1
+    SPEC_MCF_COMPOSITE_WARMUP ?= 1
+  else ifeq (${SPEC_COMPOSITE_PROFILE}, quick)
+    SPEC_MCF_COMPOSITE_SORT_ITEMS ?= 96
+    SPEC_MCF_COMPOSITE_PRICE_NODES ?= 32
+    SPEC_MCF_COMPOSITE_PRICE_ARCS ?= 96
+    SPEC_MCF_COMPOSITE_PRICE_BASKET ?= 8
+    SPEC_MCF_COMPOSITE_SORT_ROUNDS ?= 1
+    SPEC_MCF_COMPOSITE_SORT_TAIL_ITEMS ?= 44
+    SPEC_MCF_COMPOSITE_PRICE_ROUNDS ?= 3
+    SPEC_MCF_COMPOSITE_WARMUP ?= 0
+  else
+    $(error SPEC_COMPOSITE_PROFILE must be quick or full)
+  endif
+  CFLAGS += -c -O2 \
+    -DMCF_SORT_ITEMS=${SPEC_MCF_COMPOSITE_SORT_ITEMS} \
+    -DMCF_PRICE_NODES=${SPEC_MCF_COMPOSITE_PRICE_NODES} \
+    -DMCF_PRICE_ARCS=${SPEC_MCF_COMPOSITE_PRICE_ARCS} \
+    -DMCF_PRICE_BASKET=${SPEC_MCF_COMPOSITE_PRICE_BASKET} \
+    -DSPEC_MCF_COMPOSITE_SORT_ROUNDS=${SPEC_MCF_COMPOSITE_SORT_ROUNDS} \
+    -DSPEC_MCF_COMPOSITE_SORT_TAIL_ITEMS=${SPEC_MCF_COMPOSITE_SORT_TAIL_ITEMS} \
+    -DSPEC_MCF_COMPOSITE_PRICE_ROUNDS=${SPEC_MCF_COMPOSITE_PRICE_ROUNDS} \
+    -DSPEC_MCF_COMPOSITE_WARMUP=${SPEC_MCF_COMPOSITE_WARMUP}
+  SFLAGS = -march=rv64imafdcvxtheadc -mabi=lp64d -c -O2
 else ifeq (${CASENAME}, spec_xz_lzma_kernel)
-  ifeq (${SPEC_XZ_REPRESENTATIVE}, 1)
+  ifeq (${SPEC_COMPOSITE_PROFILE}, full)
+    SPEC_COMPOSITION_SCALE := 3
+    SPEC_XZ_BYTES ?= 512
+    SPEC_XZ_DICT ?= 1024
+    SPEC_XZ_PASSES ?= 1
+    SPEC_XZ_PROBES ?= 12
+    SPEC_XZ_RANGE_STEPS ?= 4
+  else ifeq (${SPEC_XZ_REPRESENTATIVE}, 1)
     SPEC_XZ_BYTES ?= 2048
     SPEC_XZ_DICT ?= 4096
     SPEC_XZ_PASSES ?= 2
@@ -115,7 +225,14 @@ else ifeq (${CASENAME}, spec_xz_lzma_kernel)
     -DSPEC_XZ_RANGE_STEPS=${SPEC_XZ_RANGE_STEPS}
   SFLAGS = -march=rv64imafdcvxtheadc -mabi=lp64d -c -O2
 else ifeq (${CASENAME}, spec_x264_pixel_kernel)
-  ifeq (${SPEC_X264_REPRESENTATIVE}, 1)
+  ifeq (${SPEC_COMPOSITE_PROFILE}, full)
+    SPEC_COMPOSITION_SCALE := 2
+    SPEC_X264_WIDTH ?= 24
+    SPEC_X264_HEIGHT ?= 24
+    SPEC_X264_BLOCKS ?= 1
+    SPEC_X264_PASSES ?= 1
+    SPEC_X264_CANDIDATES ?= 1
+  else ifeq (${SPEC_X264_REPRESENTATIVE}, 1)
     SPEC_X264_WIDTH ?= 48
     SPEC_X264_HEIGHT ?= 40
     SPEC_X264_BLOCKS ?= 48
@@ -136,7 +253,13 @@ else ifeq (${CASENAME}, spec_x264_pixel_kernel)
     -DSPEC_X264_CANDIDATES=${SPEC_X264_CANDIDATES}
   SFLAGS = -march=rv64imafdcvxtheadc -mabi=lp64d -c -O2
 else ifeq (${CASENAME}, spec_deepsjeng_search_kernel)
-  ifeq (${SPEC_DEEPSJENG_REPRESENTATIVE}, 1)
+  ifeq (${SPEC_COMPOSITE_PROFILE}, full)
+    SPEC_COMPOSITION_SCALE := 1
+    SPEC_DEEPSJENG_POSITIONS ?= 1
+    SPEC_DEEPSJENG_DEPTH ?= 1
+    SPEC_DEEPSJENG_MOVES ?= 8
+    SPEC_DEEPSJENG_QMOVES ?= 0
+  else ifeq (${SPEC_DEEPSJENG_REPRESENTATIVE}, 1)
     SPEC_DEEPSJENG_POSITIONS ?= 4
     SPEC_DEEPSJENG_DEPTH ?= 2
     SPEC_DEEPSJENG_MOVES ?= 16
@@ -154,7 +277,13 @@ else ifeq (${CASENAME}, spec_deepsjeng_search_kernel)
     -DSPEC_DEEPSJENG_QMOVES=${SPEC_DEEPSJENG_QMOVES}
   SFLAGS = -march=rv64imafdcvxtheadc -mabi=lp64d -c -O2
 else ifeq (${CASENAME}, spec_leela_playout_kernel)
-  ifeq (${SPEC_LEELA_REPRESENTATIVE}, 1)
+  ifeq (${SPEC_COMPOSITE_PROFILE}, full)
+    SPEC_COMPOSITION_SCALE := 4
+    SPEC_LEELA_BOARD ?= 13
+    SPEC_LEELA_PLAYOUTS ?= 2
+    SPEC_LEELA_MOVES ?= 12
+    SPEC_LEELA_CHILDREN ?= 16
+  else ifeq (${SPEC_LEELA_REPRESENTATIVE}, 1)
     SPEC_LEELA_BOARD ?= 13
     SPEC_LEELA_PLAYOUTS ?= 8
     SPEC_LEELA_MOVES ?= 32
@@ -172,7 +301,13 @@ else ifeq (${CASENAME}, spec_leela_playout_kernel)
     -DSPEC_LEELA_CHILDREN=${SPEC_LEELA_CHILDREN}
   SFLAGS = -march=rv64imafdcvxtheadc -mabi=lp64d -c -O2
 else ifeq (${CASENAME}, spec_exchange2_search_kernel)
-  ifeq (${SPEC_EXCHANGE2_REPRESENTATIVE}, 1)
+  ifeq (${SPEC_COMPOSITE_PROFILE}, full)
+    SPEC_COMPOSITION_SCALE := 16
+    SPEC_EXCHANGE2_POSITIONS ?= 1
+    SPEC_EXCHANGE2_DEPTH ?= 2
+    SPEC_EXCHANGE2_MOVES ?= 6
+    SPEC_EXCHANGE2_TABLE ?= 64
+  else ifeq (${SPEC_EXCHANGE2_REPRESENTATIVE}, 1)
     SPEC_EXCHANGE2_POSITIONS ?= 4
     SPEC_EXCHANGE2_DEPTH ?= 4
     SPEC_EXCHANGE2_MOVES ?= 14
@@ -190,7 +325,12 @@ else ifeq (${CASENAME}, spec_exchange2_search_kernel)
     -DSPEC_EXCHANGE2_TABLE=${SPEC_EXCHANGE2_TABLE}
   SFLAGS = -march=rv64imafdcvxtheadc -mabi=lp64d -c -O2
 else ifeq (${CASENAME}, spec_cactubssn_stencil_kernel)
-  ifeq (${SPEC_CACTU_REPRESENTATIVE}, 1)
+  ifeq (${SPEC_COMPOSITE_PROFILE}, full)
+    SPEC_COMPOSITION_SCALE := 1
+    SPEC_CACTU_N ?= 6
+    SPEC_CACTU_STEPS ?= 1
+    SPEC_CACTU_TENSORS ?= 3
+  else ifeq (${SPEC_CACTU_REPRESENTATIVE}, 1)
     SPEC_CACTU_N ?= 12
     SPEC_CACTU_STEPS ?= 3
     SPEC_CACTU_TENSORS ?= 6
@@ -205,7 +345,12 @@ else ifeq (${CASENAME}, spec_cactubssn_stencil_kernel)
     -DSPEC_CACTU_TENSORS=${SPEC_CACTU_TENSORS}
   SFLAGS = -march=rv64imafdcvxtheadc -mabi=lp64d -c -O2
 else ifeq (${CASENAME}, spec_lbm_stream_kernel)
-  ifeq (${SPEC_LBM_REPRESENTATIVE}, 1)
+  ifeq (${SPEC_COMPOSITE_PROFILE}, full)
+    SPEC_COMPOSITION_SCALE := 3
+    SPEC_LBM_CELLS ?= 24
+    SPEC_LBM_STEPS ?= 1
+    SPEC_LBM_Q ?= 19
+  else ifeq (${SPEC_LBM_REPRESENTATIVE}, 1)
     SPEC_LBM_CELLS ?= 384
     SPEC_LBM_STEPS ?= 4
     SPEC_LBM_Q ?= 19
@@ -234,8 +379,67 @@ else ifeq (${CASENAME}, spec_parest_sparse_kernel)
     -DSPEC_PAREST_NNZ_PER_ROW=${SPEC_PAREST_NNZ_PER_ROW} \
     -DSPEC_PAREST_ITERS=${SPEC_PAREST_ITERS}
   SFLAGS = -march=rv64imafdcvxtheadc -mabi=lp64d -c -O2
+else ifeq (${CASENAME}, spec_parest_dof_kernel)
+  ifeq (${SPEC_PAREST_DOF_REPRESENTATIVE}, 1)
+    SPEC_PAREST_DOF_N ?= 64
+    SPEC_PAREST_DOF_WIDTH ?= 8
+    SPEC_PAREST_DOF_CONSTRAINTS ?= 12
+    SPEC_PAREST_DOF_PASSES ?= 2
+  else
+    SPEC_PAREST_DOF_N ?= 24
+    SPEC_PAREST_DOF_WIDTH ?= 5
+    SPEC_PAREST_DOF_CONSTRAINTS ?= 4
+    SPEC_PAREST_DOF_PASSES ?= 1
+  endif
+  CFLAGS += -c -O2 \
+    -DSPEC_PAREST_DOF_N=${SPEC_PAREST_DOF_N} \
+    -DSPEC_PAREST_DOF_WIDTH=${SPEC_PAREST_DOF_WIDTH} \
+    -DSPEC_PAREST_DOF_CONSTRAINTS=${SPEC_PAREST_DOF_CONSTRAINTS} \
+    -DSPEC_PAREST_DOF_PASSES=${SPEC_PAREST_DOF_PASSES}
+  SFLAGS = -march=rv64imafdcvxtheadc -mabi=lp64d -c -O2
+else ifeq (${CASENAME}, spec_510_parest_composite_kernel)
+  SPEC_COMPOSITE_PROFILE ?= quick
+  ifeq (${SPEC_COMPOSITE_PROFILE}, full)
+    SPEC_PAREST_COMPOSITE_DOF_N ?= 42
+    SPEC_PAREST_COMPOSITE_DOF_WIDTH ?= 8
+    SPEC_PAREST_COMPOSITE_DOF_CONSTRAINTS ?= 4
+    SPEC_PAREST_COMPOSITE_SPARSE_N ?= 3800
+    SPEC_PAREST_COMPOSITE_SPARSE_NZ ?= 8
+    SPEC_PAREST_COMPOSITE_DOF_PASSES ?= 1
+    SPEC_PAREST_COMPOSITE_SPARSE_ITERS ?= 1
+    SPEC_PAREST_COMPOSITE_SPARSE_TAIL_ROWS ?= 0
+    SPEC_PAREST_COMPOSITE_WARMUP ?= 1
+  else ifeq (${SPEC_COMPOSITE_PROFILE}, quick)
+    SPEC_PAREST_COMPOSITE_DOF_N ?= 24
+    SPEC_PAREST_COMPOSITE_DOF_WIDTH ?= 5
+    SPEC_PAREST_COMPOSITE_DOF_CONSTRAINTS ?= 4
+    SPEC_PAREST_COMPOSITE_SPARSE_N ?= 48
+    SPEC_PAREST_COMPOSITE_SPARSE_NZ ?= 5
+    SPEC_PAREST_COMPOSITE_DOF_PASSES ?= 1
+    SPEC_PAREST_COMPOSITE_SPARSE_ITERS ?= 20
+    SPEC_PAREST_COMPOSITE_SPARSE_TAIL_ROWS ?= 13
+    SPEC_PAREST_COMPOSITE_WARMUP ?= 0
+  else
+    $(error SPEC_COMPOSITE_PROFILE must be quick or full)
+  endif
+  CFLAGS += -c -O2 \
+    -DPAREST_DOF_N=${SPEC_PAREST_COMPOSITE_DOF_N} \
+    -DPAREST_DOF_WIDTH=${SPEC_PAREST_COMPOSITE_DOF_WIDTH} \
+    -DPAREST_DOF_CONSTRAINTS=${SPEC_PAREST_COMPOSITE_DOF_CONSTRAINTS} \
+    -DPAREST_SPARSE_N=${SPEC_PAREST_COMPOSITE_SPARSE_N} \
+    -DPAREST_SPARSE_NZ=${SPEC_PAREST_COMPOSITE_SPARSE_NZ} \
+    -DSPEC_PAREST_COMPOSITE_DOF_PASSES=${SPEC_PAREST_COMPOSITE_DOF_PASSES} \
+    -DSPEC_PAREST_COMPOSITE_SPARSE_ITERS=${SPEC_PAREST_COMPOSITE_SPARSE_ITERS} \
+    -DSPEC_PAREST_COMPOSITE_SPARSE_TAIL_ROWS=${SPEC_PAREST_COMPOSITE_SPARSE_TAIL_ROWS} \
+    -DSPEC_PAREST_COMPOSITE_WARMUP=${SPEC_PAREST_COMPOSITE_WARMUP}
+  SFLAGS = -march=rv64imafdcvxtheadc -mabi=lp64d -c -O2
 else ifeq (${CASENAME}, spec_povray_ray_kernel)
-  ifeq (${SPEC_POVRAY_REPRESENTATIVE}, 1)
+  ifeq (${SPEC_COMPOSITE_PROFILE}, full)
+    SPEC_COMPOSITION_SCALE := 8
+    SPEC_POVRAY_RAYS ?= 32
+    SPEC_POVRAY_OBJECTS ?= 8
+    SPEC_POVRAY_BOUNCES ?= 1
+  else ifeq (${SPEC_POVRAY_REPRESENTATIVE}, 1)
     SPEC_POVRAY_RAYS ?= 192
     SPEC_POVRAY_OBJECTS ?= 32
     SPEC_POVRAY_BOUNCES ?= 3
@@ -249,12 +453,374 @@ else ifeq (${CASENAME}, spec_povray_ray_kernel)
     -DSPEC_POVRAY_OBJECTS=${SPEC_POVRAY_OBJECTS} \
     -DSPEC_POVRAY_BOUNCES=${SPEC_POVRAY_BOUNCES}
   SFLAGS = -march=rv64imafdcvxtheadc -mabi=lp64d -c -O2
+else ifeq (${CASENAME}, spec_perlbench_regex_kernel)
+  ifeq (${SPEC_COMPOSITE_PROFILE}, full)
+    SPEC_COMPOSITION_SCALE := 5
+    SPEC_PERLBENCH_ITEMS ?= 64
+    SPEC_PERLBENCH_ITERS ?= 1
+    SPEC_PERLBENCH_STATES ?= 8
+    SPEC_PERLBENCH_DEPTH ?= 3
+  else ifeq (${SPEC_PERLBENCH_REPRESENTATIVE}, 1)
+    SPEC_PERLBENCH_ITEMS ?= 256
+    SPEC_PERLBENCH_ITERS ?= 4
+    SPEC_PERLBENCH_STATES ?= 16
+    SPEC_PERLBENCH_DEPTH ?= 6
+  else
+    SPEC_PERLBENCH_ITEMS ?= 64
+    SPEC_PERLBENCH_ITERS ?= 1
+    SPEC_PERLBENCH_STATES ?= 8
+    SPEC_PERLBENCH_DEPTH ?= 3
+  endif
+  CFLAGS += -c -O2 \
+    -DSPEC_PERLBENCH_ITEMS=${SPEC_PERLBENCH_ITEMS} \
+    -DSPEC_PERLBENCH_ITERS=${SPEC_PERLBENCH_ITERS} \
+    -DSPEC_PERLBENCH_STATES=${SPEC_PERLBENCH_STATES} \
+    -DSPEC_PERLBENCH_DEPTH=${SPEC_PERLBENCH_DEPTH}
+  SFLAGS = -march=rv64imafdcvxtheadc -mabi=lp64d -c -O2
+else ifeq (${CASENAME}, spec_gcc_compile_kernel)
+  ifeq (${SPEC_COMPOSITE_PROFILE}, full)
+    SPEC_COMPOSITION_SCALE := 7
+    SPEC_GCC_ITEMS ?= 64
+    SPEC_GCC_ITERS ?= 1
+    SPEC_GCC_WIDTH ?= 8
+    SPEC_GCC_DEPTH ?= 4
+  else ifeq (${SPEC_GCC_REPRESENTATIVE}, 1)
+    SPEC_GCC_ITEMS ?= 192
+    SPEC_GCC_ITERS ?= 4
+    SPEC_GCC_WIDTH ?= 16
+    SPEC_GCC_DEPTH ?= 8
+  else
+    SPEC_GCC_ITEMS ?= 64
+    SPEC_GCC_ITERS ?= 1
+    SPEC_GCC_WIDTH ?= 8
+    SPEC_GCC_DEPTH ?= 4
+  endif
+  CFLAGS += -c -O2 \
+    -DSPEC_GCC_ITEMS=${SPEC_GCC_ITEMS} \
+    -DSPEC_GCC_ITERS=${SPEC_GCC_ITERS} \
+    -DSPEC_GCC_WIDTH=${SPEC_GCC_WIDTH} \
+    -DSPEC_GCC_DEPTH=${SPEC_GCC_DEPTH}
+  SFLAGS = -march=rv64imafdcvxtheadc -mabi=lp64d -c -O2
+else ifeq (${CASENAME}, spec_omnetpp_event_kernel)
+  ifeq (${SPEC_COMPOSITE_PROFILE}, full)
+    SPEC_COMPOSITION_SCALE := 2
+    SPEC_OMNETPP_EVENTS ?= 64
+    SPEC_OMNETPP_ITERS ?= 1
+    SPEC_OMNETPP_WIDTH ?= 6
+    SPEC_OMNETPP_DEPTH ?= 3
+  else ifeq (${SPEC_OMNETPP_REPRESENTATIVE}, 1)
+    SPEC_OMNETPP_EVENTS ?= 192
+    SPEC_OMNETPP_ITERS ?= 4
+    SPEC_OMNETPP_WIDTH ?= 12
+    SPEC_OMNETPP_DEPTH ?= 5
+  else
+    SPEC_OMNETPP_EVENTS ?= 64
+    SPEC_OMNETPP_ITERS ?= 1
+    SPEC_OMNETPP_WIDTH ?= 6
+    SPEC_OMNETPP_DEPTH ?= 3
+  endif
+  CFLAGS += -c -O2 \
+    -DSPEC_OMNETPP_EVENTS=${SPEC_OMNETPP_EVENTS} \
+    -DSPEC_OMNETPP_ITERS=${SPEC_OMNETPP_ITERS} \
+    -DSPEC_OMNETPP_WIDTH=${SPEC_OMNETPP_WIDTH} \
+    -DSPEC_OMNETPP_DEPTH=${SPEC_OMNETPP_DEPTH}
+  SFLAGS = -march=rv64imafdcvxtheadc -mabi=lp64d -c -O2
+else ifeq (${CASENAME}, spec_xalancbmk_xml_kernel)
+  ifeq (${SPEC_COMPOSITE_PROFILE}, full)
+    SPEC_COMPOSITION_SCALE := 4
+    SPEC_XALAN_NODES ?= 64
+    SPEC_XALAN_ITERS ?= 1
+    SPEC_XALAN_ROOTS ?= 6
+    SPEC_XALAN_DEPTH ?= 4
+  else ifeq (${SPEC_XALAN_REPRESENTATIVE}, 1)
+    SPEC_XALAN_NODES ?= 256
+    SPEC_XALAN_ITERS ?= 4
+    SPEC_XALAN_ROOTS ?= 16
+    SPEC_XALAN_DEPTH ?= 8
+  else
+    SPEC_XALAN_NODES ?= 64
+    SPEC_XALAN_ITERS ?= 1
+    SPEC_XALAN_ROOTS ?= 6
+    SPEC_XALAN_DEPTH ?= 4
+  endif
+  CFLAGS += -c -O2 \
+    -DSPEC_XALAN_NODES=${SPEC_XALAN_NODES} \
+    -DSPEC_XALAN_ITERS=${SPEC_XALAN_ITERS} \
+    -DSPEC_XALAN_ROOTS=${SPEC_XALAN_ROOTS} \
+    -DSPEC_XALAN_DEPTH=${SPEC_XALAN_DEPTH}
+  SFLAGS = -march=rv64imafdcvxtheadc -mabi=lp64d -c -O2
+else ifeq (${CASENAME}, spec_bwaves_stencil_kernel)
+  ifeq (${SPEC_COMPOSITE_PROFILE}, full)
+    SPEC_COMPOSITION_SCALE := 2
+    SPEC_BWAVES_CELLS ?= 64
+    SPEC_BWAVES_STEPS ?= 1
+    SPEC_BWAVES_RADIUS ?= 3
+    SPEC_BWAVES_DEPTH ?= 2
+  else ifeq (${SPEC_BWAVES_REPRESENTATIVE}, 1)
+    SPEC_BWAVES_CELLS ?= 384
+    SPEC_BWAVES_STEPS ?= 6
+    SPEC_BWAVES_RADIUS ?= 8
+    SPEC_BWAVES_DEPTH ?= 4
+  else
+    SPEC_BWAVES_CELLS ?= 64
+    SPEC_BWAVES_STEPS ?= 1
+    SPEC_BWAVES_RADIUS ?= 3
+    SPEC_BWAVES_DEPTH ?= 2
+  endif
+  CFLAGS += -c -O2 \
+    -DSPEC_BWAVES_CELLS=${SPEC_BWAVES_CELLS} \
+    -DSPEC_BWAVES_STEPS=${SPEC_BWAVES_STEPS} \
+    -DSPEC_BWAVES_RADIUS=${SPEC_BWAVES_RADIUS} \
+    -DSPEC_BWAVES_DEPTH=${SPEC_BWAVES_DEPTH}
+  SFLAGS = -march=rv64imafdcvxtheadc -mabi=lp64d -c -O2
+else ifeq (${CASENAME}, spec_namd_pair_kernel)
+  ifeq (${SPEC_COMPOSITE_PROFILE}, full)
+    SPEC_COMPOSITION_SCALE := 2
+    SPEC_NAMD_ATOMS ?= 64
+    SPEC_NAMD_STEPS ?= 1
+    SPEC_NAMD_NEIGHBORS ?= 6
+    SPEC_NAMD_DEPTH ?= 2
+  else ifeq (${SPEC_NAMD_REPRESENTATIVE}, 1)
+    SPEC_NAMD_ATOMS ?= 192
+    SPEC_NAMD_STEPS ?= 4
+    SPEC_NAMD_NEIGHBORS ?= 16
+    SPEC_NAMD_DEPTH ?= 4
+  else
+    SPEC_NAMD_ATOMS ?= 64
+    SPEC_NAMD_STEPS ?= 1
+    SPEC_NAMD_NEIGHBORS ?= 6
+    SPEC_NAMD_DEPTH ?= 2
+  endif
+  CFLAGS += -c -O2 \
+    -DSPEC_NAMD_ATOMS=${SPEC_NAMD_ATOMS} \
+    -DSPEC_NAMD_STEPS=${SPEC_NAMD_STEPS} \
+    -DSPEC_NAMD_NEIGHBORS=${SPEC_NAMD_NEIGHBORS} \
+    -DSPEC_NAMD_DEPTH=${SPEC_NAMD_DEPTH}
+  SFLAGS = -march=rv64imafdcvxtheadc -mabi=lp64d -c -O2
+else ifeq (${CASENAME}, spec_wrf_stencil_kernel)
+  ifeq (${SPEC_COMPOSITE_PROFILE}, full)
+    SPEC_COMPOSITION_SCALE := 1
+    SPEC_WRF_CELLS ?= 80
+    SPEC_WRF_STEPS ?= 1
+    SPEC_WRF_RADIUS ?= 3
+    SPEC_WRF_DEPTH ?= 2
+  else ifeq (${SPEC_WRF_REPRESENTATIVE}, 1)
+    SPEC_WRF_CELLS ?= 384
+    SPEC_WRF_STEPS ?= 6
+    SPEC_WRF_RADIUS ?= 8
+    SPEC_WRF_DEPTH ?= 4
+  else
+    SPEC_WRF_CELLS ?= 64
+    SPEC_WRF_STEPS ?= 1
+    SPEC_WRF_RADIUS ?= 3
+    SPEC_WRF_DEPTH ?= 2
+  endif
+  CFLAGS += -c -O2 \
+    -DSPEC_WRF_CELLS=${SPEC_WRF_CELLS} \
+    -DSPEC_WRF_STEPS=${SPEC_WRF_STEPS} \
+    -DSPEC_WRF_RADIUS=${SPEC_WRF_RADIUS} \
+    -DSPEC_WRF_DEPTH=${SPEC_WRF_DEPTH}
+  SFLAGS = -march=rv64imafdcvxtheadc -mabi=lp64d -c -O2
+else ifeq (${CASENAME}, spec_blender_render_kernel)
+  ifeq (${SPEC_COMPOSITE_PROFILE}, full)
+    SPEC_COMPOSITION_SCALE := 1
+    SPEC_BLENDER_RAYS ?= 64
+    SPEC_BLENDER_PASSES ?= 1
+    SPEC_BLENDER_OBJECTS ?= 6
+    SPEC_BLENDER_DEPTH ?= 2
+  else ifeq (${SPEC_BLENDER_REPRESENTATIVE}, 1)
+    SPEC_BLENDER_RAYS ?= 192
+    SPEC_BLENDER_PASSES ?= 4
+    SPEC_BLENDER_OBJECTS ?= 16
+    SPEC_BLENDER_DEPTH ?= 4
+  else
+    SPEC_BLENDER_RAYS ?= 64
+    SPEC_BLENDER_PASSES ?= 1
+    SPEC_BLENDER_OBJECTS ?= 6
+    SPEC_BLENDER_DEPTH ?= 2
+  endif
+  CFLAGS += -c -O2 \
+    -DSPEC_BLENDER_RAYS=${SPEC_BLENDER_RAYS} \
+    -DSPEC_BLENDER_PASSES=${SPEC_BLENDER_PASSES} \
+    -DSPEC_BLENDER_OBJECTS=${SPEC_BLENDER_OBJECTS} \
+    -DSPEC_BLENDER_DEPTH=${SPEC_BLENDER_DEPTH}
+  SFLAGS = -march=rv64imafdcvxtheadc -mabi=lp64d -c -O2
+else ifeq (${CASENAME}, spec_cam4_climate_kernel)
+  ifeq (${SPEC_COMPOSITE_PROFILE}, full)
+    SPEC_COMPOSITION_SCALE := 2
+    SPEC_CAM4_LEVELS ?= 60
+    SPEC_CAM4_STEPS ?= 1
+    SPEC_CAM4_COLUMNS ?= 6
+    SPEC_CAM4_DEPTH ?= 2
+  else ifeq (${SPEC_CAM4_REPRESENTATIVE}, 1)
+    SPEC_CAM4_LEVELS ?= 256
+    SPEC_CAM4_STEPS ?= 4
+    SPEC_CAM4_COLUMNS ?= 16
+    SPEC_CAM4_DEPTH ?= 4
+  else
+    SPEC_CAM4_LEVELS ?= 64
+    SPEC_CAM4_STEPS ?= 1
+    SPEC_CAM4_COLUMNS ?= 6
+    SPEC_CAM4_DEPTH ?= 2
+  endif
+  CFLAGS += -c -O2 \
+    -DSPEC_CAM4_LEVELS=${SPEC_CAM4_LEVELS} \
+    -DSPEC_CAM4_STEPS=${SPEC_CAM4_STEPS} \
+    -DSPEC_CAM4_COLUMNS=${SPEC_CAM4_COLUMNS} \
+    -DSPEC_CAM4_DEPTH=${SPEC_CAM4_DEPTH}
+  SFLAGS = -march=rv64imafdcvxtheadc -mabi=lp64d -c -O2
+else ifeq (${CASENAME}, spec_imagick_filter_kernel)
+  ifeq (${SPEC_COMPOSITE_PROFILE}, full)
+    SPEC_COMPOSITION_SCALE := 6
+    SPEC_IMAGICK_PIXELS ?= 64
+    SPEC_IMAGICK_PASSES ?= 1
+    SPEC_IMAGICK_RADIUS ?= 3
+    SPEC_IMAGICK_DEPTH ?= 2
+  else ifeq (${SPEC_IMAGICK_REPRESENTATIVE}, 1)
+    SPEC_IMAGICK_PIXELS ?= 256
+    SPEC_IMAGICK_PASSES ?= 4
+    SPEC_IMAGICK_RADIUS ?= 8
+    SPEC_IMAGICK_DEPTH ?= 4
+  else
+    SPEC_IMAGICK_PIXELS ?= 64
+    SPEC_IMAGICK_PASSES ?= 1
+    SPEC_IMAGICK_RADIUS ?= 3
+    SPEC_IMAGICK_DEPTH ?= 2
+  endif
+  CFLAGS += -c -O2 \
+    -DSPEC_IMAGICK_PIXELS=${SPEC_IMAGICK_PIXELS} \
+    -DSPEC_IMAGICK_PASSES=${SPEC_IMAGICK_PASSES} \
+    -DSPEC_IMAGICK_RADIUS=${SPEC_IMAGICK_RADIUS} \
+    -DSPEC_IMAGICK_DEPTH=${SPEC_IMAGICK_DEPTH}
+  SFLAGS = -march=rv64imafdcvxtheadc -mabi=lp64d -c -O2
+else ifeq (${CASENAME}, spec_nab_md_kernel)
+  ifeq (${SPEC_COMPOSITE_PROFILE}, full)
+    SPEC_COMPOSITION_SCALE := 3
+    SPEC_NAB_ATOMS ?= 64
+    SPEC_NAB_STEPS ?= 1
+    SPEC_NAB_NEIGHBORS ?= 6
+    SPEC_NAB_DEPTH ?= 2
+  else ifeq (${SPEC_NAB_REPRESENTATIVE}, 1)
+    SPEC_NAB_ATOMS ?= 192
+    SPEC_NAB_STEPS ?= 4
+    SPEC_NAB_NEIGHBORS ?= 16
+    SPEC_NAB_DEPTH ?= 4
+  else
+    SPEC_NAB_ATOMS ?= 64
+    SPEC_NAB_STEPS ?= 1
+    SPEC_NAB_NEIGHBORS ?= 6
+    SPEC_NAB_DEPTH ?= 2
+  endif
+  CFLAGS += -c -O2 \
+    -DSPEC_NAB_ATOMS=${SPEC_NAB_ATOMS} \
+    -DSPEC_NAB_STEPS=${SPEC_NAB_STEPS} \
+    -DSPEC_NAB_NEIGHBORS=${SPEC_NAB_NEIGHBORS} \
+    -DSPEC_NAB_DEPTH=${SPEC_NAB_DEPTH}
+  SFLAGS = -march=rv64imafdcvxtheadc -mabi=lp64d -c -O2
+else ifeq (${CASENAME}, spec_fotonik3d_stencil_kernel)
+  ifeq (${SPEC_COMPOSITE_PROFILE}, full)
+    SPEC_COMPOSITION_SCALE := 8
+    SPEC_FOTONIK_CELLS ?= 64
+    SPEC_FOTONIK_STEPS ?= 1
+    SPEC_FOTONIK_RADIUS ?= 3
+    SPEC_FOTONIK_DEPTH ?= 2
+  else ifeq (${SPEC_FOTONIK_REPRESENTATIVE}, 1)
+    SPEC_FOTONIK_CELLS ?= 384
+    SPEC_FOTONIK_STEPS ?= 6
+    SPEC_FOTONIK_RADIUS ?= 8
+    SPEC_FOTONIK_DEPTH ?= 4
+  else
+    SPEC_FOTONIK_CELLS ?= 64
+    SPEC_FOTONIK_STEPS ?= 1
+    SPEC_FOTONIK_RADIUS ?= 3
+    SPEC_FOTONIK_DEPTH ?= 2
+  endif
+  CFLAGS += -c -O2 \
+    -DSPEC_FOTONIK_CELLS=${SPEC_FOTONIK_CELLS} \
+    -DSPEC_FOTONIK_STEPS=${SPEC_FOTONIK_STEPS} \
+    -DSPEC_FOTONIK_RADIUS=${SPEC_FOTONIK_RADIUS} \
+    -DSPEC_FOTONIK_DEPTH=${SPEC_FOTONIK_DEPTH}
+  SFLAGS = -march=rv64imafdcvxtheadc -mabi=lp64d -c -O2
+else ifeq (${CASENAME}, spec_roms_stencil_kernel)
+  ifeq (${SPEC_COMPOSITE_PROFILE}, full)
+    SPEC_COMPOSITION_SCALE := 1
+    SPEC_ROMS_CELLS ?= 80
+    SPEC_ROMS_STEPS ?= 1
+    SPEC_ROMS_RADIUS ?= 3
+    SPEC_ROMS_DEPTH ?= 2
+  else ifeq (${SPEC_ROMS_REPRESENTATIVE}, 1)
+    SPEC_ROMS_CELLS ?= 384
+    SPEC_ROMS_STEPS ?= 6
+    SPEC_ROMS_RADIUS ?= 8
+    SPEC_ROMS_DEPTH ?= 4
+  else
+    SPEC_ROMS_CELLS ?= 64
+    SPEC_ROMS_STEPS ?= 1
+    SPEC_ROMS_RADIUS ?= 3
+    SPEC_ROMS_DEPTH ?= 2
+  endif
+  CFLAGS += -c -O2 \
+    -DSPEC_ROMS_CELLS=${SPEC_ROMS_CELLS} \
+    -DSPEC_ROMS_STEPS=${SPEC_ROMS_STEPS} \
+    -DSPEC_ROMS_RADIUS=${SPEC_ROMS_RADIUS} \
+    -DSPEC_ROMS_DEPTH=${SPEC_ROMS_DEPTH}
+  SFLAGS = -march=rv64imafdcvxtheadc -mabi=lp64d -c -O2
+else ifeq (${CASENAME}, spec_pop2_ocean_kernel)
+  ifeq (${SPEC_COMPOSITE_PROFILE}, full)
+    SPEC_COMPOSITION_SCALE := 2
+    SPEC_POP2_CELLS ?= 64
+    SPEC_POP2_STEPS ?= 1
+    SPEC_POP2_SOLVER_ITERS ?= 3
+    SPEC_POP2_DEPTH ?= 2
+  else ifeq (${SPEC_POP2_REPRESENTATIVE}, 1)
+    SPEC_POP2_CELLS ?= 256
+    SPEC_POP2_STEPS ?= 4
+    SPEC_POP2_SOLVER_ITERS ?= 8
+    SPEC_POP2_DEPTH ?= 4
+  else
+    SPEC_POP2_CELLS ?= 64
+    SPEC_POP2_STEPS ?= 1
+    SPEC_POP2_SOLVER_ITERS ?= 3
+    SPEC_POP2_DEPTH ?= 2
+  endif
+  CFLAGS += -c -O2 \
+    -DSPEC_POP2_CELLS=${SPEC_POP2_CELLS} \
+    -DSPEC_POP2_STEPS=${SPEC_POP2_STEPS} \
+    -DSPEC_POP2_SOLVER_ITERS=${SPEC_POP2_SOLVER_ITERS} \
+    -DSPEC_POP2_DEPTH=${SPEC_POP2_DEPTH}
+  SFLAGS = -march=rv64imafdcvxtheadc -mabi=lp64d -c -O2
 else
   CFLAGS += -c -O2
   SFLAGS = -march=rv64imafdcvxtheadc -mabi=lp64d -c -O2
 endif
 
+SPEC_PROFILE_FOOTPRINT_CASES := \
+  spec_perlbench_regex_kernel spec_gcc_compile_kernel \
+  spec_omnetpp_event_kernel spec_xalancbmk_xml_kernel \
+  spec_x264_pixel_kernel spec_deepsjeng_search_kernel \
+  spec_leela_playout_kernel spec_exchange2_search_kernel \
+  spec_xz_lzma_kernel spec_bwaves_stencil_kernel \
+  spec_cactubssn_stencil_kernel spec_namd_pair_kernel \
+  spec_povray_ray_kernel spec_lbm_stream_kernel \
+  spec_wrf_stencil_kernel spec_blender_render_kernel \
+  spec_cam4_climate_kernel spec_imagick_filter_kernel \
+  spec_nab_md_kernel spec_fotonik3d_stencil_kernel \
+  spec_roms_stencil_kernel spec_pop2_ocean_kernel \
+  ${SPEC_SPEED_INDEPENDENT_CASES}
+ifeq (${SPEC_COMPOSITE_PROFILE}, full)
+ifneq ($(filter ${CASENAME},${SPEC_PROFILE_FOOTPRINT_CASES}),)
+CFLAGS += -DSPEC_PROFILE_FOOTPRINT_BYTES=131072
+SFLAGS += -DSPEC_PROFILE_FOOTPRINT_BYTES=131072
+endif
+endif
+
 CFLAGS += --specs=nano.specs
+ifeq (${KERNEL_CHARACTERIZATION}, 1)
+CFLAGS += -DKERNEL_CHARACTERIZATION
+SFLAGS += -DKERNEL_CHARACTERIZATION
+endif
+CFLAGS += ${EXTRA_CFLAGS}
+SFLAGS += ${EXTRA_CFLAGS}
 
 LINKFLAGS = -Tlinker.lcf -nostartfiles #${FLAG_MARCH} ${FLAG_ABI}
 
@@ -276,6 +842,11 @@ HEXFLAGS	= -O srec
 
 %.o : %.S
 	${CC} -c ${SFLAGS} -o $@ $<
+
+.PHONY: print-compiler-config
+print-compiler-config:
+	@printf 'CC=%s\nCFLAGS=%s\nSFLAGS=%s\nLINKFLAGS=%s\nLINKLIBS=%s\n' \
+	  '${CC}' '${CFLAGS}' '${SFLAGS}' '${LINKFLAGS}' '${LINKLIBS}'
 
 ${FILE}.elf : ${OBJECTS} linker.lcf
 	${CC} ${LINKFLAGS} ${LINKLIBS} ${OBJECTS} -o $@ -lm 

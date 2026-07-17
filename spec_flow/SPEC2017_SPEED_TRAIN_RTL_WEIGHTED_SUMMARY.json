@@ -1,0 +1,757 @@
+{
+  "size": "train",
+  "spec_runs": "spec_runs",
+  "rtl_results": "smart_run/results/specspeed_train_l2_1f451a653e1c_dirty",
+  "kernel_map": "spec_flow/spec2017_speed_kernel_map.json",
+  "suite_summary": {
+    "fpspeed": {
+      "count": 10,
+      "geomean_ipc": 1.4540851205914505,
+      "arithmean_ipc": 1.4788767688082145,
+      "arithmean_cpi": 0.7034999999999999
+    },
+    "intspeed": {
+      "count": 10,
+      "geomean_ipc": 1.2147782838981729,
+      "arithmean_ipc": 1.2760165171173419,
+      "arithmean_cpi": 0.8694888490430775
+    },
+    "all": {
+      "count": 20,
+      "geomean_ipc": 1.3290564425312983,
+      "arithmean_ipc": 1.3774466429627783,
+      "arithmean_cpi": 0.7864944245215388
+    }
+  },
+  "benchmarks": [
+    {
+      "bench": "600.perlbench_s",
+      "suite": "intspeed",
+      "coverage": "medium",
+      "weight_source": "configured",
+      "matched_profile_weight": null,
+      "weighted_kernel_cpi": 1.345,
+      "weighted_kernel_ipc": 0.7434944237918216,
+      "components": [
+        {
+          "case": "spec_perlbench_regex_kernel",
+          "weight": 1.0,
+          "raw_weight": 1.0,
+          "coverage": "medium",
+          "kernel_cpi": 1.345,
+          "kernel_ipc": 0.743,
+          "passed": true
+        }
+      ],
+      "metrics": {
+        "ALU": 142.79,
+        "Float Point": 0.0,
+        "Store": 1.52,
+        "LDST": 12.72,
+        "Cond Branch": 12.63,
+        "Indir Branch": 0.0,
+        "L1I Miss": 0.07,
+        "L1D Load Miss": 0.91,
+        "L1D Store Miss": 2.82,
+        "Cond Branch Misp": 34.73,
+        "Indir Branch Misp": 0.0,
+        "Frontend Stall": 38.32,
+        "Backend Stall": 52.47
+      },
+      "manifest_status": "compare=pass, simpoint=done, intervals=1457, clusters=4"
+    },
+    {
+      "bench": "602.gcc_s",
+      "suite": "intspeed",
+      "coverage": "medium",
+      "weight_source": "configured",
+      "matched_profile_weight": null,
+      "weighted_kernel_cpi": 0.712,
+      "weighted_kernel_ipc": 1.404494382022472,
+      "components": [
+        {
+          "case": "spec_gcc_compile_kernel",
+          "weight": 1.0,
+          "raw_weight": 1.0,
+          "coverage": "medium",
+          "kernel_cpi": 0.712,
+          "kernel_ipc": 1.404,
+          "passed": true
+        }
+      ],
+      "metrics": {
+        "ALU": 106.34,
+        "Float Point": 0.0,
+        "Store": 5.15,
+        "LDST": 13.75,
+        "Cond Branch": 5.68,
+        "Indir Branch": 0.0,
+        "L1I Miss": 0.06,
+        "L1D Load Miss": 0.24,
+        "L1D Store Miss": 0.03,
+        "Cond Branch Misp": 19.86,
+        "Indir Branch Misp": 0.0,
+        "Frontend Stall": 32.3,
+        "Backend Stall": 38.3
+      },
+      "manifest_status": "compare=pass, simpoint=done, intervals=1937, clusters=5"
+    },
+    {
+      "bench": "605.mcf_s",
+      "suite": "intspeed",
+      "coverage": "medium",
+      "weight_source": "simpoint_function_mix",
+      "matched_profile_weight": 0.9985125741254002,
+      "weighted_kernel_cpi": 1.4248884904307757,
+      "weighted_kernel_ipc": 0.7018093041776747,
+      "components": [
+        {
+          "case": "spec_mcf_sort_kernel",
+          "weight": 0.6585807264848864,
+          "raw_weight": 0.6576011364718001,
+          "coverage": "medium",
+          "kernel_cpi": 1.317,
+          "kernel_ipc": 0.759,
+          "passed": true
+        },
+        {
+          "case": "spec_mcf_kernel",
+          "weight": 0.3414192735151135,
+          "raw_weight": 0.34091143765360005,
+          "coverage": "medium",
+          "kernel_cpi": 1.633,
+          "kernel_ipc": 0.612,
+          "passed": true
+        }
+      ],
+      "metrics": {
+        "ALU": 54.056842997552316,
+        "Float Point": 0.0,
+        "Store": 22.54393172459944,
+        "LDST": 100.52580726484885,
+        "Cond Branch": 20.628425151796662,
+        "Indir Branch": 0.0,
+        "L1I Miss": 0.08365677094060453,
+        "L1D Load Miss": 0.17022448034664994,
+        "L1D Store Miss": 0.33216510599027715,
+        "Cond Branch Misp": 33.76740403117522,
+        "Indir Branch Misp": 0.0,
+        "Frontend Stall": 22.08761041366307,
+        "Backend Stall": 49.167385933316424
+      },
+      "manifest_status": "compare=pass, simpoint=done, intervals=1168, clusters=5"
+    },
+    {
+      "bench": "620.omnetpp_s",
+      "suite": "intspeed",
+      "coverage": "medium",
+      "weight_source": "configured",
+      "matched_profile_weight": null,
+      "weighted_kernel_cpi": 0.68,
+      "weighted_kernel_ipc": 1.4705882352941175,
+      "components": [
+        {
+          "case": "spec_omnetpp_event_kernel",
+          "weight": 1.0,
+          "raw_weight": 1.0,
+          "coverage": "medium",
+          "kernel_cpi": 0.68,
+          "kernel_ipc": 1.471,
+          "passed": true
+        }
+      ],
+      "metrics": {
+        "ALU": 73.15,
+        "Float Point": 0.0,
+        "Store": 7.44,
+        "LDST": 41.37,
+        "Cond Branch": 16.52,
+        "Indir Branch": 0.0,
+        "L1I Miss": 0.09,
+        "L1D Load Miss": 0.09,
+        "L1D Store Miss": 0.16,
+        "Cond Branch Misp": 10.11,
+        "Indir Branch Misp": 0.0,
+        "Frontend Stall": 7.61,
+        "Backend Stall": 19.24
+      },
+      "manifest_status": "compare=pass, simpoint=done, intervals=1260, clusters=3"
+    },
+    {
+      "bench": "623.xalancbmk_s",
+      "suite": "intspeed",
+      "coverage": "medium",
+      "weight_source": "configured",
+      "matched_profile_weight": null,
+      "weighted_kernel_cpi": 0.765,
+      "weighted_kernel_ipc": 1.3071895424836601,
+      "components": [
+        {
+          "case": "spec_xalancbmk_xml_kernel",
+          "weight": 1.0,
+          "raw_weight": 1.0,
+          "coverage": "medium",
+          "kernel_cpi": 0.765,
+          "kernel_ipc": 1.308,
+          "passed": true
+        }
+      ],
+      "metrics": {
+        "ALU": 79.75,
+        "Float Point": 0.0,
+        "Store": 0.04,
+        "LDST": 17.73,
+        "Cond Branch": 3.62,
+        "Indir Branch": 0.0,
+        "L1I Miss": 0.12,
+        "L1D Load Miss": 0.0,
+        "L1D Store Miss": 0.0,
+        "Cond Branch Misp": 5.88,
+        "Indir Branch Misp": 0.0,
+        "Frontend Stall": 63.54,
+        "Backend Stall": 55.57
+      },
+      "manifest_status": "compare=pass, simpoint=done, intervals=2501, clusters=4"
+    },
+    {
+      "bench": "625.x264_s",
+      "suite": "intspeed",
+      "coverage": "high",
+      "weight_source": "configured",
+      "matched_profile_weight": null,
+      "weighted_kernel_cpi": 0.564,
+      "weighted_kernel_ipc": 1.773049645390071,
+      "components": [
+        {
+          "case": "spec_x264_pixel_kernel",
+          "weight": 1.0,
+          "raw_weight": 1.0,
+          "coverage": "high",
+          "kernel_cpi": 0.564,
+          "kernel_ipc": 1.772,
+          "passed": true
+        }
+      ],
+      "metrics": {
+        "ALU": 83.07,
+        "Float Point": 0.0,
+        "Store": 1.83,
+        "LDST": 18.63,
+        "Cond Branch": 7.84,
+        "Indir Branch": 0.0,
+        "L1I Miss": 0.1,
+        "L1D Load Miss": 0.0,
+        "L1D Store Miss": 0.55,
+        "Cond Branch Misp": 11.18,
+        "Indir Branch Misp": 0.0,
+        "Frontend Stall": 25.78,
+        "Backend Stall": 31.94
+      },
+      "manifest_status": "compare=pass, simpoint=done, intervals=3884, clusters=5"
+    },
+    {
+      "bench": "631.deepsjeng_s",
+      "suite": "intspeed",
+      "coverage": "high",
+      "weight_source": "configured",
+      "matched_profile_weight": null,
+      "weighted_kernel_cpi": 1.08,
+      "weighted_kernel_ipc": 0.9259259259259258,
+      "components": [
+        {
+          "case": "spec_deepsjeng_search_kernel",
+          "weight": 1.0,
+          "raw_weight": 1.0,
+          "coverage": "high",
+          "kernel_cpi": 1.08,
+          "kernel_ipc": 0.926,
+          "passed": true
+        }
+      ],
+      "metrics": {
+        "ALU": 91.77,
+        "Float Point": 0.0,
+        "Store": 3.99,
+        "LDST": 14.81,
+        "Cond Branch": 22.38,
+        "Indir Branch": 0.0,
+        "L1I Miss": 0.13,
+        "L1D Load Miss": 0.19,
+        "L1D Store Miss": 1.17,
+        "Cond Branch Misp": 23.58,
+        "Indir Branch Misp": 0.0,
+        "Frontend Stall": 15.47,
+        "Backend Stall": 36.13
+      },
+      "manifest_status": "compare=pass, simpoint=done, intervals=3658, clusters=2"
+    },
+    {
+      "bench": "641.leela_s",
+      "suite": "intspeed",
+      "coverage": "high",
+      "weight_source": "configured",
+      "matched_profile_weight": null,
+      "weighted_kernel_cpi": 0.934,
+      "weighted_kernel_ipc": 1.070663811563169,
+      "components": [
+        {
+          "case": "spec_leela_playout_kernel",
+          "weight": 1.0,
+          "raw_weight": 1.0,
+          "coverage": "high",
+          "kernel_cpi": 0.934,
+          "kernel_ipc": 1.07,
+          "passed": true
+        }
+      ],
+      "metrics": {
+        "ALU": 81.04,
+        "Float Point": 0.0,
+        "Store": 2.19,
+        "LDST": 23.94,
+        "Cond Branch": 19.91,
+        "Indir Branch": 0.0,
+        "L1I Miss": 0.14,
+        "L1D Load Miss": 0.0,
+        "L1D Store Miss": 0.0,
+        "Cond Branch Misp": 11.86,
+        "Indir Branch Misp": 0.0,
+        "Frontend Stall": 21.62,
+        "Backend Stall": 44.27
+      },
+      "manifest_status": "compare=pass, simpoint=done, intervals=3884, clusters=5"
+    },
+    {
+      "bench": "648.exchange2_s",
+      "suite": "intspeed",
+      "coverage": "high",
+      "weight_source": "configured",
+      "matched_profile_weight": null,
+      "weighted_kernel_cpi": 0.608,
+      "weighted_kernel_ipc": 1.6447368421052633,
+      "components": [
+        {
+          "case": "spec_exchange2_search_kernel",
+          "weight": 1.0,
+          "raw_weight": 1.0,
+          "coverage": "high",
+          "kernel_cpi": 0.608,
+          "kernel_ipc": 1.645,
+          "passed": true
+        }
+      ],
+      "metrics": {
+        "ALU": 86.73,
+        "Float Point": 0.0,
+        "Store": 4.39,
+        "LDST": 23.62,
+        "Cond Branch": 9.96,
+        "Indir Branch": 0.0,
+        "L1I Miss": 0.09,
+        "L1D Load Miss": 0.19,
+        "L1D Store Miss": 0.77,
+        "Cond Branch Misp": 11.73,
+        "Indir Branch Misp": 0.0,
+        "Frontend Stall": 22.01,
+        "Backend Stall": 29.93
+      },
+      "manifest_status": "compare=pass, simpoint=done, intervals=2905, clusters=4"
+    },
+    {
+      "bench": "657.xz_s",
+      "suite": "intspeed",
+      "coverage": "high",
+      "weight_source": "configured",
+      "matched_profile_weight": null,
+      "weighted_kernel_cpi": 0.582,
+      "weighted_kernel_ipc": 1.718213058419244,
+      "components": [
+        {
+          "case": "spec_xz_lzma_kernel",
+          "weight": 1.0,
+          "raw_weight": 1.0,
+          "coverage": "high",
+          "kernel_cpi": 0.582,
+          "kernel_ipc": 1.717,
+          "passed": true
+        }
+      ],
+      "metrics": {
+        "ALU": 95.06,
+        "Float Point": 0.0,
+        "Store": 4.14,
+        "LDST": 15.35,
+        "Cond Branch": 7.39,
+        "Indir Branch": 0.0,
+        "L1I Miss": 0.02,
+        "L1D Load Miss": 0.0,
+        "L1D Store Miss": 0.0,
+        "Cond Branch Misp": 14.24,
+        "Indir Branch Misp": 0.0,
+        "Frontend Stall": 10.9,
+        "Backend Stall": 25.03
+      },
+      "manifest_status": "compare=pass, simpoint=done, intervals=1246, clusters=5"
+    },
+    {
+      "bench": "603.bwaves_s",
+      "suite": "fpspeed",
+      "coverage": "high",
+      "weight_source": "configured",
+      "matched_profile_weight": null,
+      "weighted_kernel_cpi": 0.584,
+      "weighted_kernel_ipc": 1.7123287671232879,
+      "components": [
+        {
+          "case": "spec_bwaves_stencil_kernel",
+          "weight": 1.0,
+          "raw_weight": 1.0,
+          "coverage": "high",
+          "kernel_cpi": 0.584,
+          "kernel_ipc": 1.712,
+          "passed": true
+        }
+      ],
+      "metrics": {
+        "ALU": 39.61,
+        "Float Point": 23.03,
+        "Store": 4.08,
+        "LDST": 32.11,
+        "Cond Branch": 12.94,
+        "Indir Branch": 0.0,
+        "L1I Miss": 0.08,
+        "L1D Load Miss": 0.01,
+        "L1D Store Miss": 0.0,
+        "Cond Branch Misp": 4.28,
+        "Indir Branch Misp": 0.0,
+        "Frontend Stall": 22.68,
+        "Backend Stall": 30.6
+      },
+      "manifest_status": "compare=pass, simpoint=done, intervals=1354, clusters=5"
+    },
+    {
+      "bench": "607.cactuBSSN_s",
+      "suite": "fpspeed",
+      "coverage": "high",
+      "weight_source": "configured",
+      "matched_profile_weight": null,
+      "weighted_kernel_cpi": 0.665,
+      "weighted_kernel_ipc": 1.5037593984962405,
+      "components": [
+        {
+          "case": "spec_cactubssn_stencil_kernel",
+          "weight": 1.0,
+          "raw_weight": 1.0,
+          "coverage": "high",
+          "kernel_cpi": 0.665,
+          "kernel_ipc": 1.503,
+          "passed": true
+        }
+      ],
+      "metrics": {
+        "ALU": 52.12,
+        "Float Point": 26.81,
+        "Store": 5.68,
+        "LDST": 25.99,
+        "Cond Branch": 4.43,
+        "Indir Branch": 0.0,
+        "L1I Miss": 0.14,
+        "L1D Load Miss": 0.24,
+        "L1D Store Miss": 0.25,
+        "Cond Branch Misp": 7.98,
+        "Indir Branch Misp": 0.0,
+        "Frontend Stall": 53.36,
+        "Backend Stall": 46.54
+      },
+      "manifest_status": "compare=pass, simpoint=done, intervals=2216, clusters=5"
+    },
+    {
+      "bench": "619.lbm_s",
+      "suite": "fpspeed",
+      "coverage": "high",
+      "weight_source": "configured",
+      "matched_profile_weight": null,
+      "weighted_kernel_cpi": 0.618,
+      "weighted_kernel_ipc": 1.6181229773462784,
+      "components": [
+        {
+          "case": "spec_lbm_stream_kernel",
+          "weight": 1.0,
+          "raw_weight": 1.0,
+          "coverage": "high",
+          "kernel_cpi": 0.618,
+          "kernel_ipc": 1.619,
+          "passed": true
+        }
+      ],
+      "metrics": {
+        "ALU": 65.42,
+        "Float Point": 29.99,
+        "Store": 3.2,
+        "LDST": 10.16,
+        "Cond Branch": 6.57,
+        "Indir Branch": 0.0,
+        "L1I Miss": 0.06,
+        "L1D Load Miss": 0.1,
+        "L1D Store Miss": 0.0,
+        "Cond Branch Misp": 6.94,
+        "Indir Branch Misp": 0.0,
+        "Frontend Stall": 43.37,
+        "Backend Stall": 42.91
+      },
+      "manifest_status": "compare=pass, simpoint=done, intervals=5831, clusters=3"
+    },
+    {
+      "bench": "621.wrf_s",
+      "suite": "fpspeed",
+      "coverage": "medium",
+      "weight_source": "configured",
+      "matched_profile_weight": null,
+      "weighted_kernel_cpi": 0.672,
+      "weighted_kernel_ipc": 1.488095238095238,
+      "components": [
+        {
+          "case": "spec_wrf_stencil_kernel",
+          "weight": 1.0,
+          "raw_weight": 1.0,
+          "coverage": "medium",
+          "kernel_cpi": 0.672,
+          "kernel_ipc": 1.489,
+          "passed": true
+        }
+      ],
+      "metrics": {
+        "ALU": 50.9,
+        "Float Point": 37.34,
+        "Store": 4.21,
+        "LDST": 19.99,
+        "Cond Branch": 7.01,
+        "Indir Branch": 0.0,
+        "L1I Miss": 0.28,
+        "L1D Load Miss": 0.0,
+        "L1D Store Miss": 0.0,
+        "Cond Branch Misp": 14.52,
+        "Indir Branch Misp": 0.0,
+        "Frontend Stall": 35.08,
+        "Backend Stall": 41.52
+      },
+      "manifest_status": "compare=pass, simpoint=done, intervals=4564, clusters=5"
+    },
+    {
+      "bench": "627.cam4_s",
+      "suite": "fpspeed",
+      "coverage": "medium",
+      "weight_source": "configured",
+      "matched_profile_weight": null,
+      "weighted_kernel_cpi": 0.612,
+      "weighted_kernel_ipc": 1.6339869281045751,
+      "components": [
+        {
+          "case": "spec_cam4_climate_kernel",
+          "weight": 1.0,
+          "raw_weight": 1.0,
+          "coverage": "medium",
+          "kernel_cpi": 0.612,
+          "kernel_ipc": 1.634,
+          "passed": true
+        }
+      ],
+      "metrics": {
+        "ALU": 46.99,
+        "Float Point": 40.5,
+        "Store": 3.88,
+        "LDST": 19.6,
+        "Cond Branch": 6.36,
+        "Indir Branch": 0.0,
+        "L1I Miss": 0.11,
+        "L1D Load Miss": 0.0,
+        "L1D Store Miss": 0.0,
+        "Cond Branch Misp": 4.8,
+        "Indir Branch Misp": 0.0,
+        "Frontend Stall": 43.83,
+        "Backend Stall": 36.54
+      },
+      "manifest_status": "compare=pass, simpoint=done, intervals=6678, clusters=5"
+    },
+    {
+      "bench": "628.pop2_s",
+      "suite": "fpspeed",
+      "coverage": "medium",
+      "weight_source": "configured",
+      "matched_profile_weight": null,
+      "weighted_kernel_cpi": 0.613,
+      "weighted_kernel_ipc": 1.6313213703099512,
+      "components": [
+        {
+          "case": "spec_pop2_ocean_kernel",
+          "weight": 1.0,
+          "raw_weight": 1.0,
+          "coverage": "medium",
+          "kernel_cpi": 0.613,
+          "kernel_ipc": 1.631,
+          "passed": true
+        }
+      ],
+      "metrics": {
+        "ALU": 25.82,
+        "Float Point": 31.73,
+        "Store": 8.46,
+        "LDST": 37.32,
+        "Cond Branch": 10.87,
+        "Indir Branch": 0.0,
+        "L1I Miss": 0.18,
+        "L1D Load Miss": 0.02,
+        "L1D Store Miss": 0.0,
+        "Cond Branch Misp": 5.97,
+        "Indir Branch Misp": 0.0,
+        "Frontend Stall": 37.09,
+        "Backend Stall": 39.82
+      },
+      "manifest_status": "compare=pass, simpoint=done, intervals=5670, clusters=3"
+    },
+    {
+      "bench": "638.imagick_s",
+      "suite": "fpspeed",
+      "coverage": "high",
+      "weight_source": "configured",
+      "matched_profile_weight": null,
+      "weighted_kernel_cpi": 0.714,
+      "weighted_kernel_ipc": 1.400560224089636,
+      "components": [
+        {
+          "case": "spec_imagick_filter_kernel",
+          "weight": 1.0,
+          "raw_weight": 1.0,
+          "coverage": "high",
+          "kernel_cpi": 0.714,
+          "kernel_ipc": 1.401,
+          "passed": true
+        }
+      ],
+      "metrics": {
+        "ALU": 56.27,
+        "Float Point": 30.81,
+        "Store": 5.85,
+        "LDST": 23.55,
+        "Cond Branch": 5.85,
+        "Indir Branch": 0.0,
+        "L1I Miss": 0.36,
+        "L1D Load Miss": 0.0,
+        "L1D Store Miss": 0.0,
+        "Cond Branch Misp": 15.05,
+        "Indir Branch Misp": 0.0,
+        "Frontend Stall": 42.64,
+        "Backend Stall": 42.69
+      },
+      "manifest_status": "compare=pass, simpoint=done, intervals=2470, clusters=4"
+    },
+    {
+      "bench": "644.nab_s",
+      "suite": "fpspeed",
+      "coverage": "high",
+      "weight_source": "configured",
+      "matched_profile_weight": null,
+      "weighted_kernel_cpi": 1.213,
+      "weighted_kernel_ipc": 0.8244023083264632,
+      "components": [
+        {
+          "case": "spec_nab_md_kernel",
+          "weight": 1.0,
+          "raw_weight": 1.0,
+          "coverage": "high",
+          "kernel_cpi": 1.213,
+          "kernel_ipc": 0.824,
+          "passed": true
+        }
+      ],
+      "metrics": {
+        "ALU": 21.65,
+        "Float Point": 60.41,
+        "Store": 2.43,
+        "LDST": 15.23,
+        "Cond Branch": 5.68,
+        "Indir Branch": 0.0,
+        "L1I Miss": 0.16,
+        "L1D Load Miss": 0.0,
+        "L1D Store Miss": 0.0,
+        "Cond Branch Misp": 5.36,
+        "Indir Branch Misp": 0.0,
+        "Frontend Stall": 73.27,
+        "Backend Stall": 71.67
+      },
+      "manifest_status": "compare=pass, simpoint=done, intervals=3619, clusters=5"
+    },
+    {
+      "bench": "649.fotonik3d_s",
+      "suite": "fpspeed",
+      "coverage": "medium",
+      "weight_source": "configured",
+      "matched_profile_weight": null,
+      "weighted_kernel_cpi": 0.672,
+      "weighted_kernel_ipc": 1.488095238095238,
+      "components": [
+        {
+          "case": "spec_fotonik3d_stencil_kernel",
+          "weight": 1.0,
+          "raw_weight": 1.0,
+          "coverage": "medium",
+          "kernel_cpi": 0.672,
+          "kernel_ipc": 1.489,
+          "passed": true
+        }
+      ],
+      "metrics": {
+        "ALU": 50.9,
+        "Float Point": 37.34,
+        "Store": 4.21,
+        "LDST": 19.99,
+        "Cond Branch": 7.01,
+        "Indir Branch": 0.0,
+        "L1I Miss": 0.28,
+        "L1D Load Miss": 0.0,
+        "L1D Store Miss": 0.0,
+        "Cond Branch Misp": 14.52,
+        "Indir Branch Misp": 0.0,
+        "Frontend Stall": 35.08,
+        "Backend Stall": 41.52
+      },
+      "manifest_status": "compare=pass, simpoint=done, intervals=1777, clusters=5"
+    },
+    {
+      "bench": "654.roms_s",
+      "suite": "fpspeed",
+      "coverage": "medium",
+      "weight_source": "configured",
+      "matched_profile_weight": null,
+      "weighted_kernel_cpi": 0.672,
+      "weighted_kernel_ipc": 1.488095238095238,
+      "components": [
+        {
+          "case": "spec_roms_stencil_kernel",
+          "weight": 1.0,
+          "raw_weight": 1.0,
+          "coverage": "medium",
+          "kernel_cpi": 0.672,
+          "kernel_ipc": 1.489,
+          "passed": true
+        }
+      ],
+      "metrics": {
+        "ALU": 50.9,
+        "Float Point": 37.34,
+        "Store": 4.21,
+        "LDST": 19.99,
+        "Cond Branch": 7.01,
+        "Indir Branch": 0.0,
+        "L1I Miss": 0.28,
+        "L1D Load Miss": 0.0,
+        "L1D Store Miss": 0.0,
+        "Cond Branch Misp": 14.52,
+        "Indir Branch Misp": 0.0,
+        "Frontend Stall": 35.08,
+        "Backend Stall": 41.52
+      },
+      "manifest_status": "compare=pass, simpoint=done, intervals=10572, clusters=5"
+    }
+  ]
+}

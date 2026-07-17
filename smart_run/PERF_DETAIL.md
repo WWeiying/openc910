@@ -16,8 +16,16 @@ make compile DUMP=off PERF_DETAIL=on
 运行 benchmark 并保存结果：
 
 ```bash
-BENCH_CASES="dhrystone coremark bench_mem spec_mcf_kernel" ./run_bench.sh perf_detail_v1
+BENCH_CASES="dhrystone coremark bench_mem spec_505_mcf_composite_kernel" ./run_bench.sh perf_detail_v1
 ```
+
+先统计程序动态特征，再运行 RTL，并自动生成程序需求与微结构响应的联合瓶颈筛查：
+
+```bash
+BENCH_CASES=spec_505_mcf_composite_kernel ./run_bench.sh --characterize mcf_joint
+```
+
+该模式新增 `program_features/`、RTL 实际 ELF 和 `PROGRAM_RTL_BOTTLENECK.md`。默认 `rtl` 特征 profile 尽量保持与 RTL case 参数一致；完整口径见 `smart_run/KERNEL_CHARACTERIZATION.md`。
 
 结果保存目录：
 
@@ -31,8 +39,11 @@ smart_run/results/<tag>_<git>_<clean|dirty>/
 |---|---|
 | `<case>.perf` | 原有 HPCP 粗粒度计数：周期、IPC、cache miss、branch miss、frontend/backend stall、LSU/RF 事件 |
 | `<case>.detail.perf` | 本文档说明的细粒度指标：805 个 detail 事件、189 个 profile 平均值、54 个 latency 分布 |
+| `<case>.branch_pc.perf` | 退休分支按静态 PC 聚合的执行次数、误预测次数、误预测率及跳转类别 |
 | `<case>.summary.txt` | benchmark 简要结果 |
 | `<case>.run.vcs.log` | 完整仿真日志，包含 `.perf` 和 `.detail.perf` 表格 |
+| `program_features/` | 使用 `--characterize` 时生成的程序动态特征和校验结果 |
+| `PROGRAM_RTL_BOTTLENECK.md` | 使用 `--characterize` 时生成的程序特征与 RTL 联合筛查 |
 
 ## 输出表口径
 
@@ -61,12 +72,40 @@ smart_run/results/<tag>_<git>_<clean|dirty>/
 | `Avg Cycles` | 平均等待周期 |
 | `<=4/<=8/<=16/<=32/<=64/>64` | 延迟桶分布 |
 
+### Branch PC 热点分布
+
+`<case>.branch_pc.perf` 是独立于 805 个 detail 事件的精确退休分支 PC 聚合。它不按周期采样，而是在每条分支真正退休时，按静态 PC 累加动态执行次数和误预测次数。文件由 `BRANCH_PC_BEGIN/END` 包围，包含以下两类记录：
+
+```text
+BRANCH_PC_TOTAL phase=Kernel kind=cond exec=2500 mispred=72
+BRANCH_PC phase=Kernel kind=cond pc=0x0000000766 exec=500 mispred=26 rate_pct=5.2000 call_misp=0 return_misp=0 other_misp=0
+```
+
+| 字段 | 含义 |
+|---|---|
+| `phase` | `Main` 为整个 main 窗口，`Kernel` 为 `perf_start` 到 `perf_end` 的正式 RTL ROI |
+| `kind=cond` | 条件分支；`exec` 为三个退休 slot 的条件分支执行次数之和，`mispred` 为退休 BHT 方向误预测次数 |
+| `kind=jmp` | 退休 jump/call/return；`exec` 为三个退休 slot 的 jump 类执行次数之和，`mispred` 为退休 jump 误预测次数 |
+| `pc` | 当前退休分支的静态 PC，而不是误预测发生后一拍的其他退休指令 PC |
+| `rate_pct` | 同一 PC 的 `mispred / exec * 100`；需要同时看执行频率和错误数，不能只按百分比排序 |
+| `call_misp`、`return_misp`、`other_misp` | 误预测 jump 按退休指令类别拆成 call、return 和其他 jump；类别说明是哪类指令，并不直接证明根因一定来自 BTB、间接预测器或 RAS |
+
+热点分析命令：
+
+```bash
+python3 analyze_branch_hotspots.py \
+  results/<result-dir> --phase Kernel --kind cond --top 20 --strict
+```
+
+脚本会读取同目录的 `<case>.asm`，为每个 PC 补充函数名和反汇编指令。`--strict` 还会校验 `cond` PC 必须对应条件分支、`jmp` PC 必须对应 jump/call/return；正式结果应始终使用该选项。原始关联数组输出顺序没有性能含义，热点排序由脚本完成。
+
 ## 指标准确性等级
 
 | 等级 | 含义 | 典型指标 | 使用建议 |
 |---|---|---|---|
 | 精确事件 | 直接采样 RTL 的 valid/full/stall/handshake 脉冲或状态位 | `biu_ar_hs_deep`、`lfb_addr_pop_entry`、`wmb_entry_pop_deep`、`rob_commit0` | 可以直接作为事件次数或周期占比使用 |
 | 精确宽度/占用 | 对 RTL valid 向量做 popcount 或对多路 valid 求和 | `rob_occ_avg`、`iq_ready_width_avg`、`sq_pop_width_avg` | 可以作为平均并发度、资源压力使用 |
+| 精确退休 PC 聚合 | 使用同周期 RTU retirement valid、指令类别、误预测状态和 retire PC 建立无碰撞关联数组 | `<case>.branch_pc.perf` | 可精确定位该 ROI 中哪些静态分支执行及误判；不包含错误路径上未退休的分支 |
 | 代表性延迟窗口 | testbench 只跟踪每类事件的一个 active 窗口，不为每个 entry/transaction 建时间戳 | `dispatch_to_commit`、`sq_create_to_pop`、`biu_ar_to_rlast` | 用于判断是否存在长等待，不能当作全量逐事务延迟直方图 |
 
 边界说明：
@@ -75,6 +114,8 @@ smart_run/results/<tag>_<git>_<clean|dirty>/
 2. `biu_rd_outstanding_avg` 和 `biu_wr_outstanding_avg` 是 testbench 维护的 AXI-facing outstanding 深度。它适合看趋势，但短 phase、AR/RLAST 不平衡或 phase 边界场景要谨慎，不能单独作为内存带宽瓶颈证据。
 3. latency 类指标是代表性 episode，不是逐 entry 或逐 transaction 全量追踪。
 4. CPI stack 相关指标是 testbench 近似分类，不是硬件 PMU 的唯一根因归因。
+5. Branch PC 聚合使用 SystemVerilog associative array，以完整静态 PC 为 key，不做定长槽位替换或哈希压缩，因此没有热点丢失和 monitor alias；代价只发生在 testbench 的仿真时间与宿主内存中，不进入 CPU 功能 RTL。
+6. 方向误预测只有异常退休 slot0 携带 `rob_retire_inst0_bht_mispred`，条件分支执行数则覆盖三个正常退休 slot。`bench_br_bimodal` 实测已验证 Kernel PC 总数 `2500` 等于 `1778+245+477`，PC 误预测总数 `72` 等于 `retire_bht_mispred=72`。
 
 ## 静态核查结论
 
@@ -86,8 +127,10 @@ smart_run/results/<tag>_<git>_<clean|dirty>/
 | Detail 编号 | 1-805 连续，无重复、无缺号 |
 | Profile 编号 | 1-189 连续，无重复、无缺号 |
 | Latency 编号 | 1-54 连续，无重复、无缺号 |
+| VCS 编译 | `make compile DUMP=off PERF_DETAIL=on` 已通过 |
+| Branch PC 动态核查 | `bench_br_bimodal` Full profile 通过；热点 PC 全部严格反汇编为条件分支，聚合计数与原退休计数完全闭合，PC 对齐修正前后 Kernel 均为 7393 cycles / 15028 inst |
 
-注意：这是静态源码核查，不等同于 EDA elaboration。它能确认信号名和模块来源正确，但不能替代一次真正的 `make compile PERF_DETAIL=on`。
+注意：上表的 VCS 编译和动态核查只证明当前 smoke case 的层级引用、PC 对齐、计数闭合和零功能扰动；其他 case 的机制结论仍要由各自正式运行结果支持。
 
 ## 关键 RTL 信号来源
 
@@ -97,6 +140,7 @@ smart_run/results/<tag>_<git>_<clean|dirty>/
 | Indirect BTB | `ct_ifu_ibctrl.v` 中 `ibctrl_ind_btb_check_vld`、`ibctrl_ind_btb_fifo_stall`、`ibctrl_pcfifo_if_ind_btb_miss` | `ind_btb_miss` 是 miss 侧 proxy，不是完整准确率 |
 | RAS | `ct_ifu_ibctrl.v` / `ct_ifu_ras.v` 中 RAS redirect、mistaken、push/pop/full/empty | 能观察 RAS 活动和错误，但不是完整表项级统计 |
 | BHT | `ct_ifu_bht.v` 中 `bht_pred_array_rd`、`bht_sel_array_rd`、`wr_buf_hit`、`bju_mispred` | 是 BHT 活动/旁路/误预测侧信号，不是完整预测准确率 |
+| Retired branch PC | `ct_rtu_retire.v` 的同周期 `retire_inst*_condbr/normal_retire`，`ct_rtu_rob_rt.v` 的 `rob_retire_inst*_jmp/bht_mispred/jmp_mispred` 和退休 PC | 条件分支执行覆盖三个 slot；误预测由异常退休 slot0 计入。能精确定位退休热点 PC，但 jump 的 call/return/other 分类不等于预测器内部根因分类 |
 | Rename / PST | `ct_idu_id_ctrl.v`、`ct_idu_ir_ctrl.v`、`ct_rtu_pst_*` | ID/IR stall 和物理寄存器 alloc valid/block 直接来自 RTL |
 | ROB | `rtu_had_debug_info[24:18]`、`ct_rtu_rob_rt.v` | 适合看 ROB 饱和、head 阻塞和 commit，不是逐 entry age |
 | IQ ready/select | `ct_idu_is_aiq*`、`biq`、`lsiq`、`sdiq`、`viq*` 中 entry valid/ready/issue_en | entry 向量直接可见；AIQ/BIQ/SDIQ/VIQ 的 `issue_en` 是 ready 后经过 older-ready age-select 的结果，LSIQ 的 `issue_en` 直接等于 ready |
@@ -120,7 +164,7 @@ smart_run/results/<tag>_<git>_<clean|dirty>/
 4. 如果是 frontend：看 `icache_refill_*`、`ifu_ibuf_full`、`ifu_pcfifo_full_stall`、`l0_btb_*`、`ind_btb_*`、`bht_*`、`flush_to_fetch`。
 5. 如果是 memory：看 `dcache_*_miss`、`ld/st_utlb_miss`、`lq/sq/rb/lfb/wmb_*`、`dca_*`、`biu_*backpressure`、`*_to_pop` latency。
 6. 如果是 backend core：看 `rob_occ_avg/ge*`、`rob_head_block_latency`、`iq_ready/not_ready/select`、`rf_pipe*_src_no_rdy`、`*_src*_not_ready_avg`、`preg/ereg_alloc*_block`。
-7. 如果是 bad speculation：看 `retire_*mispred`、`iu_*mispred`、`l0_btb_mispred`、`bht_bju_mispred`、`ld/st_spec_fail`、`flush_to_*`。
+7. 如果是 bad speculation：先用 `retire_*mispred`、`iu_*mispred`、`l0_btb_mispred`、`bht_bju_mispred` 判断总量，再用 `.branch_pc.perf` 找反复制造错误的静态分支，最后结合 `ld/st_spec_fail` 和 `flush_to_*` 判断错误类型与暴露代价。
 
 常见判断：
 
@@ -133,7 +177,8 @@ smart_run/results/<tag>_<git>_<clean|dirty>/
 | free-list 限制 rename | `preg/ereg_alloc*_block`、`preg_alloc_avail0`、`ereg_alloc_avail0` |
 | D-cache/LSU 限制 | `dca_*`、`lfb_*`、`rb_*`、`wmb_*`、`sq_*`、`ld_*discard*` |
 | 总线/内存系统限制 | `biu_*backpressure`、`biu_ar_to_rlast`、`biu_aw_to_b_full`，outstanding 只作辅助 |
-| 分支恢复代价高 | `retire_bht_mispred`、`retire_jmp_mispred`、`flush_to_fetch`、`mispred_to_fetch`、`flush_to_retire` |
+| 分支错误频率高 | `.branch_pc.perf` 的 top PC、错误数及错误份额，结合 `retire_bht_mispred`、`retire_jmp_mispred` |
+| 分支恢复代价高 | `flush_to_fetch`、`mispred_to_fetch`、`flush_to_retire`；先确认 `.branch_pc.perf` 的错误频率没有变化 |
 
 ## 完整指标字典阅读说明
 
@@ -345,7 +390,7 @@ smart_run/results/<tag>_<git>_<clean|dirty>/
 | 200 | `wmb_ce_pop` | LSU/Cache | LSU 队列/buffer 生命周期、请求、命中、discard 或 wakeup 事件。 | 定位 load/store queue、write merge buffer、refill buffer、read buffer 的结构瓶颈。 | 事件多为 any-entry 脉冲，宽度需看 profile。 |
 | 201 | `wmb_write_biu_req` | LSU/Cache | LSU 队列/buffer 生命周期、请求、命中、discard 或 wakeup 事件。 | 定位 load/store queue、write merge buffer、refill buffer、read buffer 的结构瓶颈。 | 事件多为 any-entry 脉冲，宽度需看 profile。 |
 | 202 | `wmb_write_stall` | LSU/Cache | LSU 队列/buffer 生命周期、请求、命中、discard 或 wakeup 事件。 | 定位 load/store queue、write merge buffer、refill buffer、read buffer 的结构瓶颈。 | 事件多为 any-entry 脉冲，宽度需看 profile。 |
-| 203 | `wmb_merge_data_stall` | LSU/Cache | LSU 队列/buffer 生命周期、请求、命中、discard 或 wakeup 事件。 | 定位 load/store queue、write merge buffer、refill buffer、read buffer 的结构瓶颈。 | 事件多为 any-entry 脉冲，宽度需看 profile。 |
+| 203 | `wmb_merge_data_stall` | LSU/Cache | SQ 发出 WMB merge 请求且已有 WMB entry 因合并条件不满足而阻塞。 | 判断 store merge 路径是否限制 SQ 释放。 | 仅在 `sq_wmb_merge_req` 有效时采样，避免无请求时比较地址总线的无效态。 |
 | 204 | `wmb_ld_dc_discard` | LSU/Cache | LSU 队列/buffer 生命周期、请求、命中、discard 或 wakeup 事件。 | 定位 load/store queue、write merge buffer、refill buffer、read buffer 的结构瓶颈。 | 事件多为 any-entry 脉冲，宽度需看 profile。 |
 | 205 | `rb_biu_ar_req` | LSU/Cache | LSU 队列/buffer 生命周期、请求、命中、discard 或 wakeup 事件。 | 定位 load/store queue、write merge buffer、refill buffer、read buffer 的结构瓶颈。 | 事件多为 any-entry 脉冲，宽度需看 profile。 |
 | 206 | `rb_lfb_create_req` | LSU/Cache | LSU 队列/buffer 生命周期、请求、命中、discard 或 wakeup 事件。 | 定位 load/store queue、write merge buffer、refill buffer、read buffer 的结构瓶颈。 | 事件多为 any-entry 脉冲，宽度需看 profile。 |
@@ -620,8 +665,8 @@ smart_run/results/<tag>_<git>_<clean|dirty>/
 | 475 | `lfb_st_da_hit_idx` | LSU/Cache | LSU 队列/buffer 生命周期、请求、命中、discard 或 wakeup 事件。 | 定位 load/store queue、write merge buffer、refill buffer、read buffer 的结构瓶颈。 | 事件多为 any-entry 脉冲，宽度需看 profile。 |
 | 476 | `lfb_pfu_biu_req_hit_idx` | LSU/Cache | LSU 队列/buffer 生命周期、请求、命中、discard 或 wakeup 事件。 | 定位 load/store queue、write merge buffer、refill buffer、read buffer 的结构瓶颈。 | 事件多为 any-entry 脉冲，宽度需看 profile。 |
 | 477 | `lfb_rb_biu_req_hit_idx` | LSU/Cache | LSU 队列/buffer 生命周期、请求、命中、discard 或 wakeup 事件。 | 定位 load/store queue、write merge buffer、refill buffer、read buffer 的结构瓶颈。 | 事件多为 any-entry 脉冲，宽度需看 profile。 |
-| 478 | `lfb_wmb_read_req_hit_idx` | LSU/Cache | LSU 队列/buffer 生命周期、请求、命中、discard 或 wakeup 事件。 | 定位 load/store queue、write merge buffer、refill buffer、read buffer 的结构瓶颈。 | 事件多为 any-entry 脉冲，宽度需看 profile。 |
-| 479 | `lfb_wmb_write_req_hit_idx` | LSU/Cache | LSU 队列/buffer 生命周期、请求、命中、discard 或 wakeup 事件。 | 定位 load/store queue、write merge buffer、refill buffer、read buffer 的结构瓶颈。 | 事件多为 any-entry 脉冲，宽度需看 profile。 |
+| 478 | `lfb_wmb_read_req_hit_idx` | LSU/Cache | 有效 WMB read request 的地址命中任一有效 LFB address entry。 | 判断 WMB 读请求是否受在途 refill line 冲突影响。 | 仅在 `wmb_read_req_unmask` 有效时采样，避免空闲地址总线产生未知态。 |
+| 479 | `lfb_wmb_write_req_hit_idx` | LSU/Cache | 有效 WMB write request 的地址命中任一有效 LFB address entry。 | 判断 WMB 写请求是否受在途 refill line 冲突影响。 | 仅在 `wmb_write_req` 有效时采样，避免空闲地址总线产生未知态。 |
 | 480 | `lfb_vb_create_req` | LSU/Cache | LSU 队列/buffer 生命周期、请求、命中、discard 或 wakeup 事件。 | 定位 load/store queue、write merge buffer、refill buffer、read buffer 的结构瓶颈。 | 事件多为 any-entry 脉冲，宽度需看 profile。 |
 | 481 | `lfb_vb_create_vld` | LSU/Cache | LSU 队列/buffer 生命周期、请求、命中、discard 或 wakeup 事件。 | 定位 load/store queue、write merge buffer、refill buffer、read buffer 的结构瓶颈。 | 事件多为 any-entry 脉冲，宽度需看 profile。 |
 | 482 | `lfb_vb_pe_req` | LSU/Cache | LSU 队列/buffer 生命周期、请求、命中、discard 或 wakeup 事件。 | 定位 load/store queue、write merge buffer、refill buffer、read buffer 的结构瓶颈。 | 事件多为 any-entry 脉冲，宽度需看 profile。 |
@@ -779,7 +824,7 @@ smart_run/results/<tag>_<git>_<clean|dirty>/
 | 634 | `jtlb_arb_sel_4k` | MMU/TLB/PTW | MMU/TLB/PTW 请求、完成、miss 或页属性事件。 | 判断地址翻译和 page walk 是否阻塞。 | bare-metal 小程序通常应较低。 |
 | 635 | `jtlb_arb_sel_2m` | MMU/TLB/PTW | MMU/TLB/PTW 请求、完成、miss 或页属性事件。 | 判断地址翻译和 page walk 是否阻塞。 | bare-metal 小程序通常应较低。 |
 | 636 | `jtlb_arb_sel_1g` | MMU/TLB/PTW | MMU/TLB/PTW 请求、完成、miss 或页属性事件。 | 判断地址翻译和 page walk 是否阻塞。 | bare-metal 小程序通常应较低。 |
-| 637 | `mmu_lsu_page_fault` | MMU/TLB/PTW | MMU/TLB/PTW 请求、完成、miss 或页属性事件。 | 判断地址翻译和 page walk 是否阻塞。 | bare-metal 小程序通常应较低。 |
+| 637 | `mmu_lsu_page_fault` | MMU/TLB/PTW | LSU 端口 0/1 提交有效 VA 请求时，DUTLB 返回 page fault。 | 识别真实 load/store 页故障，区分普通 TLB miss 和权限/映射错误。 | 分别用 `lsu_mmu_va0_vld/va1_vld` 门控，空闲端口组合输出不计数。 |
 | 638 | `rob_occ_lt32` | RTU/PST/退休 | ROB 占用或满状态桶。 | 判断乱序窗口容量压力。 | 若 ROB 满不高，扩大窗口不是第一方向。 |
 | 639 | `rob_occ_32_63` | RTU/PST/退休 | ROB 占用或满状态桶。 | 判断乱序窗口容量压力。 | 若 ROB 满不高，扩大窗口不是第一方向。 |
 | 640 | `rob_occ_ge64_bucket` | RTU/PST/退休 | ROB 占用或满状态桶。 | 判断乱序窗口容量压力。 | 若 ROB 满不高，扩大窗口不是第一方向。 |

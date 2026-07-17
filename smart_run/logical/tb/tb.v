@@ -482,6 +482,9 @@ module tb();
   bit [31:0] mem_inst_temp [65536];
   bit [31:0] mem_data_temp [65536];
   integer j;
+  string l3_ram_prefix;
+  string l3_ram_file;
+  reg l3_mode;
   initial
   begin
     $display("\t********* Init Program *********");
@@ -561,9 +564,38 @@ module tb();
     end
   end
 
+  initial begin
+    if ($value$plusargs("l3_ram_prefix=%s", l3_ram_prefix)) begin
+      #1;
+      $display("[L3] loading checkpoint SRAM lanes: %s", l3_ram_prefix);
+      for (integer lane = 0; lane < 16; lane++) begin
+        $sformat(l3_ram_file, "%s.ram%0d.hex", l3_ram_prefix, lane);
+        case (lane)
+          0:  $readmemh(l3_ram_file, `RTL_MEM.ram0.mem);
+          1:  $readmemh(l3_ram_file, `RTL_MEM.ram1.mem);
+          2:  $readmemh(l3_ram_file, `RTL_MEM.ram2.mem);
+          3:  $readmemh(l3_ram_file, `RTL_MEM.ram3.mem);
+          4:  $readmemh(l3_ram_file, `RTL_MEM.ram4.mem);
+          5:  $readmemh(l3_ram_file, `RTL_MEM.ram5.mem);
+          6:  $readmemh(l3_ram_file, `RTL_MEM.ram6.mem);
+          7:  $readmemh(l3_ram_file, `RTL_MEM.ram7.mem);
+          8:  $readmemh(l3_ram_file, `RTL_MEM.ram8.mem);
+          9:  $readmemh(l3_ram_file, `RTL_MEM.ram9.mem);
+          10: $readmemh(l3_ram_file, `RTL_MEM.ram10.mem);
+          11: $readmemh(l3_ram_file, `RTL_MEM.ram11.mem);
+          12: $readmemh(l3_ram_file, `RTL_MEM.ram12.mem);
+          13: $readmemh(l3_ram_file, `RTL_MEM.ram13.mem);
+          14: $readmemh(l3_ram_file, `RTL_MEM.ram14.mem);
+          15: $readmemh(l3_ram_file, `RTL_MEM.ram15.mem);
+        endcase
+      end
+    end
+  end
+
   initial
   begin
   #(`MAX_RUN_TIME * `CLK_PERIOD);
+    if (!l3_mode) begin
     $display("**********************************************");
     $display("  Error: Simulation Timeout (Max %0d cycles)!  ", `MAX_RUN_TIME);
     $display("**********************************************");
@@ -571,7 +603,8 @@ module tb();
     $fwrite(FILE, "TEST FAIL: Timeout after %d cycles", `MAX_RUN_TIME);
 
     $fclose(FILE); 
-  $finish;
+    $finish;
+    end
   end
 
   real cpi =0.0;
@@ -617,6 +650,29 @@ module tb();
   reg [63:0] kernel_event_counter_start[NUM:1];
   reg [63:0] kernel_event_counter_end[NUM:1];
 
+  reg l3_active;
+  reg l3_measure_active;
+  reg [39:0] l3_start_pc;
+  reg [63:0] l3_warmup_instructions;
+  reg [63:0] l3_roi_instructions;
+  reg [63:0] l3_max_cycles;
+  reg [63:0] l3_user_retired;
+  reg [63:0] l3_roi_retired;
+  reg [63:0] l3_cycle_start;
+  reg [63:0] l3_event_start[NUM:1];
+  string l3_checkpoint_id;
+  wire [2:0] l3_retire_width = {2'b0, `tb_retire0}
+                               + {2'b0, `tb_retire1}
+                               + {2'b0, `tb_retire2};
+  wire l3_start_hit0 = `tb_retire0 && (`retire0_pc == l3_start_pc);
+  wire l3_start_hit1 = `tb_retire1 && (`retire1_pc == l3_start_pc);
+  wire l3_start_hit2 = `tb_retire2 && (`retire2_pc == l3_start_pc);
+  wire [2:0] l3_start_retire_width =
+      l3_start_hit0 ? ({2'b0, `tb_retire0} + {2'b0, `tb_retire1}
+                       + {2'b0, `tb_retire2}) :
+      l3_start_hit1 ? ({2'b0, `tb_retire1} + {2'b0, `tb_retire2}) :
+      l3_start_hit2 ? {2'b0, `tb_retire2} : 3'b0;
+
 `ifdef PERF_DETAIL
   parameter DETAIL_NUM = 805;
   parameter PROF_NUM   = 189;
@@ -648,6 +704,11 @@ module tb();
   reg [63:0] kernel_lat_sum_end[LAT_NUM:1];
   reg [63:0] kernel_lat_bucket_start[LAT_NUM:1][LAT_BUCKET_NUM:1];
   reg [63:0] kernel_lat_bucket_end[LAT_NUM:1][LAT_BUCKET_NUM:1];
+  reg [63:0] l3_detail_start[DETAIL_NUM:1];
+  reg [63:0] l3_prof_start[PROF_NUM:1];
+  reg [63:0] l3_lat_sample_start[LAT_NUM:1];
+  reg [63:0] l3_lat_sum_start[LAT_NUM:1];
+  reg [63:0] l3_lat_bucket_start[LAT_NUM:1][LAT_BUCKET_NUM:1];
   reg        ic_refill_lat_active;
   reg [31:0] ic_refill_lat_age;
   reg        biu_read_lat_active;
@@ -666,6 +727,139 @@ module tb();
   reg [31:0] extra_lat_age[LAT_NUM:1];
   reg [7:0]  biu_rd_outstanding;
   reg [7:0]  biu_wr_outstanding;
+
+  typedef bit [39:0] perf_pc_t;
+  reg branch_pc_main_active;
+  reg branch_pc_kernel_active;
+  longint unsigned main_cond_exec_by_pc[perf_pc_t];
+  longint unsigned main_cond_misp_by_pc[perf_pc_t];
+  longint unsigned main_jmp_exec_by_pc[perf_pc_t];
+  longint unsigned main_jmp_misp_by_pc[perf_pc_t];
+  longint unsigned main_call_misp_by_pc[perf_pc_t];
+  longint unsigned main_return_misp_by_pc[perf_pc_t];
+  longint unsigned main_other_jmp_misp_by_pc[perf_pc_t];
+  longint unsigned kernel_cond_exec_by_pc[perf_pc_t];
+  longint unsigned kernel_cond_misp_by_pc[perf_pc_t];
+  longint unsigned kernel_jmp_exec_by_pc[perf_pc_t];
+  longint unsigned kernel_jmp_misp_by_pc[perf_pc_t];
+  longint unsigned kernel_call_misp_by_pc[perf_pc_t];
+  longint unsigned kernel_return_misp_by_pc[perf_pc_t];
+  longint unsigned kernel_other_jmp_misp_by_pc[perf_pc_t];
+
+  wire branch_pc_main_start = (`tb_retire0 && (`retire0_pc == sym_main_addr))
+                           || (`tb_retire1 && (`retire1_pc == sym_main_addr))
+                           || (`tb_retire2 && (`retire2_pc == sym_main_addr));
+  wire branch_pc_main_end = (`tb_retire0 && (`retire0_pc == sym_exit_addr))
+                         || (`tb_retire1 && (`retire1_pc == sym_exit_addr))
+                         || (`tb_retire2 && (`retire2_pc == sym_exit_addr));
+  wire branch_pc_kernel_start = (sym_perf_start_addr != 40'b0)
+                             && ((`tb_retire0 && (`retire0_pc == sym_perf_start_addr))
+                              || (`tb_retire1 && (`retire1_pc == sym_perf_start_addr))
+                              || (`tb_retire2 && (`retire2_pc == sym_perf_start_addr)));
+  wire branch_pc_kernel_end = (sym_perf_end_addr != 40'b0)
+                           && ((`tb_retire0 && (`retire0_pc == sym_perf_end_addr))
+                            || (`tb_retire1 && (`retire1_pc == sym_perf_end_addr))
+                            || (`tb_retire2 && (`retire2_pc == sym_perf_end_addr)));
+
+  task automatic record_branch_pc(input bit use_kernel,
+                                  input bit is_cond,
+                                  input bit is_jmp,
+                                  input bit is_bht_misp,
+                                  input bit is_jmp_misp,
+                                  input bit is_call,
+                                  input bit is_return,
+                                  input perf_pc_t pc);
+  begin
+    if (use_kernel) begin
+      if (is_cond) begin
+        if (kernel_cond_exec_by_pc.exists(pc))
+          kernel_cond_exec_by_pc[pc] = kernel_cond_exec_by_pc[pc] + 64'd1;
+        else
+          kernel_cond_exec_by_pc[pc] = 64'd1;
+        if (is_bht_misp) begin
+          if (kernel_cond_misp_by_pc.exists(pc))
+            kernel_cond_misp_by_pc[pc] = kernel_cond_misp_by_pc[pc] + 64'd1;
+          else
+            kernel_cond_misp_by_pc[pc] = 64'd1;
+        end
+      end
+      if (is_jmp) begin
+        if (kernel_jmp_exec_by_pc.exists(pc))
+          kernel_jmp_exec_by_pc[pc] = kernel_jmp_exec_by_pc[pc] + 64'd1;
+        else
+          kernel_jmp_exec_by_pc[pc] = 64'd1;
+        if (is_jmp_misp) begin
+          if (kernel_jmp_misp_by_pc.exists(pc))
+            kernel_jmp_misp_by_pc[pc] = kernel_jmp_misp_by_pc[pc] + 64'd1;
+          else
+            kernel_jmp_misp_by_pc[pc] = 64'd1;
+          if (is_return) begin
+            if (kernel_return_misp_by_pc.exists(pc))
+              kernel_return_misp_by_pc[pc] = kernel_return_misp_by_pc[pc] + 64'd1;
+            else
+              kernel_return_misp_by_pc[pc] = 64'd1;
+          end
+          else if (is_call) begin
+            if (kernel_call_misp_by_pc.exists(pc))
+              kernel_call_misp_by_pc[pc] = kernel_call_misp_by_pc[pc] + 64'd1;
+            else
+              kernel_call_misp_by_pc[pc] = 64'd1;
+          end
+          else begin
+            if (kernel_other_jmp_misp_by_pc.exists(pc))
+              kernel_other_jmp_misp_by_pc[pc] = kernel_other_jmp_misp_by_pc[pc] + 64'd1;
+            else
+              kernel_other_jmp_misp_by_pc[pc] = 64'd1;
+          end
+        end
+      end
+    end
+    else begin
+      if (is_cond) begin
+        if (main_cond_exec_by_pc.exists(pc))
+          main_cond_exec_by_pc[pc] = main_cond_exec_by_pc[pc] + 64'd1;
+        else
+          main_cond_exec_by_pc[pc] = 64'd1;
+        if (is_bht_misp) begin
+          if (main_cond_misp_by_pc.exists(pc))
+            main_cond_misp_by_pc[pc] = main_cond_misp_by_pc[pc] + 64'd1;
+          else
+            main_cond_misp_by_pc[pc] = 64'd1;
+        end
+      end
+      if (is_jmp) begin
+        if (main_jmp_exec_by_pc.exists(pc))
+          main_jmp_exec_by_pc[pc] = main_jmp_exec_by_pc[pc] + 64'd1;
+        else
+          main_jmp_exec_by_pc[pc] = 64'd1;
+        if (is_jmp_misp) begin
+          if (main_jmp_misp_by_pc.exists(pc))
+            main_jmp_misp_by_pc[pc] = main_jmp_misp_by_pc[pc] + 64'd1;
+          else
+            main_jmp_misp_by_pc[pc] = 64'd1;
+          if (is_return) begin
+            if (main_return_misp_by_pc.exists(pc))
+              main_return_misp_by_pc[pc] = main_return_misp_by_pc[pc] + 64'd1;
+            else
+              main_return_misp_by_pc[pc] = 64'd1;
+          end
+          else if (is_call) begin
+            if (main_call_misp_by_pc.exists(pc))
+              main_call_misp_by_pc[pc] = main_call_misp_by_pc[pc] + 64'd1;
+            else
+              main_call_misp_by_pc[pc] = 64'd1;
+          end
+          else begin
+            if (main_other_jmp_misp_by_pc.exists(pc))
+              main_other_jmp_misp_by_pc[pc] = main_other_jmp_misp_by_pc[pc] + 64'd1;
+            else
+              main_other_jmp_misp_by_pc[pc] = 64'd1;
+          end
+        end
+      end
+    end
+  end
+  endtask
 
   function automatic [7:0] popcount64(input logic [63:0] value);
     int idx;
@@ -2608,7 +2802,8 @@ module tb();
       200: get_detail_value = `LSU_WMB.wmb_ce_pop_vld;
       201: get_detail_value = |`LSU_WMB.wmb_entry_write_biu_req[7:0];
       202: get_detail_value = |`LSU_WMB.wmb_entry_write_stall[7:0];
-      203: get_detail_value = `LSU_WMB.wmb_merge_data_stall;
+      203: get_detail_value = `LSU_WMB.sq_wmb_merge_req
+                              && `LSU_WMB.wmb_merge_data_stall;
       204: get_detail_value = `LSU_WMB.wmb_ld_dc_discard_req;
       205: get_detail_value = `LSU_RB.rb_biu_ar_req;
       206: get_detail_value = `LSU_RB.rb_lfb_create_req;
@@ -2903,8 +3098,10 @@ module tb();
       475: get_detail_value = `LSU_LFB.lfb_st_da_hit_idx;
       476: get_detail_value = `LSU_LFB.lfb_pfu_biu_req_hit_idx;
       477: get_detail_value = `LSU_LFB.lfb_rb_biu_req_hit_idx;
-      478: get_detail_value = `LSU_LFB.lfb_wmb_read_req_hit_idx;
-      479: get_detail_value = `LSU_LFB.lfb_wmb_write_req_hit_idx;
+      478: get_detail_value = `LSU_WMB.wmb_read_req_unmask
+                              && `LSU_LFB.lfb_wmb_read_req_hit_idx;
+      479: get_detail_value = `LSU_WMB.wmb_write_req
+                              && `LSU_LFB.lfb_wmb_write_req_hit_idx;
       480: get_detail_value = `LSU_LFB.lfb_vb_create_req;
       481: get_detail_value = `LSU_LFB.lfb_vb_create_vld;
       482: get_detail_value = `LSU_LFB.lfb_vb_pe_req;
@@ -3066,7 +3263,10 @@ module tb();
       634: get_detail_value = `MMU_TOP.jtlb_arb_sel_4k;
       635: get_detail_value = `MMU_TOP.jtlb_arb_sel_2m;
       636: get_detail_value = `MMU_TOP.jtlb_arb_sel_1g;
-      637: get_detail_value = `MMU_TOP.mmu_lsu_page_fault0 || `MMU_TOP.mmu_lsu_page_fault1;
+      637: get_detail_value = (`MMU_TOP.lsu_mmu_va0_vld
+                               && `MMU_TOP.mmu_lsu_page_fault0)
+                              || (`MMU_TOP.lsu_mmu_va1_vld
+                                  && `MMU_TOP.mmu_lsu_page_fault1);
       638: get_detail_value = (`RTU_TOP.rtu_had_debug_info[24:18] < 7'd32);
       639: get_detail_value = (`RTU_TOP.rtu_had_debug_info[24:18] >= 7'd32) && (`RTU_TOP.rtu_had_debug_info[24:18] < 7'd64);
       640: get_detail_value = (`RTU_TOP.rtu_had_debug_info[24:18] >= 7'd64);
@@ -4382,6 +4582,108 @@ module tb();
     print_latency_row(phase, "pst_flush_recover",      54, use_kernel);
   end
   endtask
+
+  task automatic print_branch_pc_phase(input string phase, input bit use_kernel);
+    perf_pc_t pc;
+    longint unsigned exec_count;
+    longint unsigned misp_count;
+    longint unsigned call_count;
+    longint unsigned return_count;
+    longint unsigned other_count;
+    longint unsigned total_exec;
+    longint unsigned total_misp;
+    real miss_rate;
+  begin
+    $display("BRANCH_PC_BEGIN phase=%s source=retire exact=1", phase);
+    total_exec = 64'd0;
+    total_misp = 64'd0;
+    if (use_kernel) begin
+      foreach (kernel_cond_exec_by_pc[pc])
+        total_exec = total_exec + kernel_cond_exec_by_pc[pc];
+      foreach (kernel_cond_misp_by_pc[pc])
+        total_misp = total_misp + kernel_cond_misp_by_pc[pc];
+      $display("BRANCH_PC_TOTAL phase=%s kind=cond exec=%0d mispred=%0d",
+               phase, total_exec, total_misp);
+      foreach (kernel_cond_misp_by_pc[pc]) begin
+        exec_count = kernel_cond_exec_by_pc.exists(pc)
+                   ? kernel_cond_exec_by_pc[pc] : 64'd0;
+        misp_count = kernel_cond_misp_by_pc[pc];
+        miss_rate = (exec_count != 0)
+                  ? 100.0 * real'(misp_count) / real'(exec_count) : 0.0;
+        $display("BRANCH_PC phase=%s kind=cond pc=0x%010h exec=%0d mispred=%0d rate_pct=%0.4f call_misp=0 return_misp=0 other_misp=0",
+                 phase, pc, exec_count, misp_count, miss_rate);
+      end
+
+      total_exec = 64'd0;
+      total_misp = 64'd0;
+      foreach (kernel_jmp_exec_by_pc[pc])
+        total_exec = total_exec + kernel_jmp_exec_by_pc[pc];
+      foreach (kernel_jmp_misp_by_pc[pc])
+        total_misp = total_misp + kernel_jmp_misp_by_pc[pc];
+      $display("BRANCH_PC_TOTAL phase=%s kind=jmp exec=%0d mispred=%0d",
+               phase, total_exec, total_misp);
+      foreach (kernel_jmp_misp_by_pc[pc]) begin
+        exec_count = kernel_jmp_exec_by_pc.exists(pc)
+                   ? kernel_jmp_exec_by_pc[pc] : 64'd0;
+        misp_count = kernel_jmp_misp_by_pc[pc];
+        call_count = kernel_call_misp_by_pc.exists(pc)
+                   ? kernel_call_misp_by_pc[pc] : 64'd0;
+        return_count = kernel_return_misp_by_pc.exists(pc)
+                     ? kernel_return_misp_by_pc[pc] : 64'd0;
+        other_count = kernel_other_jmp_misp_by_pc.exists(pc)
+                    ? kernel_other_jmp_misp_by_pc[pc] : 64'd0;
+        miss_rate = (exec_count != 0)
+                  ? 100.0 * real'(misp_count) / real'(exec_count) : 0.0;
+        $display("BRANCH_PC phase=%s kind=jmp pc=0x%010h exec=%0d mispred=%0d rate_pct=%0.4f call_misp=%0d return_misp=%0d other_misp=%0d",
+                 phase, pc, exec_count, misp_count, miss_rate,
+                 call_count, return_count, other_count);
+      end
+    end
+    else begin
+      foreach (main_cond_exec_by_pc[pc])
+        total_exec = total_exec + main_cond_exec_by_pc[pc];
+      foreach (main_cond_misp_by_pc[pc])
+        total_misp = total_misp + main_cond_misp_by_pc[pc];
+      $display("BRANCH_PC_TOTAL phase=%s kind=cond exec=%0d mispred=%0d",
+               phase, total_exec, total_misp);
+      foreach (main_cond_misp_by_pc[pc]) begin
+        exec_count = main_cond_exec_by_pc.exists(pc)
+                   ? main_cond_exec_by_pc[pc] : 64'd0;
+        misp_count = main_cond_misp_by_pc[pc];
+        miss_rate = (exec_count != 0)
+                  ? 100.0 * real'(misp_count) / real'(exec_count) : 0.0;
+        $display("BRANCH_PC phase=%s kind=cond pc=0x%010h exec=%0d mispred=%0d rate_pct=%0.4f call_misp=0 return_misp=0 other_misp=0",
+                 phase, pc, exec_count, misp_count, miss_rate);
+      end
+
+      total_exec = 64'd0;
+      total_misp = 64'd0;
+      foreach (main_jmp_exec_by_pc[pc])
+        total_exec = total_exec + main_jmp_exec_by_pc[pc];
+      foreach (main_jmp_misp_by_pc[pc])
+        total_misp = total_misp + main_jmp_misp_by_pc[pc];
+      $display("BRANCH_PC_TOTAL phase=%s kind=jmp exec=%0d mispred=%0d",
+               phase, total_exec, total_misp);
+      foreach (main_jmp_misp_by_pc[pc]) begin
+        exec_count = main_jmp_exec_by_pc.exists(pc)
+                   ? main_jmp_exec_by_pc[pc] : 64'd0;
+        misp_count = main_jmp_misp_by_pc[pc];
+        call_count = main_call_misp_by_pc.exists(pc)
+                   ? main_call_misp_by_pc[pc] : 64'd0;
+        return_count = main_return_misp_by_pc.exists(pc)
+                     ? main_return_misp_by_pc[pc] : 64'd0;
+        other_count = main_other_jmp_misp_by_pc.exists(pc)
+                    ? main_other_jmp_misp_by_pc[pc] : 64'd0;
+        miss_rate = (exec_count != 0)
+                  ? 100.0 * real'(misp_count) / real'(exec_count) : 0.0;
+        $display("BRANCH_PC phase=%s kind=jmp pc=0x%010h exec=%0d mispred=%0d rate_pct=%0.4f call_misp=%0d return_misp=%0d other_misp=%0d",
+                 phase, pc, exec_count, misp_count, miss_rate,
+                 call_count, return_count, other_count);
+      end
+    end
+    $display("BRANCH_PC_END phase=%s", phase);
+  end
+  endtask
 `endif
 
   always @(posedge clk or negedge rst_b)
@@ -4653,6 +4955,236 @@ module tb();
       update_extra_latency(54, `RTU_PST_PREG.retire_pst_async_flush,
                                (preg_alloc_avail_width() != 8'd0) && (ereg_alloc_avail_width() != 8'd0));
 `endif
+    end
+  end
+
+  initial begin
+    l3_mode = $value$plusargs("l3_start_pc=%h", l3_start_pc);
+    l3_active = 1'b0;
+    l3_measure_active = 1'b0;
+    l3_user_retired = 64'b0;
+    l3_roi_retired = 64'b0;
+    l3_cycle_start = 64'b0;
+    l3_checkpoint_id = "unknown";
+    l3_max_cycles = 64'd500000000;
+    if (l3_mode) begin
+      if (!$value$plusargs("l3_warmup=%d", l3_warmup_instructions)) begin
+        $error("[L3] missing +l3_warmup=<instructions>");
+        $finish;
+      end
+      if (!$value$plusargs("l3_roi=%d", l3_roi_instructions)) begin
+        $error("[L3] missing +l3_roi=<instructions>");
+        $finish;
+      end
+      void'($value$plusargs("l3_checkpoint=%s", l3_checkpoint_id));
+      void'($value$plusargs("l3_max_cycles=%d", l3_max_cycles));
+      $display("[L3] checkpoint=%s start_pc=0x%010h warmup=%0d roi=%0d",
+               l3_checkpoint_id, l3_start_pc, l3_warmup_instructions,
+               l3_roi_instructions);
+    end
+  end
+
+`ifdef PERF_DETAIL
+  always @(posedge clk or negedge rst_b)
+  begin
+    if (!rst_b) begin
+      branch_pc_main_active <= 1'b0;
+      branch_pc_kernel_active <= 1'b0;
+      main_cond_exec_by_pc.delete();
+      main_cond_misp_by_pc.delete();
+      main_jmp_exec_by_pc.delete();
+      main_jmp_misp_by_pc.delete();
+      main_call_misp_by_pc.delete();
+      main_return_misp_by_pc.delete();
+      main_other_jmp_misp_by_pc.delete();
+      kernel_cond_exec_by_pc.delete();
+      kernel_cond_misp_by_pc.delete();
+      kernel_jmp_exec_by_pc.delete();
+      kernel_jmp_misp_by_pc.delete();
+      kernel_call_misp_by_pc.delete();
+      kernel_return_misp_by_pc.delete();
+      kernel_other_jmp_misp_by_pc.delete();
+    end
+    else begin
+      if (branch_pc_main_start) begin
+        branch_pc_main_active <= 1'b1;
+        main_cond_exec_by_pc.delete();
+        main_cond_misp_by_pc.delete();
+        main_jmp_exec_by_pc.delete();
+        main_jmp_misp_by_pc.delete();
+        main_call_misp_by_pc.delete();
+        main_return_misp_by_pc.delete();
+        main_other_jmp_misp_by_pc.delete();
+      end
+      else if (branch_pc_main_end) begin
+        branch_pc_main_active <= 1'b0;
+      end
+
+      if (branch_pc_kernel_start) begin
+        branch_pc_kernel_active <= 1'b1;
+        kernel_cond_exec_by_pc.delete();
+        kernel_cond_misp_by_pc.delete();
+        kernel_jmp_exec_by_pc.delete();
+        kernel_jmp_misp_by_pc.delete();
+        kernel_call_misp_by_pc.delete();
+        kernel_return_misp_by_pc.delete();
+        kernel_other_jmp_misp_by_pc.delete();
+      end
+      else if (branch_pc_kernel_end) begin
+        branch_pc_kernel_active <= 1'b0;
+      end
+
+      if (branch_pc_main_active && !branch_pc_main_end) begin
+        record_branch_pc(1'b0,
+                         `RTU_RETIRE.retire_inst0_condbr,
+                         `RTU_RETIRE.retire_inst0_normal_retire
+                           && `RTU_RETIRE.rob_retire_inst0_jmp,
+                         `RTU_RETIRE.retire_inst0_normal_retire
+                           && `RTU_RETIRE.rob_retire_inst0_bht_mispred,
+                         `RTU_RETIRE.retire_inst0_normal_retire
+                           && `RTU_RETIRE.rob_retire_inst0_jmp_mispred,
+                         `RTU_TOP.rtu_ifu_retire0_pcall,
+                         `RTU_TOP.rtu_ifu_retire0_preturn,
+                         `retire0_pc);
+        record_branch_pc(1'b0,
+                         `RTU_RETIRE.retire_inst1_condbr,
+                         `RTU_RETIRE.retire_inst1_normal_retire
+                           && `RTU_RETIRE.rob_retire_inst1_jmp,
+                         1'b0, 1'b0, 1'b0, 1'b0, `retire1_pc);
+        record_branch_pc(1'b0,
+                         `RTU_RETIRE.retire_inst2_condbr,
+                         `RTU_RETIRE.retire_inst2_normal_retire
+                           && `RTU_RETIRE.rob_retire_inst2_jmp,
+                         1'b0, 1'b0, 1'b0, 1'b0, `retire2_pc);
+      end
+
+      if (branch_pc_kernel_active && !branch_pc_kernel_end) begin
+        record_branch_pc(1'b1,
+                         `RTU_RETIRE.retire_inst0_condbr,
+                         `RTU_RETIRE.retire_inst0_normal_retire
+                           && `RTU_RETIRE.rob_retire_inst0_jmp,
+                         `RTU_RETIRE.retire_inst0_normal_retire
+                           && `RTU_RETIRE.rob_retire_inst0_bht_mispred,
+                         `RTU_RETIRE.retire_inst0_normal_retire
+                           && `RTU_RETIRE.rob_retire_inst0_jmp_mispred,
+                         `RTU_TOP.rtu_ifu_retire0_pcall,
+                         `RTU_TOP.rtu_ifu_retire0_preturn,
+                         `retire0_pc);
+        record_branch_pc(1'b1,
+                         `RTU_RETIRE.retire_inst1_condbr,
+                         `RTU_RETIRE.retire_inst1_normal_retire
+                           && `RTU_RETIRE.rob_retire_inst1_jmp,
+                         1'b0, 1'b0, 1'b0, 1'b0, `retire1_pc);
+        record_branch_pc(1'b1,
+                         `RTU_RETIRE.retire_inst2_condbr,
+                         `RTU_RETIRE.retire_inst2_normal_retire
+                           && `RTU_RETIRE.rob_retire_inst2_jmp,
+                         1'b0, 1'b0, 1'b0, 1'b0, `retire2_pc);
+      end
+    end
+  end
+`endif
+
+  always @(posedge clk or negedge rst_b)
+  begin
+    if (!rst_b) begin
+      l3_active <= 1'b0;
+      l3_measure_active <= 1'b0;
+      l3_user_retired <= 64'b0;
+      l3_roi_retired <= 64'b0;
+      l3_cycle_start <= 64'b0;
+    end
+    else if (l3_mode) begin
+      if (`mcycle_value >= l3_max_cycles) begin
+        $display("[L3] ERROR timeout after %0d cycles", l3_max_cycles);
+        FILE = $fopen("run_case.report","w");
+        $fwrite(FILE,"TEST FAIL: L3 timeout");
+        $fclose(FILE);
+        $finish;
+      end
+      else if (!l3_active) begin
+        if (l3_start_hit0 || l3_start_hit1 || l3_start_hit2) begin
+          l3_active <= 1'b1;
+          l3_user_retired <= {61'b0, l3_start_retire_width};
+          $display("[L3] restored user state reached at cycle=%0d pc=0x%010h",
+                   `mcycle_value, l3_start_pc);
+        end
+      end
+      else if (!l3_measure_active) begin
+        if (l3_user_retired >= l3_warmup_instructions) begin
+          l3_measure_active <= 1'b1;
+          l3_roi_retired <= {61'b0, l3_retire_width};
+          l3_cycle_start <= `mcycle_value;
+          for (int i=1; i<(NUM+1); i++) begin
+            l3_event_start[i] <= event_counter[i];
+          end
+`ifdef PERF_DETAIL
+          for (int i=1; i<(DETAIL_NUM+1); i++) begin
+            l3_detail_start[i] <= detail_counter[i];
+          end
+          for (int i=1; i<(PROF_NUM+1); i++) begin
+            l3_prof_start[i] <= prof_sum_counter[i];
+          end
+          for (int i=1; i<(LAT_NUM+1); i++) begin
+            l3_lat_sample_start[i] <= lat_sample_counter[i];
+            l3_lat_sum_start[i] <= lat_sum_counter[i];
+            for (int j=1; j<(LAT_BUCKET_NUM+1); j++) begin
+              l3_lat_bucket_start[i][j] <= lat_bucket_counter[i][j];
+            end
+          end
+`endif
+          $display("[L3] ROI start cycle=%0d warmup_retired=%0d",
+                   `mcycle_value, l3_user_retired);
+        end
+        else begin
+          l3_user_retired <= l3_user_retired + {61'b0, l3_retire_width};
+        end
+      end
+      else if ((l3_roi_retired + {61'b0, l3_retire_width})
+               >= l3_roi_instructions) begin
+        l3_roi_retired <= l3_roi_retired + {61'b0, l3_retire_width};
+        #1;
+        $display("L3_RTL_RESULT checkpoint=%s cycles=%0d instructions=%0d warmup=%0d overshoot=%0d",
+                 l3_checkpoint_id,
+                 $signed(`mcycle_value - l3_cycle_start),
+                 l3_roi_retired,
+                 l3_user_retired,
+                 $signed(l3_roi_retired - l3_roi_instructions));
+        for (int i=1; i<(NUM+1); i++) begin
+          $display("L3_EVENT id=%0d value=%0d", i,
+                   $signed(event_counter[i] - l3_event_start[i]));
+        end
+`ifdef PERF_DETAIL
+        for (int i=1; i<(DETAIL_NUM+1); i++) begin
+          $display("L3_DETAIL id=%0d value=%0d", i,
+                   $signed(detail_counter[i] - l3_detail_start[i]));
+        end
+        for (int i=1; i<(PROF_NUM+1); i++) begin
+          $display("L3_PROFILE id=%0d value=%0d", i,
+                   $signed(prof_sum_counter[i] - l3_prof_start[i]));
+        end
+        for (int i=1; i<(LAT_NUM+1); i++) begin
+          $display("L3_LATENCY id=%0d samples=%0d sum=%0d",
+                   i,
+                   $signed(lat_sample_counter[i] - l3_lat_sample_start[i]),
+                   $signed(lat_sum_counter[i] - l3_lat_sum_start[i]));
+          for (int j=1; j<(LAT_BUCKET_NUM+1); j++) begin
+            $display("L3_LATENCY_BUCKET id=%0d bucket=%0d value=%0d",
+                     i, j,
+                     $signed(lat_bucket_counter[i][j]
+                             - l3_lat_bucket_start[i][j]));
+          end
+        end
+`endif
+        FILE = $fopen("run_case.report","w");
+        $fwrite(FILE,"TEST PASS: L3 checkpoint ROI complete");
+        $fclose(FILE);
+        $display("TEST PASS: L3 checkpoint ROI complete");
+        $finish;
+      end
+      else begin
+        l3_roi_retired <= l3_roi_retired + {61'b0, l3_retire_width};
+      end
     end
   end
 
@@ -5273,6 +5805,11 @@ module tb();
       print_latency_phase("Main", 1'b0);
       $display("|----------|-----------------------------|------------|------------|--------|--------|--------|--------|--------|--------|");
       print_latency_phase("Kernel", 1'b1);
+      $display("==============================================================================\n");
+
+      $display("====================== Branch PC Hotspot Profile =============================");
+      print_branch_pc_phase("Main", 1'b0);
+      print_branch_pc_phase("Kernel", 1'b1);
       $display("==============================================================================\n");
 `endif
 

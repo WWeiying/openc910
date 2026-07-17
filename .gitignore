@@ -9,23 +9,43 @@
 # Local SPEC CPU installation, ISO extraction, and generated profiles
 /spec2017/
 /spec2017_iso/
+/spec2017_workers/
+/spec2017_supplement_workers/
+/spec2017_supplement2_workers/
+/spec2017_rate_supplement_workers/
+/spec2017_perl_fix_workers/
 /spec_runs/
+/spec_checkpoints/
 
 # Smart-run generated simulation outputs
 /smart_run/work/
 /smart_run/results/*
+/smart_run/kernel_features/*
+/smart_run/.run_bench.lock
+/smart_run/spec2017_*.log
+/smart_run/spec2017_*.pid
+/smart_run/pscyee.out
+/spec2017_*.pid
 
 # Python/cache artifacts
 __pycache__/
 *.py[cod]
 
 # SimPoint build/install artifacts
-/tools/
+/tools/*
 /tools/SimPoint.3.2/
 /tools/SimPoint.3.2.tar.gz
 /tools/bin/
 
 # QEMU plugin build products, keep plugin sources tracked
+!/tools/qemu-plugins/
+/tools/qemu-plugins/*
+!/tools/qemu-plugins/Makefile
+!/tools/qemu-plugins/*.c
+!/tools/qemu-plugins/*.sh
+!/tools/qemu-plugins/testdata/
+/tools/qemu-plugins/testdata/*
+!/tools/qemu-plugins/testdata/*.c
 /tools/qemu-plugins/*.so
 
 # Local waveform/debug viewer state
@@ -60,6 +80,3 @@ __pycache__/
 *.saif
 *.vcd
 *.fsdb
-
-# Local SPEC flow scripts/docs
-/spec_flow/

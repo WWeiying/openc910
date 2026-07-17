@@ -8,6 +8,8 @@
 
 #include <stdint.h>
 #include <stdio.h>
+#include "spec_composition_markers.h"
+#include "spec_profile_footprint.h"
 
 #ifndef SPEC_EXCHANGE2_POSITIONS
 #define SPEC_EXCHANGE2_POSITIONS 1
@@ -186,12 +188,48 @@ static uint32_t exchange2_kernel(void)
     return (uint32_t)total ^ (uint32_t)table[total & (TABLE - 1)].key;
 }
 
+static uint32_t minimum_scan_phase(void)
+{
+    int best = 0x7fffffff;
+    uint32_t acc = 0x548a11u;
+    for (int i = 0; i < TABLE; i++) {
+        int value = table[i].value + history[i & 63][(i * 7) & 63];
+        if (value < best)
+            best = value;
+        acc ^= (uint32_t)(value * 33 + best);
+    }
+    return acc;
+}
+
+static void reset_transposition_table(void)
+{
+    for (int i = 0; i < TABLE; i++) {
+        table[i].key = 0;
+        table[i].value = 0;
+        table[i].depth = -1;
+    }
+}
+
 int main(void)
 {
+    asm volatile(".global perf_warmup_start\n\t" "perf_warmup_start:");
     init_positions();
+    spec_profile_footprint_init();
+    asm volatile(".global perf_warmup_end\n\t" "perf_warmup_end:");
 
     asm volatile(".global perf_monitor_start\n\t" "perf_monitor_start:");
-    checksum = exchange2_kernel();
+    SPEC_COMPOSITION_PHASE0_BEGIN();
+    checksum = 0;
+    for (int round = 0; round < SPEC_COMPOSITION_SCALE; round++) {
+        reset_transposition_table();
+        checksum ^= exchange2_kernel() + (uint32_t)round;
+    }
+    SPEC_COMPOSITION_PHASE0_END();
+    SPEC_COMPOSITION_PHASE1_BEGIN();
+    for (int round = 0; round < SPEC_COMPOSITION_SCALE; round++)
+        checksum ^= minimum_scan_phase() + (uint32_t)round;
+    SPEC_COMPOSITION_PHASE1_END();
+    checksum ^= spec_profile_footprint_run();
     asm volatile(".global perf_monitor_end\n\t" "perf_monitor_end:");
 
     printf("spec_exchange2_search_kernel config positions=%u depth=%u moves=%u table=%u\n",

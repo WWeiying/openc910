@@ -1,0 +1,5994 @@
+{
+  "schema": "openc910-spec-cluster-compositions-v1",
+  "description": "Audited semantic grouping of completed benchmark-local SimPoint clusters. Target weights come directly from the selected SPEC function profiles.",
+  "cases": [
+    {
+      "benchmark": "526.blender_r",
+      "case": "spec_blender_render_kernel",
+      "calibration": "simpoint-cluster-composition",
+      "source_profile_size": "ref",
+      "source_profile": "spec_runs/526.blender_r_ref_c910/526.blender_r_ref.function_profile.csv",
+      "source_cluster_count": 4,
+      "mechanism_group_count": 3,
+      "groups": [
+        {
+          "name": "zbuffer",
+          "mechanism": "raster_zbuffer",
+          "clusters": [
+            0
+          ],
+          "intervals": [
+            6670
+          ],
+          "source_weight": 0.0314418,
+          "target_weight": 0.03144182515346012,
+          "top_functions": [
+            {
+              "name": "zbuffer_solid",
+              "share_within_group": 0.699191
+            },
+            {
+              "name": "_Z22bvh_node_stack_raycastI8VBVHNodeLi1024ELb0ELb1EEiPT_P5Isect",
+              "share_within_group": 0.176156
+            },
+            {
+              "name": "RE_rayobject_intersect",
+              "share_within_group": 0.030826
+            },
+            {
+              "name": "zbuf_add_to_span",
+              "share_within_group": 0.019223
+            },
+            {
+              "name": "zbuffillGL4",
+              "share_within_group": 0.019021
+            },
+            {
+              "name": "zbufclip",
+              "share_within_group": 0.009698
+            },
+            {
+              "name": "floorf32",
+              "share_within_group": 0.007317000000000001
+            },
+            {
+              "name": "ray_ao_qmc",
+              "share_within_group": 0.0054859999999999996
+            },
+            {
+              "name": "ceilf32",
+              "share_within_group": 0.003848
+            },
+            {
+              "name": "RE_rayobject_raycast",
+              "share_within_group": 0.003398
+            },
+            {
+              "name": "orgBlenderNoise",
+              "share_within_group": 0.00309
+            },
+            {
+              "name": "_PROCEDURE_LINKAGE_TABLE_",
+              "share_within_group": 0.0029130000000000002
+            }
+          ]
+        },
+        {
+          "name": "ray_traversal",
+          "mechanism": "bvh_raycast",
+          "clusters": [
+            1,
+            3
+          ],
+          "intervals": [
+            3427,
+            10867
+          ],
+          "source_weight": 0.931422,
+          "target_weight": 0.9314227451381961,
+          "top_functions": [
+            {
+              "name": "_Z22bvh_node_stack_raycastI8VBVHNodeLi1024ELb0ELb1EEiPT_P5Isect",
+              "share_within_group": 0.7321170948871725
+            },
+            {
+              "name": "RE_rayobject_intersect",
+              "share_within_group": 0.12934785225816012
+            },
+            {
+              "name": "add_radiance",
+              "share_within_group": 0.03224801409457797
+            },
+            {
+              "name": "ray_ao_qmc",
+              "share_within_group": 0.019074721200486998
+            },
+            {
+              "name": "RE_rayobject_raycast",
+              "share_within_group": 0.013877528920296063
+            },
+            {
+              "name": "traverse_octree",
+              "share_within_group": 0.013197107442169068
+            },
+            {
+              "name": "ray_shadow_qmc",
+              "share_within_group": 0.008775745060778035
+            },
+            {
+              "name": "__ieee754_fmod",
+              "share_within_group": 0.007540135173959817
+            },
+            {
+              "name": "sincosf32",
+              "share_within_group": 0.00709387611200938
+            },
+            {
+              "name": "orgBlenderNoise",
+              "share_within_group": 0.00593344817923562
+            },
+            {
+              "name": "QMC_initPixel",
+              "share_within_group": 0.005884590864291374
+            },
+            {
+              "name": "fmodf64",
+              "share_within_group": 0.002792751244870746
+            }
+          ]
+        },
+        {
+          "name": "scene_update",
+          "mechanism": "allocation_transform",
+          "clusters": [
+            2
+          ],
+          "intervals": [
+            25
+          ],
+          "source_weight": 0.0371354,
+          "target_weight": 0.03713542970834376,
+          "top_functions": [
+            {
+              "name": "dynamicPaint_calculateFrame",
+              "share_within_group": 0.276022
+            },
+            {
+              "name": "_int_free",
+              "share_within_group": 0.141268
+            },
+            {
+              "name": "memcpy",
+              "share_within_group": 0.072149
+            },
+            {
+              "name": "free",
+              "share_within_group": 0.059484999999999996
+            },
+            {
+              "name": "malloc_consolidate",
+              "share_within_group": 0.05308600000000001
+            },
+            {
+              "name": "BKE_mesh_recalc_tessellation",
+              "share_within_group": 0.048308
+            },
+            {
+              "name": "MEM_lockfree_freeN",
+              "share_within_group": 0.045394
+            },
+            {
+              "name": "unlink_chunk.isra.0",
+              "share_within_group": 0.033407
+            },
+            {
+              "name": "floorf32",
+              "share_within_group": 0.032602
+            },
+            {
+              "name": "test_index_face",
+              "share_within_group": 0.028153999999999995
+            },
+            {
+              "name": "mul_m4_v3",
+              "share_within_group": 0.025914000000000003
+            },
+            {
+              "name": "cp_key",
+              "share_within_group": 0.024243
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "benchmark": "503.bwaves_r",
+      "case": "spec_bwaves_stencil_kernel",
+      "calibration": "simpoint-cluster-composition",
+      "source_profile_size": "ref",
+      "source_profile": "spec_runs/503.bwaves_r_ref_c910/503.bwaves_r_ref.function_profile.csv",
+      "source_cluster_count": 4,
+      "mechanism_group_count": 2,
+      "groups": [
+        {
+          "name": "matvec",
+          "mechanism": "fp_sparse_matvec",
+          "clusters": [
+            0,
+            1,
+            2
+          ],
+          "intervals": [
+            18854,
+            4087,
+            10957
+          ],
+          "source_weight": 0.6828160000000001,
+          "target_weight": 0.6828153171846828,
+          "top_functions": [
+            {
+              "name": "mat_times_vec_",
+              "share_within_group": 0.8253325342405566
+            },
+            {
+              "name": "bi_cgstab_block_",
+              "share_within_group": 0.17462331324983596
+            },
+            {
+              "name": "[module:libgfortran.so.5.0.0:unresolved]",
+              "share_within_group": 1.570810437951073e-05
+            },
+            {
+              "name": "__printf_fp_l",
+              "share_within_group": 8.066323870559564e-06
+            },
+            {
+              "name": "__mpn_mul_1",
+              "share_within_group": 4.66997697769238e-06
+            },
+            {
+              "name": "__vfprintf_internal",
+              "share_within_group": 4.245433616083982e-06
+            },
+            {
+              "name": "hack_digit",
+              "share_within_group": 3.3963468928671845e-06
+            },
+            {
+              "name": "memcpy",
+              "share_within_group": 8.490867232167961e-07
+            },
+            {
+              "name": "__vsnprintf_internal",
+              "share_within_group": 8.490867232167961e-07
+            },
+            {
+              "name": "memset",
+              "share_within_group": 4.2454336160839807e-07
+            },
+            {
+              "name": "__GI__IO_default_xsputn",
+              "share_within_group": 4.2454336160839807e-07
+            },
+            {
+              "name": "_IO_str_init_static_internal",
+              "share_within_group": 4.2454336160839807e-07
+            }
+          ]
+        },
+        {
+          "name": "bicg_recurrence",
+          "mechanism": "fp_bicg_recurrence",
+          "clusters": [
+            3
+          ],
+          "intervals": [
+            81
+          ],
+          "source_weight": 0.317185,
+          "target_weight": 0.31718468281531714,
+          "top_functions": [
+            {
+              "name": "bi_cgstab_block_",
+              "share_within_group": 0.501922
+            },
+            {
+              "name": "mat_times_vec_",
+              "share_within_group": 0.495805
+            },
+            {
+              "name": "fill1_",
+              "share_within_group": 0.002274
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "benchmark": "507.cactuBSSN_r",
+      "case": "spec_cactubssn_stencil_kernel",
+      "calibration": "simpoint-cluster-composition",
+      "source_profile_size": "ref",
+      "source_profile": "spec_runs/507.cactuBSSN_r_ref_c910/507.cactuBSSN_r_ref.function_profile.csv",
+      "source_cluster_count": 4,
+      "mechanism_group_count": 3,
+      "groups": [
+        {
+          "name": "advection",
+          "mechanism": "fp_stencil_advection",
+          "clusters": [
+            0,
+            3
+          ],
+          "intervals": [
+            4224,
+            5781
+          ],
+          "source_weight": 0.4021899,
+          "target_weight": 0.402189940218994,
+          "top_functions": [
+            {
+              "name": "_ZL19ML_BSSN_Advect_BodyPK4_cGHiiPKdS3_S3_PKiS5_iPKPd",
+              "share_within_group": 0.9799578152678623
+            },
+            {
+              "name": "MoL_LinearCombination",
+              "share_within_group": 0.02003979957602118
+            },
+            {
+              "name": "strcmp",
+              "share_within_group": 3.8470259944369566e-07
+            },
+            {
+              "name": "CCTK_VarDataPtrI",
+              "share_within_group": 2.0517471970330434e-07
+            },
+            {
+              "name": "Util_GetHandle",
+              "share_within_group": 2.0517471970330434e-07
+            },
+            {
+              "name": "PUGH_GroupDynamicData",
+              "share_within_group": 2.0517471970330434e-07
+            },
+            {
+              "name": "CCTK_MaxTimeLevelsVI",
+              "share_within_group": 2.0517471970330434e-07
+            },
+            {
+              "name": "PUGHi_NumTimeLevelsArray",
+              "share_within_group": 1.282341998145652e-07
+            },
+            {
+              "name": "CCTK_GroupashGI",
+              "share_within_group": 1.282341998145652e-07
+            },
+            {
+              "name": "MoL_RK3Add",
+              "share_within_group": 1.282341998145652e-07
+            },
+            {
+              "name": "memcpy",
+              "share_within_group": 1.0258735985165217e-07
+            },
+            {
+              "name": "CCTK_GroupashVI",
+              "share_within_group": 7.694051988873912e-08
+            }
+          ]
+        },
+        {
+          "name": "rhs",
+          "mechanism": "fp_stencil_rhs",
+          "clusters": [
+            1
+          ],
+          "intervals": [
+            7034
+          ],
+          "source_weight": 0.464034,
+          "target_weight": 0.4640340464034046,
+          "top_functions": [
+            {
+              "name": "_ZL16ML_BSSN_RHS_BodyPK4_cGHiiPKdS3_S3_PKiS5_iPKPd",
+              "share_within_group": 0.9252180000000001
+            },
+            {
+              "name": "_ZL19ML_BSSN_Advect_BodyPK4_cGHiiPKdS3_S3_PKiS5_iPKPd",
+              "share_within_group": 0.043963999999999996
+            },
+            {
+              "name": "powf64",
+              "share_within_group": 0.016316
+            },
+            {
+              "name": "expf64",
+              "share_within_group": 0.012333
+            },
+            {
+              "name": "_PROCEDURE_LINKAGE_TABLE_",
+              "share_within_group": 0.0011940000000000002
+            },
+            {
+              "name": "Util_StrCmpi",
+              "share_within_group": 0.000359
+            },
+            {
+              "name": "CCTKi_VarDataPtrI",
+              "share_within_group": 8.7e-05
+            },
+            {
+              "name": "CCTK_Equals",
+              "share_within_group": 7.400000000000001e-05
+            },
+            {
+              "name": "CCTK_GroupIndex",
+              "share_within_group": 7.2e-05
+            },
+            {
+              "name": "CCTK_MaxTimeLevelsVI",
+              "share_within_group": 6.7e-05
+            },
+            {
+              "name": "strcmp",
+              "share_within_group": 6.6e-05
+            },
+            {
+              "name": "strlen",
+              "share_within_group": 3.8e-05
+            }
+          ]
+        },
+        {
+          "name": "constraints",
+          "mechanism": "fp_bounds_constraints",
+          "clusters": [
+            2
+          ],
+          "intervals": [
+            8560
+          ],
+          "source_weight": 0.133776,
+          "target_weight": 0.13377601337760134,
+          "top_functions": [
+            {
+              "name": "_ZL24ML_BSSN_constraints_BodyPK4_cGHiiPKdS3_S3_PKiS5_iPKPd",
+              "share_within_group": 0.7887489999999999
+            },
+            {
+              "name": "memcpy",
+              "share_within_group": 0.114244
+            },
+            {
+              "name": "ApplyBndFlat",
+              "share_within_group": 0.071906
+            },
+            {
+              "name": "_PROCEDURE_LINKAGE_TABLE_",
+              "share_within_group": 0.017596
+            },
+            {
+              "name": "expf64",
+              "share_within_group": 0.006982
+            },
+            {
+              "name": "Util_StrCmpi",
+              "share_within_group": 0.000129
+            },
+            {
+              "name": "strcmp",
+              "share_within_group": 0.00010800000000000001
+            },
+            {
+              "name": "CCTKi_VarDataPtrI",
+              "share_within_group": 3.9e-05
+            },
+            {
+              "name": "CCTK_MaxTimeLevelsVI",
+              "share_within_group": 3e-05
+            },
+            {
+              "name": "CCTK_Equals",
+              "share_within_group": 2.2000000000000003e-05
+            },
+            {
+              "name": "CCTK_GroupIndex",
+              "share_within_group": 2e-05
+            },
+            {
+              "name": "CCTK_IsFunctionAliased",
+              "share_within_group": 2e-05
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "benchmark": "527.cam4_r",
+      "case": "spec_cam4_climate_kernel",
+      "calibration": "simpoint-cluster-composition",
+      "source_profile_size": "ref",
+      "source_profile": "spec_runs/527.cam4_r_ref_c910/527.cam4_r_ref.function_profile.csv",
+      "source_cluster_count": 5,
+      "mechanism_group_count": 3,
+      "groups": [
+        {
+          "name": "dynamics",
+          "mechanism": "fp_column_dynamics",
+          "clusters": [
+            0,
+            1
+          ],
+          "intervals": [
+            3300,
+            8181
+          ],
+          "source_weight": 0.1155457,
+          "target_weight": 0.11554561911806663,
+          "top_functions": [
+            {
+              "name": "__tracer_data_MOD_interpolate_trcdata.constprop.0",
+              "share_within_group": 0.37905838575732376
+            },
+            {
+              "name": "__sw_core_MOD_d_sw",
+              "share_within_group": 0.09888358002591181
+            },
+            {
+              "name": "__tp_core_MOD_lmppm",
+              "share_within_group": 0.09101768871364317
+            },
+            {
+              "name": "__tp_core_MOD_fyppm",
+              "share_within_group": 0.0720606353044726
+            },
+            {
+              "name": "__tp_core_MOD_xmist",
+              "share_within_group": 0.06883536451983932
+            },
+            {
+              "name": "__tp_core_MOD_ymist",
+              "share_within_group": 0.06396918782611555
+            },
+            {
+              "name": "__tp_core_MOD_fxppm",
+              "share_within_group": 0.06167350027045575
+            },
+            {
+              "name": "__tp_core_MOD_xtpv",
+              "share_within_group": 0.058414183272073296
+            },
+            {
+              "name": "__tp_core_MOD_tp2d",
+              "share_within_group": 0.05809803985868795
+            },
+            {
+              "name": "__tp_core_MOD_ytp",
+              "share_within_group": 0.020420432632283155
+            },
+            {
+              "name": "__tp_core_MOD_tp2c",
+              "share_within_group": 0.012643304663003471
+            },
+            {
+              "name": "__prescribed_aero_MOD_prescribed_aero_adv",
+              "share_within_group": 0.005569205133553219
+            }
+          ]
+        },
+        {
+          "name": "radiation",
+          "mechanism": "fp_transcendental_radiation",
+          "clusters": [
+            2,
+            3
+          ],
+          "intervals": [
+            2229,
+            6440
+          ],
+          "source_weight": 0.634167,
+          "target_weight": 0.6341665560834108,
+          "top_functions": [
+            {
+              "name": "__radsw_MOD_radcswmx",
+              "share_within_group": 0.15839857655633294
+            },
+            {
+              "name": "__aer_rad_props_MOD_aer_rad_props_sw",
+              "share_within_group": 0.12053730941534327
+            },
+            {
+              "name": "expf64",
+              "share_within_group": 0.08506723360565907
+            },
+            {
+              "name": "__aer_rad_props_MOD_get_nonhygro_rad_props.isra.0",
+              "share_within_group": 0.06572990530570022
+            },
+            {
+              "name": "__radae_MOD_radabs",
+              "share_within_group": 0.06082357213793842
+            },
+            {
+              "name": "logf64",
+              "share_within_group": 0.05859346244443499
+            },
+            {
+              "name": "__aer_rad_props_MOD_get_hygro_rad_props.isra.0",
+              "share_within_group": 0.04554469167427507
+            },
+            {
+              "name": "powf64",
+              "share_within_group": 0.0375280321192998
+            },
+            {
+              "name": "__radlw_MOD_radclwmx",
+              "share_within_group": 0.031961000061498
+            },
+            {
+              "name": "__pkg_cld_sediment_MOD_getflx.isra.0",
+              "share_within_group": 0.02220473565007325
+            },
+            {
+              "name": "__radae_MOD_trcab.isra.0",
+              "share_within_group": 0.0219823768691843
+            },
+            {
+              "name": "__cldwat_MOD_pcond",
+              "share_within_group": 0.0168522689118166
+            }
+          ]
+        },
+        {
+          "name": "clouds",
+          "mechanism": "fp_cloud_sedimentation",
+          "clusters": [
+            4
+          ],
+          "intervals": [
+            14129
+          ],
+          "source_weight": 0.250288,
+          "target_weight": 0.2502878247985227,
+          "top_functions": [
+            {
+              "name": "powf64",
+              "share_within_group": 0.149198
+            },
+            {
+              "name": "logf64",
+              "share_within_group": 0.087428
+            },
+            {
+              "name": "__pkg_cld_sediment_MOD_getflx.isra.0",
+              "share_within_group": 0.062705
+            },
+            {
+              "name": "__ghg_data_MOD_ghg_data_timestep_init",
+              "share_within_group": 0.055800999999999996
+            },
+            {
+              "name": "__cldwat_MOD_pcond",
+              "share_within_group": 0.046223
+            },
+            {
+              "name": "__zm_conv_MOD_ientropy.isra.0",
+              "share_within_group": 0.043906
+            },
+            {
+              "name": "expf64",
+              "share_within_group": 0.035927
+            },
+            {
+              "name": "__zm_conv_MOD_zm_convr",
+              "share_within_group": 0.030819
+            },
+            {
+              "name": "__geopotential_MOD_geopotential_dse",
+              "share_within_group": 0.029757
+            },
+            {
+              "name": "cosf64",
+              "share_within_group": 0.028226
+            },
+            {
+              "name": "_gfortran_compare_string@@GFORTRAN_8",
+              "share_within_group": 0.025332
+            },
+            {
+              "name": "__physics_types_MOD_physics_update",
+              "share_within_group": 0.025151
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "benchmark": "531.deepsjeng_r",
+      "case": "spec_deepsjeng_search_kernel",
+      "calibration": "simpoint-cluster-composition",
+      "source_profile_size": "ref",
+      "source_profile": "spec_runs/531.deepsjeng_r_ref_c910/531.deepsjeng_r_ref.function_profile.csv",
+      "source_cluster_count": 5,
+      "mechanism_group_count": 2,
+      "groups": [
+        {
+          "name": "tree_search",
+          "mechanism": "branch_tree_search",
+          "clusters": [
+            0,
+            2,
+            4
+          ],
+          "intervals": [
+            4858,
+            4101,
+            19222
+          ],
+          "source_weight": 0.854463,
+          "target_weight": 0.8544633417853366,
+          "top_functions": [
+            {
+              "name": "_Z5fevalP7state_tiP12t_eval_comps",
+              "share_within_group": 0.1357524125304431
+            },
+            {
+              "name": "_Z6searchP7state_tiiiii.part.0",
+              "share_within_group": 0.08904295616311063
+            },
+            {
+              "name": "_Z7qsearchP7state_tiiii",
+              "share_within_group": 0.07159311123126455
+            },
+            {
+              "name": "_Z15FindFirstRemovePy",
+              "share_within_group": 0.0682150212648178
+            },
+            {
+              "name": "_Z4makeP7state_ti",
+              "share_within_group": 0.06423164421981993
+            },
+            {
+              "name": "_Z3seeP7state_tiiii",
+              "share_within_group": 0.06374230658202872
+            },
+            {
+              "name": "_ZL11order_movesP7state_tPiS1_ij",
+              "share_within_group": 0.0582417055682926
+            },
+            {
+              "name": "_Z11RookAttacksP7state_ti",
+              "share_within_group": 0.05355349117749979
+            },
+            {
+              "name": "_Z11is_attackedP7state_tii",
+              "share_within_group": 0.04828935230431277
+            },
+            {
+              "name": "_Z13ThickPopCounty",
+              "share_within_group": 0.03756660674365069
+            },
+            {
+              "name": "_Z13BishopAttacksP7state_ti",
+              "share_within_group": 0.03263792290947647
+            },
+            {
+              "name": "_Z6unmakeP7state_ti",
+              "share_within_group": 0.031321525636569404
+            }
+          ]
+        },
+        {
+          "name": "evaluation_setup",
+          "mechanism": "integer_evaluation_setup",
+          "clusters": [
+            1,
+            3
+          ],
+          "intervals": [
+            16772,
+            995
+          ],
+          "source_weight": 0.14553660000000002,
+          "target_weight": 0.1455366582146633,
+          "top_functions": [
+            {
+              "name": "_Z5fevalP7state_tiP12t_eval_comps",
+              "share_within_group": 0.11742174637719995
+            },
+            {
+              "name": "_Z3seeP7state_tiiii",
+              "share_within_group": 0.11116990802863336
+            },
+            {
+              "name": "_Z4makeP7state_ti",
+              "share_within_group": 0.07635930602886147
+            },
+            {
+              "name": "_Z7qsearchP7state_tiiii",
+              "share_within_group": 0.07471184279968063
+            },
+            {
+              "name": "_Z6searchP7state_tiiiii.part.0",
+              "share_within_group": 0.06486578352661805
+            },
+            {
+              "name": "_Z10attacks_toP7state_ti",
+              "share_within_group": 0.05783152295024068
+            },
+            {
+              "name": "_Z15FindFirstRemovePy",
+              "share_within_group": 0.05550997761937547
+            },
+            {
+              "name": "_Z11is_attackedP7state_tii",
+              "share_within_group": 0.050144573314204126
+            },
+            {
+              "name": "_Z11RookAttacksP7state_ti",
+              "share_within_group": 0.046678854666111484
+            },
+            {
+              "name": "_ZL11order_movesP7state_tPiS1_ij",
+              "share_within_group": 0.04058792315197689
+            },
+            {
+              "name": "_Z6unmakeP7state_ti",
+              "share_within_group": 0.03715360320221855
+            },
+            {
+              "name": "_Z7StoreTTP7state_tiiijiiii",
+              "share_within_group": 0.031185311788237455
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "benchmark": "548.exchange2_r",
+      "case": "spec_exchange2_search_kernel",
+      "calibration": "simpoint-cluster-composition",
+      "source_profile_size": "ref",
+      "source_profile": "spec_runs/548.exchange2_r_ref_c910/548.exchange2_r_ref.function_profile.csv",
+      "source_cluster_count": 5,
+      "mechanism_group_count": 2,
+      "groups": [
+        {
+          "name": "digit_search",
+          "mechanism": "branch_combinatorial_search",
+          "clusters": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "intervals": [
+            2825,
+            18201,
+            16894,
+            7632
+          ],
+          "source_weight": 0.9617930000000001,
+          "target_weight": 0.9617929038207097,
+          "top_functions": [
+            {
+              "name": "__brute_force_MOD_digits_2.isra.0",
+              "share_within_group": 0.9443815250869988
+            },
+            {
+              "name": "_gfortran_mminloc0_4_i4@@GFORTRAN_8",
+              "share_within_group": 0.02588789203290105
+            },
+            {
+              "name": "specific.4",
+              "share_within_group": 0.013633101577990275
+            },
+            {
+              "name": "__logic_MOD_new_solver",
+              "share_within_group": 0.006094887564164014
+            },
+            {
+              "name": "hidden_triplets.0",
+              "share_within_group": 0.0016492374492224416
+            },
+            {
+              "name": "_int_free",
+              "share_within_group": 0.001550861816419957
+            },
+            {
+              "name": "malloc",
+              "share_within_group": 0.0014402086883560183
+            },
+            {
+              "name": "hidden_pairs.2",
+              "share_within_group": 0.0011341657394054647
+            },
+            {
+              "name": "free",
+              "share_within_group": 0.0010520733577807282
+            },
+            {
+              "name": "__brute_force_MOD_brute",
+              "share_within_group": 0.0009722898367944037
+            },
+            {
+              "name": "naked_triplets.1",
+              "share_within_group": 0.000958724965767062
+            },
+            {
+              "name": "__brute_force_MOD_covered",
+              "share_within_group": 0.0005274309950269963
+            }
+          ]
+        },
+        {
+          "name": "minimum_scan",
+          "mechanism": "integer_minimum_reduction",
+          "clusters": [
+            4
+          ],
+          "intervals": [
+            11476
+          ],
+          "source_weight": 0.0382071,
+          "target_weight": 0.038207096179290384,
+          "top_functions": [
+            {
+              "name": "__brute_force_MOD_digits_2.isra.0",
+              "share_within_group": 0.336966
+            },
+            {
+              "name": "_gfortran_mminloc0_4_i4@@GFORTRAN_8",
+              "share_within_group": 0.294145
+            },
+            {
+              "name": "specific.4",
+              "share_within_group": 0.158276
+            },
+            {
+              "name": "__logic_MOD_new_solver",
+              "share_within_group": 0.074922
+            },
+            {
+              "name": "hidden_triplets.0",
+              "share_within_group": 0.035779
+            },
+            {
+              "name": "_int_free",
+              "share_within_group": 0.017776
+            },
+            {
+              "name": "malloc",
+              "share_within_group": 0.016506
+            },
+            {
+              "name": "naked_triplets.1",
+              "share_within_group": 0.015943
+            },
+            {
+              "name": "hidden_pairs.2",
+              "share_within_group": 0.015151
+            },
+            {
+              "name": "free",
+              "share_within_group": 0.012062
+            },
+            {
+              "name": "__brute_force_MOD_brute",
+              "share_within_group": 0.010419000000000001
+            },
+            {
+              "name": "__brute_force_MOD_covered",
+              "share_within_group": 0.003626
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "benchmark": "549.fotonik3d_r",
+      "case": "spec_fotonik3d_stencil_kernel",
+      "calibration": "simpoint-cluster-composition",
+      "source_profile_size": "ref",
+      "source_profile": "spec_runs/549.fotonik3d_r_ref_c910/549.fotonik3d_r_ref.function_profile.csv",
+      "source_cluster_count": 5,
+      "mechanism_group_count": 3,
+      "groups": [
+        {
+          "name": "electric_material",
+          "mechanism": "fp_electric_material",
+          "clusters": [
+            0
+          ],
+          "intervals": [
+            6283
+          ],
+          "source_weight": 0.283524,
+          "target_weight": 0.28352400000000005,
+          "top_functions": [
+            {
+              "name": "__material_mod_MOD_mat_updatee",
+              "share_within_group": 0.9794529999999999
+            },
+            {
+              "name": "__upml_mod_MOD_upml_updateh",
+              "share_within_group": 0.020546000000000002
+            },
+            {
+              "name": "leapfrog_",
+              "share_within_group": 0.0
+            }
+          ]
+        },
+        {
+          "name": "magnetic_update",
+          "mechanism": "fp_magnetic_stencil",
+          "clusters": [
+            2,
+            4
+          ],
+          "intervals": [
+            2107,
+            14820
+          ],
+          "source_weight": 0.27652299999999996,
+          "target_weight": 0.276523,
+          "top_functions": [
+            {
+              "name": "__update_mod_MOD_updateh",
+              "share_within_group": 0.767047712942504
+            },
+            {
+              "name": "__upml_mod_MOD_upml_updateh",
+              "share_within_group": 0.23295128705749613
+            },
+            {
+              "name": "__power_mod_MOD_power_updateh",
+              "share_within_group": 1.0000000000000002e-06
+            },
+            {
+              "name": "leapfrog_",
+              "share_within_group": 0.0
+            }
+          ]
+        },
+        {
+          "name": "power_and_setup",
+          "mechanism": "fp_power_setup",
+          "clusters": [
+            1,
+            3
+          ],
+          "intervals": [
+            1882,
+            0
+          ],
+          "source_weight": 0.439953,
+          "target_weight": 0.43995300000000004,
+          "top_functions": [
+            {
+              "name": "__power_mod_MOD_power_dft",
+              "share_within_group": 0.357233904396606
+            },
+            {
+              "name": "[module:libgfortran.so.5.0.0:unresolved]",
+              "share_within_group": 0.3118483855957341
+            },
+            {
+              "name": "_int_malloc",
+              "share_within_group": 0.07949276384522891
+            },
+            {
+              "name": "____strtof_l_internal",
+              "share_within_group": 0.04771434792352819
+            },
+            {
+              "name": "__upml_mod_MOD_upml_updatee_simple",
+              "share_within_group": 0.031175587519575953
+            },
+            {
+              "name": "memset",
+              "share_within_group": 0.028666109348043995
+            },
+            {
+              "name": "_int_free",
+              "share_within_group": 0.025850530774878228
+            },
+            {
+              "name": "memcpy",
+              "share_within_group": 0.020451780221978254
+            },
+            {
+              "name": "calloc",
+              "share_within_group": 0.013931045879900806
+            },
+            {
+              "name": "unlink_chunk.isra.0",
+              "share_within_group": 0.011900067111714206
+            },
+            {
+              "name": "str_to_mpn.part.0.constprop.0",
+              "share_within_group": 0.011881256134177969
+            },
+            {
+              "name": "free",
+              "share_within_group": 0.008552319915991027
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "benchmark": "502.gcc_r",
+      "case": "spec_gcc_compile_kernel",
+      "calibration": "simpoint-cluster-composition",
+      "source_profile_size": "ref",
+      "source_profile": "spec_runs/502.gcc_r_ref_c910/502.gcc_r_ref.function_profile.csv",
+      "source_cluster_count": 4,
+      "mechanism_group_count": 3,
+      "groups": [
+        {
+          "name": "compiler_graph",
+          "mechanism": "pointer_graph_allocator",
+          "clusters": [
+            0
+          ],
+          "intervals": [
+            2230
+          ],
+          "source_weight": 0.855757,
+          "target_weight": 0.8557573423029369,
+          "top_functions": [
+            {
+              "name": "_int_free",
+              "share_within_group": 0.023549
+            },
+            {
+              "name": "_int_malloc",
+              "share_within_group": 0.023001999999999998
+            },
+            {
+              "name": "bitmap_set_bit",
+              "share_within_group": 0.022184
+            },
+            {
+              "name": "memset",
+              "share_within_group": 0.016701
+            },
+            {
+              "name": "ggc_alloc_stat",
+              "share_within_group": 0.013813999999999998
+            },
+            {
+              "name": "record_reg_classes.constprop.0",
+              "share_within_group": 0.013799999999999998
+            },
+            {
+              "name": "htab_delete",
+              "share_within_group": 0.013175
+            },
+            {
+              "name": "free",
+              "share_within_group": 0.012084
+            },
+            {
+              "name": "malloc",
+              "share_within_group": 0.011847000000000002
+            },
+            {
+              "name": "fold_binary_loc",
+              "share_within_group": 0.010931999999999999
+            },
+            {
+              "name": "htab_find_slot_with_hash",
+              "share_within_group": 0.009134999999999999
+            },
+            {
+              "name": "walk_tree_1",
+              "share_within_group": 0.009016999999999999
+            }
+          ]
+        },
+        {
+          "name": "bitmap",
+          "mechanism": "integer_bitmap",
+          "clusters": [
+            1
+          ],
+          "intervals": [
+            4535
+          ],
+          "source_weight": 0.0377358,
+          "target_weight": 0.03773581509432604,
+          "top_functions": [
+            {
+              "name": "bitmap_ior_into",
+              "share_within_group": 0.8381350000000002
+            },
+            {
+              "name": "solve_graph",
+              "share_within_group": 0.09895899999999999
+            },
+            {
+              "name": "bitmap_set_bit",
+              "share_within_group": 0.027812
+            },
+            {
+              "name": "bitmap_elt_insert_after",
+              "share_within_group": 0.015874
+            },
+            {
+              "name": "solution_set_expand.isra.0",
+              "share_within_group": 0.011680999999999999
+            },
+            {
+              "name": "bitmap_and_compl",
+              "share_within_group": 0.004842
+            },
+            {
+              "name": "pointer_map_contains",
+              "share_within_group": 0.001001
+            },
+            {
+              "name": "bitmap_copy",
+              "share_within_group": 0.000598
+            },
+            {
+              "name": "_int_malloc",
+              "share_within_group": 0.00046399999999999995
+            },
+            {
+              "name": "_obstack_newchunk",
+              "share_within_group": 0.00022999999999999998
+            },
+            {
+              "name": "malloc",
+              "share_within_group": 0.000169
+            },
+            {
+              "name": "find",
+              "share_within_group": 0.000119
+            }
+          ]
+        },
+        {
+          "name": "cfg_schedule",
+          "mechanism": "branch_cfg_scheduler",
+          "clusters": [
+            2,
+            3
+          ],
+          "intervals": [
+            8378,
+            10578
+          ],
+          "source_weight": 0.1065068,
+          "target_weight": 0.10650684260273705,
+          "top_functions": [
+            {
+              "name": "memset",
+              "share_within_group": 0.4662361824662839
+            },
+            {
+              "name": "memcpy",
+              "share_within_group": 0.13510410197283176
+            },
+            {
+              "name": "rtl_split_edge",
+              "share_within_group": 0.053997756883128585
+            },
+            {
+              "name": "sched_analyze_insn",
+              "share_within_group": 0.04735975191349285
+            },
+            {
+              "name": "find_many_sub_basic_blocks",
+              "share_within_group": 0.012341980428479683
+            },
+            {
+              "name": "for_each_rtx_1",
+              "share_within_group": 0.011769935636034507
+            },
+            {
+              "name": "bitmap_set_bit",
+              "share_within_group": 0.009441781178290963
+            },
+            {
+              "name": "purge_dead_edges",
+              "share_within_group": 0.009216574305114791
+            },
+            {
+              "name": "may_trap_p_1",
+              "share_within_group": 0.007353532895552209
+            },
+            {
+              "name": "_int_malloc",
+              "share_within_group": 0.0060254137294520164
+            },
+            {
+              "name": "constrain_operands",
+              "share_within_group": 0.005916703467759805
+            },
+            {
+              "name": "sched_analyze_2",
+              "share_within_group": 0.005073145545636522
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "benchmark": "538.imagick_r",
+      "case": "spec_imagick_filter_kernel",
+      "calibration": "simpoint-cluster-composition",
+      "source_profile_size": "ref",
+      "source_profile": "spec_runs/538.imagick_r_ref_c910/538.imagick_r_ref.function_profile.csv",
+      "source_cluster_count": 4,
+      "mechanism_group_count": 2,
+      "groups": [
+        {
+          "name": "mean_shift",
+          "mechanism": "image_mean_shift",
+          "clusters": [
+            0,
+            1,
+            2
+          ],
+          "intervals": [
+            23084,
+            35557,
+            4025
+          ],
+          "source_weight": 0.5467664,
+          "target_weight": 0.5467667280600368,
+          "top_functions": [
+            {
+              "name": "GetVirtualPixelsFromNexus",
+              "share_within_group": 0.2866387211705035
+            },
+            {
+              "name": "MeanShiftImage",
+              "share_within_group": 0.24477753760472482
+            },
+            {
+              "name": "SetPixelCacheNexusPixels.isra.0",
+              "share_within_group": 0.14994484307923822
+            },
+            {
+              "name": "ceilf64",
+              "share_within_group": 0.09244875951228898
+            },
+            {
+              "name": "floorf64",
+              "share_within_group": 0.09244875951228898
+            },
+            {
+              "name": "GetOneCacheViewVirtualPixel",
+              "share_within_group": 0.08178149669218884
+            },
+            {
+              "name": "_PROCEDURE_LINKAGE_TABLE_",
+              "share_within_group": 0.042949540633806314
+            },
+            {
+              "name": "HorizontalFilter",
+              "share_within_group": 0.0022262412693976807
+            },
+            {
+              "name": "_int_free",
+              "share_within_group": 0.0013192555486218611
+            },
+            {
+              "name": "malloc",
+              "share_within_group": 0.0012251350869402363
+            },
+            {
+              "name": "memcpy",
+              "share_within_group": 0.0009050770720366138
+            },
+            {
+              "name": "free",
+              "share_within_group": 0.0008957134710545491
+            }
+          ]
+        },
+        {
+          "name": "morphology",
+          "mechanism": "image_morphology",
+          "clusters": [
+            3
+          ],
+          "intervals": [
+            7542
+          ],
+          "source_weight": 0.453233,
+          "target_weight": 0.45323327193996316,
+          "top_functions": [
+            {
+              "name": "MorphologyApply",
+              "share_within_group": 0.9959990000000001
+            },
+            {
+              "name": "memcpy",
+              "share_within_group": 0.001725
+            },
+            {
+              "name": "GetVirtualPixelsFromNexus",
+              "share_within_group": 0.001686
+            },
+            {
+              "name": "SetPixelCacheNexusPixels.isra.0",
+              "share_within_group": 0.0005870000000000001
+            },
+            {
+              "name": "malloc",
+              "share_within_group": 1e-06
+            },
+            {
+              "name": "_PROCEDURE_LINKAGE_TABLE_",
+              "share_within_group": 1e-06
+            },
+            {
+              "name": "memset",
+              "share_within_group": 0.0
+            },
+            {
+              "name": "AcquirePixelCacheNexus",
+              "share_within_group": 0.0
+            },
+            {
+              "name": "SyncAuthenticPixelCacheNexus",
+              "share_within_group": 0.0
+            },
+            {
+              "name": "AcquireAlignedMemory",
+              "share_within_group": 0.0
+            },
+            {
+              "name": "GetCacheViewVirtualPixels",
+              "share_within_group": 0.0
+            },
+            {
+              "name": "AcquireQuantumMemory",
+              "share_within_group": 0.0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "benchmark": "519.lbm_r",
+      "case": "spec_lbm_stream_kernel",
+      "calibration": "simpoint-cluster-composition",
+      "source_profile_size": "ref",
+      "source_profile": "spec_runs/519.lbm_r_ref_c910/519.lbm_r_ref.function_profile.csv",
+      "source_cluster_count": 2,
+      "mechanism_group_count": 2,
+      "groups": [
+        {
+          "name": "stream_collide",
+          "mechanism": "fp_stream_collide",
+          "clusters": [
+            0
+          ],
+          "intervals": [
+            4972
+          ],
+          "source_weight": 0.752052,
+          "target_weight": 0.752052,
+          "top_functions": [
+            {
+              "name": "LBM_performStreamCollideTRT",
+              "share_within_group": 1.0
+            }
+          ]
+        },
+        {
+          "name": "grid_swap",
+          "mechanism": "fp_grid_swap",
+          "clusters": [
+            1
+          ],
+          "intervals": [
+            2442
+          ],
+          "source_weight": 0.247948,
+          "target_weight": 0.247948,
+          "top_functions": [
+            {
+              "name": "LBM_performStreamCollideTRT",
+              "share_within_group": 1.0
+            },
+            {
+              "name": "main",
+              "share_within_group": 0.0
+            },
+            {
+              "name": "LBM_swapGrids",
+              "share_within_group": 0.0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "benchmark": "541.leela_r",
+      "case": "spec_leela_playout_kernel",
+      "calibration": "simpoint-cluster-composition",
+      "source_profile_size": "ref",
+      "source_profile": "spec_runs/541.leela_r_ref_c910/541.leela_r_ref.function_profile.csv",
+      "source_cluster_count": 5,
+      "mechanism_group_count": 2,
+      "groups": [
+        {
+          "name": "primary_playout",
+          "mechanism": "branch_board_playout",
+          "clusters": [
+            0,
+            1
+          ],
+          "intervals": [
+            12747,
+            15079
+          ],
+          "source_weight": 0.7127330000000001,
+          "target_weight": 0.7127331425466285,
+          "top_functions": [
+            {
+              "name": "_ZN9FastState16play_random_moveEi",
+              "share_within_group": 0.13353031065911075
+            },
+            {
+              "name": "_ZN9FastBoard24get_pattern_fast_augmentEi",
+              "share_within_group": 0.11175884343646218
+            },
+            {
+              "name": "_ZN9FastBoard10self_atariEii",
+              "share_within_group": 0.10264092630901052
+            },
+            {
+              "name": "_ZN9FastBoard17update_board_fastEii",
+              "share_within_group": 0.08960619782162463
+            },
+            {
+              "name": "_ZN6Random7randintEt",
+              "share_within_group": 0.06766268071213202
+            },
+            {
+              "name": "_ZN9FastBoard15nbr_criticalityEii",
+              "share_within_group": 0.06035237322391414
+            },
+            {
+              "name": "_ZN9FastState15walk_empty_listEiib",
+              "share_within_group": 0.05018232421537938
+            },
+            {
+              "name": "_ZN9FastBoard13merge_stringsEii",
+              "share_within_group": 0.0498886325131571
+            },
+            {
+              "name": "_ZN9FastBoard11no_eye_fillEi",
+              "share_within_group": 0.0487051049888247
+            },
+            {
+              "name": "_ZN9FastBoard17add_pattern_movesEiiRN5boost5arrayIiLm24EEERi",
+              "share_within_group": 0.037018273352012604
+            },
+            {
+              "name": "_ZN9FastBoard15fast_ss_suicideEii",
+              "share_within_group": 0.03513505843983651
+            },
+            {
+              "name": "_ZN9FastBoard24save_critical_neighboursEiiRN5boost5arrayIiLm24EEERi",
+              "share_within_group": 0.03032570347942357
+            }
+          ]
+        },
+        {
+          "name": "board_update",
+          "mechanism": "branch_board_state_update",
+          "clusters": [
+            2,
+            3,
+            4
+          ],
+          "intervals": [
+            3359,
+            22654,
+            4120
+          ],
+          "source_weight": 0.28726679999999993,
+          "target_weight": 0.2872668574533714,
+          "top_functions": [
+            {
+              "name": "_ZN9FastBoard10self_atariEii",
+              "share_within_group": 0.1129252157130584
+            },
+            {
+              "name": "_ZN9FastState16play_random_moveEi",
+              "share_within_group": 0.104616918628954
+            },
+            {
+              "name": "_ZN9FastBoard24get_pattern_fast_augmentEi",
+              "share_within_group": 0.09085164996860064
+            },
+            {
+              "name": "_ZN9FastBoard17update_board_fastEii",
+              "share_within_group": 0.07388593439269697
+            },
+            {
+              "name": "_ZN6Random7randintEt",
+              "share_within_group": 0.06472248766999877
+            },
+            {
+              "name": "_ZN9FastState15walk_empty_listEiib",
+              "share_within_group": 0.04972363139353382
+            },
+            {
+              "name": "_ZN9FastBoard11no_eye_fillEi",
+              "share_within_group": 0.04820993288329874
+            },
+            {
+              "name": "_ZN9FastBoard15nbr_criticalityEii",
+              "share_within_group": 0.03745757638682925
+            },
+            {
+              "name": "_ZN9FastBoard13merge_stringsEii",
+              "share_within_group": 0.03706741487912979
+            },
+            {
+              "name": "_ZN7UCTNode16uct_select_childEi",
+              "share_within_group": 0.036562508333716257
+            },
+            {
+              "name": "_ZN9FastBoard15fast_ss_suicideEii",
+              "share_within_group": 0.034734771820481875
+            },
+            {
+              "name": "_ZN9FastBoard17add_pattern_movesEiiRN5boost5arrayIiLm24EEERi",
+              "share_within_group": 0.029993645366606935
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "benchmark": "544.nab_r",
+      "case": "spec_nab_md_kernel",
+      "calibration": "simpoint-cluster-composition",
+      "source_profile_size": "ref",
+      "source_profile": "spec_runs/544.nab_r_ref_c910/544.nab_r_ref.function_profile.csv",
+      "source_cluster_count": 4,
+      "mechanism_group_count": 2,
+      "groups": [
+        {
+          "name": "molecular_energy",
+          "mechanism": "fp_molecular_energy",
+          "clusters": [
+            0,
+            2,
+            3
+          ],
+          "intervals": [
+            10171,
+            1436,
+            6353
+          ],
+          "source_weight": 0.903548,
+          "target_weight": 0.9035483614193446,
+          "top_functions": [
+            {
+              "name": "mme34",
+              "share_within_group": 0.8100304555164749
+            },
+            {
+              "name": "expf64",
+              "share_within_group": 0.11624879987006778
+            },
+            {
+              "name": "logf64",
+              "share_within_group": 0.05892254884521907
+            },
+            {
+              "name": "_PROCEDURE_LINKAGE_TABLE_",
+              "share_within_group": 0.014797994188465915
+            }
+          ]
+        },
+        {
+          "name": "nonbonded",
+          "mechanism": "fp_nonbonded_pairs",
+          "clusters": [
+            1
+          ],
+          "intervals": [
+            15263
+          ],
+          "source_weight": 0.0964516,
+          "target_weight": 0.09645163858065543,
+          "top_functions": [
+            {
+              "name": "nbond.isra.0",
+              "share_within_group": 0.9930549999999999
+            },
+            {
+              "name": "ephi",
+              "share_within_group": 0.006938999999999999
+            },
+            {
+              "name": "_int_malloc",
+              "share_within_group": 2e-06
+            },
+            {
+              "name": "_int_free",
+              "share_within_group": 1e-06
+            },
+            {
+              "name": "malloc",
+              "share_within_group": 1e-06
+            },
+            {
+              "name": "mme34",
+              "share_within_group": 0.0
+            },
+            {
+              "name": "free",
+              "share_within_group": 0.0
+            },
+            {
+              "name": "ivector",
+              "share_within_group": 0.0
+            },
+            {
+              "name": "_PROCEDURE_LINKAGE_TABLE_",
+              "share_within_group": 0.0
+            },
+            {
+              "name": "free_ivector",
+              "share_within_group": 0.0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "benchmark": "508.namd_r",
+      "case": "spec_namd_pair_kernel",
+      "calibration": "simpoint-cluster-composition",
+      "source_profile_size": "ref",
+      "source_profile": "spec_runs/508.namd_r_ref_c910/508.namd_r_ref.function_profile.csv",
+      "source_cluster_count": 5,
+      "mechanism_group_count": 3,
+      "groups": [
+        {
+          "name": "full_electrostatic",
+          "mechanism": "fp_full_electrostatic",
+          "clusters": [
+            0
+          ],
+          "intervals": [
+            18436
+          ],
+          "source_weight": 0.453215,
+          "target_weight": 0.45321536257229006,
+          "top_functions": [
+            {
+              "name": "_ZN20ComputeNonbondedUtil26calc_pair_energy_fullelectEP9nonbonded",
+              "share_within_group": 0.67217
+            },
+            {
+              "name": "_ZN20ComputeNonbondedUtil26calc_self_energy_fullelectEP9nonbonded",
+              "share_within_group": 0.32774000000000003
+            },
+            {
+              "name": "memset",
+              "share_within_group": 4.9e-05
+            },
+            {
+              "name": "_ZN11PairCompute6doWorkEP9PatchList",
+              "share_within_group": 2.1e-05
+            },
+            {
+              "name": "_ZN14ResizeArrayRawItE6resizeEi",
+              "share_within_group": 1.8e-05
+            },
+            {
+              "name": "_ZN11ComputeList11runComputesEP9PatchList",
+              "share_within_group": 1e-06
+            },
+            {
+              "name": "_ZN11SelfCompute6doWorkEP9PatchList",
+              "share_within_group": 1e-06
+            },
+            {
+              "name": "_PROCEDURE_LINKAGE_TABLE_",
+              "share_within_group": 0.0
+            }
+          ]
+        },
+        {
+          "name": "pair_force",
+          "mechanism": "fp_pair_force",
+          "clusters": [
+            1,
+            2
+          ],
+          "intervals": [
+            7075,
+            16008
+          ],
+          "source_weight": 0.3785638,
+          "target_weight": 0.3785641028512823,
+          "top_functions": [
+            {
+              "name": "_ZN20ComputeNonbondedUtil9calc_pairEP9nonbonded",
+              "share_within_group": 0.6346292505728228
+            },
+            {
+              "name": "_ZN20ComputeNonbondedUtil19calc_pair_fullelectEP9nonbonded",
+              "share_within_group": 0.2161282077007891
+            },
+            {
+              "name": "_ZN20ComputeNonbondedUtil9calc_selfEP9nonbonded",
+              "share_within_group": 0.14914157357887892
+            },
+            {
+              "name": "_ZN11PairCompute6doWorkEP9PatchList",
+              "share_within_group": 4.9969988149949895e-05
+            },
+            {
+              "name": "_ZN14ResizeArrayRawItE6resizeEi",
+              "share_within_group": 2.853765521161823e-05
+            },
+            {
+              "name": "memset",
+              "share_within_group": 1.9595838270854215e-05
+            },
+            {
+              "name": "_ZN11ComputeList11runComputesEP9PatchList",
+              "share_within_group": 2.864665876663326e-06
+            },
+            {
+              "name": "_ZN11SelfCompute6doWorkEP9PatchList",
+              "share_within_group": 7.838335308341685e-07
+            },
+            {
+              "name": "_PROCEDURE_LINKAGE_TABLE_",
+              "share_within_group": 0.0
+            }
+          ]
+        },
+        {
+          "name": "force_merge",
+          "mechanism": "fp_force_merge",
+          "clusters": [
+            3,
+            4
+          ],
+          "intervals": [
+            2897,
+            14613
+          ],
+          "source_weight": 0.1682204,
+          "target_weight": 0.16822053457642766,
+          "top_functions": [
+            {
+              "name": "_ZN20ComputeNonbondedUtil25calc_pair_merge_fullelectEP9nonbonded",
+              "share_within_group": 0.5822959409381977
+            },
+            {
+              "name": "_ZN20ComputeNonbondedUtil25calc_self_merge_fullelectEP9nonbonded",
+              "share_within_group": 0.24570867218957987
+            },
+            {
+              "name": "cosf64",
+              "share_within_group": 0.08220353618823877
+            },
+            {
+              "name": "_ZN9PatchList10setresultsEP9ResultSet",
+              "share_within_group": 0.047048000000000006
+            },
+            {
+              "name": "_ZN5Patch9setforcesEP6VectorS1_",
+              "share_within_group": 0.020301
+            },
+            {
+              "name": "_ZN20ComputeNonbondedUtil19calc_pair_fullelectEP9nonbonded",
+              "share_within_group": 0.010433714310511688
+            },
+            {
+              "name": "_ZN5Patch9moveatomsEv",
+              "share_within_group": 0.006455737264921496
+            },
+            {
+              "name": "_ZN5Patch10zeroforcesEv",
+              "share_within_group": 0.00230667164148938
+            },
+            {
+              "name": "_PROCEDURE_LINKAGE_TABLE_",
+              "share_within_group": 0.0022297039954726062
+            },
+            {
+              "name": "__printf_fp_l",
+              "share_within_group": 0.00027253874797586984
+            },
+            {
+              "name": "hack_digit",
+              "share_within_group": 0.00012415676220006613
+            },
+            {
+              "name": "__mpn_mul_1",
+              "share_within_group": 0.00011660720935154119
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "benchmark": "520.omnetpp_r",
+      "case": "spec_omnetpp_event_kernel",
+      "calibration": "simpoint-cluster-composition",
+      "source_profile_size": "ref",
+      "source_profile": "spec_runs/520.omnetpp_r_ref_c910/520.omnetpp_r_ref.function_profile.csv",
+      "source_cluster_count": 5,
+      "mechanism_group_count": 2,
+      "groups": [
+        {
+          "name": "allocation_strings",
+          "mechanism": "allocation_string_runtime",
+          "clusters": [
+            0,
+            1
+          ],
+          "intervals": [
+            10977,
+            10943
+          ],
+          "source_weight": 0.0059204,
+          "target_weight": 0.005920403552242132,
+          "top_functions": [
+            {
+              "name": "_int_free",
+              "share_within_group": 0.07118875319235188
+            },
+            {
+              "name": "__printf_fp_l",
+              "share_within_group": 0.050110932572123505
+            },
+            {
+              "name": "memcpy",
+              "share_within_group": 0.048943798189311535
+            },
+            {
+              "name": "malloc",
+              "share_within_group": 0.044765135869198024
+            },
+            {
+              "name": "free",
+              "share_within_group": 0.04082959597324505
+            },
+            {
+              "name": "strcmp",
+              "share_within_group": 0.0391866567123843
+            },
+            {
+              "name": "_ZN12cMessageHeap7shiftupEi",
+              "share_within_group": 0.03803626707654888
+            },
+            {
+              "name": "_PROCEDURE_LINKAGE_TABLE_",
+              "share_within_group": 0.0322819485845551
+            },
+            {
+              "name": "strlen",
+              "share_within_group": 0.03040438605499628
+            },
+            {
+              "name": "malloc_consolidate",
+              "share_within_group": 0.028587104655090873
+            },
+            {
+              "name": "__vfprintf_internal",
+              "share_within_group": 0.02804245584757787
+            },
+            {
+              "name": "iscntrl",
+              "share_within_group": 0.02679144483480846
+            }
+          ]
+        },
+        {
+          "name": "event_queue",
+          "mechanism": "pointer_event_queue",
+          "clusters": [
+            2,
+            3,
+            4
+          ],
+          "intervals": [
+            2840,
+            358,
+            6103
+          ],
+          "source_weight": 0.994079,
+          "target_weight": 0.9940795964477579,
+          "top_functions": [
+            {
+              "name": "_ZN12cMessageHeap7shiftupEi",
+              "share_within_group": 0.1508420596491828
+            },
+            {
+              "name": "_ZNK10__cxxabiv120__si_class_type_info12__do_dyncastElNS_17__class_type_info10__sub_kindEPKS1_PKvS4_S6_RNS1_16__dyncast_resultE@@CXXABI_1.3",
+              "share_within_group": 0.08228782078184933
+            },
+            {
+              "name": "strcmp",
+              "share_within_group": 0.07834257002411277
+            },
+            {
+              "name": "__dynamic_cast@@CXXABI_1.3",
+              "share_within_group": 0.03959220663045895
+            },
+            {
+              "name": "_int_free",
+              "share_within_group": 0.03542103567020327
+            },
+            {
+              "name": "_ZN12cMessageHeap6insertEP8cMessage",
+              "share_within_group": 0.029773181156628394
+            },
+            {
+              "name": "strlen",
+              "share_within_group": 0.025173546948481958
+            },
+            {
+              "name": "_ZN8EtherMAC13handleMessageEP8cMessage",
+              "share_within_group": 0.024165382888080324
+            },
+            {
+              "name": "_ZN11cSimulation10doOneEventEP13cSimpleModule",
+              "share_within_group": 0.023557044038753458
+            },
+            {
+              "name": "_ZN13cSimpleModule11sendDelayedEP8cMessage7SimTimeP5cGate",
+              "share_within_group": 0.021904325926812657
+            },
+            {
+              "name": "_ZN10cOutVector19recordWithTimestampE7SimTimed",
+              "share_within_group": 0.021645444959605825
+            },
+            {
+              "name": "malloc",
+              "share_within_group": 0.021526603427896574
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "benchmark": "500.perlbench_r",
+      "case": "spec_perlbench_regex_kernel",
+      "calibration": "simpoint-cluster-composition",
+      "source_profile_size": "ref",
+      "source_profile": "spec_runs/500.perlbench_r_ref_c910/500.perlbench_r_ref.function_profile.csv",
+      "source_cluster_count": 4,
+      "mechanism_group_count": 2,
+      "groups": [
+        {
+          "name": "regex",
+          "mechanism": "branch_regex_engine",
+          "clusters": [
+            0,
+            1,
+            3
+          ],
+          "intervals": [
+            5635,
+            17275,
+            26571
+          ],
+          "source_weight": 0.7517980999999999,
+          "target_weight": 0.7517980248201974,
+          "top_functions": [
+            {
+              "name": "S_regmatch",
+              "share_within_group": 0.35448395097021396
+            },
+            {
+              "name": "Perl_leave_scope",
+              "share_within_group": 0.09605690333295602
+            },
+            {
+              "name": "S_find_byclass",
+              "share_within_group": 0.038997275783750986
+            },
+            {
+              "name": "S_regtry",
+              "share_within_group": 0.03781368444147438
+            },
+            {
+              "name": "S_regrepeat.isra.0",
+              "share_within_group": 0.02145049648436196
+            },
+            {
+              "name": "Perl_pp_padsv",
+              "share_within_group": 0.021346463905269248
+            },
+            {
+              "name": "Perl_pp_substr",
+              "share_within_group": 0.019841734242212104
+            },
+            {
+              "name": "Perl_save_pushptr",
+              "share_within_group": 0.018534821865471597
+            },
+            {
+              "name": "Perl_sv_setsv_flags",
+              "share_within_group": 0.015306822186435429
+            },
+            {
+              "name": "Perl_sv_clear",
+              "share_within_group": 0.015288624291814518
+            },
+            {
+              "name": "Perl_runops_standard",
+              "share_within_group": 0.014760788182891126
+            },
+            {
+              "name": "Perl_hv_common",
+              "share_within_group": 0.013632239341919063
+            }
+          ]
+        },
+        {
+          "name": "opcode_objects",
+          "mechanism": "indirect_opcode_object",
+          "clusters": [
+            2
+          ],
+          "intervals": [
+            24815
+          ],
+          "source_weight": 0.248202,
+          "target_weight": 0.24820197517980247,
+          "top_functions": [
+            {
+              "name": "Perl_regexec_flags",
+              "share_within_group": 0.108262
+            },
+            {
+              "name": "Perl_pp_multideref",
+              "share_within_group": 0.107131
+            },
+            {
+              "name": "Perl_leave_scope",
+              "share_within_group": 0.100814
+            },
+            {
+              "name": "Perl_hv_common",
+              "share_within_group": 0.100132
+            },
+            {
+              "name": "S_regmatch",
+              "share_within_group": 0.098191
+            },
+            {
+              "name": "Perl_pp_match",
+              "share_within_group": 0.084625
+            },
+            {
+              "name": "Perl_pp_preinc",
+              "share_within_group": 0.031337000000000004
+            },
+            {
+              "name": "Perl_pp_gvsv",
+              "share_within_group": 0.028099
+            },
+            {
+              "name": "Perl_pp_unstack",
+              "share_within_group": 0.026089
+            },
+            {
+              "name": "Perl_runops_standard",
+              "share_within_group": 0.024654
+            },
+            {
+              "name": "S_regtry",
+              "share_within_group": 0.024607
+            },
+            {
+              "name": "Perl_pp_or",
+              "share_within_group": 0.023727
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "benchmark": "628.pop2_s",
+      "case": "spec_pop2_ocean_kernel",
+      "calibration": "simpoint-cluster-composition",
+      "source_profile_size": "ref",
+      "source_profile": "spec_runs/628.pop2_s_ref_c910/628.pop2_s_ref.function_profile.csv",
+      "source_cluster_count": 5,
+      "mechanism_group_count": 3,
+      "groups": [
+        {
+          "name": "ocean_state",
+          "mechanism": "fp_ocean_state",
+          "clusters": [
+            0,
+            3,
+            4
+          ],
+          "intervals": [
+            24364,
+            101755,
+            2931
+          ],
+          "source_weight": 0.8548909,
+          "target_weight": 0.8548905580437768,
+          "top_functions": [
+            {
+              "name": "__hmix_gm_MOD_hdifft_gm",
+              "share_within_group": 0.16158185592570934
+            },
+            {
+              "name": "__state_mod_MOD_state",
+              "share_within_group": 0.1470167609234114
+            },
+            {
+              "name": "__tavg_MOD_accumulate_tavg_field",
+              "share_within_group": 0.07126714426835049
+            },
+            {
+              "name": "__hmix_gm_MOD_merged_streamfunction.isra.0",
+              "share_within_group": 0.06943492975302462
+            },
+            {
+              "name": "__mix_submeso_MOD_submeso_sf",
+              "share_within_group": 0.06559592931916809
+            },
+            {
+              "name": "__vmix_kpp_MOD_vmix_coeffs_kpp",
+              "share_within_group": 0.060808268496015096
+            },
+            {
+              "name": "__advection_MOD_advt",
+              "share_within_group": 0.0603803435221968
+            },
+            {
+              "name": "__hmix_gm_submeso_share_MOD_tracer_diffs_and_isopyc_slopes",
+              "share_within_group": 0.03633533347705537
+            },
+            {
+              "name": "__mix_submeso_MOD_submeso_flux",
+              "share_within_group": 0.035484645720290156
+            },
+            {
+              "name": "__vmix_kpp_MOD_ddmix",
+              "share_within_group": 0.030924169575322416
+            },
+            {
+              "name": "__hmix_gm_MOD_transition_layer.isra.0",
+              "share_within_group": 0.0267405072483518
+            },
+            {
+              "name": "__vmix_kpp_MOD_bldepth.constprop.0",
+              "share_within_group": 0.025526983698153764
+            }
+          ]
+        },
+        {
+          "name": "advection",
+          "mechanism": "fp_ocean_advection",
+          "clusters": [
+            1
+          ],
+          "intervals": [
+            189435
+          ],
+          "source_weight": 0.130357,
+          "target_weight": 0.13035694785722085,
+          "top_functions": [
+            {
+              "name": "__hmix_aniso_MOD_hdiffu_aniso",
+              "share_within_group": 0.35824199999999995
+            },
+            {
+              "name": "__advection_MOD_advu",
+              "share_within_group": 0.154662
+            },
+            {
+              "name": "__baroclinic_MOD_baroclinic_driver",
+              "share_within_group": 0.127667
+            },
+            {
+              "name": "__baroclinic_MOD_clinic",
+              "share_within_group": 0.103417
+            },
+            {
+              "name": "__state_mod_MOD_state",
+              "share_within_group": 0.07156699999999999
+            },
+            {
+              "name": "__vertical_mix_MOD_vdiffu",
+              "share_within_group": 0.050762
+            },
+            {
+              "name": "__pressure_grad_MOD_gradp",
+              "share_within_group": 0.048091999999999996
+            },
+            {
+              "name": "__vertical_mix_MOD_impvmixu",
+              "share_within_group": 0.026726
+            },
+            {
+              "name": "memset",
+              "share_within_group": 0.025148
+            },
+            {
+              "name": "__operators_MOD_grad",
+              "share_within_group": 0.012379
+            },
+            {
+              "name": "_gfortran_string_len_trim@@GFORTRAN_8",
+              "share_within_group": 0.006449
+            },
+            {
+              "name": "__shr_vmath_mod_MOD_shr_vmath_sqrt",
+              "share_within_group": 0.005548
+            }
+          ]
+        },
+        {
+          "name": "solver_halo",
+          "mechanism": "fp_solver_halo",
+          "clusters": [
+            2
+          ],
+          "intervals": [
+            141633
+          ],
+          "source_weight": 0.0147525,
+          "target_weight": 0.01475249409900236,
+          "top_functions": [
+            {
+              "name": "__pop_solversmod_MOD_pop_solversrun",
+              "share_within_group": 0.33564900000000003
+            },
+            {
+              "name": "__pop_solversmod_MOD_btropoperator.constprop.0.isra.0",
+              "share_within_group": 0.257087
+            },
+            {
+              "name": "__pop_halomod_MOD_pop_haloupdate2dr8",
+              "share_within_group": 0.13760999999999998
+            },
+            {
+              "name": "__state_mod_MOD_state",
+              "share_within_group": 0.083868
+            },
+            {
+              "name": "__pop_reductionsmod_MOD_pop_globalsumnfields2dr8",
+              "share_within_group": 0.065565
+            },
+            {
+              "name": "__vertical_mix_MOD_impvmixt_correct",
+              "share_within_group": 0.055657
+            },
+            {
+              "name": "__vertical_mix_MOD_impvmixt",
+              "share_within_group": 0.025006000000000004
+            },
+            {
+              "name": "__barotropic_MOD_barotropic_driver",
+              "share_within_group": 0.012109000000000002
+            },
+            {
+              "name": "__shr_vmath_mod_MOD_shr_vmath_sqrt",
+              "share_within_group": 0.006501
+            },
+            {
+              "name": "__tavg_MOD_accumulate_tavg_field",
+              "share_within_group": 0.0041470000000000005
+            },
+            {
+              "name": "__pop_reductionsmod_MOD_pop_globalsum2dr8",
+              "share_within_group": 0.0034920000000000003
+            },
+            {
+              "name": "__operators_MOD_grad",
+              "share_within_group": 0.0032240000000000003
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "benchmark": "511.povray_r",
+      "case": "spec_povray_ray_kernel",
+      "calibration": "simpoint-cluster-composition",
+      "source_profile_size": "ref",
+      "source_profile": "spec_runs/511.povray_r_ref_c910/511.povray_r_ref.function_profile.csv",
+      "source_cluster_count": 5,
+      "mechanism_group_count": 3,
+      "groups": [
+        {
+          "name": "geometry",
+          "mechanism": "branch_fp_geometry",
+          "clusters": [
+            0,
+            1
+          ],
+          "intervals": [
+            18513,
+            2161
+          ],
+          "source_weight": 0.2842956,
+          "target_weight": 0.2842957137182855,
+          "top_functions": [
+            {
+              "name": "_ZN3povL23All_Plane_IntersectionsEPNS_13Object_StructEPNS_10Ray_StructEPNS_13istack_structE",
+              "share_within_group": 0.15378711904651354
+            },
+            {
+              "name": "_ZN3povL31All_CSG_Intersect_IntersectionsEPNS_13Object_StructEPNS_10Ray_StructEPNS_13istack_structE",
+              "share_within_group": 0.14080984756570275
+            },
+            {
+              "name": "_ZN3povL24All_Sphere_IntersectionsEPNS_13Object_StructEPNS_10Ray_StructEPNS_13istack_structE",
+              "share_within_group": 0.12769828614301454
+            },
+            {
+              "name": "_ZN3pov17Check_And_EnqueueEPNS_21Priority_Queue_StructEPNS_16BBox_Tree_StructEPNS_19Bounding_Box_StructEPNS_14Rayinfo_StructE",
+              "share_within_group": 0.08159107755589606
+            },
+            {
+              "name": "_ZN3pov13Inside_ObjectEPdPNS_13Object_StructE",
+              "share_within_group": 0.06079605352879187
+            },
+            {
+              "name": "_ZN3pov12Ray_In_BoundEPNS_10Ray_StructEPNS_13Object_StructE",
+              "share_within_group": 0.054205785869355705
+            },
+            {
+              "name": "_ZN3povL12Inside_PlaneEPdPNS_13Object_StructE",
+              "share_within_group": 0.05222885139833329
+            },
+            {
+              "name": "_ZN3pov21Priority_Queue_DeleteEPNS_21Priority_Queue_StructEPdPPNS_16BBox_Tree_StructE",
+              "share_within_group": 0.03594662745395989
+            },
+            {
+              "name": "_ZN3povL25All_Quadric_IntersectionsEPNS_13Object_StructEPNS_10Ray_StructEPNS_13istack_structE",
+              "share_within_group": 0.03295083495769896
+            },
+            {
+              "name": "_ZN3pov19Intersect_BBox_TreeEPNS_16BBox_Tree_StructEPNS_10Ray_StructEPNS_10istk_entryEPPNS_13Object_StructEb",
+              "share_within_group": 0.027429137054530567
+            },
+            {
+              "name": "_ZN3pov12IntersectionEPNS_10istk_entryEPNS_13Object_StructEPNS_10Ray_StructE",
+              "share_within_group": 0.026939463891808388
+            },
+            {
+              "name": "_ZN3pov20Intersect_Light_TreeEPNS_10Ray_StructEPNS_24Project_Tree_Node_StructEiiPNS_10istk_entryEPPNS_13Object_StructEPNS_19Light_Source_StructE",
+              "share_within_group": 0.020582559810281974
+            }
+          ]
+        },
+        {
+          "name": "noise_shading",
+          "mechanism": "fp_noise_shading",
+          "clusters": [
+            2,
+            3
+          ],
+          "intervals": [
+            26902,
+            23839
+          ],
+          "source_weight": 0.377411,
+          "target_weight": 0.3774111509644604,
+          "top_functions": [
+            {
+              "name": "_ZN3povL23All_Plane_IntersectionsEPNS_13Object_StructEPNS_10Ray_StructEPNS_13istack_structE",
+              "share_within_group": 0.13551218655789046
+            },
+            {
+              "name": "_ZN3povL31All_CSG_Intersect_IntersectionsEPNS_13Object_StructEPNS_10Ray_StructEPNS_13istack_structE",
+              "share_within_group": 0.12885753015412904
+            },
+            {
+              "name": "_ZN3povL24All_Sphere_IntersectionsEPNS_13Object_StructEPNS_10Ray_StructEPNS_13istack_structE",
+              "share_within_group": 0.12714921892578648
+            },
+            {
+              "name": "_ZN3pov17Check_And_EnqueueEPNS_21Priority_Queue_StructEPNS_16BBox_Tree_StructEPNS_19Bounding_Box_StructEPNS_14Rayinfo_StructE",
+              "share_within_group": 0.07897624651109797
+            },
+            {
+              "name": "_ZN3pov12Ray_In_BoundEPNS_10Ray_StructEPNS_13Object_StructE",
+              "share_within_group": 0.053467428281104686
+            },
+            {
+              "name": "_ZN3pov6DNoiseEPdS0_",
+              "share_within_group": 0.05259538396072187
+            },
+            {
+              "name": "_ZN3pov13Inside_ObjectEPdPNS_13Object_StructE",
+              "share_within_group": 0.04307354174891564
+            },
+            {
+              "name": "_ZN3pov5NoiseEPdPNS_14Pattern_StructE",
+              "share_within_group": 0.03668682103860248
+            },
+            {
+              "name": "_ZN3povL12Inside_PlaneEPdPNS_13Object_StructE",
+              "share_within_group": 0.0362634139015556
+            },
+            {
+              "name": "_ZN3pov21Priority_Queue_DeleteEPNS_21Priority_Queue_StructEPdPPNS_16BBox_Tree_StructE",
+              "share_within_group": 0.03564360447628712
+            },
+            {
+              "name": "_ZN3pov12IntersectionEPNS_10istk_entryEPNS_13Object_StructEPNS_10Ray_StructE",
+              "share_within_group": 0.02774180703265141
+            },
+            {
+              "name": "_ZN3pov19Intersect_BBox_TreeEPNS_16BBox_Tree_StructEPNS_10Ray_StructEPNS_10istk_entryEPPNS_13Object_StructEb",
+              "share_within_group": 0.02685353176510489
+            }
+          ]
+        },
+        {
+          "name": "queue_traversal",
+          "mechanism": "pointer_bvh_queue",
+          "clusters": [
+            4
+          ],
+          "intervals": [
+            12006
+          ],
+          "source_weight": 0.338293,
+          "target_weight": 0.33829313531725413,
+          "top_functions": [
+            {
+              "name": "_ZN3povL23All_Plane_IntersectionsEPNS_13Object_StructEPNS_10Ray_StructEPNS_13istack_structE",
+              "share_within_group": 0.135294
+            },
+            {
+              "name": "_ZN3povL31All_CSG_Intersect_IntersectionsEPNS_13Object_StructEPNS_10Ray_StructEPNS_13istack_structE",
+              "share_within_group": 0.130956
+            },
+            {
+              "name": "_ZN3povL24All_Sphere_IntersectionsEPNS_13Object_StructEPNS_10Ray_StructEPNS_13istack_structE",
+              "share_within_group": 0.127723
+            },
+            {
+              "name": "_ZN3pov17Check_And_EnqueueEPNS_21Priority_Queue_StructEPNS_16BBox_Tree_StructEPNS_19Bounding_Box_StructEPNS_14Rayinfo_StructE",
+              "share_within_group": 0.099549
+            },
+            {
+              "name": "_ZN3pov12Ray_In_BoundEPNS_10Ray_StructEPNS_13Object_StructE",
+              "share_within_group": 0.053279
+            },
+            {
+              "name": "_ZN3pov13Inside_ObjectEPdPNS_13Object_StructE",
+              "share_within_group": 0.05115100000000001
+            },
+            {
+              "name": "_ZN3pov21Priority_Queue_DeleteEPNS_21Priority_Queue_StructEPdPPNS_16BBox_Tree_StructE",
+              "share_within_group": 0.04041
+            },
+            {
+              "name": "_ZN3povL12Inside_PlaneEPdPNS_13Object_StructE",
+              "share_within_group": 0.040069
+            },
+            {
+              "name": "_ZN3povL25All_Quadric_IntersectionsEPNS_13Object_StructEPNS_10Ray_StructEPNS_13istack_structE",
+              "share_within_group": 0.033203
+            },
+            {
+              "name": "_ZN3pov19Intersect_BBox_TreeEPNS_16BBox_Tree_StructEPNS_10Ray_StructEPNS_10istk_entryEPPNS_13Object_StructEb",
+              "share_within_group": 0.032479
+            },
+            {
+              "name": "_ZN3pov12IntersectionEPNS_10istk_entryEPNS_13Object_StructEPNS_10Ray_StructE",
+              "share_within_group": 0.030392000000000002
+            },
+            {
+              "name": "_ZN3pov20Intersect_Light_TreeEPNS_10Ray_StructEPNS_24Project_Tree_Node_StructEiiPNS_10istk_entryEPPNS_13Object_StructEPNS_19Light_Source_StructE",
+              "share_within_group": 0.025497000000000002
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "benchmark": "554.roms_r",
+      "case": "spec_roms_stencil_kernel",
+      "calibration": "simpoint-cluster-composition",
+      "source_profile_size": "ref",
+      "source_profile": "spec_runs/554.roms_r_ref_c910/554.roms_r_ref.function_profile.csv",
+      "source_cluster_count": 5,
+      "mechanism_group_count": 3,
+      "groups": [
+        {
+          "name": "barotropic",
+          "mechanism": "fp_barotropic_step",
+          "clusters": [
+            0
+          ],
+          "intervals": [
+            11575
+          ],
+          "source_weight": 0.284166,
+          "target_weight": 0.28416585791707105,
+          "top_functions": [
+            {
+              "name": "__step2d_mod_MOD_step2d_tile.isra.0",
+              "share_within_group": 0.9988720000000001
+            },
+            {
+              "name": "_int_malloc",
+              "share_within_group": 0.000261
+            },
+            {
+              "name": "_int_free",
+              "share_within_group": 0.00018700000000000002
+            },
+            {
+              "name": "__u2dbc_mod_MOD_u2dbc_tile",
+              "share_within_group": 0.000145
+            },
+            {
+              "name": "__zetabc_mod_MOD_zetabc_tile",
+              "share_within_group": 0.000122
+            },
+            {
+              "name": "__v2dbc_mod_MOD_v2dbc_tile",
+              "share_within_group": 9.8e-05
+            },
+            {
+              "name": "malloc",
+              "share_within_group": 8.800000000000001e-05
+            },
+            {
+              "name": "__exchange_2d_mod_MOD_exchange_u2d_tile",
+              "share_within_group": 7.400000000000001e-05
+            },
+            {
+              "name": "free",
+              "share_within_group": 6.8e-05
+            },
+            {
+              "name": "__exchange_2d_mod_MOD_exchange_v2d_tile",
+              "share_within_group": 3e-05
+            },
+            {
+              "name": "__step2d_mod_MOD_step2d",
+              "share_within_group": 2.3999999999999997e-05
+            },
+            {
+              "name": "_PROCEDURE_LINKAGE_TABLE_",
+              "share_within_group": 1.1000000000000001e-05
+            }
+          ]
+        },
+        {
+          "name": "rhs_mixing",
+          "mechanism": "fp_rhs_mixing",
+          "clusters": [
+            1,
+            2
+          ],
+          "intervals": [
+            17356,
+            6434
+          ],
+          "source_weight": 0.5864984,
+          "target_weight": 0.5864981067509467,
+          "top_functions": [
+            {
+              "name": "__rhs3d_mod_MOD_rhs3d",
+              "share_within_group": 0.7621790937155157
+            },
+            {
+              "name": "__uv3dmix_mod_MOD_uv3dmix2",
+              "share_within_group": 0.1284358415845636
+            },
+            {
+              "name": "__t3dmix_mod_MOD_t3dmix2",
+              "share_within_group": 0.1093542841405876
+            },
+            {
+              "name": "_int_free",
+              "share_within_group": 1.3178203384698065e-05
+            },
+            {
+              "name": "_int_malloc",
+              "share_within_group": 9.054491538254837e-06
+            },
+            {
+              "name": "free",
+              "share_within_group": 4.726067794899355e-06
+            },
+            {
+              "name": "malloc",
+              "share_within_group": 2.547864410201289e-06
+            },
+            {
+              "name": "unlink_chunk.isra.0",
+              "share_within_group": 9.999999999999997e-07
+            },
+            {
+              "name": "_PROCEDURE_LINKAGE_TABLE_",
+              "share_within_group": 9.999999999999997e-07
+            },
+            {
+              "name": "wclock_off_",
+              "share_within_group": 0.0
+            },
+            {
+              "name": "wclock_on_",
+              "share_within_group": 0.0
+            },
+            {
+              "name": "alloc_perturb",
+              "share_within_group": 0.0
+            }
+          ]
+        },
+        {
+          "name": "eos_flux",
+          "mechanism": "fp_eos_bulk_flux",
+          "clusters": [
+            3,
+            4
+          ],
+          "intervals": [
+            1121,
+            20094
+          ],
+          "source_weight": 0.1293361,
+          "target_weight": 0.12933603533198237,
+          "top_functions": [
+            {
+              "name": "__rho_eos_mod_MOD_rho_eos_tile.isra.0",
+              "share_within_group": 0.3524508311507769
+            },
+            {
+              "name": "powf64",
+              "share_within_group": 0.1819037106639214
+            },
+            {
+              "name": "__bulk_flux_mod_MOD_bulk_flux_tile.isra.0",
+              "share_within_group": 0.08710781992034707
+            },
+            {
+              "name": "logf64",
+              "share_within_group": 0.08646878268325703
+            },
+            {
+              "name": "__diag_mod_MOD_diag_tile.isra.0",
+              "share_within_group": 0.07294625088741659
+            },
+            {
+              "name": "__set_massflux_mod_MOD_set_massflux",
+              "share_within_group": 0.07140610556062847
+            },
+            {
+              "name": "expf64",
+              "share_within_group": 0.0586047464304243
+            },
+            {
+              "name": "__bulk_flux_mod_MOD_bulk_psit",
+              "share_within_group": 0.0343318981784668
+            },
+            {
+              "name": "atanf64",
+              "share_within_group": 0.017468359624265767
+            },
+            {
+              "name": "__bulk_flux_mod_MOD_bulk_psiu",
+              "share_within_group": 0.014625398687605394
+            },
+            {
+              "name": "_PROCEDURE_LINKAGE_TABLE_",
+              "share_within_group": 0.013213975439958373
+            },
+            {
+              "name": "__set_vbc_mod_MOD_set_vbc",
+              "share_within_group": 0.009087411418776352
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "benchmark": "521.wrf_r",
+      "case": "spec_wrf_stencil_kernel",
+      "calibration": "simpoint-cluster-composition",
+      "source_profile_size": "ref",
+      "source_profile": "spec_runs/521.wrf_r_ref_c910/521.wrf_r_ref.function_profile.csv",
+      "source_cluster_count": 5,
+      "mechanism_group_count": 3,
+      "groups": [
+        {
+          "name": "dynamics",
+          "mechanism": "fp_atmospheric_dynamics",
+          "clusters": [
+            0,
+            1
+          ],
+          "intervals": [
+            28017,
+            29019
+          ],
+          "source_weight": 0.2533763,
+          "target_weight": 0.25337622398713283,
+          "top_functions": [
+            {
+              "name": "__module_advect_em_MOD_advect_scalar_pd",
+              "share_within_group": 0.2372650978280131
+            },
+            {
+              "name": "__module_small_step_em_MOD_advance_uv",
+              "share_within_group": 0.13676310949366613
+            },
+            {
+              "name": "__module_small_step_em_MOD_advance_w",
+              "share_within_group": 0.10704072931051561
+            },
+            {
+              "name": "__module_small_step_em_MOD_advance_mu_t",
+              "share_within_group": 0.08814143471982186
+            },
+            {
+              "name": "__module_small_step_em_MOD_small_step_prep",
+              "share_within_group": 0.07687336351505644
+            },
+            {
+              "name": "__module_em_MOD_rk_addtend_dry",
+              "share_within_group": 0.05712607747449149
+            },
+            {
+              "name": "__module_small_step_em_MOD_calc_p_rho",
+              "share_within_group": 0.05260555539724907
+            },
+            {
+              "name": "__module_big_step_utilities_em_MOD_horizontal_diffusion_3dmp",
+              "share_within_group": 0.05053035519896692
+            },
+            {
+              "name": "__module_small_step_em_MOD_sumflux",
+              "share_within_group": 0.037189182784656646
+            },
+            {
+              "name": "__module_em_MOD_rk_update_scalar",
+              "share_within_group": 0.030254456515861977
+            },
+            {
+              "name": "__module_small_step_em_MOD_calc_coef_w",
+              "share_within_group": 0.027193798417610483
+            },
+            {
+              "name": "__module_bc_MOD_relax_bdytend_core",
+              "share_within_group": 0.02386969992063188
+            }
+          ]
+        },
+        {
+          "name": "physics",
+          "mechanism": "fp_atmospheric_physics",
+          "clusters": [
+            2,
+            3
+          ],
+          "intervals": [
+            10275,
+            2935
+          ],
+          "source_weight": 0.391627,
+          "target_weight": 0.3916268825119353,
+          "top_functions": [
+            {
+              "name": "__module_bl_ysu_MOD_ysu2d",
+              "share_within_group": 0.22997796475217488
+            },
+            {
+              "name": "powf@@GLIBC_2.27",
+              "share_within_group": 0.19378359272470996
+            },
+            {
+              "name": "__module_cu_kfeta_MOD_kf_eta_para",
+              "share_within_group": 0.06965955569968363
+            },
+            {
+              "name": "logf@@GLIBC_2.27",
+              "share_within_group": 0.06164883382402132
+            },
+            {
+              "name": "_int_free",
+              "share_within_group": 0.05871495518439739
+            },
+            {
+              "name": "atanf32",
+              "share_within_group": 0.0582464506022312
+            },
+            {
+              "name": "__module_bl_ysu_MOD_tridin_ysu",
+              "share_within_group": 0.04404329468601501
+            },
+            {
+              "name": "malloc",
+              "share_within_group": 0.03835832223008118
+            },
+            {
+              "name": "free",
+              "share_within_group": 0.027961304223151115
+            },
+            {
+              "name": "_int_malloc",
+              "share_within_group": 0.02491799555699684
+            },
+            {
+              "name": "__module_cu_kfeta_MOD_kf_eta_cps",
+              "share_within_group": 0.02368659916706458
+            },
+            {
+              "name": "psim_unstable_",
+              "share_within_group": 0.021494378597492002
+            }
+          ]
+        },
+        {
+          "name": "diffusion",
+          "mechanism": "fp_diffusion",
+          "clusters": [
+            4
+          ],
+          "intervals": [
+            35737
+          ],
+          "source_weight": 0.354997,
+          "target_weight": 0.354996893500932,
+          "top_functions": [
+            {
+              "name": "__module_diffusion_em_MOD_cal_deform_and_div",
+              "share_within_group": 0.456073
+            },
+            {
+              "name": "__module_diffusion_em_MOD_calculate_n2",
+              "share_within_group": 0.09427800000000001
+            },
+            {
+              "name": "__module_diffusion_em_MOD_compute_diff_metrics",
+              "share_within_group": 0.092389
+            },
+            {
+              "name": "__module_advect_em_MOD_advect_u",
+              "share_within_group": 0.086759
+            },
+            {
+              "name": "__module_physics_addtendc_MOD_add_a2a",
+              "share_within_group": 0.074306
+            },
+            {
+              "name": "__module_big_step_utilities_em_MOD_zero_tend",
+              "share_within_group": 0.051641000000000006
+            },
+            {
+              "name": "__module_diffusion_em_MOD_smag2d_km",
+              "share_within_group": 0.045266
+            },
+            {
+              "name": "expf@@GLIBC_2.27",
+              "share_within_group": 0.038915000000000005
+            },
+            {
+              "name": "__module_em_MOD_calculate_phy_tend",
+              "share_within_group": 0.026251000000000003
+            },
+            {
+              "name": "__module_physics_addtendc_MOD_add_a2c_v",
+              "share_within_group": 0.010697000000000002
+            },
+            {
+              "name": "__module_physics_addtendc_MOD_add_a2c_u",
+              "share_within_group": 0.009104
+            },
+            {
+              "name": "__module_bc_MOD_set_physical_bc3d",
+              "share_within_group": 0.00661
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "benchmark": "525.x264_r",
+      "case": "spec_x264_pixel_kernel",
+      "calibration": "simpoint-cluster-composition",
+      "source_profile_size": "ref",
+      "source_profile": "spec_runs/525.x264_r_ref_c910/525.x264_r_ref.function_profile.csv",
+      "source_cluster_count": 4,
+      "mechanism_group_count": 2,
+      "groups": [
+        {
+          "name": "half_pixel",
+          "mechanism": "integer_half_pixel_filter",
+          "clusters": [
+            0
+          ],
+          "intervals": [
+            4318
+          ],
+          "source_weight": 0.0644695,
+          "target_weight": 0.0644695193408558,
+          "top_functions": [
+            {
+              "name": "hpel_filter",
+              "share_within_group": 0.215405
+            },
+            {
+              "name": "x264_pixel_sad_x4_16x16",
+              "share_within_group": 0.131354
+            },
+            {
+              "name": "x264_pixel_satd_8x4",
+              "share_within_group": 0.101173
+            },
+            {
+              "name": "x264_pixel_sad_16x16",
+              "share_within_group": 0.083597
+            },
+            {
+              "name": "sub4x4_dct",
+              "share_within_group": 0.068208
+            },
+            {
+              "name": "get_ref",
+              "share_within_group": 0.057763
+            },
+            {
+              "name": "quant_4x4",
+              "share_within_group": 0.055292
+            },
+            {
+              "name": "pixel_avg_16x16",
+              "share_within_group": 0.04748
+            },
+            {
+              "name": "mc_chroma",
+              "share_within_group": 0.046868
+            },
+            {
+              "name": "x264_pixel_var_16x16",
+              "share_within_group": 0.038136
+            },
+            {
+              "name": "deblock_strength_c",
+              "share_within_group": 0.018105
+            },
+            {
+              "name": "pixel_avg_8x8",
+              "share_within_group": 0.01683
+            }
+          ]
+        },
+        {
+          "name": "motion_cost",
+          "mechanism": "integer_sad_satd",
+          "clusters": [
+            1,
+            2,
+            3
+          ],
+          "intervals": [
+            12511,
+            37536,
+            1133
+          ],
+          "source_weight": 0.9355302000000001,
+          "target_weight": 0.9355304806591442,
+          "top_functions": [
+            {
+              "name": "x264_pixel_satd_8x4",
+              "share_within_group": 0.16332493487735616
+            },
+            {
+              "name": "x264_pixel_sad_x4_16x16",
+              "share_within_group": 0.14426207910551683
+            },
+            {
+              "name": "get_ref",
+              "share_within_group": 0.11754069632193592
+            },
+            {
+              "name": "x264_pixel_sad_x3_16x16",
+              "share_within_group": 0.08313658662649265
+            },
+            {
+              "name": "x264_pixel_sad_x4_8x8",
+              "share_within_group": 0.07173874480075576
+            },
+            {
+              "name": "x264_pixel_sad_16x16",
+              "share_within_group": 0.06044560530595378
+            },
+            {
+              "name": "pixel_hadamard_ac",
+              "share_within_group": 0.03697940054527368
+            },
+            {
+              "name": "x264_pixel_sad_x3_8x8",
+              "share_within_group": 0.03381879895272221
+            },
+            {
+              "name": "sub4x4_dct",
+              "share_within_group": 0.029384481982516433
+            },
+            {
+              "name": "quant_4x4",
+              "share_within_group": 0.023854449316547982
+            },
+            {
+              "name": "x264_pixel_sad_8x8",
+              "share_within_group": 0.021538282180094237
+            },
+            {
+              "name": "mc_chroma",
+              "share_within_group": 0.01965378659181713
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "benchmark": "523.xalancbmk_r",
+      "case": "spec_xalancbmk_xml_kernel",
+      "calibration": "simpoint-cluster-composition",
+      "source_profile_size": "ref",
+      "source_profile": "spec_runs/523.xalancbmk_r_ref_c910/523.xalancbmk_r_ref.function_profile.csv",
+      "source_cluster_count": 4,
+      "mechanism_group_count": 2,
+      "groups": [
+        {
+          "name": "dom_strings",
+          "mechanism": "pointer_dom_string_cache",
+          "clusters": [
+            0,
+            1,
+            3
+          ],
+          "intervals": [
+            7837,
+            7799,
+            3297
+          ],
+          "source_weight": 0.772012,
+          "target_weight": 0.772011227988772,
+          "top_functions": [
+            {
+              "name": "_ZN11xalanc_1_1019XalanDOMStringCache7releaseERNS_14XalanDOMStringE",
+              "share_within_group": 0.2854779573219069
+            },
+            {
+              "name": "_ZN11xalanc_1_1022XStringCachedAllocator7destroyEPNS_13XStringCachedE",
+              "share_within_group": 0.18976456725024998
+            },
+            {
+              "name": "_ZN11xalanc_1_1011XalanVectorItNS_31MemoryManagedConstructionTraitsItEEE6insertEPtPKtS6_",
+              "share_within_group": 0.1643415814132423
+            },
+            {
+              "name": "_ZN11xalanc_1_1022ReusableArenaAllocatorINS_14XalanDOMStringEE13destroyObjectEPS1_.isra.0",
+              "share_within_group": 0.030023632143023685
+            },
+            {
+              "name": "_ZN11xalanc_1_1014VariablesStack9findEntryERKNS_10XalanQNameEbb",
+              "share_within_group": 0.02531264719201256
+            },
+            {
+              "name": "_ZN11xalanc_1_1014XalanDOMString6equalsERKS0_S2_",
+              "share_within_group": 0.02447614282679544
+            },
+            {
+              "name": "_ZN11xalanc_1_1014VariablesStack11findXObjectERKNS_10XalanQNameERNS_26StylesheetExecutionContextEbbRb",
+              "share_within_group": 0.01313597497448226
+            },
+            {
+              "name": "_int_malloc",
+              "share_within_group": 0.012040446827251389
+            },
+            {
+              "name": "_int_free",
+              "share_within_group": 0.01172687784127708
+            },
+            {
+              "name": "_ZNK11xalanc_1_105XPath11executeMoreEPNS_9XalanNodeEPKiRNS_21XPathExecutionContextE",
+              "share_within_group": 0.01002612186080009
+            },
+            {
+              "name": "_ZNK11xalanc_1_1019ElemTemplateElement7executeERNS_26StylesheetExecutionContextE",
+              "share_within_group": 0.009114448138111842
+            },
+            {
+              "name": "_ZN11xalanc_1_1027XalanReferenceCountedObject12addReferenceEPS0_",
+              "share_within_group": 0.008923709419024574
+            }
+          ]
+        },
+        {
+          "name": "datatype_compare",
+          "mechanism": "branch_datatype_compare",
+          "clusters": [
+            2
+          ],
+          "intervals": [
+            1110
+          ],
+          "source_weight": 0.227989,
+          "target_weight": 0.22798877201122794,
+          "top_functions": [
+            {
+              "name": "_ZN11xercesc_2_710ValueStore13isDuplicateOfEPNS_17DatatypeValidatorEPKtS2_S4_",
+              "share_within_group": 0.474799
+            },
+            {
+              "name": "_ZN11xercesc_2_721NameDatatypeValidator7compareEPKtS2_PNS_13MemoryManagerE",
+              "share_within_group": 0.23799099999999998
+            },
+            {
+              "name": "_ZN11xercesc_2_710ValueStore8containsEPKNS_13FieldValueMapE",
+              "share_within_group": 0.23127800000000004
+            },
+            {
+              "name": "_ZN11xercesc_2_712XPathMatcher12startElementERKNS_14XMLElementDeclEjPKtRKNS_11RefVectorOfINS_7XMLAttrEEEj",
+              "share_within_group": 0.005011
+            },
+            {
+              "name": "_ZN11xercesc_2_712XPathMatcher10endElementERKNS_14XMLElementDeclEPKt",
+              "share_within_group": 0.0025280000000000003
+            },
+            {
+              "name": "malloc",
+              "share_within_group": 0.0022019999999999995
+            },
+            {
+              "name": "_int_free",
+              "share_within_group": 0.001917
+            },
+            {
+              "name": "_ZN11xercesc_2_715SelectorMatcher12startElementERKNS_14XMLElementDeclEjPKtRKNS_11RefVectorOfINS_7XMLAttrEEEj",
+              "share_within_group": 0.001898
+            },
+            {
+              "name": "_ZN11xalanc_1_1014XalanDOMString4hashEPKtj",
+              "share_within_group": 0.0018599999999999999
+            },
+            {
+              "name": "free",
+              "share_within_group": 0.001592
+            },
+            {
+              "name": "_ZN11xercesc_2_712IGXMLScanner12scanCharDataERNS_9XMLBufferE",
+              "share_within_group": 0.001526
+            },
+            {
+              "name": "_ZN11xercesc_2_712IGXMLScanner14scanStartTagNSERb",
+              "share_within_group": 0.001448
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "benchmark": "557.xz_r",
+      "case": "spec_xz_lzma_kernel",
+      "calibration": "simpoint-cluster-composition",
+      "source_profile_size": "ref",
+      "source_profile": "spec_runs/557.xz_r_ref_c910/557.xz_r_ref.function_profile.csv",
+      "source_cluster_count": 5,
+      "mechanism_group_count": 2,
+      "groups": [
+        {
+          "name": "optimum_match",
+          "mechanism": "integer_lzma_optimum",
+          "clusters": [
+            1,
+            3,
+            4
+          ],
+          "intervals": [
+            14556,
+            9231,
+            1827
+          ],
+          "source_weight": 0.767763,
+          "target_weight": 0.7677627696711691,
+          "top_functions": [
+            {
+              "name": "lzma_lzma_optimum_normal",
+              "share_within_group": 0.4315277387983011
+            },
+            {
+              "name": "bt_find_func",
+              "share_within_group": 0.2912639019775634
+            },
+            {
+              "name": "lzma_lzma_encode",
+              "share_within_group": 0.10824919062262703
+            },
+            {
+              "name": "lzma_mf_bt4_find",
+              "share_within_group": 0.06964656244961011
+            },
+            {
+              "name": "get_literal_price",
+              "share_within_group": 0.06708225429592204
+            },
+            {
+              "name": "lzma_mf_find",
+              "share_within_group": 0.013001033442611847
+            },
+            {
+              "name": "bt_skip_func",
+              "share_within_group": 0.011383101035085047
+            },
+            {
+              "name": "lzma_crc64",
+              "share_within_group": 0.0027085306077526527
+            },
+            {
+              "name": "length_update_prices",
+              "share_within_group": 0.001992209452656614
+            },
+            {
+              "name": "transform",
+              "share_within_group": 0.0013797172148175938
+            },
+            {
+              "name": "lzma_mf_bt4_skip",
+              "share_within_group": 0.0010864046912914531
+            },
+            {
+              "name": "memcpy",
+              "share_within_group": 0.0005582287281361566
+            }
+          ]
+        },
+        {
+          "name": "skip_match",
+          "mechanism": "integer_lzma_skip",
+          "clusters": [
+            0,
+            2
+          ],
+          "intervals": [
+            7439,
+            5592
+          ],
+          "source_weight": 0.2322373,
+          "target_weight": 0.23223723032883092,
+          "top_functions": [
+            {
+              "name": "bt_skip_func",
+              "share_within_group": 0.5521985522592624
+            },
+            {
+              "name": "lzma_lzma_optimum_normal",
+              "share_within_group": 0.2491860315100115
+            },
+            {
+              "name": "bt_find_func",
+              "share_within_group": 0.10687799865051822
+            },
+            {
+              "name": "lzma_mf_bt4_find",
+              "share_within_group": 0.022066580089847757
+            },
+            {
+              "name": "get_literal_price",
+              "share_within_group": 0.02085680376321978
+            },
+            {
+              "name": "transform",
+              "share_within_group": 0.019729847579609307
+            },
+            {
+              "name": "lzma_mf_bt4_skip",
+              "share_within_group": 0.01689313440605794
+            },
+            {
+              "name": "lzma_lzma_encode",
+              "share_within_group": 0.0069459637939297434
+            },
+            {
+              "name": "lzma_mf_find",
+              "share_within_group": 0.003228904942057111
+            },
+            {
+              "name": "lzma_sha256_update",
+              "share_within_group": 0.000837503719686717
+            },
+            {
+              "name": "memcpy",
+              "share_within_group": 0.0007878558440009421
+            },
+            {
+              "name": "length_update_prices",
+              "share_within_group": 0.0003156653991413093
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "benchmark": "600.perlbench_s",
+      "case": "spec_600_perlbench_speed_kernel",
+      "calibration": "simpoint-cluster-composition",
+      "source_profile_size": "ref",
+      "source_profile": "spec_runs/600.perlbench_s_ref_c910/600.perlbench_s_ref.function_profile.csv",
+      "source_cluster_count": 4,
+      "mechanism_group_count": 2,
+      "groups": [
+        {
+          "name": "regex",
+          "mechanism": "branch_regex_engine",
+          "clusters": [
+            0,
+            3
+          ],
+          "intervals": [
+            4825,
+            4580
+          ],
+          "source_weight": 0.454475,
+          "target_weight": 0.454475,
+          "top_functions": [
+            {
+              "name": "S_regmatch",
+              "share_within_group": 0.46500085178722694
+            },
+            {
+              "name": "Perl_leave_scope",
+              "share_within_group": 0.12953809173001812
+            },
+            {
+              "name": "S_find_byclass",
+              "share_within_group": 0.06589567798668794
+            },
+            {
+              "name": "S_regtry",
+              "share_within_group": 0.06192225847186314
+            },
+            {
+              "name": "Perl_save_pushptr",
+              "share_within_group": 0.030377584943066173
+            },
+            {
+              "name": "Perl_hv_common",
+              "share_within_group": 0.014063286394191101
+            },
+            {
+              "name": "Perl_ckwarn",
+              "share_within_group": 0.013033882713020518
+            },
+            {
+              "name": "Perl_regexec_flags",
+              "share_within_group": 0.012440993123934211
+            },
+            {
+              "name": "Perl_sv_setsv_flags",
+              "share_within_group": 0.009759128367897024
+            },
+            {
+              "name": "Perl_sv_clear",
+              "share_within_group": 0.007398615105341328
+            },
+            {
+              "name": "Perl_pp_multideref",
+              "share_within_group": 0.007061573703724078
+            },
+            {
+              "name": "Perl_fbm_instr",
+              "share_within_group": 0.006889599240882337
+            }
+          ]
+        },
+        {
+          "name": "opcode_objects",
+          "mechanism": "indirect_opcode_object",
+          "clusters": [
+            1,
+            2
+          ],
+          "intervals": [
+            17275,
+            25018
+          ],
+          "source_weight": 0.545525,
+          "target_weight": 0.545525,
+          "top_functions": [
+            {
+              "name": "S_regmatch",
+              "share_within_group": 0.13727386687686174
+            },
+            {
+              "name": "Perl_leave_scope",
+              "share_within_group": 0.07141521065945647
+            },
+            {
+              "name": "Perl_hv_common",
+              "share_within_group": 0.05490492656065257
+            },
+            {
+              "name": "Perl_regexec_flags",
+              "share_within_group": 0.051983139082535164
+            },
+            {
+              "name": "Perl_pp_multideref",
+              "share_within_group": 0.05132750556986389
+            },
+            {
+              "name": "Perl_pp_match",
+              "share_within_group": 0.04057404115301773
+            },
+            {
+              "name": "Perl_pp_padsv",
+              "share_within_group": 0.028196262627743916
+            },
+            {
+              "name": "Perl_runops_standard",
+              "share_within_group": 0.027719374419137525
+            },
+            {
+              "name": "Perl_pp_substr",
+              "share_within_group": 0.026476766256358555
+            },
+            {
+              "name": "S_regrepeat.isra.0",
+              "share_within_group": 0.024278552275331104
+            },
+            {
+              "name": "Perl_pp_preinc",
+              "share_within_group": 0.02337819767013427
+            },
+            {
+              "name": "Perl_sv_clear",
+              "share_within_group": 0.013857238157737959
+            }
+          ]
+        }
+      ],
+      "profile_contract_template": "spec_perlbench_regex_kernel"
+    },
+    {
+      "benchmark": "602.gcc_s",
+      "case": "spec_602_gcc_speed_kernel",
+      "calibration": "simpoint-cluster-composition",
+      "source_profile_size": "ref",
+      "source_profile": "spec_runs/602.gcc_s_ref_c910/602.gcc_s_ref.function_profile.csv",
+      "source_cluster_count": 4,
+      "mechanism_group_count": 2,
+      "groups": [
+        {
+          "name": "bitmap_solver",
+          "mechanism": "integer_bitmap_solver",
+          "clusters": [
+            0,
+            1,
+            2
+          ],
+          "intervals": [
+            3907,
+            4475,
+            5474
+          ],
+          "source_weight": 0.2857547,
+          "target_weight": 0.2857547857264357,
+          "top_functions": [
+            {
+              "name": "bitmap_ior_into",
+              "share_within_group": 0.9394620855359511
+            },
+            {
+              "name": "solve_graph",
+              "share_within_group": 0.02731227349506413
+            },
+            {
+              "name": "bitmap_set_bit",
+              "share_within_group": 0.012445947795784288
+            },
+            {
+              "name": "bitmap_and_compl",
+              "share_within_group": 0.008965280291452774
+            },
+            {
+              "name": "bitmap_elt_insert_after",
+              "share_within_group": 0.006536074182156935
+            },
+            {
+              "name": "solution_set_expand.isra.0",
+              "share_within_group": 0.004194982079734822
+            },
+            {
+              "name": "pointer_map_contains",
+              "share_within_group": 0.00042385622843648773
+            },
+            {
+              "name": "find",
+              "share_within_group": 0.00029670249728175953
+            },
+            {
+              "name": "bitmap_copy",
+              "share_within_group": 0.0002223033612395527
+            },
+            {
+              "name": "_int_malloc",
+              "share_within_group": 6.628786333173173e-05
+            },
+            {
+              "name": "_obstack_newchunk",
+              "share_within_group": 3.32406049664275e-05
+            },
+            {
+              "name": "malloc",
+              "share_within_group": 2.4337774321822184e-05
+            }
+          ]
+        },
+        {
+          "name": "compiler_graph",
+          "mechanism": "pointer_compiler_graph",
+          "clusters": [
+            3
+          ],
+          "intervals": [
+            12284
+          ],
+          "source_weight": 0.714245,
+          "target_weight": 0.7142452142735642,
+          "top_functions": [
+            {
+              "name": "record_reg_classes.constprop.0",
+              "share_within_group": 0.028966
+            },
+            {
+              "name": "bitmap_set_bit",
+              "share_within_group": 0.025634
+            },
+            {
+              "name": "find_reloads",
+              "share_within_group": 0.019604
+            },
+            {
+              "name": "cse_insn",
+              "share_within_group": 0.015201
+            },
+            {
+              "name": "for_each_rtx_1",
+              "share_within_group": 0.013923999999999999
+            },
+            {
+              "name": "nonzero_bits1",
+              "share_within_group": 0.013531999999999999
+            },
+            {
+              "name": "_int_malloc",
+              "share_within_group": 0.013392
+            },
+            {
+              "name": "bitmap_bit_p",
+              "share_within_group": 0.012485999999999999
+            },
+            {
+              "name": "walk_tree_1",
+              "share_within_group": 0.0116
+            },
+            {
+              "name": "hash_rtx_cb",
+              "share_within_group": 0.011382999999999999
+            },
+            {
+              "name": "bitmap_clear_bit",
+              "share_within_group": 0.011150999999999998
+            },
+            {
+              "name": "note_stores",
+              "share_within_group": 0.010436
+            }
+          ]
+        }
+      ],
+      "profile_contract_template": "spec_gcc_compile_kernel"
+    },
+    {
+      "benchmark": "603.bwaves_s",
+      "case": "spec_603_bwaves_speed_kernel",
+      "calibration": "simpoint-cluster-composition",
+      "source_profile_size": "ref",
+      "source_profile": "spec_runs/603.bwaves_s_ref_c910/603.bwaves_s_ref.function_profile.csv",
+      "source_cluster_count": 5,
+      "mechanism_group_count": 2,
+      "groups": [
+        {
+          "name": "matvec_solver",
+          "mechanism": "fp_matvec_solver",
+          "clusters": [
+            1,
+            2
+          ],
+          "intervals": [
+            87968,
+            21608
+          ],
+          "source_weight": 0.637729,
+          "target_weight": 0.637729,
+          "top_functions": [
+            {
+              "name": "mat_times_vec_",
+              "share_within_group": 0.9901411030892433
+            },
+            {
+              "name": "bi_cgstab_block_",
+              "share_within_group": 0.00566255994160529
+            },
+            {
+              "name": "fill1_",
+              "share_within_group": 0.0041963369691514745
+            }
+          ]
+        },
+        {
+          "name": "shell_jacobian",
+          "mechanism": "fp_shell_jacobian",
+          "clusters": [
+            0,
+            3,
+            4
+          ],
+          "intervals": [
+            958,
+            77107,
+            32086
+          ],
+          "source_weight": 0.362271,
+          "target_weight": 0.362271,
+          "top_functions": [
+            {
+              "name": "powf64",
+              "share_within_group": 0.3479395419147544
+            },
+            {
+              "name": "shell_",
+              "share_within_group": 0.34563004525893604
+            },
+            {
+              "name": "jacobian_",
+              "share_within_group": 0.2974054364191448
+            },
+            {
+              "name": "_PROCEDURE_LINKAGE_TABLE_",
+              "share_within_group": 0.009024976407164802
+            }
+          ]
+        }
+      ],
+      "profile_contract_template": "spec_bwaves_stencil_kernel"
+    },
+    {
+      "benchmark": "607.cactuBSSN_s",
+      "case": "spec_607_cactubssn_speed_kernel",
+      "calibration": "simpoint-cluster-composition",
+      "source_profile_size": "ref",
+      "source_profile": "spec_runs/607.cactuBSSN_s_ref_c910/607.cactuBSSN_s_ref.function_profile.csv",
+      "source_cluster_count": 5,
+      "mechanism_group_count": 3,
+      "groups": [
+        {
+          "name": "advection",
+          "mechanism": "fp_stencil_advection",
+          "clusters": [
+            1,
+            4
+          ],
+          "intervals": [
+            1780,
+            152203
+          ],
+          "source_weight": 0.4200202,
+          "target_weight": 0.4200199479880313,
+          "top_functions": [
+            {
+              "name": "_ZL19ML_BSSN_Advect_BodyPK4_cGHiiPKdS3_S3_PKiS5_iPKPd",
+              "share_within_group": 0.9798694797021666
+            },
+            {
+              "name": "MoL_LinearCombination",
+              "share_within_group": 0.02012992408650822
+            },
+            {
+              "name": "strcmp",
+              "share_within_group": 6.167703362838263e-08
+            },
+            {
+              "name": "CCTK_MaxTimeLevelsVI",
+              "share_within_group": 6.167703362838263e-08
+            },
+            {
+              "name": "ScheduleTraverseGroup.isra.0",
+              "share_within_group": 6.167703362838263e-08
+            },
+            {
+              "name": "CCTKi_VarDataPtrI",
+              "share_within_group": 4.1118022418921755e-08
+            },
+            {
+              "name": "MoL_RK3Add",
+              "share_within_group": 4.1118022418921755e-08
+            },
+            {
+              "name": "CCTK_VarDataPtrI",
+              "share_within_group": 4.1118022418921755e-08
+            },
+            {
+              "name": "Util_GetHandle",
+              "share_within_group": 4.1118022418921755e-08
+            },
+            {
+              "name": "PUGH_GroupDynamicData",
+              "share_within_group": 4.1118022418921755e-08
+            },
+            {
+              "name": "CCTKi_ScheduleCallExit",
+              "share_within_group": 2.0559011209460878e-08
+            },
+            {
+              "name": "PUGHi_NumTimeLevelsArray",
+              "share_within_group": 2.0559011209460878e-08
+            }
+          ]
+        },
+        {
+          "name": "rhs",
+          "mechanism": "fp_stencil_rhs",
+          "clusters": [
+            3
+          ],
+          "intervals": [
+            70253
+          ],
+          "source_weight": 0.393289,
+          "target_weight": 0.3932887640267416,
+          "top_functions": [
+            {
+              "name": "_ZL16ML_BSSN_RHS_BodyPK4_cGHiiPKdS3_S3_PKiS5_iPKPd",
+              "share_within_group": 0.9658249999999999
+            },
+            {
+              "name": "powf64",
+              "share_within_group": 0.017032000000000002
+            },
+            {
+              "name": "expf64",
+              "share_within_group": 0.012875000000000001
+            },
+            {
+              "name": "MoL_LinearCombination",
+              "share_within_group": 0.0020269999999999997
+            },
+            {
+              "name": "_PROCEDURE_LINKAGE_TABLE_",
+              "share_within_group": 0.0012450000000000002
+            },
+            {
+              "name": "Util_StrCmpi",
+              "share_within_group": 0.000364
+            },
+            {
+              "name": "CCTKi_VarDataPtrI",
+              "share_within_group": 8.699999999999999e-05
+            },
+            {
+              "name": "CCTK_Equals",
+              "share_within_group": 7.5e-05
+            },
+            {
+              "name": "CCTK_GroupIndex",
+              "share_within_group": 7.400000000000001e-05
+            },
+            {
+              "name": "strcmp",
+              "share_within_group": 6.7e-05
+            },
+            {
+              "name": "CCTK_MaxTimeLevelsVI",
+              "share_within_group": 6.7e-05
+            },
+            {
+              "name": "strlen",
+              "share_within_group": 4e-05
+            }
+          ]
+        },
+        {
+          "name": "conversion_constraints",
+          "mechanism": "fp_conversion_constraints",
+          "clusters": [
+            0,
+            2
+          ],
+          "intervals": [
+            38008,
+            97296
+          ],
+          "source_weight": 0.1866914,
+          "target_weight": 0.18669128798522724,
+          "top_functions": [
+            {
+              "name": "_ZL24ML_BSSN_constraints_BodyPK4_cGHiiPKdS3_S3_PKiS5_iPKPd",
+              "share_within_group": 0.584592983554679
+            },
+            {
+              "name": "_ZL41ML_BSSN_convertToADMBaseDtLapseShift_BodyPK4_cGHiiPKdS3_S3_PKiS5_iPKPd",
+              "share_within_group": 0.33360283902097254
+            },
+            {
+              "name": "powf64",
+              "share_within_group": 0.04070719771344582
+            },
+            {
+              "name": "expf64",
+              "share_within_group": 0.0340720148030386
+            },
+            {
+              "name": "_ZL49ML_BSSN_convertToADMBaseDtLapseShiftBoundary_BodyPK4_cGHiiPKdS3_S3_PKiS5_iPKPd",
+              "share_within_group": 0.0036207221714551394
+            },
+            {
+              "name": "_PROCEDURE_LINKAGE_TABLE_",
+              "share_within_group": 0.003097221236757558
+            },
+            {
+              "name": "CCTKi_VarDataPtrI",
+              "share_within_group": 9.755823353405673e-05
+            },
+            {
+              "name": "CCTK_MaxTimeLevelsVI",
+              "share_within_group": 7.460335505545515e-05
+            },
+            {
+              "name": "Util_StrCmpi",
+              "share_within_group": 4.017103733755277e-05
+            },
+            {
+              "name": "strcmp",
+              "share_within_group": 1.6806250314690445e-05
+            },
+            {
+              "name": "CCTK_GroupIndex",
+              "share_within_group": 9.427896517997079e-06
+            },
+            {
+              "name": "CCTK_Equals",
+              "share_within_group": 9.017987973736337e-06
+            }
+          ]
+        }
+      ],
+      "profile_contract_template": "spec_cactubssn_stencil_kernel"
+    },
+    {
+      "benchmark": "619.lbm_s",
+      "case": "spec_619_lbm_speed_kernel",
+      "calibration": "simpoint-cluster-composition",
+      "source_profile_size": "ref",
+      "source_profile": "spec_runs/619.lbm_s_ref_c910/619.lbm_s_ref.function_profile.csv",
+      "source_cluster_count": 5,
+      "mechanism_group_count": 2,
+      "groups": [
+        {
+          "name": "stream_collide",
+          "mechanism": "fp_stream_collide",
+          "clusters": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "intervals": [
+            7625,
+            8286,
+            19287,
+            32344
+          ],
+          "source_weight": 0.9936384999999999,
+          "target_weight": 0.9936387980916395,
+          "top_functions": [
+            {
+              "name": "LBM_performStreamCollideTRT",
+              "share_within_group": 1.0
+            },
+            {
+              "name": "main",
+              "share_within_group": 0.0
+            },
+            {
+              "name": "LBM_swapGrids",
+              "share_within_group": 0.0
+            }
+          ]
+        },
+        {
+          "name": "grid_statistics",
+          "mechanism": "fp_grid_statistics",
+          "clusters": [
+            4
+          ],
+          "intervals": [
+            33941
+          ],
+          "source_weight": 0.0063612,
+          "target_weight": 0.006361201908360574,
+          "top_functions": [
+            {
+              "name": "LBM_showGridStatistics",
+              "share_within_group": 1.0
+            }
+          ]
+        }
+      ],
+      "profile_contract_template": "spec_lbm_stream_kernel"
+    },
+    {
+      "benchmark": "620.omnetpp_s",
+      "case": "spec_620_omnetpp_speed_kernel",
+      "calibration": "simpoint-cluster-composition",
+      "source_profile_size": "ref",
+      "source_profile": "spec_runs/620.omnetpp_s_ref_c910/620.omnetpp_s_ref.function_profile.csv",
+      "source_cluster_count": 5,
+      "mechanism_group_count": 2,
+      "groups": [
+        {
+          "name": "event_queue",
+          "mechanism": "pointer_event_queue",
+          "clusters": [
+            0,
+            1,
+            4
+          ],
+          "intervals": [
+            6295,
+            1072,
+            2658
+          ],
+          "source_weight": 0.99408,
+          "target_weight": 0.9940801988160397,
+          "top_functions": [
+            {
+              "name": "_ZN12cMessageHeap7shiftupEi",
+              "share_within_group": 0.150856632171455
+            },
+            {
+              "name": "_ZNK10__cxxabiv120__si_class_type_info12__do_dyncastElNS_17__class_type_info10__sub_kindEPKS1_PKvS4_S6_RNS1_16__dyncast_resultE@@CXXABI_1.3",
+              "share_within_group": 0.08229139289393207
+            },
+            {
+              "name": "strcmp",
+              "share_within_group": 0.07833436054341703
+            },
+            {
+              "name": "__dynamic_cast@@CXXABI_1.3",
+              "share_within_group": 0.0395597534645099
+            },
+            {
+              "name": "_int_free",
+              "share_within_group": 0.03530785878500725
+            },
+            {
+              "name": "_ZN12cMessageHeap6insertEP8cMessage",
+              "share_within_group": 0.03000576497263802
+            },
+            {
+              "name": "strlen",
+              "share_within_group": 0.025234536390431356
+            },
+            {
+              "name": "_ZN8EtherMAC13handleMessageEP8cMessage",
+              "share_within_group": 0.02416791507826332
+            },
+            {
+              "name": "_ZN11cSimulation10doOneEventEP13cSimpleModule",
+              "share_within_group": 0.02354352897553517
+            },
+            {
+              "name": "_ZN13cSimpleModule11sendDelayedEP8cMessage7SimTimeP5cGate",
+              "share_within_group": 0.02187173051867053
+            },
+            {
+              "name": "_ZN10cOutVector19recordWithTimestampE7SimTimed",
+              "share_within_group": 0.02171161637996942
+            },
+            {
+              "name": "malloc",
+              "share_within_group": 0.021506270206623213
+            }
+          ]
+        },
+        {
+          "name": "allocation_strings",
+          "mechanism": "allocation_string_runtime",
+          "clusters": [
+            2,
+            3
+          ],
+          "intervals": [
+            10971,
+            10970
+          ],
+          "source_weight": 0.005919799999999999,
+          "target_weight": 0.0059198011839602365,
+          "top_functions": [
+            {
+              "name": "_int_free",
+              "share_within_group": 0.15501712189601002
+            },
+            {
+              "name": "free",
+              "share_within_group": 0.07595207429305045
+            },
+            {
+              "name": "__printf_fp_l",
+              "share_within_group": 0.05854160334808608
+            },
+            {
+              "name": "memcpy",
+              "share_within_group": 0.05029746312375419
+            },
+            {
+              "name": "malloc",
+              "share_within_group": 0.0397576898881719
+            },
+            {
+              "name": "_PROCEDURE_LINKAGE_TABLE_",
+              "share_within_group": 0.03817082906517112
+            },
+            {
+              "name": "iscntrl",
+              "share_within_group": 0.03433887904996791
+            },
+            {
+              "name": "__vfprintf_internal",
+              "share_within_group": 0.03399533795060644
+            },
+            {
+              "name": "strcmp",
+              "share_within_group": 0.03299641373019359
+            },
+            {
+              "name": "__mpn_mul_1",
+              "share_within_group": 0.032946099124970436
+            },
+            {
+              "name": "hack_digit",
+              "share_within_group": 0.03078500560829758
+            },
+            {
+              "name": "_Z15opp_needsquotesPKc",
+              "share_within_group": 0.028751682303456202
+            }
+          ]
+        }
+      ],
+      "profile_contract_template": "spec_omnetpp_event_kernel"
+    },
+    {
+      "benchmark": "621.wrf_s",
+      "case": "spec_621_wrf_speed_kernel",
+      "calibration": "simpoint-cluster-composition",
+      "source_profile_size": "ref",
+      "source_profile": "spec_runs/621.wrf_s_ref_c910/621.wrf_s_ref.function_profile.csv",
+      "source_cluster_count": 5,
+      "mechanism_group_count": 3,
+      "groups": [
+        {
+          "name": "dynamics",
+          "mechanism": "fp_atmospheric_dynamics",
+          "clusters": [
+            0,
+            3,
+            4
+          ],
+          "intervals": [
+            137403,
+            97695,
+            199482
+          ],
+          "source_weight": 0.7446934000000001,
+          "target_weight": 0.7446934744693474,
+          "top_functions": [
+            {
+              "name": "__module_big_step_utilities_em_MOD_calc_cq",
+              "share_within_group": 0.08664297383594376
+            },
+            {
+              "name": "__module_advect_em_MOD_advect_scalar_pd",
+              "share_within_group": 0.08583493976984354
+            },
+            {
+              "name": "__module_big_step_utilities_em_MOD_rhs_ph",
+              "share_within_group": 0.07967423037185505
+            },
+            {
+              "name": "__module_advect_em_MOD_advect_scalar",
+              "share_within_group": 0.07573100513983338
+            },
+            {
+              "name": "__module_small_step_em_MOD_advance_uv",
+              "share_within_group": 0.07466169729716954
+            },
+            {
+              "name": "__module_advect_em_MOD_advect_v",
+              "share_within_group": 0.07404468694901821
+            },
+            {
+              "name": "__module_advect_em_MOD_advect_w",
+              "share_within_group": 0.07333014047391853
+            },
+            {
+              "name": "__module_advect_em_MOD_advect_u",
+              "share_within_group": 0.07222282327733803
+            },
+            {
+              "name": "__module_small_step_em_MOD_advance_w",
+              "share_within_group": 0.05843565973191114
+            },
+            {
+              "name": "__module_small_step_em_MOD_advance_mu_t",
+              "share_within_group": 0.04811815951504337
+            },
+            {
+              "name": "__module_small_step_em_MOD_small_step_prep",
+              "share_within_group": 0.04196669568442529
+            },
+            {
+              "name": "__module_big_step_utilities_em_MOD_zero_tend",
+              "share_within_group": 0.03561745429192739
+            }
+          ]
+        },
+        {
+          "name": "diffusion_advection",
+          "mechanism": "fp_diffusion_advection",
+          "clusters": [
+            1
+          ],
+          "intervals": [
+            192452
+          ],
+          "source_weight": 0.0996705,
+          "target_weight": 0.09967050996705099,
+          "top_functions": [
+            {
+              "name": "__module_advect_em_MOD_advect_scalar",
+              "share_within_group": 0.38772199999999996
+            },
+            {
+              "name": "__module_big_step_utilities_em_MOD_horizontal_diffusion",
+              "share_within_group": 0.186081
+            },
+            {
+              "name": "__module_small_step_em_MOD_advance_w",
+              "share_within_group": 0.119193
+            },
+            {
+              "name": "__module_em_MOD_rk_update_scalar",
+              "share_within_group": 0.071884
+            },
+            {
+              "name": "__module_small_step_em_MOD_small_step_finish",
+              "share_within_group": 0.064715
+            },
+            {
+              "name": "__module_small_step_em_MOD_sumflux",
+              "share_within_group": 0.053153
+            },
+            {
+              "name": "__module_big_step_utilities_em_MOD_zero_tend",
+              "share_within_group": 0.046477000000000004
+            },
+            {
+              "name": "__module_small_step_em_MOD_calc_p_rho",
+              "share_within_group": 0.039368
+            },
+            {
+              "name": "__module_bc_em_MOD_relax_bdy_scalar",
+              "share_within_group": 0.0084
+            },
+            {
+              "name": "__module_big_step_utilities_em_MOD_set_tend",
+              "share_within_group": 0.008399
+            },
+            {
+              "name": "__module_bc_MOD_relax_bdytend_core",
+              "share_within_group": 0.008338
+            },
+            {
+              "name": "__module_bc_MOD_set_physical_bc3d",
+              "share_within_group": 0.001795
+            }
+          ]
+        },
+        {
+          "name": "physics",
+          "mechanism": "fp_transcendental_physics",
+          "clusters": [
+            2
+          ],
+          "intervals": [
+            14564
+          ],
+          "source_weight": 0.155636,
+          "target_weight": 0.15563601556360154,
+          "top_functions": [
+            {
+              "name": "powf@@GLIBC_2.27",
+              "share_within_group": 0.409187
+            },
+            {
+              "name": "logf@@GLIBC_2.27",
+              "share_within_group": 0.160235
+            },
+            {
+              "name": "atanf32",
+              "share_within_group": 0.152669
+            },
+            {
+              "name": "psim_unstable_",
+              "share_within_group": 0.05633900000000001
+            },
+            {
+              "name": "psih_unstable_",
+              "share_within_group": 0.049931
+            },
+            {
+              "name": "zolri2_",
+              "share_within_group": 0.038002
+            },
+            {
+              "name": "_PROCEDURE_LINKAGE_TABLE_",
+              "share_within_group": 0.036757
+            },
+            {
+              "name": "_int_free",
+              "share_within_group": 0.011003
+            },
+            {
+              "name": "__module_sf_noahdrv_MOD_lsm",
+              "share_within_group": 0.010224
+            },
+            {
+              "name": "malloc",
+              "share_within_group": 0.009006
+            },
+            {
+              "name": "__module_sf_noahlsm_MOD_sflx",
+              "share_within_group": 0.00819
+            },
+            {
+              "name": "__module_sf_sfclayrev_MOD_sfclayrev1d",
+              "share_within_group": 0.007647
+            }
+          ]
+        }
+      ],
+      "profile_contract_template": "spec_wrf_stencil_kernel"
+    },
+    {
+      "benchmark": "623.xalancbmk_s",
+      "case": "spec_623_xalancbmk_speed_kernel",
+      "calibration": "simpoint-cluster-composition",
+      "source_profile_size": "ref",
+      "source_profile": "spec_runs/623.xalancbmk_s_ref_c910/623.xalancbmk_s_ref.function_profile.csv",
+      "source_cluster_count": 5,
+      "mechanism_group_count": 2,
+      "groups": [
+        {
+          "name": "dom_strings",
+          "mechanism": "pointer_dom_string_cache",
+          "clusters": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "intervals": [
+            6096,
+            6159,
+            5106,
+            9426
+          ],
+          "source_weight": 0.7701979000000001,
+          "target_weight": 0.7701979770197976,
+          "top_functions": [
+            {
+              "name": "_ZN11xalanc_1_1019XalanDOMStringCache7releaseERNS_14XalanDOMStringE",
+              "share_within_group": 0.290066272053715
+            },
+            {
+              "name": "_ZN11xalanc_1_1022XStringCachedAllocator7destroyEPNS_13XStringCachedE",
+              "share_within_group": 0.18803752122058498
+            },
+            {
+              "name": "_ZN11xalanc_1_1011XalanVectorItNS_31MemoryManagedConstructionTraitsItEEE6insertEPtPKtS6_",
+              "share_within_group": 0.16557810725191538
+            },
+            {
+              "name": "_ZN11xalanc_1_1022ReusableArenaAllocatorINS_14XalanDOMStringEE13destroyObjectEPS1_.isra.0",
+              "share_within_group": 0.027262129642264668
+            },
+            {
+              "name": "_ZN11xalanc_1_1014VariablesStack9findEntryERKNS_10XalanQNameEbb",
+              "share_within_group": 0.026347276964530802
+            },
+            {
+              "name": "_ZN11xalanc_1_1014XalanDOMString6equalsERKS0_S2_",
+              "share_within_group": 0.024334559574753445
+            },
+            {
+              "name": "_ZN11xalanc_1_1014VariablesStack11findXObjectERKNS_10XalanQNameERNS_26StylesheetExecutionContextEbbRb",
+              "share_within_group": 0.013672866869800604
+            },
+            {
+              "name": "_int_malloc",
+              "share_within_group": 0.01240178412041892
+            },
+            {
+              "name": "_int_free",
+              "share_within_group": 0.0114970248182967
+            },
+            {
+              "name": "_ZNK11xalanc_1_105XPath11executeMoreEPNS_9XalanNodeEPKiRNS_21XPathExecutionContextE",
+              "share_within_group": 0.010392080287546873
+            },
+            {
+              "name": "_ZN11xalanc_1_1027XalanReferenceCountedObject12addReferenceEPS0_",
+              "share_within_group": 0.009261569263042654
+            },
+            {
+              "name": "_ZNK11xalanc_1_1019ElemTemplateElement7executeERNS_26StylesheetExecutionContextE",
+              "share_within_group": 0.008948810872244653
+            }
+          ]
+        },
+        {
+          "name": "datatype_compare",
+          "mechanism": "branch_datatype_compare",
+          "clusters": [
+            4
+          ],
+          "intervals": [
+            1100
+          ],
+          "source_weight": 0.229802,
+          "target_weight": 0.22980202298020228,
+          "top_functions": [
+            {
+              "name": "_ZN11xercesc_2_710ValueStore13isDuplicateOfEPNS_17DatatypeValidatorEPKtS2_S4_",
+              "share_within_group": 0.471008
+            },
+            {
+              "name": "_ZN11xercesc_2_721NameDatatypeValidator7compareEPKtS2_PNS_13MemoryManagerE",
+              "share_within_group": 0.23700700000000002
+            },
+            {
+              "name": "_ZN11xercesc_2_710ValueStore8containsEPKNS_13FieldValueMapE",
+              "share_within_group": 0.228817
+            },
+            {
+              "name": "_ZN11xercesc_2_712XPathMatcher12startElementERKNS_14XMLElementDeclEjPKtRKNS_11RefVectorOfINS_7XMLAttrEEEj",
+              "share_within_group": 0.005358000000000001
+            },
+            {
+              "name": "_ZN11xercesc_2_712XPathMatcher10endElementERKNS_14XMLElementDeclEPKt",
+              "share_within_group": 0.002706
+            },
+            {
+              "name": "_ZN11xercesc_2_712IGXMLScanner12scanCharDataERNS_9XMLBufferE",
+              "share_within_group": 0.002497
+            },
+            {
+              "name": "_ZN11xercesc_2_717XMLUTF8Transcoder13transcodeFromEPKhjPtjRjPh",
+              "share_within_group": 0.002295
+            },
+            {
+              "name": "malloc",
+              "share_within_group": 0.002213
+            },
+            {
+              "name": "_ZN11xercesc_2_715SelectorMatcher12startElementERKNS_14XMLElementDeclEjPKtRKNS_11RefVectorOfINS_7XMLAttrEEEj",
+              "share_within_group": 0.002053
+            },
+            {
+              "name": "_ZN11xalanc_1_1014XalanDOMString4hashEPKtj",
+              "share_within_group": 0.0019950000000000002
+            },
+            {
+              "name": "_int_free",
+              "share_within_group": 0.001923
+            },
+            {
+              "name": "_ZN11xercesc_2_712IGXMLScanner14scanStartTagNSERb",
+              "share_within_group": 0.0016
+            }
+          ]
+        }
+      ],
+      "profile_contract_template": "spec_xalancbmk_xml_kernel"
+    },
+    {
+      "benchmark": "625.x264_s",
+      "case": "spec_625_x264_speed_kernel",
+      "calibration": "simpoint-cluster-composition",
+      "source_profile_size": "ref",
+      "source_profile": "spec_runs/625.x264_s_ref_c910/625.x264_s_ref.function_profile.csv",
+      "source_cluster_count": 5,
+      "mechanism_group_count": 2,
+      "groups": [
+        {
+          "name": "motion_cost",
+          "mechanism": "integer_sad_satd",
+          "clusters": [
+            0,
+            2,
+            3,
+            4
+          ],
+          "intervals": [
+            35168,
+            1101,
+            22718,
+            27532
+          ],
+          "source_weight": 0.9392118,
+          "target_weight": 0.9392119878423976,
+          "top_functions": [
+            {
+              "name": "x264_pixel_satd_8x4",
+              "share_within_group": 0.17272194606669125
+            },
+            {
+              "name": "get_ref",
+              "share_within_group": 0.1400324048026228
+            },
+            {
+              "name": "x264_pixel_sad_x4_16x16",
+              "share_within_group": 0.11378454767284653
+            },
+            {
+              "name": "x264_pixel_sad_x4_8x8",
+              "share_within_group": 0.06610567339038967
+            },
+            {
+              "name": "x264_pixel_sad_x3_16x16",
+              "share_within_group": 0.06335623084164828
+            },
+            {
+              "name": "x264_pixel_sad_16x16",
+              "share_within_group": 0.05532730330262034
+            },
+            {
+              "name": "mc_chroma",
+              "share_within_group": 0.04238560389679942
+            },
+            {
+              "name": "x264_pixel_sad_x3_8x8",
+              "share_within_group": 0.026789847559410985
+            },
+            {
+              "name": "sub4x4_dct",
+              "share_within_group": 0.02600983755314829
+            },
+            {
+              "name": "pixel_hadamard_ac",
+              "share_within_group": 0.023371618625319657
+            },
+            {
+              "name": "x264_pixel_sad_8x8",
+              "share_within_group": 0.02182472433864225
+            },
+            {
+              "name": "quant_4x4",
+              "share_within_group": 0.019920088420950416
+            }
+          ]
+        },
+        {
+          "name": "half_pixel",
+          "mechanism": "integer_half_pixel_filter",
+          "clusters": [
+            1
+          ],
+          "intervals": [
+            807
+          ],
+          "source_weight": 0.060788,
+          "target_weight": 0.060788012157602433,
+          "top_functions": [
+            {
+              "name": "hpel_filter",
+              "share_within_group": 0.17820699999999998
+            },
+            {
+              "name": "x264_pixel_satd_8x4",
+              "share_within_group": 0.151515
+            },
+            {
+              "name": "x264_pixel_sad_x4_16x16",
+              "share_within_group": 0.134337
+            },
+            {
+              "name": "x264_pixel_sad_16x16",
+              "share_within_group": 0.09175599999999999
+            },
+            {
+              "name": "get_ref",
+              "share_within_group": 0.06358799999999999
+            },
+            {
+              "name": "x264_pixel_var_16x16",
+              "share_within_group": 0.059688
+            },
+            {
+              "name": "sub4x4_dct",
+              "share_within_group": 0.058545
+            },
+            {
+              "name": "quant_4x4",
+              "share_within_group": 0.047367
+            },
+            {
+              "name": "frame_init_lowres_core",
+              "share_within_group": 0.028494000000000002
+            },
+            {
+              "name": "mc_luma",
+              "share_within_group": 0.018784000000000002
+            },
+            {
+              "name": "mc_chroma",
+              "share_within_group": 0.016159
+            },
+            {
+              "name": "predict_16x16_p",
+              "share_within_group": 0.012373
+            }
+          ]
+        }
+      ],
+      "profile_contract_template": "spec_x264_pixel_kernel"
+    },
+    {
+      "benchmark": "627.cam4_s",
+      "case": "spec_627_cam4_speed_kernel",
+      "calibration": "simpoint-cluster-composition",
+      "source_profile_size": "ref",
+      "source_profile": "spec_runs/627.cam4_s_ref_c910/627.cam4_s_ref.function_profile.csv",
+      "source_cluster_count": 5,
+      "mechanism_group_count": 2,
+      "groups": [
+        {
+          "name": "diagnostics_dynamics",
+          "mechanism": "fp_diagnostics_dynamics",
+          "clusters": [
+            0,
+            2
+          ],
+          "intervals": [
+            120303,
+            42665
+          ],
+          "source_weight": 0.030473,
+          "target_weight": 0.030473,
+          "top_functions": [
+            {
+              "name": "__tracer_data_MOD_interpolate_trcdata.constprop.0",
+              "share_within_group": 0.3142245730285827
+            },
+            {
+              "name": "__sw_core_MOD_d_sw",
+              "share_within_group": 0.09866649027663832
+            },
+            {
+              "name": "__tp_core_MOD_xtpv",
+              "share_within_group": 0.06430027739966529
+            },
+            {
+              "name": "__tp_core_MOD_lmppm",
+              "share_within_group": 0.06218818167886325
+            },
+            {
+              "name": "__tp_core_MOD_xmist",
+              "share_within_group": 0.05765685387392118
+            },
+            {
+              "name": "__tp_core_MOD_tp2d",
+              "share_within_group": 0.05496407846618318
+            },
+            {
+              "name": "__tp_core_MOD_ymist",
+              "share_within_group": 0.05432421104256228
+            },
+            {
+              "name": "__tp_core_MOD_fyppm",
+              "share_within_group": 0.048616593623863745
+            },
+            {
+              "name": "__tp_core_MOD_fxppm",
+              "share_within_group": 0.042817261874446226
+            },
+            {
+              "name": "__cam_diagnostics_MOD_diag_allocate",
+              "share_within_group": 0.037523281291635215
+            },
+            {
+              "name": "__tp_core_MOD_ytp",
+              "share_within_group": 0.026697935027729467
+            },
+            {
+              "name": "logf64",
+              "share_within_group": 0.021637921425524235
+            }
+          ]
+        },
+        {
+          "name": "cloud_optics",
+          "mechanism": "fp_cloud_optics",
+          "clusters": [
+            1,
+            3,
+            4
+          ],
+          "intervals": [
+            40773,
+            105978,
+            38081
+          ],
+          "source_weight": 0.969527,
+          "target_weight": 0.969527,
+          "top_functions": [
+            {
+              "name": "__optics_lib_MOD_mieint",
+              "share_within_group": 0.14499067243924096
+            },
+            {
+              "name": "__mod_cosp_types_MOD_construct_cosp_gridbox",
+              "share_within_group": 0.07421130460317248
+            },
+            {
+              "name": "__mod_cosp_stats_MOD_cosp_change_vertical_grid",
+              "share_within_group": 0.06572910194868219
+            },
+            {
+              "name": "__math_lib_MOD_avint",
+              "share_within_group": 0.06069954479246065
+            },
+            {
+              "name": "load_hydrometeor_classes_",
+              "share_within_group": 0.0546915769926985
+            },
+            {
+              "name": "powf64",
+              "share_within_group": 0.047523030718071804
+            },
+            {
+              "name": "lidar_simulator_",
+              "share_within_group": 0.042498363647428074
+            },
+            {
+              "name": "__m_mrgrnk_MOD_d_mrgrnk",
+              "share_within_group": 0.04205595686453291
+            },
+            {
+              "name": "expf64",
+              "share_within_group": 0.03619441122011042
+            },
+            {
+              "name": "_int_free",
+              "share_within_group": 0.024643608348194533
+            },
+            {
+              "name": "malloc",
+              "share_within_group": 0.021491623672161786
+            },
+            {
+              "name": "__math_lib_MOD_path_integral",
+              "share_within_group": 0.021146592814846828
+            }
+          ]
+        }
+      ],
+      "profile_contract_template": "spec_cam4_climate_kernel"
+    },
+    {
+      "benchmark": "631.deepsjeng_s",
+      "case": "spec_631_deepsjeng_speed_kernel",
+      "calibration": "simpoint-cluster-composition",
+      "source_profile_size": "ref",
+      "source_profile": "spec_runs/631.deepsjeng_s_ref_c910/631.deepsjeng_s_ref.function_profile.csv",
+      "source_cluster_count": 3,
+      "mechanism_group_count": 2,
+      "groups": [
+        {
+          "name": "tree_search",
+          "mechanism": "branch_tree_search",
+          "clusters": [
+            0,
+            2
+          ],
+          "intervals": [
+            10315,
+            5231
+          ],
+          "source_weight": 0.993393,
+          "target_weight": 0.993393,
+          "top_functions": [
+            {
+              "name": "_Z5fevalP7state_tiP12t_eval_comps",
+              "share_within_group": 0.12907124691134325
+            },
+            {
+              "name": "_Z7qsearchP7state_tiiii",
+              "share_within_group": 0.08284362588824362
+            },
+            {
+              "name": "_Z4makeP7state_ti",
+              "share_within_group": 0.07304658355454488
+            },
+            {
+              "name": "_Z6searchP7state_tiiiii.part.0",
+              "share_within_group": 0.07118437281317666
+            },
+            {
+              "name": "_Z15FindFirstRemovePy",
+              "share_within_group": 0.06836261341583844
+            },
+            {
+              "name": "_Z3seeP7state_tiiii",
+              "share_within_group": 0.06792437158103591
+            },
+            {
+              "name": "_ZL11order_movesP7state_tPiS1_ij",
+              "share_within_group": 0.0530100359736781
+            },
+            {
+              "name": "_Z11is_attackedP7state_tii",
+              "share_within_group": 0.048152934255626924
+            },
+            {
+              "name": "_Z11RookAttacksP7state_ti",
+              "share_within_group": 0.04743528938999973
+            },
+            {
+              "name": "_Z10attacks_toP7state_ti",
+              "share_within_group": 0.035802660971035634
+            },
+            {
+              "name": "_Z6unmakeP7state_ti",
+              "share_within_group": 0.03557216742316485
+            },
+            {
+              "name": "_Z13ThickPopCounty",
+              "share_within_group": 0.0353452535340998
+            }
+          ]
+        },
+        {
+          "name": "initialization",
+          "mechanism": "integer_table_initialization",
+          "clusters": [
+            1
+          ],
+          "intervals": [
+            0
+          ],
+          "source_weight": 0.006607,
+          "target_weight": 0.006607,
+          "top_functions": [
+            {
+              "name": "memset",
+              "share_within_group": 0.9679040000000001
+            },
+            {
+              "name": "_Z22SetupPrecalculatedDatav",
+              "share_within_group": 0.010947
+            },
+            {
+              "name": "_dl_lookup_symbol_x",
+              "share_within_group": 0.008296
+            },
+            {
+              "name": "do_lookup_x",
+              "share_within_group": 0.005072999999999999
+            },
+            {
+              "name": "_dl_relocate_object",
+              "share_within_group": 0.002943
+            },
+            {
+              "name": "strcmp",
+              "share_within_group": 0.001897
+            },
+            {
+              "name": "check_match",
+              "share_within_group": 0.001222
+            },
+            {
+              "name": "_Z8myrandomv",
+              "share_within_group": 0.000556
+            },
+            {
+              "name": "__GI___tunables_init",
+              "share_within_group": 0.000118
+            },
+            {
+              "name": "_ZNSt6locale5_Impl16_M_install_facetEPKNS_2idEPKNS_5facetE@@GLIBCXX_3.4",
+              "share_within_group": 0.00010800000000000001
+            },
+            {
+              "name": "btowc",
+              "share_within_group": 7.6e-05
+            },
+            {
+              "name": "_Z18initialize_zobristP7state_t",
+              "share_within_group": 6.4e-05
+            }
+          ]
+        }
+      ],
+      "profile_contract_template": "spec_deepsjeng_search_kernel"
+    },
+    {
+      "benchmark": "638.imagick_s",
+      "case": "spec_638_imagick_speed_kernel",
+      "calibration": "simpoint-cluster-composition",
+      "source_profile_size": "train",
+      "source_profile": "spec_runs/638.imagick_s_train_c910/638.imagick_s_train.function_profile.csv",
+      "source_cluster_count": 4,
+      "mechanism_group_count": 2,
+      "groups": [
+        {
+          "name": "morphology",
+          "mechanism": "image_morphology",
+          "clusters": [
+            0,
+            1,
+            2
+          ],
+          "intervals": [
+            1622,
+            1,
+            2465
+          ],
+          "source_weight": 0.9983810999999999,
+          "target_weight": 0.9983806008096997,
+          "top_functions": [
+            {
+              "name": "MorphologyApply",
+              "share_within_group": 0.9844503632780108
+            },
+            {
+              "name": "GetVirtualPixelsFromNexus",
+              "share_within_group": 0.011171011646754932
+            },
+            {
+              "name": "SetPixelCacheNexusPixels.isra.0",
+              "share_within_group": 0.003891582738395188
+            },
+            {
+              "name": "memcpy",
+              "share_within_group": 0.0004825918098810164
+            },
+            {
+              "name": "_PROCEDURE_LINKAGE_TABLE_",
+              "share_within_group": 1.2879178101428403e-06
+            },
+            {
+              "name": "_int_free",
+              "share_within_group": 6.151659922248129e-07
+            },
+            {
+              "name": "free",
+              "share_within_group": 4.789131124377255e-07
+            },
+            {
+              "name": "malloc",
+              "share_within_group": 4.541762659569578e-07
+            },
+            {
+              "name": "GetImagePixelCache",
+              "share_within_group": 4.3349548584202967e-07
+            },
+            {
+              "name": "GetAuthenticPixelCacheNexus",
+              "share_within_group": 3.880778592463339e-07
+            },
+            {
+              "name": "memset",
+              "share_within_group": 2.270881329784789e-07
+            },
+            {
+              "name": "AcquirePixelCacheNexus",
+              "share_within_group": 1.816705063827831e-07
+            }
+          ]
+        },
+        {
+          "name": "frame_transform",
+          "mechanism": "image_frame_transform",
+          "clusters": [
+            3
+          ],
+          "intervals": [
+            0
+          ],
+          "source_weight": 0.0016194,
+          "target_weight": 0.001619399190300405,
+          "top_functions": [
+            {
+              "name": "MorphologyApply",
+              "share_within_group": 0.263266
+            },
+            {
+              "name": "memcpy",
+              "share_within_group": 0.148539
+            },
+            {
+              "name": "FrameImage",
+              "share_within_group": 0.12276999999999999
+            },
+            {
+              "name": "YShearImage",
+              "share_within_group": 0.098574
+            },
+            {
+              "name": "GetVirtualPixelsFromNexus",
+              "share_within_group": 0.096027
+            },
+            {
+              "name": "HorizontalFilter",
+              "share_within_group": 0.067133
+            },
+            {
+              "name": "XShearImage",
+              "share_within_group": 0.057741
+            },
+            {
+              "name": "SetPixelCacheNexusPixels.isra.0",
+              "share_within_group": 0.034542
+            },
+            {
+              "name": "ReadPixelCachePixels",
+              "share_within_group": 0.033367
+            },
+            {
+              "name": "WritePixelCachePixels",
+              "share_within_group": 0.033302
+            },
+            {
+              "name": "_PROCEDURE_LINKAGE_TABLE_",
+              "share_within_group": 0.020316999999999998
+            },
+            {
+              "name": "strcasecmp",
+              "share_within_group": 0.003416
+            }
+          ]
+        }
+      ],
+      "profile_contract_template": "spec_imagick_filter_kernel"
+    },
+    {
+      "benchmark": "641.leela_s",
+      "case": "spec_641_leela_speed_kernel",
+      "calibration": "simpoint-cluster-composition",
+      "source_profile_size": "ref",
+      "source_profile": "spec_runs/641.leela_s_ref_c910/641.leela_s_ref.function_profile.csv",
+      "source_cluster_count": 5,
+      "mechanism_group_count": 2,
+      "groups": [
+        {
+          "name": "primary_playout",
+          "mechanism": "branch_board_playout",
+          "clusters": [
+            0,
+            1
+          ],
+          "intervals": [
+            12739,
+            10632
+          ],
+          "source_weight": 0.7090529999999999,
+          "target_weight": 0.7090535672428537,
+          "top_functions": [
+            {
+              "name": "_ZN9FastState16play_random_moveEi",
+              "share_within_group": 0.13434716751075026
+            },
+            {
+              "name": "_ZN9FastBoard24get_pattern_fast_augmentEi",
+              "share_within_group": 0.112609280609489
+            },
+            {
+              "name": "_ZN9FastBoard10self_atariEii",
+              "share_within_group": 0.10419311162071102
+            },
+            {
+              "name": "_ZN9FastBoard17update_board_fastEii",
+              "share_within_group": 0.09065805048141676
+            },
+            {
+              "name": "_ZN6Random7randintEt",
+              "share_within_group": 0.06785698337641898
+            },
+            {
+              "name": "_ZN9FastBoard15nbr_criticalityEii",
+              "share_within_group": 0.061159628988242065
+            },
+            {
+              "name": "_ZN9FastBoard13merge_stringsEii",
+              "share_within_group": 0.05028119127907223
+            },
+            {
+              "name": "_ZN9FastState15walk_empty_listEiib",
+              "share_within_group": 0.05009580735008526
+            },
+            {
+              "name": "_ZN9FastBoard11no_eye_fillEi",
+              "share_within_group": 0.04827343444284138
+            },
+            {
+              "name": "_ZN9FastBoard17add_pattern_movesEiiRN5boost5arrayIiLm24EEERi",
+              "share_within_group": 0.037236145446109106
+            },
+            {
+              "name": "_ZN9FastBoard15fast_ss_suicideEii",
+              "share_within_group": 0.03473156479698979
+            },
+            {
+              "name": "_ZN9FastBoard24save_critical_neighboursEiiRN5boost5arrayIiLm24EEERi",
+              "share_within_group": 0.03012289599508076
+            }
+          ]
+        },
+        {
+          "name": "board_update",
+          "mechanism": "branch_board_state_update",
+          "clusters": [
+            2,
+            3,
+            4
+          ],
+          "intervals": [
+            1061,
+            22749,
+            2637
+          ],
+          "source_weight": 0.2909462,
+          "target_weight": 0.2909464327571462,
+          "top_functions": [
+            {
+              "name": "_ZN9FastBoard10self_atariEii",
+              "share_within_group": 0.11244400738762012
+            },
+            {
+              "name": "_ZN9FastState16play_random_moveEi",
+              "share_within_group": 0.10413985857316577
+            },
+            {
+              "name": "_ZN9FastBoard24get_pattern_fast_augmentEi",
+              "share_within_group": 0.09013920386002636
+            },
+            {
+              "name": "_ZN9FastBoard17update_board_fastEii",
+              "share_within_group": 0.07398883058242384
+            },
+            {
+              "name": "_ZN6Random7randintEt",
+              "share_within_group": 0.06345496324200144
+            },
+            {
+              "name": "_ZN9FastState15walk_empty_listEiib",
+              "share_within_group": 0.04920101172553551
+            },
+            {
+              "name": "_ZN9FastBoard11no_eye_fillEi",
+              "share_within_group": 0.048374004323479734
+            },
+            {
+              "name": "_ZN9FastBoard13merge_stringsEii",
+              "share_within_group": 0.03922034907415872
+            },
+            {
+              "name": "_ZN9FastBoard15nbr_criticalityEii",
+              "share_within_group": 0.03812259702343595
+            },
+            {
+              "name": "_ZN7UCTNode16uct_select_childEi",
+              "share_within_group": 0.036923419851848896
+            },
+            {
+              "name": "_ZN9FastBoard15fast_ss_suicideEii",
+              "share_within_group": 0.03491175632367771
+            },
+            {
+              "name": "_ZN9FastBoard17add_pattern_movesEiiRN5boost5arrayIiLm24EEERi",
+              "share_within_group": 0.030049964680068
+            }
+          ]
+        }
+      ],
+      "profile_contract_template": "spec_leela_playout_kernel"
+    },
+    {
+      "benchmark": "644.nab_s",
+      "case": "spec_644_nab_speed_kernel",
+      "calibration": "simpoint-cluster-composition",
+      "source_profile_size": "ref",
+      "source_profile": "spec_runs/644.nab_s_ref_c910/644.nab_s_ref.function_profile.csv",
+      "source_cluster_count": 5,
+      "mechanism_group_count": 3,
+      "groups": [
+        {
+          "name": "nonbonded",
+          "mechanism": "fp_nonbonded_pairs",
+          "clusters": [
+            0
+          ],
+          "intervals": [
+            86469
+          ],
+          "source_weight": 0.085847,
+          "target_weight": 0.08584691415308586,
+          "top_functions": [
+            {
+              "name": "nbond.isra.0",
+              "share_within_group": 1.0
+            }
+          ]
+        },
+        {
+          "name": "molecular_energy",
+          "mechanism": "fp_molecular_energy",
+          "clusters": [
+            1,
+            2,
+            3
+          ],
+          "intervals": [
+            75358,
+            65918,
+            46153
+          ],
+          "source_weight": 0.708927,
+          "target_weight": 0.708926291073709,
+          "top_functions": [
+            {
+              "name": "mme34",
+              "share_within_group": 0.813067676499837
+            },
+            {
+              "name": "expf64",
+              "share_within_group": 0.10822294814134603
+            },
+            {
+              "name": "logf64",
+              "share_within_group": 0.06440870870061374
+            },
+            {
+              "name": "_PROCEDURE_LINKAGE_TABLE_",
+              "share_within_group": 0.014300316615109878
+            }
+          ]
+        },
+        {
+          "name": "neighbor_search",
+          "mechanism": "pointer_neighbor_search",
+          "clusters": [
+            4
+          ],
+          "intervals": [
+            8682
+          ],
+          "source_weight": 0.205227,
+          "target_weight": 0.20522679477320524,
+          "top_functions": [
+            {
+              "name": "searchkdtree",
+              "share_within_group": 0.5804849999999999
+            },
+            {
+              "name": "nblist",
+              "share_within_group": 0.419014
+            },
+            {
+              "name": "_int_malloc",
+              "share_within_group": 0.000252
+            },
+            {
+              "name": "_int_free",
+              "share_within_group": 0.000103
+            },
+            {
+              "name": "unlink_chunk.isra.0",
+              "share_within_group": 4.7999999999999994e-05
+            },
+            {
+              "name": "malloc",
+              "share_within_group": 4.4999999999999996e-05
+            },
+            {
+              "name": "free",
+              "share_within_group": 3.5000000000000004e-05
+            },
+            {
+              "name": "ivector",
+              "share_within_group": 1.1999999999999999e-05
+            },
+            {
+              "name": "_PROCEDURE_LINKAGE_TABLE_",
+              "share_within_group": 5e-06
+            },
+            {
+              "name": "free_ivector",
+              "share_within_group": 2e-06
+            },
+            {
+              "name": "alloc_perturb",
+              "share_within_group": 0.0
+            }
+          ]
+        }
+      ],
+      "profile_contract_template": "spec_nab_md_kernel"
+    },
+    {
+      "benchmark": "648.exchange2_s",
+      "case": "spec_648_exchange2_speed_kernel",
+      "calibration": "simpoint-cluster-composition",
+      "source_profile_size": "ref",
+      "source_profile": "spec_runs/648.exchange2_s_ref_c910/648.exchange2_s_ref.function_profile.csv",
+      "source_cluster_count": 4,
+      "mechanism_group_count": 2,
+      "groups": [
+        {
+          "name": "digit_search",
+          "mechanism": "branch_combinatorial_search",
+          "clusters": [
+            1,
+            3
+          ],
+          "intervals": [
+            35730,
+            10567
+          ],
+          "source_weight": 0.8474959999999999,
+          "target_weight": 0.8474958305008338,
+          "top_functions": [
+            {
+              "name": "__brute_force_MOD_digits_2.isra.0",
+              "share_within_group": 0.9832576402897477
+            },
+            {
+              "name": "_gfortran_mminloc0_4_i4@@GFORTRAN_8",
+              "share_within_group": 0.007792229655361206
+            },
+            {
+              "name": "specific.4",
+              "share_within_group": 0.00412428881670238
+            },
+            {
+              "name": "__logic_MOD_new_solver",
+              "share_within_group": 0.0019349865202903612
+            },
+            {
+              "name": "_int_free",
+              "share_within_group": 0.0004703766849637048
+            },
+            {
+              "name": "malloc",
+              "share_within_group": 0.00043710134797096385
+            },
+            {
+              "name": "hidden_triplets.0",
+              "share_within_group": 0.0004149408386588255
+            },
+            {
+              "name": "__brute_force_MOD_brute",
+              "share_within_group": 0.0004088986520290361
+            },
+            {
+              "name": "free",
+              "share_within_group": 0.0003188260109782229
+            },
+            {
+              "name": "hidden_pairs.2",
+              "share_within_group": 0.0003137973040580723
+            },
+            {
+              "name": "naked_triplets.1",
+              "share_within_group": 0.00026447803293466873
+            },
+            {
+              "name": "__brute_force_MOD_rearrange.isra.0",
+              "share_within_group": 8e-05
+            }
+          ]
+        },
+        {
+          "name": "minimum_scan",
+          "mechanism": "integer_minimum_reduction",
+          "clusters": [
+            0,
+            2
+          ],
+          "intervals": [
+            11476,
+            215
+          ],
+          "source_weight": 0.1525042,
+          "target_weight": 0.1525041694991661,
+          "top_functions": [
+            {
+              "name": "__brute_force_MOD_digits_2.isra.0",
+              "share_within_group": 0.6413202088349043
+            },
+            {
+              "name": "_gfortran_mminloc0_4_i4@@GFORTRAN_8",
+              "share_within_group": 0.16205285654427878
+            },
+            {
+              "name": "specific.4",
+              "share_within_group": 0.08653974640173845
+            },
+            {
+              "name": "__logic_MOD_new_solver",
+              "share_within_group": 0.04022041190603275
+            },
+            {
+              "name": "hidden_triplets.0",
+              "share_within_group": 0.015861894261272803
+            },
+            {
+              "name": "_int_free",
+              "share_within_group": 0.009779920777263841
+            },
+            {
+              "name": "malloc",
+              "share_within_group": 0.009081436591254537
+            },
+            {
+              "name": "hidden_pairs.2",
+              "share_within_group": 0.009013449066976516
+            },
+            {
+              "name": "naked_triplets.1",
+              "share_within_group": 0.007639859581572179
+            },
+            {
+              "name": "free",
+              "share_within_group": 0.006636272747898091
+            },
+            {
+              "name": "__brute_force_MOD_brute",
+              "share_within_group": 0.005348082694115966
+            },
+            {
+              "name": "__brute_force_MOD_covered",
+              "share_within_group": 0.0019393672121816973
+            }
+          ]
+        }
+      ],
+      "profile_contract_template": "spec_exchange2_search_kernel"
+    },
+    {
+      "benchmark": "649.fotonik3d_s",
+      "case": "spec_649_fotonik3d_speed_kernel",
+      "calibration": "simpoint-cluster-composition",
+      "source_profile_size": "ref",
+      "source_profile": "spec_runs/649.fotonik3d_s_ref_c910/649.fotonik3d_s_ref.function_profile.csv",
+      "source_cluster_count": 4,
+      "mechanism_group_count": 3,
+      "groups": [
+        {
+          "name": "magnetic_update",
+          "mechanism": "fp_magnetic_stencil",
+          "clusters": [
+            1
+          ],
+          "intervals": [
+            20902
+          ],
+          "source_weight": 0.169392,
+          "target_weight": 0.1693921693921694,
+          "top_functions": [
+            {
+              "name": "__update_mod_MOD_updateh",
+              "share_within_group": 0.987851
+            },
+            {
+              "name": "__upml_mod_MOD_upml_updateh",
+              "share_within_group": 0.012148
+            },
+            {
+              "name": "__power_mod_MOD_power_updateh",
+              "share_within_group": 1e-06
+            },
+            {
+              "name": "leapfrog_",
+              "share_within_group": 0.0
+            }
+          ]
+        },
+        {
+          "name": "electric_material",
+          "mechanism": "fp_electric_material",
+          "clusters": [
+            2
+          ],
+          "intervals": [
+            7258
+          ],
+          "source_weight": 0.230429,
+          "target_weight": 0.23042923042923044,
+          "top_functions": [
+            {
+              "name": "__material_mod_MOD_mat_updatee",
+              "share_within_group": 0.99318
+            },
+            {
+              "name": "__plane_source_mod_MOD_plane_source_apply",
+              "share_within_group": 0.004064
+            },
+            {
+              "name": "__upml_mod_MOD_upml_updatee_simple",
+              "share_within_group": 0.002755
+            },
+            {
+              "name": "sinf64",
+              "share_within_group": 1e-06
+            },
+            {
+              "name": "expf64",
+              "share_within_group": 0.0
+            },
+            {
+              "name": "leapfrog_",
+              "share_within_group": 0.0
+            },
+            {
+              "name": "__upml_mod_MOD_upml_updatee",
+              "share_within_group": 0.0
+            },
+            {
+              "name": "_PROCEDURE_LINKAGE_TABLE_",
+              "share_within_group": 0.0
+            }
+          ]
+        },
+        {
+          "name": "power_and_setup",
+          "mechanism": "fp_power_setup",
+          "clusters": [
+            0,
+            3
+          ],
+          "intervals": [
+            2053,
+            32308
+          ],
+          "source_weight": 0.600178,
+          "target_weight": 0.6001786001786001,
+          "top_functions": [
+            {
+              "name": "__power_mod_MOD_power_dft",
+              "share_within_group": 0.6700601968915888
+            },
+            {
+              "name": "[module:libgfortran.so.5.0.0:unresolved]",
+              "share_within_group": 0.1700936304896214
+            },
+            {
+              "name": "_int_malloc",
+              "share_within_group": 0.05090506368444028
+            },
+            {
+              "name": "_int_free",
+              "share_within_group": 0.021402995744595768
+            },
+            {
+              "name": "memset",
+              "share_within_group": 0.02127466207691718
+            },
+            {
+              "name": "calloc",
+              "share_within_group": 0.01195501492557208
+            },
+            {
+              "name": "memcpy",
+              "share_within_group": 0.009810500011663207
+            },
+            {
+              "name": "sincosf64",
+              "share_within_group": 0.008005440652606393
+            },
+            {
+              "name": "unlink_chunk.isra.0",
+              "share_within_group": 0.007712822202746518
+            },
+            {
+              "name": "free",
+              "share_within_group": 0.007327196704977524
+            },
+            {
+              "name": "__upml_mod_MOD_upml_updatee_simple",
+              "share_within_group": 0.004424312690568464
+            },
+            {
+              "name": "uselocale",
+              "share_within_group": 0.003920890182579169
+            }
+          ]
+        }
+      ],
+      "profile_contract_template": "spec_fotonik3d_stencil_kernel"
+    },
+    {
+      "benchmark": "654.roms_s",
+      "case": "spec_654_roms_speed_kernel",
+      "calibration": "simpoint-cluster-composition",
+      "source_profile_size": "ref",
+      "source_profile": "spec_runs/654.roms_s_ref_c910/654.roms_s_ref.function_profile.csv",
+      "source_cluster_count": 5,
+      "mechanism_group_count": 3,
+      "groups": [
+        {
+          "name": "rhs_mixing",
+          "mechanism": "fp_rhs_mixing",
+          "clusters": [
+            0,
+            1,
+            3
+          ],
+          "intervals": [
+            1221,
+            59985,
+            27845
+          ],
+          "source_weight": 0.593176,
+          "target_weight": 0.593176,
+          "top_functions": [
+            {
+              "name": "__rhs3d_mod_MOD_rhs3d",
+              "share_within_group": 0.7013955385922559
+            },
+            {
+              "name": "__lmd_skpp_mod_MOD_lmd_skpp",
+              "share_within_group": 0.14339370098587942
+            },
+            {
+              "name": "powf64",
+              "share_within_group": 0.07019261531147584
+            },
+            {
+              "name": "__lmd_vmix_mod_MOD_lmd_vmix",
+              "share_within_group": 0.05363014327113706
+            },
+            {
+              "name": "__set_vbc_mod_MOD_set_vbc",
+              "share_within_group": 0.009624322740636843
+            },
+            {
+              "name": "lmd_swfrac_tile_",
+              "share_within_group": 0.008087468022981376
+            },
+            {
+              "name": "expf64",
+              "share_within_group": 0.006927276761028767
+            },
+            {
+              "name": "_PROCEDURE_LINKAGE_TABLE_",
+              "share_within_group": 0.0033899981961508893
+            },
+            {
+              "name": "__bulk_flux_mod_MOD_bulk_flux_tile.isra.0",
+              "share_within_group": 0.003318839937893644
+            },
+            {
+              "name": "__exchange_2d_mod_MOD_exchange_u2d_tile",
+              "share_within_group": 1.8784755283423465e-05
+            },
+            {
+              "name": "__exchange_2d_mod_MOD_exchange_v2d_tile",
+              "share_within_group": 6.26158509447449e-06
+            },
+            {
+              "name": "_int_free",
+              "share_within_group": 4.692732005340742e-06
+            }
+          ]
+        },
+        {
+          "name": "eos_flux",
+          "mechanism": "fp_eos_bulk_flux",
+          "clusters": [
+            2
+          ],
+          "intervals": [
+            210
+          ],
+          "source_weight": 0.116714,
+          "target_weight": 0.116714,
+          "top_functions": [
+            {
+              "name": "__rho_eos_mod_MOD_rho_eos_tile.isra.0",
+              "share_within_group": 0.728738
+            },
+            {
+              "name": "__omega_mod_MOD_omega",
+              "share_within_group": 0.26672799999999997
+            },
+            {
+              "name": "__exchange_3d_mod_MOD_exchange_w3d_tile",
+              "share_within_group": 0.004366
+            },
+            {
+              "name": "__exchange_2d_mod_MOD_exchange_u2d_tile",
+              "share_within_group": 0.000146
+            },
+            {
+              "name": "_int_free",
+              "share_within_group": 1.2999999999999998e-05
+            },
+            {
+              "name": "free",
+              "share_within_group": 5e-06
+            },
+            {
+              "name": "_int_malloc",
+              "share_within_group": 1e-06
+            },
+            {
+              "name": "malloc",
+              "share_within_group": 0.0
+            },
+            {
+              "name": "_PROCEDURE_LINKAGE_TABLE_",
+              "share_within_group": 0.0
+            },
+            {
+              "name": "wclock_off_",
+              "share_within_group": 0.0
+            },
+            {
+              "name": "unlink_chunk.isra.0",
+              "share_within_group": 0.0
+            },
+            {
+              "name": "wclock_on_",
+              "share_within_group": 0.0
+            }
+          ]
+        },
+        {
+          "name": "barotropic",
+          "mechanism": "fp_barotropic_step",
+          "clusters": [
+            4
+          ],
+          "intervals": [
+            159272
+          ],
+          "source_weight": 0.29011,
+          "target_weight": 0.29011,
+          "top_functions": [
+            {
+              "name": "__step2d_mod_MOD_step2d_tile.isra.0",
+              "share_within_group": 0.999947
+            },
+            {
+              "name": "__zetabc_mod_MOD_zetabc_tile",
+              "share_within_group": 5.2e-05
+            },
+            {
+              "name": "__exchange_2d_mod_MOD_exchange_u2d_tile",
+              "share_within_group": 1e-06
+            },
+            {
+              "name": "__exchange_2d_mod_MOD_exchange_r2d_tile",
+              "share_within_group": 0.0
+            }
+          ]
+        }
+      ],
+      "profile_contract_template": "spec_roms_stencil_kernel"
+    },
+    {
+      "benchmark": "657.xz_s",
+      "case": "spec_657_xz_speed_kernel",
+      "calibration": "simpoint-cluster-composition",
+      "source_profile_size": "ref",
+      "source_profile": "spec_runs/657.xz_s_ref_c910/657.xz_s_ref.function_profile.csv",
+      "source_cluster_count": 5,
+      "mechanism_group_count": 3,
+      "groups": [
+        {
+          "name": "optimum_match",
+          "mechanism": "integer_lzma_optimum",
+          "clusters": [
+            0,
+            4
+          ],
+          "intervals": [
+            46815,
+            25683
+          ],
+          "source_weight": 0.667627,
+          "target_weight": 0.6676275341020272,
+          "top_functions": [
+            {
+              "name": "lzma_lzma_optimum_normal",
+              "share_within_group": 0.38330435285571135
+            },
+            {
+              "name": "bt_find_func",
+              "share_within_group": 0.21501763159968065
+            },
+            {
+              "name": "lzma_lzma_encode",
+              "share_within_group": 0.15940199475455608
+            },
+            {
+              "name": "lzma_mf_bt4_find",
+              "share_within_group": 0.07125311893167892
+            },
+            {
+              "name": "get_literal_price",
+              "share_within_group": 0.06927643986986745
+            },
+            {
+              "name": "bt_skip_func",
+              "share_within_group": 0.06270149821382298
+            },
+            {
+              "name": "lzma_mf_find",
+              "share_within_group": 0.016082363701587863
+            },
+            {
+              "name": "lzma_mf_bt4_skip",
+              "share_within_group": 0.015596053460989441
+            },
+            {
+              "name": "lzma_crc64",
+              "share_within_group": 0.004231298404648105
+            },
+            {
+              "name": "length_update_prices",
+              "share_within_group": 0.0023475429109367954
+            },
+            {
+              "name": "memcpy",
+              "share_within_group": 0.0006485013233437232
+            },
+            {
+              "name": "lzma_lzma_encoder_reset",
+              "share_within_group": 6.549245012559408e-05
+            }
+          ]
+        },
+        {
+          "name": "sha",
+          "mechanism": "integer_sha_compression",
+          "clusters": [
+            1,
+            2
+          ],
+          "intervals": [
+            43078,
+            40730
+          ],
+          "source_weight": 0.07984720000000001,
+          "target_weight": 0.07984726387781112,
+          "top_functions": [
+            {
+              "name": "sha_compress",
+              "share_within_group": 0.9870062216045146
+            },
+            {
+              "name": "memcpy",
+              "share_within_group": 0.010184186489945797
+            },
+            {
+              "name": "sha_process",
+              "share_within_group": 0.0028104087970523698
+            },
+            {
+              "name": "_PROCEDURE_LINKAGE_TABLE_",
+              "share_within_group": 0.0
+            }
+          ]
+        },
+        {
+          "name": "skip_match",
+          "mechanism": "integer_lzma_skip",
+          "clusters": [
+            3
+          ],
+          "intervals": [
+            19400
+          ],
+          "source_weight": 0.252525,
+          "target_weight": 0.2525252020201616,
+          "top_functions": [
+            {
+              "name": "bt_skip_func",
+              "share_within_group": 0.557097
+            },
+            {
+              "name": "lzma_mf_bt4_skip",
+              "share_within_group": 0.13406
+            },
+            {
+              "name": "lzma_lzma_optimum_normal",
+              "share_within_group": 0.113865
+            },
+            {
+              "name": "lzma_lzma_encode",
+              "share_within_group": 0.07342
+            },
+            {
+              "name": "bt_find_func",
+              "share_within_group": 0.041669
+            },
+            {
+              "name": "lzma_mf_bt4_find",
+              "share_within_group": 0.023915000000000002
+            },
+            {
+              "name": "get_literal_price",
+              "share_within_group": 0.022424
+            },
+            {
+              "name": "lzma_mf_find",
+              "share_within_group": 0.015712999999999998
+            },
+            {
+              "name": "lzma_crc64",
+              "share_within_group": 0.012848
+            },
+            {
+              "name": "length_update_prices",
+              "share_within_group": 0.0028699999999999997
+            },
+            {
+              "name": "memcpy",
+              "share_within_group": 0.001898
+            },
+            {
+              "name": "lzma_code",
+              "share_within_group": 3.5000000000000004e-05
+            }
+          ]
+        }
+      ],
+      "profile_contract_template": "spec_xz_lzma_kernel"
+    }
+  ]
+}

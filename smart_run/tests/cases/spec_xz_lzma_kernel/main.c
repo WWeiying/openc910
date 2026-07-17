@@ -8,6 +8,8 @@
 
 #include <stdint.h>
 #include <stdio.h>
+#include "spec_composition_markers.h"
+#include "spec_profile_footprint.h"
 
 #ifndef SPEC_XZ_BYTES
 #define SPEC_XZ_BYTES 512
@@ -160,12 +162,46 @@ static uint32_t match_finder_kernel(void)
     return acc;
 }
 
+static uint32_t skip_match_phase(void)
+{
+    uint32_t acc = 0x5575a1u;
+    int limit = (BYTES * (SPEC_COMPOSITION_SCALE > 1 ? 28 : 23)) / 64;
+    if (limit < 1)
+        limit = 1;
+    for (int pass = 0; pass < PASSES; pass++) {
+        for (int pos = 0; pos < limit; pos++) {
+            uint32_t h = hash3(pos);
+            uint16_t cur = head[h];
+            int skip = 0;
+            while (cur != 0xffffu && skip < (PROBES / 2 + 1)) {
+                acc ^= (uint32_t)dict[cur % DICT] + ((uint32_t)cur << (skip & 7));
+                cur = chain[cur % BYTES];
+                skip++;
+            }
+            acc = range_update(acc, h, (uint32_t)(skip > 2));
+        }
+    }
+    return acc;
+}
+
 int main(void)
 {
+    asm volatile(".global perf_warmup_start\n\t" "perf_warmup_start:");
     init_data();
+    spec_profile_footprint_init();
+    asm volatile(".global perf_warmup_end\n\t" "perf_warmup_end:");
 
     asm volatile(".global perf_monitor_start\n\t" "perf_monitor_start:");
-    checksum = match_finder_kernel();
+    SPEC_COMPOSITION_PHASE0_BEGIN();
+    checksum = 0;
+    for (int round = 0; round < SPEC_COMPOSITION_SCALE; round++)
+        checksum ^= match_finder_kernel() + (uint32_t)round;
+    SPEC_COMPOSITION_PHASE0_END();
+    SPEC_COMPOSITION_PHASE1_BEGIN();
+    for (int round = 0; round < SPEC_COMPOSITION_SCALE; round++)
+        checksum ^= skip_match_phase() + (uint32_t)round;
+    SPEC_COMPOSITION_PHASE1_END();
+    checksum ^= spec_profile_footprint_run();
     asm volatile(".global perf_monitor_end\n\t" "perf_monitor_end:");
 
     printf("spec_xz_lzma_kernel config bytes=%u dict=%u passes=%u probes=%u range_steps=%u\n",

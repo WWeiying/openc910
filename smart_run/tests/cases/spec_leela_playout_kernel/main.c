@@ -8,6 +8,8 @@
 
 #include <stdint.h>
 #include <stdio.h>
+#include "spec_composition_markers.h"
+#include "spec_profile_footprint.h"
 
 #ifndef SPEC_LEELA_BOARD
 #define SPEC_LEELA_BOARD 13
@@ -34,6 +36,12 @@
 #define PLAYOUTS SPEC_LEELA_PLAYOUTS
 #define MOVES SPEC_LEELA_MOVES
 #define CHILDREN SPEC_LEELA_CHILDREN
+
+#if SPEC_COMPOSITION_SCALE > 1
+#define PRIMARY_PLAYOUT_ROUNDS (5 * SPEC_COMPOSITION_SCALE + 2)
+#else
+#define PRIMARY_PLAYOUT_ROUNDS (5 * SPEC_COMPOSITION_SCALE)
+#endif
 
 typedef struct {
     uint16_t visits;
@@ -221,12 +229,43 @@ static uint32_t playout_kernel(void)
     return acc;
 }
 
+static uint32_t board_update_phase(void)
+{
+    uint32_t acc = 0x641b04du;
+
+    for (int i = 0; i < CELLS; i += 2) {
+        int color = 1 + (i & 1);
+        uint32_t pattern = pattern3(i, color);
+        if (board[i] == 0 && no_eye_fill(i, color) && !self_atari(i, color))
+            update_board_fast(i, color);
+        acc ^= pattern + (uint32_t)(liberties[i] * 17u);
+    }
+    for (int i = 0; i < CHILDREN; i++) {
+        children[i].visits += (uint16_t)(1 + (acc & 1u));
+        children[i].wins += (int16_t)((acc >> (i & 7)) & 1u);
+        acc ^= (uint32_t)children[i].visits * 33u + children[i].move;
+    }
+    return acc;
+}
+
 int main(void)
 {
+    asm volatile(".global perf_warmup_start\n\t" "perf_warmup_start:");
     init_board();
+    spec_profile_footprint_init();
+    asm volatile(".global perf_warmup_end\n\t" "perf_warmup_end:");
 
     asm volatile(".global perf_monitor_start\n\t" "perf_monitor_start:");
-    checksum = playout_kernel();
+    SPEC_COMPOSITION_PHASE0_BEGIN();
+    checksum = 0;
+    for (int round = 0; round < PRIMARY_PLAYOUT_ROUNDS; round++)
+        checksum ^= playout_kernel() + (uint32_t)round;
+    SPEC_COMPOSITION_PHASE0_END();
+    SPEC_COMPOSITION_PHASE1_BEGIN();
+    for (int round = 0; round < 8 * SPEC_COMPOSITION_SCALE; round++)
+        checksum ^= board_update_phase() + (uint32_t)round;
+    SPEC_COMPOSITION_PHASE1_END();
+    checksum ^= spec_profile_footprint_run();
     asm volatile(".global perf_monitor_end\n\t" "perf_monitor_end:");
 
     printf("spec_leela_playout_kernel config board=%u playouts=%u moves=%u children=%u\n",

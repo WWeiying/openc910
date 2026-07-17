@@ -1,0 +1,2004 @@
+{
+  "schema": "openc910-spec-kernel-profiles-v1",
+  "description": "Measured contracts for 43 benchmark-local bare-metal SPEC proxy cases. Calibration classes distinguish dedicated composites from semantic multi-cluster composites.",
+  "feature_equivalence_groups": [],
+  "cases": {
+    "spec_505_mcf_composite_kernel": {
+      "benchmarks": [
+        "505.mcf_r"
+      ],
+      "calibration": "simpoint-composition",
+      "profiles": {
+        "quick": {
+          "metrics": {
+            "dynamic_instructions": {
+              "measured": 19707,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 0,
+              "tolerance": 0
+            }
+          }
+        },
+        "full": {
+          "metrics": {
+            "dynamic_instructions": {
+              "min": 400000,
+              "max": 620000,
+              "measured": 501991,
+              "tolerance": 0
+            },
+            "working_set_bytes_64B_lines": {
+              "min": 200000,
+              "measured": 594944,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 235820,
+              "tolerance": 0
+            }
+          }
+        }
+      }
+    },
+    "spec_510_parest_composite_kernel": {
+      "benchmarks": [
+        "510.parest_r"
+      ],
+      "calibration": "simpoint-composition",
+      "profiles": {
+        "quick": {
+          "metrics": {
+            "dynamic_instructions": {
+              "measured": 108350,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 0,
+              "tolerance": 0
+            }
+          }
+        },
+        "full": {
+          "metrics": {
+            "dynamic_instructions": {
+              "min": 400000,
+              "max": 620000,
+              "measured": 497534,
+              "tolerance": 0
+            },
+            "working_set_bytes_64B_lines": {
+              "min": 200000,
+              "measured": 244480,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 277686,
+              "tolerance": 0
+            }
+          }
+        }
+      }
+    },
+    "spec_600_perlbench_speed_kernel": {
+      "benchmarks": [
+        "600.perlbench_s"
+      ],
+      "calibration": "simpoint-cluster-composition",
+      "profiles": {
+        "quick": {
+          "metrics": {
+            "dynamic_instructions": {
+              "measured": 144084,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 2334,
+              "tolerance": 0
+            }
+          }
+        },
+        "full": {
+          "metrics": {
+            "dynamic_instructions": {
+              "min": 400000,
+              "max": 620000,
+              "measured": 460754,
+              "tolerance": 0
+            },
+            "working_set_bytes_64B_lines": {
+              "min": 131072,
+              "measured": 131968,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 22823,
+              "tolerance": 0
+            }
+          },
+          "max_footprint_instruction_share": 0.1,
+          "measured_footprint_instruction_share": 0.06226533030641079
+        }
+      },
+      "composition_basis": {
+        "benchmark": "600.perlbench_s",
+        "profile": "ref",
+        "function_profile": "spec_runs/600.perlbench_s_ref_c910/600.perlbench_s_ref.function_profile.csv",
+        "source_cluster_count": 4
+      }
+    },
+    "spec_602_gcc_speed_kernel": {
+      "benchmarks": [
+        "602.gcc_s"
+      ],
+      "calibration": "simpoint-cluster-composition",
+      "profiles": {
+        "quick": {
+          "metrics": {
+            "dynamic_instructions": {
+              "measured": 51947,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 2334,
+              "tolerance": 0
+            }
+          }
+        },
+        "full": {
+          "metrics": {
+            "dynamic_instructions": {
+              "min": 400000,
+              "max": 620000,
+              "measured": 495409,
+              "tolerance": 0
+            },
+            "working_set_bytes_64B_lines": {
+              "min": 131072,
+              "measured": 133120,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 22823,
+              "tolerance": 0
+            }
+          },
+          "max_footprint_instruction_share": 0.1,
+          "measured_footprint_instruction_share": 0.05790972711436409
+        }
+      },
+      "composition_basis": {
+        "benchmark": "602.gcc_s",
+        "profile": "ref",
+        "function_profile": "spec_runs/602.gcc_s_ref_c910/602.gcc_s_ref.function_profile.csv",
+        "source_cluster_count": 4
+      }
+    },
+    "spec_603_bwaves_speed_kernel": {
+      "benchmarks": [
+        "603.bwaves_s"
+      ],
+      "calibration": "simpoint-cluster-composition",
+      "profiles": {
+        "quick": {
+          "metrics": {
+            "dynamic_instructions": {
+              "measured": 59578,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 2334,
+              "tolerance": 0
+            }
+          }
+        },
+        "full": {
+          "metrics": {
+            "dynamic_instructions": {
+              "min": 400000,
+              "max": 620000,
+              "measured": 505212,
+              "tolerance": 0
+            },
+            "working_set_bytes_64B_lines": {
+              "min": 131072,
+              "measured": 132608,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 22823,
+              "tolerance": 0
+            }
+          },
+          "max_footprint_instruction_share": 0.1,
+          "measured_footprint_instruction_share": 0.05678606208878649
+        }
+      },
+      "composition_basis": {
+        "benchmark": "603.bwaves_s",
+        "profile": "ref",
+        "function_profile": "spec_runs/603.bwaves_s_ref_c910/603.bwaves_s_ref.function_profile.csv",
+        "source_cluster_count": 5
+      }
+    },
+    "spec_605_mcf_composite_kernel": {
+      "benchmarks": [
+        "605.mcf_s"
+      ],
+      "calibration": "simpoint-composition",
+      "profiles": {
+        "quick": {
+          "metrics": {
+            "dynamic_instructions": {
+              "measured": 19188,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 0,
+              "tolerance": 0
+            }
+          }
+        },
+        "full": {
+          "metrics": {
+            "dynamic_instructions": {
+              "min": 400000,
+              "max": 620000,
+              "measured": 462143,
+              "tolerance": 0
+            },
+            "working_set_bytes_64B_lines": {
+              "min": 200000,
+              "measured": 501504,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 189100,
+              "tolerance": 0
+            }
+          }
+        }
+      }
+    },
+    "spec_607_cactubssn_speed_kernel": {
+      "benchmarks": [
+        "607.cactuBSSN_s"
+      ],
+      "calibration": "simpoint-cluster-composition",
+      "profiles": {
+        "quick": {
+          "metrics": {
+            "dynamic_instructions": {
+              "measured": 290141,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 2335,
+              "tolerance": 0
+            }
+          }
+        },
+        "full": {
+          "metrics": {
+            "dynamic_instructions": {
+              "min": 400000,
+              "max": 620000,
+              "measured": 608892,
+              "tolerance": 0
+            },
+            "working_set_bytes_64B_lines": {
+              "min": 131072,
+              "measured": 132800,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 22824,
+              "tolerance": 0
+            }
+          },
+          "max_footprint_instruction_share": 0.1,
+          "measured_footprint_instruction_share": 0.04711673006050334
+        }
+      },
+      "composition_basis": {
+        "benchmark": "607.cactuBSSN_s",
+        "profile": "ref",
+        "function_profile": "spec_runs/607.cactuBSSN_s_ref_c910/607.cactuBSSN_s_ref.function_profile.csv",
+        "source_cluster_count": 5
+      }
+    },
+    "spec_619_lbm_speed_kernel": {
+      "benchmarks": [
+        "619.lbm_s"
+      ],
+      "calibration": "simpoint-cluster-composition",
+      "profiles": {
+        "quick": {
+          "metrics": {
+            "dynamic_instructions": {
+              "measured": 144356,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 2334,
+              "tolerance": 0
+            }
+          }
+        },
+        "full": {
+          "metrics": {
+            "dynamic_instructions": {
+              "min": 400000,
+              "max": 620000,
+              "measured": 461700,
+              "tolerance": 0
+            },
+            "working_set_bytes_64B_lines": {
+              "min": 131072,
+              "measured": 132416,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 22823,
+              "tolerance": 0
+            }
+          },
+          "max_footprint_instruction_share": 0.1,
+          "measured_footprint_instruction_share": 0.06213775178687459
+        }
+      },
+      "composition_basis": {
+        "benchmark": "619.lbm_s",
+        "profile": "ref",
+        "function_profile": "spec_runs/619.lbm_s_ref_c910/619.lbm_s_ref.function_profile.csv",
+        "source_cluster_count": 5
+      }
+    },
+    "spec_620_omnetpp_speed_kernel": {
+      "benchmarks": [
+        "620.omnetpp_s"
+      ],
+      "calibration": "simpoint-cluster-composition",
+      "profiles": {
+        "quick": {
+          "metrics": {
+            "dynamic_instructions": {
+              "measured": 270572,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 2334,
+              "tolerance": 0
+            }
+          }
+        },
+        "full": {
+          "metrics": {
+            "dynamic_instructions": {
+              "min": 400000,
+              "max": 620000,
+              "measured": 571552,
+              "tolerance": 0
+            },
+            "working_set_bytes_64B_lines": {
+              "min": 131072,
+              "measured": 132160,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 22823,
+              "tolerance": 0
+            }
+          },
+          "max_footprint_instruction_share": 0.1,
+          "measured_footprint_instruction_share": 0.05019490789989362
+        }
+      },
+      "composition_basis": {
+        "benchmark": "620.omnetpp_s",
+        "profile": "ref",
+        "function_profile": "spec_runs/620.omnetpp_s_ref_c910/620.omnetpp_s_ref.function_profile.csv",
+        "source_cluster_count": 5
+      }
+    },
+    "spec_621_wrf_speed_kernel": {
+      "benchmarks": [
+        "621.wrf_s"
+      ],
+      "calibration": "simpoint-cluster-composition",
+      "profiles": {
+        "quick": {
+          "metrics": {
+            "dynamic_instructions": {
+              "measured": 163571,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 2335,
+              "tolerance": 0
+            }
+          }
+        },
+        "full": {
+          "metrics": {
+            "dynamic_instructions": {
+              "min": 400000,
+              "max": 620000,
+              "measured": 519246,
+              "tolerance": 0
+            },
+            "working_set_bytes_64B_lines": {
+              "min": 131072,
+              "measured": 132672,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 22824,
+              "tolerance": 0
+            }
+          },
+          "max_footprint_instruction_share": 0.1,
+          "measured_footprint_instruction_share": 0.05525126818502213
+        }
+      },
+      "composition_basis": {
+        "benchmark": "621.wrf_s",
+        "profile": "ref",
+        "function_profile": "spec_runs/621.wrf_s_ref_c910/621.wrf_s_ref.function_profile.csv",
+        "source_cluster_count": 5
+      }
+    },
+    "spec_623_xalancbmk_speed_kernel": {
+      "benchmarks": [
+        "623.xalancbmk_s"
+      ],
+      "calibration": "simpoint-cluster-composition",
+      "profiles": {
+        "quick": {
+          "metrics": {
+            "dynamic_instructions": {
+              "measured": 69018,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 2334,
+              "tolerance": 0
+            }
+          }
+        },
+        "full": {
+          "metrics": {
+            "dynamic_instructions": {
+              "min": 400000,
+              "max": 620000,
+              "measured": 511628,
+              "tolerance": 0
+            },
+            "working_set_bytes_64B_lines": {
+              "min": 131072,
+              "measured": 131968,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 22823,
+              "tolerance": 0
+            }
+          },
+          "max_footprint_instruction_share": 0.1,
+          "measured_footprint_instruction_share": 0.05607394435019194
+        }
+      },
+      "composition_basis": {
+        "benchmark": "623.xalancbmk_s",
+        "profile": "ref",
+        "function_profile": "spec_runs/623.xalancbmk_s_ref_c910/623.xalancbmk_s_ref.function_profile.csv",
+        "source_cluster_count": 5
+      }
+    },
+    "spec_625_x264_speed_kernel": {
+      "benchmarks": [
+        "625.x264_s"
+      ],
+      "calibration": "simpoint-cluster-composition",
+      "profiles": {
+        "quick": {
+          "metrics": {
+            "dynamic_instructions": {
+              "measured": 50394,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 2334,
+              "tolerance": 0
+            }
+          }
+        },
+        "full": {
+          "metrics": {
+            "dynamic_instructions": {
+              "min": 400000,
+              "max": 620000,
+              "measured": 482118,
+              "tolerance": 0
+            },
+            "working_set_bytes_64B_lines": {
+              "min": 131072,
+              "measured": 132544,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 22823,
+              "tolerance": 0
+            }
+          },
+          "max_footprint_instruction_share": 0.1,
+          "measured_footprint_instruction_share": 0.059506178985227684
+        }
+      },
+      "composition_basis": {
+        "benchmark": "625.x264_s",
+        "profile": "ref",
+        "function_profile": "spec_runs/625.x264_s_ref_c910/625.x264_s_ref.function_profile.csv",
+        "source_cluster_count": 5
+      }
+    },
+    "spec_627_cam4_speed_kernel": {
+      "benchmarks": [
+        "627.cam4_s"
+      ],
+      "calibration": "simpoint-cluster-composition",
+      "profiles": {
+        "quick": {
+          "metrics": {
+            "dynamic_instructions": {
+              "measured": 211874,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 2334,
+              "tolerance": 0
+            }
+          }
+        },
+        "full": {
+          "metrics": {
+            "dynamic_instructions": {
+              "min": 400000,
+              "max": 620000,
+              "measured": 452416,
+              "tolerance": 0
+            },
+            "working_set_bytes_64B_lines": {
+              "min": 131072,
+              "measured": 132160,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 22823,
+              "tolerance": 0
+            }
+          },
+          "max_footprint_instruction_share": 0.1,
+          "measured_footprint_instruction_share": 0.06341287664450418
+        }
+      },
+      "composition_basis": {
+        "benchmark": "627.cam4_s",
+        "profile": "ref",
+        "function_profile": "spec_runs/627.cam4_s_ref_c910/627.cam4_s_ref.function_profile.csv",
+        "source_cluster_count": 5
+      }
+    },
+    "spec_631_deepsjeng_speed_kernel": {
+      "benchmarks": [
+        "631.deepsjeng_s"
+      ],
+      "calibration": "simpoint-cluster-composition",
+      "profiles": {
+        "quick": {
+          "metrics": {
+            "dynamic_instructions": {
+              "measured": 18823,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 2334,
+              "tolerance": 0
+            }
+          }
+        },
+        "full": {
+          "metrics": {
+            "dynamic_instructions": {
+              "min": 400000,
+              "max": 620000,
+              "measured": 480084,
+              "tolerance": 0
+            },
+            "working_set_bytes_64B_lines": {
+              "min": 131072,
+              "measured": 131776,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 22823,
+              "tolerance": 0
+            }
+          },
+          "max_footprint_instruction_share": 0.1,
+          "measured_footprint_instruction_share": 0.0597582922988477
+        }
+      },
+      "composition_basis": {
+        "benchmark": "631.deepsjeng_s",
+        "profile": "ref",
+        "function_profile": "spec_runs/631.deepsjeng_s_ref_c910/631.deepsjeng_s_ref.function_profile.csv",
+        "source_cluster_count": 3
+      }
+    },
+    "spec_638_imagick_speed_kernel": {
+      "benchmarks": [
+        "638.imagick_s"
+      ],
+      "calibration": "simpoint-cluster-composition",
+      "profiles": {
+        "quick": {
+          "metrics": {
+            "dynamic_instructions": {
+              "measured": 64268,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 2334,
+              "tolerance": 0
+            }
+          }
+        },
+        "full": {
+          "metrics": {
+            "dynamic_instructions": {
+              "min": 400000,
+              "max": 620000,
+              "measured": 478480,
+              "tolerance": 0
+            },
+            "working_set_bytes_64B_lines": {
+              "min": 131072,
+              "measured": 132544,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 22823,
+              "tolerance": 0
+            }
+          },
+          "max_footprint_instruction_share": 0.1,
+          "measured_footprint_instruction_share": 0.05995861896004013
+        }
+      },
+      "composition_basis": {
+        "benchmark": "638.imagick_s",
+        "profile": "train",
+        "function_profile": "spec_runs/638.imagick_s_train_c910/638.imagick_s_train.function_profile.csv",
+        "source_cluster_count": 4
+      }
+    },
+    "spec_641_leela_speed_kernel": {
+      "benchmarks": [
+        "641.leela_s"
+      ],
+      "calibration": "simpoint-cluster-composition",
+      "profiles": {
+        "quick": {
+          "metrics": {
+            "dynamic_instructions": {
+              "measured": 45577,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 2334,
+              "tolerance": 0
+            }
+          }
+        },
+        "full": {
+          "metrics": {
+            "dynamic_instructions": {
+              "min": 400000,
+              "max": 620000,
+              "measured": 485046,
+              "tolerance": 0
+            },
+            "working_set_bytes_64B_lines": {
+              "min": 131072,
+              "measured": 131904,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 22823,
+              "tolerance": 0
+            }
+          },
+          "max_footprint_instruction_share": 0.1,
+          "measured_footprint_instruction_share": 0.05914696750411301
+        }
+      },
+      "composition_basis": {
+        "benchmark": "641.leela_s",
+        "profile": "ref",
+        "function_profile": "spec_runs/641.leela_s_ref_c910/641.leela_s_ref.function_profile.csv",
+        "source_cluster_count": 5
+      }
+    },
+    "spec_644_nab_speed_kernel": {
+      "benchmarks": [
+        "644.nab_s"
+      ],
+      "calibration": "simpoint-cluster-composition",
+      "profiles": {
+        "quick": {
+          "metrics": {
+            "dynamic_instructions": {
+              "measured": 462212,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 2335,
+              "tolerance": 0
+            }
+          }
+        },
+        "full": {
+          "metrics": {
+            "dynamic_instructions": {
+              "min": 400000,
+              "max": 620000,
+              "measured": 490899,
+              "tolerance": 0
+            },
+            "working_set_bytes_64B_lines": {
+              "min": 131072,
+              "measured": 133248,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 22824,
+              "tolerance": 0
+            }
+          },
+          "max_footprint_instruction_share": 0.1,
+          "measured_footprint_instruction_share": 0.05844175685833542
+        }
+      },
+      "composition_basis": {
+        "benchmark": "644.nab_s",
+        "profile": "ref",
+        "function_profile": "spec_runs/644.nab_s_ref_c910/644.nab_s_ref.function_profile.csv",
+        "source_cluster_count": 5
+      }
+    },
+    "spec_648_exchange2_speed_kernel": {
+      "benchmarks": [
+        "648.exchange2_s"
+      ],
+      "calibration": "simpoint-cluster-composition",
+      "profiles": {
+        "quick": {
+          "metrics": {
+            "dynamic_instructions": {
+              "measured": 27253,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 2334,
+              "tolerance": 0
+            }
+          }
+        },
+        "full": {
+          "metrics": {
+            "dynamic_instructions": {
+              "min": 400000,
+              "max": 620000,
+              "measured": 491745,
+              "tolerance": 0
+            },
+            "working_set_bytes_64B_lines": {
+              "min": 131072,
+              "measured": 132736,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 22823,
+              "tolerance": 0
+            }
+          },
+          "max_footprint_instruction_share": 0.1,
+          "measured_footprint_instruction_share": 0.0583412134337919
+        }
+      },
+      "composition_basis": {
+        "benchmark": "648.exchange2_s",
+        "profile": "ref",
+        "function_profile": "spec_runs/648.exchange2_s_ref_c910/648.exchange2_s_ref.function_profile.csv",
+        "source_cluster_count": 4
+      }
+    },
+    "spec_649_fotonik3d_speed_kernel": {
+      "benchmarks": [
+        "649.fotonik3d_s"
+      ],
+      "calibration": "simpoint-cluster-composition",
+      "profiles": {
+        "quick": {
+          "metrics": {
+            "dynamic_instructions": {
+              "measured": 166355,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 2335,
+              "tolerance": 0
+            }
+          }
+        },
+        "full": {
+          "metrics": {
+            "dynamic_instructions": {
+              "min": 400000,
+              "max": 620000,
+              "measured": 527598,
+              "tolerance": 0
+            },
+            "working_set_bytes_64B_lines": {
+              "min": 131072,
+              "measured": 132800,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 22824,
+              "tolerance": 0
+            }
+          },
+          "max_footprint_instruction_share": 0.1,
+          "measured_footprint_instruction_share": 0.05437662765969545
+        }
+      },
+      "composition_basis": {
+        "benchmark": "649.fotonik3d_s",
+        "profile": "ref",
+        "function_profile": "spec_runs/649.fotonik3d_s_ref_c910/649.fotonik3d_s_ref.function_profile.csv",
+        "source_cluster_count": 4
+      }
+    },
+    "spec_654_roms_speed_kernel": {
+      "benchmarks": [
+        "654.roms_s"
+      ],
+      "calibration": "simpoint-cluster-composition",
+      "profiles": {
+        "quick": {
+          "metrics": {
+            "dynamic_instructions": {
+              "measured": 108661,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 2335,
+              "tolerance": 0
+            }
+          }
+        },
+        "full": {
+          "metrics": {
+            "dynamic_instructions": {
+              "min": 400000,
+              "max": 620000,
+              "measured": 463100,
+              "tolerance": 0
+            },
+            "working_set_bytes_64B_lines": {
+              "min": 131072,
+              "measured": 132800,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 22824,
+              "tolerance": 0
+            }
+          },
+          "max_footprint_instruction_share": 0.1,
+          "measured_footprint_instruction_share": 0.061949902828762685
+        }
+      },
+      "composition_basis": {
+        "benchmark": "654.roms_s",
+        "profile": "ref",
+        "function_profile": "spec_runs/654.roms_s_ref_c910/654.roms_s_ref.function_profile.csv",
+        "source_cluster_count": 5
+      }
+    },
+    "spec_657_xz_speed_kernel": {
+      "benchmarks": [
+        "657.xz_s"
+      ],
+      "calibration": "simpoint-cluster-composition",
+      "profiles": {
+        "quick": {
+          "metrics": {
+            "dynamic_instructions": {
+              "measured": 157754,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 2335,
+              "tolerance": 0
+            }
+          }
+        },
+        "full": {
+          "metrics": {
+            "dynamic_instructions": {
+              "min": 400000,
+              "max": 620000,
+              "measured": 501819,
+              "tolerance": 0
+            },
+            "working_set_bytes_64B_lines": {
+              "min": 131072,
+              "measured": 133120,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 22824,
+              "tolerance": 0
+            }
+          },
+          "max_footprint_instruction_share": 0.1,
+          "measured_footprint_instruction_share": 0.05717001548367041
+        }
+      },
+      "composition_basis": {
+        "benchmark": "657.xz_s",
+        "profile": "ref",
+        "function_profile": "spec_runs/657.xz_s_ref_c910/657.xz_s_ref.function_profile.csv",
+        "source_cluster_count": 5
+      }
+    },
+    "spec_blender_render_kernel": {
+      "benchmarks": [
+        "526.blender_r"
+      ],
+      "calibration": "simpoint-cluster-composition",
+      "profiles": {
+        "quick": {
+          "metrics": {
+            "dynamic_instructions": {
+              "measured": 515710,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 2335,
+              "tolerance": 0
+            }
+          }
+        },
+        "full": {
+          "metrics": {
+            "dynamic_instructions": {
+              "min": 400000,
+              "max": 620000,
+              "measured": 544397,
+              "tolerance": 0
+            },
+            "working_set_bytes_64B_lines": {
+              "min": 131072,
+              "measured": 133120,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 22824,
+              "tolerance": 0
+            }
+          },
+          "max_footprint_instruction_share": 0.1,
+          "measured_footprint_instruction_share": 0.05269867394566833
+        }
+      },
+      "composition_basis": {
+        "benchmark": "526.blender_r",
+        "profile": "ref",
+        "function_profile": "spec_runs/526.blender_r_ref_c910/526.blender_r_ref.function_profile.csv",
+        "source_cluster_count": 4
+      }
+    },
+    "spec_bwaves_stencil_kernel": {
+      "benchmarks": [
+        "503.bwaves_r"
+      ],
+      "calibration": "simpoint-cluster-composition",
+      "profiles": {
+        "quick": {
+          "metrics": {
+            "dynamic_instructions": {
+              "measured": 227894,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 8111,
+              "tolerance": 0
+            }
+          }
+        },
+        "full": {
+          "metrics": {
+            "dynamic_instructions": {
+              "min": 400000,
+              "max": 620000,
+              "measured": 484422,
+              "tolerance": 0
+            },
+            "working_set_bytes_64B_lines": {
+              "min": 131072,
+              "measured": 136064,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 28600,
+              "tolerance": 0
+            }
+          },
+          "max_footprint_instruction_share": 0.1,
+          "measured_footprint_instruction_share": 0.05922315666918513
+        }
+      },
+      "composition_basis": {
+        "benchmark": "503.bwaves_r",
+        "profile": "ref",
+        "function_profile": "spec_runs/503.bwaves_r_ref_c910/503.bwaves_r_ref.function_profile.csv",
+        "source_cluster_count": 4
+      }
+    },
+    "spec_cactubssn_stencil_kernel": {
+      "benchmarks": [
+        "507.cactuBSSN_r"
+      ],
+      "calibration": "simpoint-cluster-composition",
+      "profiles": {
+        "quick": {
+          "metrics": {
+            "dynamic_instructions": {
+              "measured": 548331,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 5864,
+              "tolerance": 0
+            }
+          }
+        },
+        "full": {
+          "metrics": {
+            "dynamic_instructions": {
+              "min": 400000,
+              "max": 620000,
+              "measured": 577018,
+              "tolerance": 0
+            },
+            "working_set_bytes_64B_lines": {
+              "min": 131072,
+              "measured": 141760,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 26353,
+              "tolerance": 0
+            }
+          },
+          "max_footprint_instruction_share": 0.1,
+          "measured_footprint_instruction_share": 0.049721152546367706
+        }
+      },
+      "composition_basis": {
+        "benchmark": "507.cactuBSSN_r",
+        "profile": "ref",
+        "function_profile": "spec_runs/507.cactuBSSN_r_ref_c910/507.cactuBSSN_r_ref.function_profile.csv",
+        "source_cluster_count": 4
+      }
+    },
+    "spec_cam4_climate_kernel": {
+      "benchmarks": [
+        "527.cam4_r"
+      ],
+      "calibration": "simpoint-cluster-composition",
+      "profiles": {
+        "quick": {
+          "metrics": {
+            "dynamic_instructions": {
+              "measured": 304744,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 2335,
+              "tolerance": 0
+            }
+          }
+        },
+        "full": {
+          "metrics": {
+            "dynamic_instructions": {
+              "min": 400000,
+              "max": 620000,
+              "measured": 591493,
+              "tolerance": 0
+            },
+            "working_set_bytes_64B_lines": {
+              "min": 131072,
+              "measured": 132544,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 22728,
+              "tolerance": 0
+            }
+          },
+          "max_footprint_instruction_share": 0.1,
+          "measured_footprint_instruction_share": 0.04850268726764306
+        }
+      },
+      "composition_basis": {
+        "benchmark": "527.cam4_r",
+        "profile": "ref",
+        "function_profile": "spec_runs/527.cam4_r_ref_c910/527.cam4_r_ref.function_profile.csv",
+        "source_cluster_count": 5
+      }
+    },
+    "spec_deepsjeng_search_kernel": {
+      "benchmarks": [
+        "531.deepsjeng_r"
+      ],
+      "calibration": "simpoint-cluster-composition",
+      "profiles": {
+        "quick": {
+          "metrics": {
+            "dynamic_instructions": {
+              "measured": 411822,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 25572,
+              "tolerance": 0
+            }
+          }
+        },
+        "full": {
+          "metrics": {
+            "dynamic_instructions": {
+              "min": 400000,
+              "max": 620000,
+              "measured": 440494,
+              "tolerance": 0
+            },
+            "working_set_bytes_64B_lines": {
+              "min": 131072,
+              "measured": 134336,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 46061,
+              "tolerance": 0
+            }
+          },
+          "max_footprint_instruction_share": 0.1,
+          "measured_footprint_instruction_share": 0.06512915045380868
+        }
+      },
+      "composition_basis": {
+        "benchmark": "531.deepsjeng_r",
+        "profile": "ref",
+        "function_profile": "spec_runs/531.deepsjeng_r_ref_c910/531.deepsjeng_r_ref.function_profile.csv",
+        "source_cluster_count": 5
+      }
+    },
+    "spec_exchange2_search_kernel": {
+      "benchmarks": [
+        "548.exchange2_r"
+      ],
+      "calibration": "simpoint-cluster-composition",
+      "profiles": {
+        "quick": {
+          "metrics": {
+            "dynamic_instructions": {
+              "measured": 32244,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 26330,
+              "tolerance": 0
+            }
+          }
+        },
+        "full": {
+          "metrics": {
+            "dynamic_instructions": {
+              "min": 400000,
+              "max": 620000,
+              "measured": 544501,
+              "tolerance": 0
+            },
+            "working_set_bytes_64B_lines": {
+              "min": 131072,
+              "measured": 137152,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 46818,
+              "tolerance": 0
+            }
+          },
+          "max_footprint_instruction_share": 0.1,
+          "measured_footprint_instruction_share": 0.052688608469038625
+        }
+      },
+      "composition_basis": {
+        "benchmark": "548.exchange2_r",
+        "profile": "ref",
+        "function_profile": "spec_runs/548.exchange2_r_ref_c910/548.exchange2_r_ref.function_profile.csv",
+        "source_cluster_count": 5
+      }
+    },
+    "spec_fotonik3d_stencil_kernel": {
+      "benchmarks": [
+        "549.fotonik3d_r"
+      ],
+      "calibration": "simpoint-cluster-composition",
+      "profiles": {
+        "quick": {
+          "metrics": {
+            "dynamic_instructions": {
+              "measured": 61276,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 1370,
+              "tolerance": 0
+            }
+          }
+        },
+        "full": {
+          "metrics": {
+            "dynamic_instructions": {
+              "min": 400000,
+              "max": 620000,
+              "measured": 518638,
+              "tolerance": 0
+            },
+            "working_set_bytes_64B_lines": {
+              "min": 131072,
+              "measured": 132736,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 21857,
+              "tolerance": 0
+            }
+          },
+          "max_footprint_instruction_share": 0.1,
+          "measured_footprint_instruction_share": 0.055316039318368496
+        }
+      },
+      "composition_basis": {
+        "benchmark": "549.fotonik3d_r",
+        "profile": "ref",
+        "function_profile": "spec_runs/549.fotonik3d_r_ref_c910/549.fotonik3d_r_ref.function_profile.csv",
+        "source_cluster_count": 5
+      }
+    },
+    "spec_gcc_compile_kernel": {
+      "benchmarks": [
+        "502.gcc_r"
+      ],
+      "calibration": "simpoint-cluster-composition",
+      "profiles": {
+        "quick": {
+          "metrics": {
+            "dynamic_instructions": {
+              "measured": 68193,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 14259,
+              "tolerance": 0
+            }
+          }
+        },
+        "full": {
+          "metrics": {
+            "dynamic_instructions": {
+              "min": 400000,
+              "max": 620000,
+              "measured": 523393,
+              "tolerance": 0
+            },
+            "working_set_bytes_64B_lines": {
+              "min": 131072,
+              "measured": 140544,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 34751,
+              "tolerance": 0
+            }
+          },
+          "max_footprint_instruction_share": 0.1,
+          "measured_footprint_instruction_share": 0.054813495786149226
+        }
+      },
+      "composition_basis": {
+        "benchmark": "502.gcc_r",
+        "profile": "ref",
+        "function_profile": "spec_runs/502.gcc_r_ref_c910/502.gcc_r_ref.function_profile.csv",
+        "source_cluster_count": 4
+      }
+    },
+    "spec_imagick_filter_kernel": {
+      "benchmarks": [
+        "538.imagick_r"
+      ],
+      "calibration": "simpoint-cluster-composition",
+      "profiles": {
+        "quick": {
+          "metrics": {
+            "dynamic_instructions": {
+              "measured": 81816,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 2334,
+              "tolerance": 0
+            }
+          }
+        },
+        "full": {
+          "metrics": {
+            "dynamic_instructions": {
+              "min": 400000,
+              "max": 620000,
+              "measured": 519444,
+              "tolerance": 0
+            },
+            "working_set_bytes_64B_lines": {
+              "min": 131072,
+              "measured": 132544,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 22823,
+              "tolerance": 0
+            }
+          },
+          "max_footprint_instruction_share": 0.1,
+          "measured_footprint_instruction_share": 0.05523020768360016
+        }
+      },
+      "composition_basis": {
+        "benchmark": "538.imagick_r",
+        "profile": "ref",
+        "function_profile": "spec_runs/538.imagick_r_ref_c910/538.imagick_r_ref.function_profile.csv",
+        "source_cluster_count": 4
+      }
+    },
+    "spec_lbm_stream_kernel": {
+      "benchmarks": [
+        "519.lbm_r"
+      ],
+      "calibration": "simpoint-cluster-composition",
+      "profiles": {
+        "quick": {
+          "metrics": {
+            "dynamic_instructions": {
+              "measured": 148451,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 3924,
+              "tolerance": 0
+            }
+          }
+        },
+        "full": {
+          "metrics": {
+            "dynamic_instructions": {
+              "min": 400000,
+              "max": 620000,
+              "measured": 473987,
+              "tolerance": 0
+            },
+            "working_set_bytes_64B_lines": {
+              "min": 131072,
+              "measured": 134912,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 24413,
+              "tolerance": 0
+            }
+          },
+          "max_footprint_instruction_share": 0.1,
+          "measured_footprint_instruction_share": 0.06052697647825784
+        }
+      },
+      "composition_basis": {
+        "benchmark": "519.lbm_r",
+        "profile": "ref",
+        "function_profile": "spec_runs/519.lbm_r_ref_c910/519.lbm_r_ref.function_profile.csv",
+        "source_cluster_count": 2
+      }
+    },
+    "spec_leela_playout_kernel": {
+      "benchmarks": [
+        "541.leela_r"
+      ],
+      "calibration": "simpoint-cluster-composition",
+      "profiles": {
+        "quick": {
+          "metrics": {
+            "dynamic_instructions": {
+              "measured": 142962,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 1038,
+              "tolerance": 0
+            }
+          }
+        },
+        "full": {
+          "metrics": {
+            "dynamic_instructions": {
+              "min": 400000,
+              "max": 620000,
+              "measured": 553219,
+              "tolerance": 0
+            },
+            "working_set_bytes_64B_lines": {
+              "min": 131072,
+              "measured": 132096,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 21526,
+              "tolerance": 0
+            }
+          },
+          "max_footprint_instruction_share": 0.1,
+          "measured_footprint_instruction_share": 0.05185830566195304
+        }
+      },
+      "composition_basis": {
+        "benchmark": "541.leela_r",
+        "profile": "ref",
+        "function_profile": "spec_runs/541.leela_r_ref_c910/541.leela_r_ref.function_profile.csv",
+        "source_cluster_count": 5
+      }
+    },
+    "spec_nab_md_kernel": {
+      "benchmarks": [
+        "544.nab_r"
+      ],
+      "calibration": "simpoint-cluster-composition",
+      "profiles": {
+        "quick": {
+          "metrics": {
+            "dynamic_instructions": {
+              "measured": 167533,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 2334,
+              "tolerance": 0
+            }
+          }
+        },
+        "full": {
+          "metrics": {
+            "dynamic_instructions": {
+              "min": 400000,
+              "max": 620000,
+              "measured": 531270,
+              "tolerance": 0
+            },
+            "working_set_bytes_64B_lines": {
+              "min": 131072,
+              "measured": 132672,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 22823,
+              "tolerance": 0
+            }
+          },
+          "max_footprint_instruction_share": 0.1,
+          "measured_footprint_instruction_share": 0.054000790558473094
+        }
+      },
+      "composition_basis": {
+        "benchmark": "544.nab_r",
+        "profile": "ref",
+        "function_profile": "spec_runs/544.nab_r_ref_c910/544.nab_r_ref.function_profile.csv",
+        "source_cluster_count": 4
+      }
+    },
+    "spec_namd_pair_kernel": {
+      "benchmarks": [
+        "508.namd_r"
+      ],
+      "calibration": "simpoint-cluster-composition",
+      "profiles": {
+        "quick": {
+          "metrics": {
+            "dynamic_instructions": {
+              "measured": 211293,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 2335,
+              "tolerance": 0
+            }
+          }
+        },
+        "full": {
+          "metrics": {
+            "dynamic_instructions": {
+              "min": 400000,
+              "max": 620000,
+              "measured": 451196,
+              "tolerance": 0
+            },
+            "working_set_bytes_64B_lines": {
+              "min": 131072,
+              "measured": 132992,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 22824,
+              "tolerance": 0
+            }
+          },
+          "max_footprint_instruction_share": 0.1,
+          "measured_footprint_instruction_share": 0.06358434028670466
+        }
+      },
+      "composition_basis": {
+        "benchmark": "508.namd_r",
+        "profile": "ref",
+        "function_profile": "spec_runs/508.namd_r_ref_c910/508.namd_r_ref.function_profile.csv",
+        "source_cluster_count": 5
+      }
+    },
+    "spec_omnetpp_event_kernel": {
+      "benchmarks": [
+        "520.omnetpp_r"
+      ],
+      "calibration": "simpoint-cluster-composition",
+      "profiles": {
+        "quick": {
+          "metrics": {
+            "dynamic_instructions": {
+              "measured": 273006,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 2334,
+              "tolerance": 0
+            }
+          }
+        },
+        "full": {
+          "metrics": {
+            "dynamic_instructions": {
+              "min": 400000,
+              "max": 620000,
+              "measured": 575366,
+              "tolerance": 0
+            },
+            "working_set_bytes_64B_lines": {
+              "min": 131072,
+              "measured": 132160,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 22823,
+              "tolerance": 0
+            }
+          },
+          "max_footprint_instruction_share": 0.1,
+          "measured_footprint_instruction_share": 0.04986217468533073
+        }
+      },
+      "composition_basis": {
+        "benchmark": "520.omnetpp_r",
+        "profile": "ref",
+        "function_profile": "spec_runs/520.omnetpp_r_ref_c910/520.omnetpp_r_ref.function_profile.csv",
+        "source_cluster_count": 5
+      }
+    },
+    "spec_perlbench_regex_kernel": {
+      "benchmarks": [
+        "500.perlbench_r"
+      ],
+      "calibration": "simpoint-cluster-composition",
+      "profiles": {
+        "quick": {
+          "metrics": {
+            "dynamic_instructions": {
+              "measured": 105267,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 2334,
+              "tolerance": 0
+            }
+          }
+        },
+        "full": {
+          "metrics": {
+            "dynamic_instructions": {
+              "min": 400000,
+              "max": 620000,
+              "measured": 554891,
+              "tolerance": 0
+            },
+            "working_set_bytes_64B_lines": {
+              "min": 131072,
+              "measured": 131968,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 22823,
+              "tolerance": 0
+            }
+          },
+          "max_footprint_instruction_share": 0.1,
+          "measured_footprint_instruction_share": 0.05170204598741014
+        }
+      },
+      "composition_basis": {
+        "benchmark": "500.perlbench_r",
+        "profile": "ref",
+        "function_profile": "spec_runs/500.perlbench_r_ref_c910/500.perlbench_r_ref.function_profile.csv",
+        "source_cluster_count": 4
+      }
+    },
+    "spec_pop2_ocean_kernel": {
+      "benchmarks": [
+        "628.pop2_s"
+      ],
+      "calibration": "simpoint-cluster-composition",
+      "profiles": {
+        "quick": {
+          "metrics": {
+            "dynamic_instructions": {
+              "measured": 290205,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 1759,
+              "tolerance": 0
+            }
+          }
+        },
+        "full": {
+          "metrics": {
+            "dynamic_instructions": {
+              "min": 400000,
+              "max": 620000,
+              "measured": 609048,
+              "tolerance": 0
+            },
+            "working_set_bytes_64B_lines": {
+              "min": 131072,
+              "measured": 133120,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 22248,
+              "tolerance": 0
+            }
+          },
+          "max_footprint_instruction_share": 0.1,
+          "measured_footprint_instruction_share": 0.04710466170154076
+        }
+      },
+      "composition_basis": {
+        "benchmark": "628.pop2_s",
+        "profile": "ref",
+        "function_profile": "spec_runs/628.pop2_s_ref_c910/628.pop2_s_ref.function_profile.csv",
+        "source_cluster_count": 5
+      }
+    },
+    "spec_povray_ray_kernel": {
+      "benchmarks": [
+        "511.povray_r"
+      ],
+      "calibration": "simpoint-cluster-composition",
+      "profiles": {
+        "quick": {
+          "metrics": {
+            "dynamic_instructions": {
+              "measured": 68358,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 721,
+              "tolerance": 0
+            }
+          }
+        },
+        "full": {
+          "metrics": {
+            "dynamic_instructions": {
+              "min": 400000,
+              "max": 620000,
+              "measured": 575207,
+              "tolerance": 0
+            },
+            "working_set_bytes_64B_lines": {
+              "min": 131072,
+              "measured": 132288,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 21208,
+              "tolerance": 0
+            }
+          },
+          "max_footprint_instruction_share": 0.1,
+          "measured_footprint_instruction_share": 0.04987595769870673
+        }
+      },
+      "composition_basis": {
+        "benchmark": "511.povray_r",
+        "profile": "ref",
+        "function_profile": "spec_runs/511.povray_r_ref_c910/511.povray_r_ref.function_profile.csv",
+        "source_cluster_count": 5
+      }
+    },
+    "spec_roms_stencil_kernel": {
+      "benchmarks": [
+        "554.roms_r"
+      ],
+      "calibration": "simpoint-cluster-composition",
+      "profiles": {
+        "quick": {
+          "metrics": {
+            "dynamic_instructions": {
+              "measured": 327272,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 2335,
+              "tolerance": 0
+            }
+          }
+        },
+        "full": {
+          "metrics": {
+            "dynamic_instructions": {
+              "min": 400000,
+              "max": 620000,
+              "measured": 440850,
+              "tolerance": 0
+            },
+            "working_set_bytes_64B_lines": {
+              "min": 131072,
+              "measured": 132480,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 23208,
+              "tolerance": 0
+            }
+          },
+          "max_footprint_instruction_share": 0.1,
+          "measured_footprint_instruction_share": 0.06508109334240672
+        }
+      },
+      "composition_basis": {
+        "benchmark": "554.roms_r",
+        "profile": "ref",
+        "function_profile": "spec_runs/554.roms_r_ref_c910/554.roms_r_ref.function_profile.csv",
+        "source_cluster_count": 5
+      }
+    },
+    "spec_wrf_stencil_kernel": {
+      "benchmarks": [
+        "521.wrf_r"
+      ],
+      "calibration": "simpoint-cluster-composition",
+      "profiles": {
+        "quick": {
+          "metrics": {
+            "dynamic_instructions": {
+              "measured": 349386,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 2335,
+              "tolerance": 0
+            }
+          }
+        },
+        "full": {
+          "metrics": {
+            "dynamic_instructions": {
+              "min": 400000,
+              "max": 620000,
+              "measured": 468602,
+              "tolerance": 0
+            },
+            "working_set_bytes_64B_lines": {
+              "min": 131072,
+              "measured": 132928,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 23208,
+              "tolerance": 0
+            }
+          },
+          "max_footprint_instruction_share": 0.1,
+          "measured_footprint_instruction_share": 0.061226798007690965
+        }
+      },
+      "composition_basis": {
+        "benchmark": "521.wrf_r",
+        "profile": "ref",
+        "function_profile": "spec_runs/521.wrf_r_ref_c910/521.wrf_r_ref.function_profile.csv",
+        "source_cluster_count": 5
+      }
+    },
+    "spec_x264_pixel_kernel": {
+      "benchmarks": [
+        "525.x264_r"
+      ],
+      "calibration": "simpoint-cluster-composition",
+      "profiles": {
+        "quick": {
+          "metrics": {
+            "dynamic_instructions": {
+              "measured": 228663,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 12780,
+              "tolerance": 0
+            }
+          }
+        },
+        "full": {
+          "metrics": {
+            "dynamic_instructions": {
+              "min": 400000,
+              "max": 620000,
+              "measured": 485986,
+              "tolerance": 0
+            },
+            "working_set_bytes_64B_lines": {
+              "min": 131072,
+              "measured": 132800,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 33269,
+              "tolerance": 0
+            }
+          },
+          "max_footprint_instruction_share": 0.1,
+          "measured_footprint_instruction_share": 0.0590325647240867
+        }
+      },
+      "composition_basis": {
+        "benchmark": "525.x264_r",
+        "profile": "ref",
+        "function_profile": "spec_runs/525.x264_r_ref_c910/525.x264_r_ref.function_profile.csv",
+        "source_cluster_count": 4
+      }
+    },
+    "spec_xalancbmk_xml_kernel": {
+      "benchmarks": [
+        "523.xalancbmk_r"
+      ],
+      "calibration": "simpoint-cluster-composition",
+      "profiles": {
+        "quick": {
+          "metrics": {
+            "dynamic_instructions": {
+              "measured": 113468,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 2334,
+              "tolerance": 0
+            }
+          }
+        },
+        "full": {
+          "metrics": {
+            "dynamic_instructions": {
+              "min": 400000,
+              "max": 620000,
+              "measured": 482688,
+              "tolerance": 0
+            },
+            "working_set_bytes_64B_lines": {
+              "min": 131072,
+              "measured": 131968,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 22823,
+              "tolerance": 0
+            }
+          },
+          "max_footprint_instruction_share": 0.1,
+          "measured_footprint_instruction_share": 0.05943590891010342
+        }
+      },
+      "composition_basis": {
+        "benchmark": "523.xalancbmk_r",
+        "profile": "ref",
+        "function_profile": "spec_runs/523.xalancbmk_r_ref_c910/523.xalancbmk_r_ref.function_profile.csv",
+        "source_cluster_count": 4
+      }
+    },
+    "spec_xz_lzma_kernel": {
+      "benchmarks": [
+        "557.xz_r"
+      ],
+      "calibration": "simpoint-cluster-composition",
+      "profiles": {
+        "quick": {
+          "metrics": {
+            "dynamic_instructions": {
+              "measured": 92578,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 16930,
+              "tolerance": 0
+            }
+          }
+        },
+        "full": {
+          "metrics": {
+            "dynamic_instructions": {
+              "min": 400000,
+              "max": 620000,
+              "measured": 502102,
+              "tolerance": 0
+            },
+            "working_set_bytes_64B_lines": {
+              "min": 131072,
+              "measured": 135424,
+              "tolerance": 0
+            },
+            "warmup_instructions": {
+              "measured": 38442,
+              "tolerance": 0
+            }
+          },
+          "max_footprint_instruction_share": 0.1,
+          "measured_footprint_instruction_share": 0.05713779271940761
+        }
+      },
+      "composition_basis": {
+        "benchmark": "557.xz_r",
+        "profile": "ref",
+        "function_profile": "spec_runs/557.xz_r_ref_c910/557.xz_r_ref.function_profile.csv",
+        "source_cluster_count": 5
+      }
+    }
+  }
+}

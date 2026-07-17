@@ -58,7 +58,10 @@ DOCKER_APT_DEPS ?= \
 	ca-certificates bash make file less vim-tiny git \
 	build-essential python3 python3-pip python3-venv perl \
 	qemu-system-misc p7zip-full gzip xz-utils time \
-	libcapstone3 pkg-config libglib2.0-dev
+	libcapstone3 pkg-config libglib2.0-dev zstd \
+	libsnappy1v5 liblzo2-2 libsdl2-2.0-0 libdaxctl1 libvdeplug2 \
+	libgtk-3-0 libcairo2 libgdk-pixbuf2.0-0 libsdl2-image-2.0-0 \
+	libpulse0 libfuse3-3 libnfs13
 
 # Generate C++ in executable form
 VERILATOR_FLAGS += -cc --exe
@@ -225,7 +228,12 @@ endif
 ifeq ($(findstring ${CASE}, ${CASE_LIST}), ${CASE})
 	@make -s buildcase CASE=${CASE}
 ifeq (${SIM}, vcs)
-	@cd ./work && ./simv -l run.vcs.log ${SIMV_POWER_OPT} $$(cat symbols.args) && ./gen_dyn_inst_trace.py pc_trace.log ${CASE}.asm
+	@cd ./work && ./simv -l run.vcs.log ${SIMV_POWER_OPT} $$(cat symbols.args) && \
+	  if [ -f ${CASE}.asm ]; then \
+	    ./gen_dyn_inst_trace.py pc_trace.log ${CASE}.asm || echo "WARN: dynamic instruction trace generation failed for ${CASE}"; \
+	  else \
+	    echo "WARN: ${CASE}.asm not found; skip dynamic instruction trace generation"; \
+	  fi
 else
         ifeq (${SIM}, nc)
 		cd ./work && irun -R -l run.irun.log
@@ -263,7 +271,12 @@ ifeq ($(findstring ${CASE}, ${CASE_LIST}), ${CASE})
 	@make -s buildcase CASE=${CASE}
 ifeq (${SIM}, vcs)
 	@make -s compile
-	@cd ./work && ./simv -l run.vcs.log ${SIMV_POWER_OPT} $$(cat symbols.args) && ./gen_dyn_inst_trace.py pc_trace.log ${CASE}.asm
+	@cd ./work && ./simv -l run.vcs.log ${SIMV_POWER_OPT} $$(cat symbols.args) && \
+	  if [ -f ${CASE}.asm ]; then \
+	    ./gen_dyn_inst_trace.py pc_trace.log ${CASE}.asm || echo "WARN: dynamic instruction trace generation failed for ${CASE}"; \
+	  else \
+	    echo "WARN: ${CASE}.asm not found; skip dynamic instruction trace generation"; \
+	  fi
 else
         ifeq (${SIM}, nc)	
 		cd ./work && irun -R -l run.irun.log

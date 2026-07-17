@@ -8,6 +8,8 @@
 
 #include <stdint.h>
 #include <stdio.h>
+#include "spec_composition_markers.h"
+#include "spec_profile_footprint.h"
 
 #ifndef SPEC_DEEPSJENG_POSITIONS
 #define SPEC_DEEPSJENG_POSITIONS 1
@@ -301,6 +303,14 @@ static uint32_t deepsjeng_kernel(void)
 {
     uint32_t acc = 0;
 
+    /* Keep each calibrated round representative.  Without this reset, the
+     * transposition table turns every round after the first into a cache hit. */
+    for (int i = 0; i < TT_SIZE; i++) {
+        ttable[i].key = 0;
+        ttable[i].value = 0;
+        ttable[i].depth = -1;
+    }
+
     for (int i = 0; i < POSITIONS; i++) {
         int score = search(states[i], DEPTH, -30000, 30000);
         acc = (acc << 3) ^ (uint32_t)score ^ (uint32_t)states[i].key;
@@ -309,12 +319,44 @@ static uint32_t deepsjeng_kernel(void)
     return acc;
 }
 
+static uint32_t evaluation_setup_phase(void)
+{
+    uint32_t acc = 0x531e7a1u;
+
+    for (int i = 0; i < POSITIONS; i++) {
+        state_t *state = &states[i];
+        uint64_t occupied = state->white | state->black;
+        for (int square = 0; square < 64; square += 4) {
+            uint64_t attacks = rook_attacks(square, occupied) |
+                               bishop_attacks(square, occupied);
+            int peer = (square * 7 + i) & 63;
+            history[square][peer] = (int16_t)(popcount64(attacks) +
+                                               evaluate(state));
+            acc ^= (uint32_t)attacks ^ (uint32_t)(attacks >> 32) ^
+                   (uint16_t)history[square][peer];
+        }
+    }
+    return acc;
+}
+
 int main(void)
 {
+    asm volatile(".global perf_warmup_start\n\t" "perf_warmup_start:");
     init_states();
+    spec_profile_footprint_init();
+    asm volatile(".global perf_warmup_end\n\t" "perf_warmup_end:");
 
     asm volatile(".global perf_monitor_start\n\t" "perf_monitor_start:");
-    checksum = deepsjeng_kernel();
+    SPEC_COMPOSITION_PHASE0_BEGIN();
+    checksum = 0;
+    for (int round = 0; round < 15 * SPEC_COMPOSITION_SCALE; round++)
+        checksum ^= deepsjeng_kernel() + (uint32_t)round;
+    SPEC_COMPOSITION_PHASE0_END();
+    SPEC_COMPOSITION_PHASE1_BEGIN();
+    for (int round = 0; round < 2 * SPEC_COMPOSITION_SCALE; round++)
+        checksum ^= evaluation_setup_phase() + (uint32_t)round;
+    SPEC_COMPOSITION_PHASE1_END();
+    checksum ^= spec_profile_footprint_run();
     asm volatile(".global perf_monitor_end\n\t" "perf_monitor_end:");
 
     printf("spec_deepsjeng_search_kernel config positions=%u depth=%u moves=%u qmoves=%u\n",

@@ -8,6 +8,8 @@
 
 #include <stdint.h>
 #include <stdio.h>
+#include "spec_composition_markers.h"
+#include "spec_profile_footprint.h"
 
 #ifndef SPEC_X264_WIDTH
 #define SPEC_X264_WIDTH 24
@@ -236,12 +238,36 @@ static uint32_t pixel_kernel(void)
     return acc;
 }
 
+static uint32_t half_pixel_phase(void)
+{
+    uint32_t acc = 0x2644a1fu;
+    int count = BLOCKS > 0 ? BLOCKS : 1;
+    for (int b = 0; b < count; b++) {
+        int x = 1 + ((b * 7) % (WIDTH - 17));
+        int y = 1 + ((b * 5) % (HEIGHT - 17));
+        acc ^= refine_subpel(x, y, b & 7, (b * 3) & 7);
+    }
+    return acc;
+}
+
 int main(void)
 {
+    asm volatile(".global perf_warmup_start\n\t" "perf_warmup_start:");
     init_pixels();
+    spec_profile_footprint_init();
+    asm volatile(".global perf_warmup_end\n\t" "perf_warmup_end:");
 
     asm volatile(".global perf_monitor_start\n\t" "perf_monitor_start:");
-    checksum = pixel_kernel();
+    SPEC_COMPOSITION_PHASE0_BEGIN();
+    checksum = 0;
+    for (int round = 0; round < SPEC_COMPOSITION_SCALE; round++)
+        checksum ^= half_pixel_phase() + (uint32_t)round;
+    SPEC_COMPOSITION_PHASE0_END();
+    SPEC_COMPOSITION_PHASE1_BEGIN();
+    for (int round = 0; round < 11 * SPEC_COMPOSITION_SCALE; round++)
+        checksum ^= pixel_kernel() + (uint32_t)round;
+    SPEC_COMPOSITION_PHASE1_END();
+    checksum ^= spec_profile_footprint_run();
     asm volatile(".global perf_monitor_end\n\t" "perf_monitor_end:");
 
     printf("spec_x264_pixel_kernel config width=%u height=%u blocks=%u passes=%u candidates=%u\n",

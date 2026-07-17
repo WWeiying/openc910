@@ -1,0 +1,1078 @@
+{
+  "schema": "openc910-spec2017-representative-kernel-map-v3",
+  "description": "Speed mapping from each SPEC CPU2017 benchmark to one bare-metal RTL composite kernel. Multi-mechanism mixes are embedded as calibrated dynamic instruction shares; rows without explicit clusters remain uncalibrated single proxies.",
+  "default_size": "train",
+  "calibration_size": "train-provisional",
+  "benchmarks": [
+    {
+      "bench": "600.perlbench_s",
+      "suite": "intspeed",
+      "kernels": [
+        {
+          "case": "spec_600_perlbench_speed_kernel",
+          "weight": 1.0,
+          "coverage": "medium",
+          "calibration": "simpoint-cluster-composition",
+          "composition_basis": {
+            "benchmark": "600.perlbench_s",
+            "profile": "ref",
+            "function_profile": "spec_runs/600.perlbench_s_ref_c910/600.perlbench_s_ref.function_profile.csv",
+            "source_cluster_count": 4
+          },
+          "composition": [
+            {
+              "name": "regex",
+              "mechanism": "branch_regex_engine",
+              "source_clusters": [
+                0,
+                3
+              ],
+              "target_weight": 0.454475,
+              "measured_instruction_share_by_profile": {
+                "quick": 0.4522966726356557,
+                "full": 0.45243379985696464
+              }
+            },
+            {
+              "name": "opcode_objects",
+              "mechanism": "indirect_opcode_object",
+              "source_clusters": [
+                1,
+                2
+              ],
+              "target_weight": 0.545525,
+              "measured_instruction_share_by_profile": {
+                "quick": 0.5477033273643444,
+                "full": 0.5475662001430354
+              }
+            }
+          ],
+          "max_unattributed_instruction_share": 0.1
+        }
+      ]
+    },
+    {
+      "bench": "602.gcc_s",
+      "suite": "intspeed",
+      "kernels": [
+        {
+          "case": "spec_602_gcc_speed_kernel",
+          "weight": 1.0,
+          "coverage": "medium",
+          "calibration": "simpoint-cluster-composition",
+          "composition_basis": {
+            "benchmark": "602.gcc_s",
+            "profile": "ref",
+            "function_profile": "spec_runs/602.gcc_s_ref_c910/602.gcc_s_ref.function_profile.csv",
+            "source_cluster_count": 4
+          },
+          "composition": [
+            {
+              "name": "bitmap_solver",
+              "mechanism": "integer_bitmap_solver",
+              "source_clusters": [
+                0,
+                1,
+                2
+              ],
+              "target_weight": 0.2857547857264357,
+              "measured_instruction_share_by_profile": {
+                "quick": 0.288423403477022,
+                "full": 0.2887194782265875
+              }
+            },
+            {
+              "name": "compiler_graph",
+              "mechanism": "pointer_compiler_graph",
+              "source_clusters": [
+                3
+              ],
+              "target_weight": 0.7142452142735642,
+              "measured_instruction_share_by_profile": {
+                "quick": 0.711576596522978,
+                "full": 0.7112805217734125
+              }
+            }
+          ],
+          "max_unattributed_instruction_share": 0.1
+        }
+      ]
+    },
+    {
+      "bench": "605.mcf_s",
+      "suite": "intspeed",
+      "kernels": [
+        {
+          "case": "spec_605_mcf_composite_kernel",
+          "weight": 1.0,
+          "coverage": "medium",
+          "mechanism": "single composite of qsort/comparator and pointer-rich pricing/tree behavior",
+          "profile_constraints": {
+            "quick": {
+              "dynamic_instructions": {
+                "min": 15000,
+                "max": 30000
+              }
+            },
+            "full": {
+              "dynamic_instructions": {
+                "min": 400000,
+                "max": 600000
+              },
+              "working_set_bytes_64B_lines": {
+                "min": 450000
+              }
+            }
+          },
+          "clusters": [
+            {
+              "id": 0,
+              "interval": 14322
+            },
+            {
+              "id": 1,
+              "interval": 8603
+            },
+            {
+              "id": 2,
+              "interval": 5906
+            },
+            {
+              "id": 3,
+              "interval": 13835
+            },
+            {
+              "id": 4,
+              "interval": 10180
+            }
+          ],
+          "composition": [
+            {
+              "name": "sort_compare",
+              "clusters": [
+                3,
+                4
+              ],
+              "target_weight": 0.6886768,
+              "measured_instruction_share": 0.6892075,
+              "measured_instruction_share_by_profile": {
+                "quick": 0.6892075,
+                "full": 0.6890273
+              },
+              "functions": [
+                "mcf_sort_phase",
+                "mcf_qsort_items"
+              ]
+            },
+            {
+              "name": "pricing_tree",
+              "clusters": [
+                0,
+                1,
+                2
+              ],
+              "target_weight": 0.3113232,
+              "measured_instruction_share": 0.3107925,
+              "measured_instruction_share_by_profile": {
+                "quick": 0.3107925,
+                "full": 0.3109727
+              },
+              "functions": [
+                "mcf_pricing_phase"
+              ]
+            }
+          ],
+          "simpoint_basis": "one ELF; ref cluster weights are embedded as calibrated dynamic instruction shares; no post-RTL component weighting"
+        }
+      ]
+    },
+    {
+      "bench": "620.omnetpp_s",
+      "suite": "intspeed",
+      "kernels": [
+        {
+          "case": "spec_620_omnetpp_speed_kernel",
+          "weight": 1.0,
+          "coverage": "medium",
+          "calibration": "simpoint-cluster-composition",
+          "composition_basis": {
+            "benchmark": "620.omnetpp_s",
+            "profile": "ref",
+            "function_profile": "spec_runs/620.omnetpp_s_ref_c910/620.omnetpp_s_ref.function_profile.csv",
+            "source_cluster_count": 5
+          },
+          "composition": [
+            {
+              "name": "event_queue",
+              "mechanism": "pointer_event_queue",
+              "source_clusters": [
+                0,
+                1,
+                4
+              ],
+              "target_weight": 0.9940801988160397,
+              "measured_instruction_share_by_profile": {
+                "quick": 0.9930368191125271,
+                "full": 0.993081076301581
+              }
+            },
+            {
+              "name": "allocation_strings",
+              "mechanism": "allocation_string_runtime",
+              "source_clusters": [
+                2,
+                3
+              ],
+              "target_weight": 0.0059198011839602365,
+              "measured_instruction_share_by_profile": {
+                "quick": 0.006963180887472927,
+                "full": 0.006918923698418926
+              }
+            }
+          ],
+          "max_unattributed_instruction_share": 0.1
+        }
+      ]
+    },
+    {
+      "bench": "623.xalancbmk_s",
+      "suite": "intspeed",
+      "kernels": [
+        {
+          "case": "spec_623_xalancbmk_speed_kernel",
+          "weight": 1.0,
+          "coverage": "medium",
+          "calibration": "simpoint-cluster-composition",
+          "composition_basis": {
+            "benchmark": "623.xalancbmk_s",
+            "profile": "ref",
+            "function_profile": "spec_runs/623.xalancbmk_s_ref_c910/623.xalancbmk_s_ref.function_profile.csv",
+            "source_cluster_count": 5
+          },
+          "composition": [
+            {
+              "name": "dom_strings",
+              "mechanism": "pointer_dom_string_cache",
+              "source_clusters": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "target_weight": 0.7701979770197976,
+              "measured_instruction_share_by_profile": {
+                "quick": 0.7710253289283023,
+                "full": 0.7711410438257736
+              }
+            },
+            {
+              "name": "datatype_compare",
+              "mechanism": "branch_datatype_compare",
+              "source_clusters": [
+                4
+              ],
+              "target_weight": 0.22980202298020228,
+              "measured_instruction_share_by_profile": {
+                "quick": 0.22897467107169767,
+                "full": 0.22885895617422636
+              }
+            }
+          ],
+          "max_unattributed_instruction_share": 0.1
+        }
+      ]
+    },
+    {
+      "bench": "625.x264_s",
+      "suite": "intspeed",
+      "kernels": [
+        {
+          "case": "spec_625_x264_speed_kernel",
+          "weight": 1.0,
+          "coverage": "high",
+          "calibration": "simpoint-cluster-composition",
+          "composition_basis": {
+            "benchmark": "625.x264_s",
+            "profile": "ref",
+            "function_profile": "spec_runs/625.x264_s_ref_c910/625.x264_s_ref.function_profile.csv",
+            "source_cluster_count": 5
+          },
+          "composition": [
+            {
+              "name": "motion_cost",
+              "mechanism": "integer_sad_satd",
+              "source_clusters": [
+                0,
+                2,
+                3,
+                4
+              ],
+              "target_weight": 0.9392119878423976,
+              "measured_instruction_share_by_profile": {
+                "quick": 0.9365325077399381,
+                "full": 0.9364966642774439
+              }
+            },
+            {
+              "name": "half_pixel",
+              "mechanism": "integer_half_pixel_filter",
+              "source_clusters": [
+                1
+              ],
+              "target_weight": 0.060788012157602433,
+              "measured_instruction_share_by_profile": {
+                "quick": 0.06346749226006192,
+                "full": 0.0635033357225561
+              }
+            }
+          ],
+          "max_unattributed_instruction_share": 0.1
+        }
+      ]
+    },
+    {
+      "bench": "631.deepsjeng_s",
+      "suite": "intspeed",
+      "kernels": [
+        {
+          "case": "spec_631_deepsjeng_speed_kernel",
+          "weight": 1.0,
+          "coverage": "high",
+          "calibration": "simpoint-cluster-composition",
+          "composition_basis": {
+            "benchmark": "631.deepsjeng_s",
+            "profile": "ref",
+            "function_profile": "spec_runs/631.deepsjeng_s_ref_c910/631.deepsjeng_s_ref.function_profile.csv",
+            "source_cluster_count": 3
+          },
+          "composition": [
+            {
+              "name": "tree_search",
+              "mechanism": "branch_tree_search",
+              "source_clusters": [
+                0,
+                2
+              ],
+              "target_weight": 0.993393,
+              "measured_instruction_share_by_profile": {
+                "quick": 0.9936759313386831,
+                "full": 0.993646306638812
+              }
+            },
+            {
+              "name": "initialization",
+              "mechanism": "integer_table_initialization",
+              "source_clusters": [
+                1
+              ],
+              "target_weight": 0.006607,
+              "measured_instruction_share_by_profile": {
+                "quick": 0.006324068661316894,
+                "full": 0.006353693361187972
+              }
+            }
+          ],
+          "max_unattributed_instruction_share": 0.1
+        }
+      ]
+    },
+    {
+      "bench": "641.leela_s",
+      "suite": "intspeed",
+      "kernels": [
+        {
+          "case": "spec_641_leela_speed_kernel",
+          "weight": 1.0,
+          "coverage": "high",
+          "calibration": "simpoint-cluster-composition",
+          "composition_basis": {
+            "benchmark": "641.leela_s",
+            "profile": "ref",
+            "function_profile": "spec_runs/641.leela_s_ref_c910/641.leela_s_ref.function_profile.csv",
+            "source_cluster_count": 5
+          },
+          "composition": [
+            {
+              "name": "primary_playout",
+              "mechanism": "branch_board_playout",
+              "source_clusters": [
+                0,
+                1
+              ],
+              "target_weight": 0.7090535672428537,
+              "measured_instruction_share_by_profile": {
+                "quick": 0.70957407122951,
+                "full": 0.7083792590385075
+              }
+            },
+            {
+              "name": "board_update",
+              "mechanism": "branch_board_state_update",
+              "source_clusters": [
+                2,
+                3,
+                4
+              ],
+              "target_weight": 0.2909464327571462,
+              "measured_instruction_share_by_profile": {
+                "quick": 0.29042592877049,
+                "full": 0.29162074096149254
+              }
+            }
+          ],
+          "max_unattributed_instruction_share": 0.1
+        }
+      ]
+    },
+    {
+      "bench": "648.exchange2_s",
+      "suite": "intspeed",
+      "kernels": [
+        {
+          "case": "spec_648_exchange2_speed_kernel",
+          "weight": 1.0,
+          "coverage": "high",
+          "calibration": "simpoint-cluster-composition",
+          "composition_basis": {
+            "benchmark": "648.exchange2_s",
+            "profile": "ref",
+            "function_profile": "spec_runs/648.exchange2_s_ref_c910/648.exchange2_s_ref.function_profile.csv",
+            "source_cluster_count": 4
+          },
+          "composition": [
+            {
+              "name": "digit_search",
+              "mechanism": "branch_combinatorial_search",
+              "source_clusters": [
+                1,
+                3
+              ],
+              "target_weight": 0.8474958305008338,
+              "measured_instruction_share_by_profile": {
+                "quick": 0.8509193672697911,
+                "full": 0.8508461252731875
+              }
+            },
+            {
+              "name": "minimum_scan",
+              "mechanism": "integer_minimum_reduction",
+              "source_clusters": [
+                0,
+                2
+              ],
+              "target_weight": 0.1525041694991661,
+              "measured_instruction_share_by_profile": {
+                "quick": 0.14908063273020883,
+                "full": 0.14915387472681255
+              }
+            }
+          ],
+          "max_unattributed_instruction_share": 0.1
+        }
+      ]
+    },
+    {
+      "bench": "657.xz_s",
+      "suite": "intspeed",
+      "kernels": [
+        {
+          "case": "spec_657_xz_speed_kernel",
+          "weight": 1.0,
+          "coverage": "high",
+          "calibration": "simpoint-cluster-composition",
+          "composition_basis": {
+            "benchmark": "657.xz_s",
+            "profile": "ref",
+            "function_profile": "spec_runs/657.xz_s_ref_c910/657.xz_s_ref.function_profile.csv",
+            "source_cluster_count": 5
+          },
+          "composition": [
+            {
+              "name": "optimum_match",
+              "mechanism": "integer_lzma_optimum",
+              "source_clusters": [
+                0,
+                4
+              ],
+              "target_weight": 0.6676275341020272,
+              "measured_instruction_share_by_profile": {
+                "quick": 0.6674083653468234,
+                "full": 0.6675226790439716
+              }
+            },
+            {
+              "name": "sha",
+              "mechanism": "integer_sha_compression",
+              "source_clusters": [
+                1,
+                2
+              ],
+              "target_weight": 0.07984726387781112,
+              "measured_instruction_share_by_profile": {
+                "quick": 0.07779595045199245,
+                "full": 0.07771746941605161
+              }
+            },
+            {
+              "name": "skip_match",
+              "mechanism": "integer_lzma_skip",
+              "source_clusters": [
+                3
+              ],
+              "target_weight": 0.2525252020201616,
+              "measured_instruction_share_by_profile": {
+                "quick": 0.2547956842011842,
+                "full": 0.2547598515399768
+              }
+            }
+          ],
+          "max_unattributed_instruction_share": 0.1
+        }
+      ]
+    },
+    {
+      "bench": "603.bwaves_s",
+      "suite": "fpspeed",
+      "kernels": [
+        {
+          "case": "spec_603_bwaves_speed_kernel",
+          "weight": 1.0,
+          "coverage": "high",
+          "calibration": "simpoint-cluster-composition",
+          "composition_basis": {
+            "benchmark": "603.bwaves_s",
+            "profile": "ref",
+            "function_profile": "spec_runs/603.bwaves_s_ref_c910/603.bwaves_s_ref.function_profile.csv",
+            "source_cluster_count": 5
+          },
+          "composition": [
+            {
+              "name": "matvec_solver",
+              "mechanism": "fp_matvec_solver",
+              "source_clusters": [
+                1,
+                2
+              ],
+              "target_weight": 0.637729,
+              "measured_instruction_share_by_profile": {
+                "quick": 0.6389243268649701,
+                "full": 0.6388559532778336
+              }
+            },
+            {
+              "name": "shell_jacobian",
+              "mechanism": "fp_shell_jacobian",
+              "source_clusters": [
+                0,
+                3,
+                4
+              ],
+              "target_weight": 0.362271,
+              "measured_instruction_share_by_profile": {
+                "quick": 0.36107567313502986,
+                "full": 0.3611440467221664
+              }
+            }
+          ],
+          "max_unattributed_instruction_share": 0.1
+        }
+      ]
+    },
+    {
+      "bench": "607.cactuBSSN_s",
+      "suite": "fpspeed",
+      "kernels": [
+        {
+          "case": "spec_607_cactubssn_speed_kernel",
+          "weight": 1.0,
+          "coverage": "high",
+          "calibration": "simpoint-cluster-composition",
+          "composition_basis": {
+            "benchmark": "607.cactuBSSN_s",
+            "profile": "ref",
+            "function_profile": "spec_runs/607.cactuBSSN_s_ref_c910/607.cactuBSSN_s_ref.function_profile.csv",
+            "source_cluster_count": 5
+          },
+          "composition": [
+            {
+              "name": "advection",
+              "mechanism": "fp_stencil_advection",
+              "source_clusters": [
+                1,
+                4
+              ],
+              "target_weight": 0.4200199479880313,
+              "measured_instruction_share_by_profile": {
+                "quick": 0.4201969441600921,
+                "full": 0.4202072744257554
+              }
+            },
+            {
+              "name": "rhs",
+              "mechanism": "fp_stencil_rhs",
+              "source_clusters": [
+                3
+              ],
+              "target_weight": 0.3932887640267416,
+              "measured_instruction_share_by_profile": {
+                "quick": 0.3970454929291049,
+                "full": 0.39705306990556655
+              }
+            },
+            {
+              "name": "conversion_constraints",
+              "mechanism": "fp_conversion_constraints",
+              "source_clusters": [
+                0,
+                2
+              ],
+              "target_weight": 0.18669128798522724,
+              "measured_instruction_share_by_profile": {
+                "quick": 0.18275756291080297,
+                "full": 0.18273965566867806
+              }
+            }
+          ],
+          "max_unattributed_instruction_share": 0.1
+        }
+      ]
+    },
+    {
+      "bench": "619.lbm_s",
+      "suite": "fpspeed",
+      "kernels": [
+        {
+          "case": "spec_619_lbm_speed_kernel",
+          "weight": 1.0,
+          "coverage": "high",
+          "calibration": "simpoint-cluster-composition",
+          "composition_basis": {
+            "benchmark": "619.lbm_s",
+            "profile": "ref",
+            "function_profile": "spec_runs/619.lbm_s_ref_c910/619.lbm_s_ref.function_profile.csv",
+            "source_cluster_count": 5
+          },
+          "composition": [
+            {
+              "name": "stream_collide",
+              "mechanism": "fp_stream_collide",
+              "source_clusters": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "target_weight": 0.9936387980916395,
+              "measured_instruction_share_by_profile": {
+                "quick": 0.9934880498787669,
+                "full": 0.9935428295616469
+              }
+            },
+            {
+              "name": "grid_statistics",
+              "mechanism": "fp_grid_statistics",
+              "source_clusters": [
+                4
+              ],
+              "target_weight": 0.006361201908360574,
+              "measured_instruction_share_by_profile": {
+                "quick": 0.006511950121233114,
+                "full": 0.0064571704383531905
+              }
+            }
+          ],
+          "max_unattributed_instruction_share": 0.1
+        }
+      ]
+    },
+    {
+      "bench": "621.wrf_s",
+      "suite": "fpspeed",
+      "kernels": [
+        {
+          "case": "spec_621_wrf_speed_kernel",
+          "weight": 1.0,
+          "coverage": "medium",
+          "calibration": "simpoint-cluster-composition",
+          "composition_basis": {
+            "benchmark": "621.wrf_s",
+            "profile": "ref",
+            "function_profile": "spec_runs/621.wrf_s_ref_c910/621.wrf_s_ref.function_profile.csv",
+            "source_cluster_count": 5
+          },
+          "composition": [
+            {
+              "name": "dynamics",
+              "mechanism": "fp_atmospheric_dynamics",
+              "source_clusters": [
+                0,
+                3,
+                4
+              ],
+              "target_weight": 0.7446934744693474,
+              "measured_instruction_share_by_profile": {
+                "quick": 0.7454619932380795,
+                "full": 0.7455779317542927
+              }
+            },
+            {
+              "name": "diffusion_advection",
+              "mechanism": "fp_diffusion_advection",
+              "source_clusters": [
+                1
+              ],
+              "target_weight": 0.09967050996705099,
+              "measured_instruction_share_by_profile": {
+                "quick": 0.09793168381602196,
+                "full": 0.09786546149126187
+              }
+            },
+            {
+              "name": "physics",
+              "mechanism": "fp_transcendental_physics",
+              "source_clusters": [
+                2
+              ],
+              "target_weight": 0.15563601556360154,
+              "measured_instruction_share_by_profile": {
+                "quick": 0.15660632294589852,
+                "full": 0.15655660675444552
+              }
+            }
+          ],
+          "max_unattributed_instruction_share": 0.1
+        }
+      ]
+    },
+    {
+      "bench": "627.cam4_s",
+      "suite": "fpspeed",
+      "kernels": [
+        {
+          "case": "spec_627_cam4_speed_kernel",
+          "weight": 1.0,
+          "coverage": "medium",
+          "calibration": "simpoint-cluster-composition",
+          "composition_basis": {
+            "benchmark": "627.cam4_s",
+            "profile": "ref",
+            "function_profile": "spec_runs/627.cam4_s_ref_c910/627.cam4_s_ref.function_profile.csv",
+            "source_cluster_count": 5
+          },
+          "composition": [
+            {
+              "name": "diagnostics_dynamics",
+              "mechanism": "fp_diagnostics_dynamics",
+              "source_clusters": [
+                0,
+                2
+              ],
+              "target_weight": 0.030473,
+              "measured_instruction_share_by_profile": {
+                "quick": 0.033837106122680156,
+                "full": 0.033840504291718886
+              }
+            },
+            {
+              "name": "cloud_optics",
+              "mechanism": "fp_cloud_optics",
+              "source_clusters": [
+                1,
+                3,
+                4
+              ],
+              "target_weight": 0.969527,
+              "measured_instruction_share_by_profile": {
+                "quick": 0.9661628938773198,
+                "full": 0.9661594957082811
+              }
+            }
+          ],
+          "max_unattributed_instruction_share": 0.1
+        }
+      ]
+    },
+    {
+      "bench": "628.pop2_s",
+      "suite": "fpspeed",
+      "kernels": [
+        {
+          "case": "spec_pop2_ocean_kernel",
+          "weight": 1.0,
+          "coverage": "medium",
+          "calibration": "simpoint-cluster-composition",
+          "composition_basis": {
+            "benchmark": "628.pop2_s",
+            "profile": "ref",
+            "function_profile": "spec_runs/628.pop2_s_ref_c910/628.pop2_s_ref.function_profile.csv",
+            "source_cluster_count": 5
+          },
+          "composition": [
+            {
+              "name": "ocean_state",
+              "mechanism": "fp_ocean_state",
+              "source_clusters": [
+                0,
+                3,
+                4
+              ],
+              "target_weight": 0.8548905580437768,
+              "measured_instruction_share_by_profile": {
+                "quick": 0.8552987959944589,
+                "full": 0.8553279550067717
+              }
+            },
+            {
+              "name": "advection",
+              "mechanism": "fp_ocean_advection",
+              "source_clusters": [
+                1
+              ],
+              "target_weight": 0.13035694785722085,
+              "measured_instruction_share_by_profile": {
+                "quick": 0.1289809026940227,
+                "full": 0.12894543675067285
+              }
+            },
+            {
+              "name": "solver_halo",
+              "mechanism": "fp_solver_halo",
+              "source_clusters": [
+                2
+              ],
+              "target_weight": 0.01475249409900236,
+              "measured_instruction_share_by_profile": {
+                "quick": 0.01572030131151834,
+                "full": 0.015726608242555406
+              }
+            }
+          ],
+          "max_unattributed_instruction_share": 0.1
+        }
+      ]
+    },
+    {
+      "bench": "638.imagick_s",
+      "suite": "fpspeed",
+      "kernels": [
+        {
+          "case": "spec_638_imagick_speed_kernel",
+          "weight": 1.0,
+          "coverage": "high",
+          "calibration": "simpoint-cluster-composition",
+          "composition_basis": {
+            "benchmark": "638.imagick_s",
+            "profile": "train",
+            "function_profile": "spec_runs/638.imagick_s_train_c910/638.imagick_s_train.function_profile.csv",
+            "source_cluster_count": 4
+          },
+          "composition": [
+            {
+              "name": "morphology",
+              "mechanism": "image_morphology",
+              "source_clusters": [
+                0,
+                1,
+                2
+              ],
+              "target_weight": 0.9983806008096997,
+              "measured_instruction_share_by_profile": {
+                "quick": 0.9982571348541907,
+                "full": 0.9982302734405396
+              }
+            },
+            {
+              "name": "frame_transform",
+              "mechanism": "image_frame_transform",
+              "source_clusters": [
+                3
+              ],
+              "target_weight": 0.001619399190300405,
+              "measured_instruction_share_by_profile": {
+                "quick": 0.001742865145809343,
+                "full": 0.0017697265594603668
+              }
+            }
+          ],
+          "max_unattributed_instruction_share": 0.1
+        }
+      ]
+    },
+    {
+      "bench": "644.nab_s",
+      "suite": "fpspeed",
+      "kernels": [
+        {
+          "case": "spec_644_nab_speed_kernel",
+          "weight": 1.0,
+          "coverage": "high",
+          "calibration": "simpoint-cluster-composition",
+          "composition_basis": {
+            "benchmark": "644.nab_s",
+            "profile": "ref",
+            "function_profile": "spec_runs/644.nab_s_ref_c910/644.nab_s_ref.function_profile.csv",
+            "source_cluster_count": 5
+          },
+          "composition": [
+            {
+              "name": "nonbonded",
+              "mechanism": "fp_nonbonded_pairs",
+              "source_clusters": [
+                0
+              ],
+              "target_weight": 0.08584691415308586,
+              "measured_instruction_share_by_profile": {
+                "quick": 0.08691616688734845,
+                "full": 0.08691616688734845
+              }
+            },
+            {
+              "name": "molecular_energy",
+              "mechanism": "fp_molecular_energy",
+              "source_clusters": [
+                1,
+                2,
+                3
+              ],
+              "target_weight": 0.708926291073709,
+              "measured_instruction_share_by_profile": {
+                "quick": 0.7076528978546269,
+                "full": 0.7076528978546269
+              }
+            },
+            {
+              "name": "neighbor_search",
+              "mechanism": "pointer_neighbor_search",
+              "source_clusters": [
+                4
+              ],
+              "target_weight": 0.20522679477320524,
+              "measured_instruction_share_by_profile": {
+                "quick": 0.20543093525802458,
+                "full": 0.20543093525802458
+              }
+            }
+          ],
+          "max_unattributed_instruction_share": 0.1
+        }
+      ]
+    },
+    {
+      "bench": "649.fotonik3d_s",
+      "suite": "fpspeed",
+      "kernels": [
+        {
+          "case": "spec_649_fotonik3d_speed_kernel",
+          "weight": 1.0,
+          "coverage": "medium",
+          "calibration": "simpoint-cluster-composition",
+          "composition_basis": {
+            "benchmark": "649.fotonik3d_s",
+            "profile": "ref",
+            "function_profile": "spec_runs/649.fotonik3d_s_ref_c910/649.fotonik3d_s_ref.function_profile.csv",
+            "source_cluster_count": 4
+          },
+          "composition": [
+            {
+              "name": "magnetic_update",
+              "mechanism": "fp_magnetic_stencil",
+              "source_clusters": [
+                1
+              ],
+              "target_weight": 0.1693921693921694,
+              "measured_instruction_share_by_profile": {
+                "quick": 0.17254894888395944,
+                "full": 0.17250447481775014
+              }
+            },
+            {
+              "name": "electric_material",
+              "mechanism": "fp_electric_material",
+              "source_clusters": [
+                2
+              ],
+              "target_weight": 0.23042923042923044,
+              "measured_instruction_share_by_profile": {
+                "quick": 0.23092691782839486,
+                "full": 0.23089859150977243
+              }
+            },
+            {
+              "name": "power_and_setup",
+              "mechanism": "fp_power_setup",
+              "source_clusters": [
+                0,
+                3
+              ],
+              "target_weight": 0.6001786001786001,
+              "measured_instruction_share_by_profile": {
+                "quick": 0.5965241332876458,
+                "full": 0.5965969336724775
+              }
+            }
+          ],
+          "max_unattributed_instruction_share": 0.1
+        }
+      ]
+    },
+    {
+      "bench": "654.roms_s",
+      "suite": "fpspeed",
+      "kernels": [
+        {
+          "case": "spec_654_roms_speed_kernel",
+          "weight": 1.0,
+          "coverage": "medium",
+          "calibration": "simpoint-cluster-composition",
+          "composition_basis": {
+            "benchmark": "654.roms_s",
+            "profile": "ref",
+            "function_profile": "spec_runs/654.roms_s_ref_c910/654.roms_s_ref.function_profile.csv",
+            "source_cluster_count": 5
+          },
+          "composition": [
+            {
+              "name": "rhs_mixing",
+              "mechanism": "fp_rhs_mixing",
+              "source_clusters": [
+                0,
+                1,
+                3
+              ],
+              "target_weight": 0.593176,
+              "measured_instruction_share_by_profile": {
+                "quick": 0.5941207329756196,
+                "full": 0.5942450017840495
+              }
+            },
+            {
+              "name": "eos_flux",
+              "mechanism": "fp_eos_bulk_flux",
+              "source_clusters": [
+                2
+              ],
+              "target_weight": 0.116714,
+              "measured_instruction_share_by_profile": {
+                "quick": 0.117990299393482,
+                "full": 0.11788768545481751
+              }
+            },
+            {
+              "name": "barotropic",
+              "mechanism": "fp_barotropic_step",
+              "source_clusters": [
+                4
+              ],
+              "target_weight": 0.29011,
+              "measured_instruction_share_by_profile": {
+                "quick": 0.2878889676308984,
+                "full": 0.28786731276113303
+              }
+            }
+          ],
+          "max_unattributed_instruction_share": 0.1
+        }
+      ]
+    }
+  ]
+}

@@ -1,15 +1,11 @@
 # 结果目录汇总
 
-| 目录 | 基准 | 迭代/运行次数 | 核心指标 | 关键编译选项（口径说明） |
+| 类型 | 顶层目录 | 测试集合 | Profile | 用途 |
 |---|---|---:|---|---|
-| baseline | coremark + bench_* | coremark=2 | CoreMark 1.0=4.409288 | 标准基础口径（默认优化级别） |
-| coremark_c910_tuned_10 | coremark | 10 | CoreMark 1.0=6.589569 | CoreMark 性能口径（高优化） |
-| coremark_c910_tuned_30_unknown_clean | coremark | 30 | （无 score/perf） | CoreMark 性能口径（高优化）+ 30 次迭代 |
-| dhrystone_100 | dhrystone | 100 | DMIPS/MHz=4.900 | Dhrystone 性能口径（短迭代） |
-| dhrystone_c910_tuned_1000 | dhrystone | 1000 | DMIPS/MHz=4.353 | Dhrystone 性能口径（中间迭代） |
-| dhrystone_perf_o3_1000 | dhrystone | 1000 | DMIPS/MHz=5.188 | Dhrystone 性能口径（-O3 全开） |
-| dhrystone_std_1000 | dhrystone | 1000 | DMIPS/MHz=4.204 | Dhrystone 严格口径（禁止内联） |
-| direct_run_unknown_clean | coremark + dhrystone | coremark=30 / dhrystone=1000 | CoreMark 1.0=6.677975；DMIPS/MHz=5.187 | CoreMark 性能口径 + Dhrystone 1000（-O3） |
+| 临时基线 | `spec_all_43_full_1f451a653e1c_dirty/` | 43 个独立 SPEC Rate/Speed case | `full` | 新 55 项基线完成前用于现有瓶颈分析 |
+| 正式基线 | `baseline_full_<git>_<clean-or-dirty>/` | `full_regression_cases.txt` 固定的 55 项 | `full` | 微结构修改前只运行一次，作为所有候选版本的唯一 A/B 基线 |
+| 候选版本 | `<change>_full_<git>_<clean-or-dirty>/` | 与正式基线完全相同的 55 项 | `full` | 微结构修改后全面测试并与正式基线比较 |
+| 历史归档 | `archive/` | smoke、quick、旧 kernel 和阶段结果 | 混合 | 仅供追溯，不参与新的 A/B 性能结论 |
 
 # 编译选项说明
 
@@ -87,3 +83,30 @@
 
 `-fno-inline-small-functions`  
 禁止小函数内联，避免短函数被编译器自动压缩展开。
+
+`-DSPEC_MCF_COMPOSITE_SORT_ROUNDS=<N>`
+设置 mcf composite 中完整 sort/compare 机制的执行轮数。
+
+`-DSPEC_MCF_COMPOSITE_SORT_TAIL_ITEMS=<N>`
+设置 mcf composite 中用于细调动态指令份额的 comparator tail 数量。
+
+`-DSPEC_MCF_COMPOSITE_PRICE_ROUNDS=<N>`
+设置 mcf composite 中 pricing/tree/pointer-scan 机制的执行轮数。
+
+`-DSPEC_PAREST_COMPOSITE_DOF_PASSES=<N>`
+设置 parest composite 中 DoF/稀疏结构构建与约束消元的执行轮数。
+
+`-DSPEC_PAREST_COMPOSITE_SPARSE_ITERS=<N>`
+设置 parest composite 中完整 SpMV/Krylov 稀疏求解迭代数。
+
+`-DSPEC_PAREST_COMPOSITE_SPARSE_TAIL_ROWS=<N>`
+设置 parest composite 中部分 sparse iteration 的行数，用于细调 sparse 动态指令份额。
+
+`SPEC_KERNEL_PROFILE=quick|full`
+选择 SPEC bare-metal kernel 的统一 workload profile。`quick` 保持短 ROI，面向 RTL 快速回归；`full` 使用逐 case 校准参数，将 ROI 扩展到 40 万至 62 万条指令契约范围，并启用独立 warmup。
+
+`-DSPEC_PROFILE_FOOTPRINT_BYTES=131072`
+用于 40 个统一 phase-marker SimPoint composite 的 full profile，在 warmup 初始化并在 ROI 触碰 128 KiB 数据 footprint。该脚手架不属于 SPEC 原算法，位于所有机制 phase 之外但计入总 ROI，动态指令占比由 profile 契约限制为不超过 10%；quick profile 中该值为 0。
+
+`-DSPEC_<CASE>_REPRESENTATIVE=1`
+为对应 SPEC composite 启用 representative 参数分支。与 `SPEC_KERNEL_PROFILE=full` 联合使用时选择该 case 的 full 执行规模；具体宏值记录在 `compiler.flags` 和 `spec_flow/spec_kernel_profiles.json` 对应实测契约中。

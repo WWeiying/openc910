@@ -7,6 +7,8 @@
 
 #include <stdint.h>
 #include <stdio.h>
+#include "spec_composition_markers.h"
+#include "spec_profile_footprint.h"
 
 #ifndef SPEC_LBM_CELLS
 #define SPEC_LBM_CELLS 24
@@ -60,7 +62,7 @@ static int neighbor(int i, int q)
     return n;
 }
 
-static uint32_t lbm_kernel(void)
+static uint32_t stream_collide_phase(void)
 {
     uint32_t acc = 0x5192017u;
 
@@ -92,23 +94,42 @@ static uint32_t lbm_kernel(void)
             }
         }
 
-        for (int i = 0; i < CELLS; i++) {
-            for (int q = 0; q < Q; q++) {
-                src[i][q] = dst[i][q];
-                acc = (acc << 3) ^ (acc >> 7) ^ fold_float(src[i][q]);
-            }
-        }
     }
 
     return acc;
 }
 
+static uint32_t grid_swap_phase(void)
+{
+    uint32_t acc = 0x5195a9u;
+
+    for (int i = 0; i < CELLS; i++) {
+        for (int q = 0; q < Q; q++) {
+            src[i][q] = dst[i][q];
+            acc = (acc << 3) ^ (acc >> 7) ^ fold_float(src[i][q]);
+        }
+    }
+    return acc;
+}
+
 int main(void)
 {
+    asm volatile(".global perf_warmup_start\n\t" "perf_warmup_start:");
     init_lbm();
+    spec_profile_footprint_init();
+    asm volatile(".global perf_warmup_end\n\t" "perf_warmup_end:");
 
     asm volatile(".global perf_monitor_start\n\t" "perf_monitor_start:");
-    checksum = lbm_kernel();
+    SPEC_COMPOSITION_PHASE0_BEGIN();
+    checksum = 0;
+    for (int round = 0; round < 5 * SPEC_COMPOSITION_SCALE; round++)
+        checksum ^= stream_collide_phase() + (uint32_t)round;
+    SPEC_COMPOSITION_PHASE0_END();
+    SPEC_COMPOSITION_PHASE1_BEGIN();
+    for (int round = 0; round < 6 * SPEC_COMPOSITION_SCALE; round++)
+        checksum ^= grid_swap_phase() + (uint32_t)round;
+    SPEC_COMPOSITION_PHASE1_END();
+    checksum ^= spec_profile_footprint_run();
     asm volatile(".global perf_monitor_end\n\t" "perf_monitor_end:");
 
     printf("spec_lbm_stream_kernel config cells=%u steps=%u q=%u\n",

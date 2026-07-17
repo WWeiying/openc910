@@ -15,6 +15,7 @@ import sys
 import os
 import re
 import math
+import hashlib
 
 # ---------------------------------------------------------------------------
 # Metric definitions: (display_name, regex_pattern)
@@ -25,6 +26,8 @@ METRICS = [
     ("Kernel_IPC",     r"\|\s*Kernel\s*\|\s*[\d]+\s*\|\s*[\d]+\s*\|\s*[\d.nan-]+\s*\|\s*([\d.]+)\s*\|"),
     ("Main_Cycles",    r"\|\s*Main\s*\|\s*([\d]+)\s*\|"),
     ("Main_Insts",     r"\|\s*Main\s*\|\s*[\d]+\s*\|\s*([\d]+)\s*\|"),
+    ("Kernel_Cycles",  r"\|\s*Kernel\s*\|\s*([\d]+)\s*\|"),
+    ("Kernel_Insts",   r"\|\s*Kernel\s*\|\s*[\d]+\s*\|\s*([\d]+)\s*\|"),
     # --- Instruction mix (Main window) ---
     ("ALU%",           r"\|\s*ALU\s*\|\s*[\d]+\s*\|\s*[\d]+\s*\|\s*([\d.]+)%"),
     ("FP%",            r"\|\s*Float Point\s*\|\s*[\d]+\s*\|\s*[\d]+\s*\|\s*([\d.]+)%"),
@@ -41,6 +44,17 @@ METRICS = [
     ("Frontend_stall%",r"\|\s*Frontend Stall\s*\|\s*[\d]+\s*\|\s*[\d]+\s*\|\s*([\d.]+)%"),
     ("Backend_stall%", r"\|\s*Backend Stall\s*\|\s*[\d]+\s*\|\s*[\d]+\s*\|\s*([\d.]+)%"),
 ]
+
+MONITOR_METRICS = {
+    "L1I Miss": "L1I_miss%",
+    "L1D Load Miss": "L1D_Ld_miss%",
+    "L1D Store Miss": "L1D_St_miss%",
+    "Cond Branch Misp": "CondBr_misp%",
+    "Indir Branch Misp": "IndirBr_misp%",
+    "IFU Bran Tar Misp": "Branch_target_misp%",
+    "Frontend Stall": "Frontend_stall%",
+    "Backend Stall": "Backend_stall%",
+}
 
 DETAIL_FOCUS = [
     "id_ctrl_stall",
@@ -791,6 +805,32 @@ LATENCY_FOCUS = [
 ]
 
 
+def parse_monitor_table(text, phase):
+    """Parse percentage rows from one Main/Kernel Monitor table."""
+    marker = re.search(rf"\|\s*{re.escape(phase)} Monitor\s*\|", text)
+    if not marker:
+        return {}
+
+    chunk = text[marker.end():]
+    if phase == "Main":
+        end = re.search(r"\|\s*Kernel Inst\s*\|", chunk)
+    else:
+        end = re.search(r"Detailed Performance Statistics", chunk)
+    if end:
+        chunk = chunk[:end.start()]
+
+    result = {}
+    row_re = re.compile(
+        r"\|\s*([^|]+?)\s*\|\s*[-]?\d+\s*\|\s*[-\d]*\s*\|"
+        r"\s*([-]?\d+(?:\.\d+)?)%"
+    )
+    for label, percentage in row_re.findall(chunk):
+        key = MONITOR_METRICS.get(label.strip())
+        if key:
+            result[key] = float(percentage)
+    return result
+
+
 def parse_perf(filepath):
     """Parse a .perf file and return dict of metric -> float."""
     try:
@@ -807,6 +847,11 @@ def parse_perf(filepath):
                 result[name] = float(m.group(1))
             except ValueError:
                 pass
+
+    # Keep legacy unprefixed Main metrics and add an explicit Kernel view for
+    # phase-consistent architectural comparisons.
+    for name, value in parse_monitor_table(text, "Kernel").items():
+        result[f"Kernel_{name}"] = value
     return result
 
 
@@ -892,8 +937,24 @@ def delta_str(base, mod):
         return f"{'N/A':>10}"
     d = mod - base
     pct = d / base * 100.0
-    sign = "+" if d >= 0 else ""
-    return f"{sign}{pct:+.1f}%"
+    return f"{pct:+.1f}%"
+
+
+def file_sha256(path):
+    digest = hashlib.sha256()
+    with open(path, "rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def perf_cases(directory):
+    return {
+        os.path.splitext(name)[0]
+        for name in os.listdir(directory)
+        if name.endswith(".perf")
+        and not name.endswith((".detail.perf", ".branch_pc.perf"))
+    }
 
 
 def main():
@@ -906,6 +967,12 @@ def main():
     base_dir = os.path.join(script_dir, "results", base_tag)
     mod_dir  = os.path.join(script_dir, "results", mod_tag)
 
+    for label, directory in (("baseline", base_dir), ("modified", mod_dir)):
+        if not os.path.isdir(directory):
+            print(f"ERROR: {label} result directory not found: {directory}",
+                  file=sys.stderr)
+            sys.exit(2)
+
     report_path = os.path.join(script_dir, "results",
                                f"{base_tag}_vs_{mod_tag}.txt")
     report_file = open(report_path, "w")
@@ -914,12 +981,67 @@ def main():
         print(line)
         report_file.write(line + "\n")
 
-    cases = sorted(
-        {os.path.splitext(f)[0] for f in os.listdir(base_dir)
-         if f.endswith(".perf") and not f.endswith(".detail.perf")}
-        | {os.path.splitext(f)[0] for f in os.listdir(mod_dir)
-           if f.endswith(".perf") and not f.endswith(".detail.perf")}
-    )
+    base_cases = perf_cases(base_dir)
+    mod_cases = perf_cases(mod_dir)
+    cases = sorted(base_cases & mod_cases)
+    base_only = sorted(base_cases - mod_cases)
+    mod_only = sorted(mod_cases - base_cases)
+    if not cases:
+        report_file.close()
+        print("ERROR: no common benchmark cases to compare", file=sys.stderr)
+        sys.exit(2)
+
+    elf_equal = []
+    elf_mismatch = []
+    elf_missing = []
+    inst_equal = []
+    inst_mismatch = []
+    inst_missing = []
+    for case in cases:
+        base_elf = os.path.join(base_dir, f"{case}.elf")
+        mod_elf = os.path.join(mod_dir, f"{case}.elf")
+        if os.path.isfile(base_elf) and os.path.isfile(mod_elf):
+            target = elf_equal if file_sha256(base_elf) == file_sha256(mod_elf) else elf_mismatch
+            target.append(case)
+        else:
+            elf_missing.append(case)
+
+        base = parse_perf(os.path.join(base_dir, f"{case}.perf"))
+        mod = parse_perf(os.path.join(mod_dir, f"{case}.perf"))
+        base_inst = base.get("Kernel_Insts")
+        mod_inst = mod.get("Kernel_Insts")
+        if base_inst is None or mod_inst is None:
+            inst_missing.append(case)
+        elif base_inst == mod_inst:
+            inst_equal.append(case)
+        else:
+            inst_mismatch.append((case, int(base_inst), int(mod_inst)))
+
+    emit(f"\n{'='*76}")
+    emit("  A/B integrity gates")
+    emit(f"{'='*76}")
+    emit(f"  Common cases       : {len(cases)}")
+    emit(f"  Baseline-only      : {len(base_only)}"
+         + (f"  {', '.join(base_only)}" if base_only else ""))
+    emit(f"  Modified-only      : {len(mod_only)}"
+         + (f"  {', '.join(mod_only)}" if mod_only else ""))
+    emit(f"  ELF SHA256 equal   : {len(elf_equal)}/{len(cases)}")
+    emit(f"  ELF mismatch       : {len(elf_mismatch)}"
+         + (f"  {', '.join(elf_mismatch)}" if elf_mismatch else ""))
+    emit(f"  ELF unavailable    : {len(elf_missing)}"
+         + (f"  {', '.join(elf_missing)}" if elf_missing else ""))
+    emit(f"  Kernel inst equal  : {len(inst_equal)}/{len(cases)}")
+    emit(f"  Kernel inst mismatch: {len(inst_mismatch)}")
+    for case, base_inst, mod_inst in inst_mismatch:
+        emit(f"    {case}: {base_inst} -> {mod_inst} ({mod_inst - base_inst:+d})")
+    if inst_missing:
+        emit(f"  Kernel inst unavailable: {len(inst_missing)}  {', '.join(inst_missing)}")
+    if elf_mismatch or inst_mismatch:
+        emit("  GATE: FAIL - performance deltas are not valid single-binary A/B evidence")
+    elif elf_missing or inst_missing:
+        emit("  GATE: WARN - integrity could not be fully verified")
+    else:
+        emit("  GATE: PASS")
 
     # -----------------------------------------------------------------------
     # Print summary table: IPC comparison
@@ -927,9 +1049,12 @@ def main():
     emit(f"\n{'='*76}")
     emit(f"  Benchmark comparison:  baseline={base_tag}   modified={mod_tag}")
     emit(f"{'='*76}")
-    emit(f"{'Case':<16} {'Base_IPC':>10} {'Mod_IPC':>10} {'IPC_chg':>10}  "
-         f"{'Base_FE%':>9} {'Mod_FE%':>9}  {'Base_BE%':>9} {'Mod_BE%':>9}")
-    emit(f"{'-'*16} {'-'*10} {'-'*10} {'-'*10}  {'-'*9} {'-'*9}  {'-'*9} {'-'*9}")
+    emit("  Summary window: Kernel ROI")
+    case_width = max(16, max(len(case) for case in cases))
+    emit(f"{'Case':<{case_width}} {'Base_IPC':>10} {'Mod_IPC':>10} {'IPC_chg':>10}  "
+         f"{'Base_KFE%':>9} {'Mod_KFE%':>9}  {'Base_KBE%':>9} {'Mod_KBE%':>9}")
+    emit(f"{'-'*case_width} {'-'*10} {'-'*10} {'-'*10}  "
+         f"{'-'*9} {'-'*9}  {'-'*9} {'-'*9}")
 
     geo_base_ipcs = []
     geo_mod_ipcs  = []
@@ -938,16 +1063,16 @@ def main():
         base = parse_perf(os.path.join(base_dir, f"{case}.perf"))
         mod  = parse_perf(os.path.join(mod_dir,  f"{case}.perf"))
 
-        b_ipc = base.get("Main_IPC", float("nan"))
-        m_ipc = mod.get("Main_IPC",  float("nan"))
-        b_fe  = base.get("Frontend_stall%", float("nan"))
-        m_fe  = mod.get("Frontend_stall%",  float("nan"))
-        b_be  = base.get("Backend_stall%",  float("nan"))
-        m_be  = mod.get("Backend_stall%",   float("nan"))
+        b_ipc = base.get("Kernel_IPC", float("nan"))
+        m_ipc = mod.get("Kernel_IPC",  float("nan"))
+        b_fe  = base.get("Kernel_Frontend_stall%", float("nan"))
+        m_fe  = mod.get("Kernel_Frontend_stall%",  float("nan"))
+        b_be  = base.get("Kernel_Backend_stall%",  float("nan"))
+        m_be  = mod.get("Kernel_Backend_stall%",   float("nan"))
 
         ipc_chg = delta_str(b_ipc, m_ipc) if (b_ipc == b_ipc and m_ipc == m_ipc) else "N/A"
 
-        emit(f"{case:<16} {b_ipc:>10.3f} {m_ipc:>10.3f} {ipc_chg:>10}  "
+        emit(f"{case:<{case_width}} {b_ipc:>10.3f} {m_ipc:>10.3f} {ipc_chg:>10}  "
              f"{b_fe:>8.1f}% {m_fe:>8.1f}%  {b_be:>8.1f}% {m_be:>8.1f}%")
 
         if b_ipc > 0 and m_ipc > 0:
@@ -959,8 +1084,9 @@ def main():
         geo_b = math.exp(sum(math.log(v) for v in geo_base_ipcs) / len(geo_base_ipcs))
         geo_m = math.exp(sum(math.log(v) for v in geo_mod_ipcs)  / len(geo_mod_ipcs))
         geo_chg = delta_str(geo_b, geo_m)
-        emit(f"{'-'*16} {'-'*10} {'-'*10} {'-'*10}  {'-'*9} {'-'*9}  {'-'*9} {'-'*9}")
-        emit(f"{'GEOMEAN':<16} {geo_b:>10.3f} {geo_m:>10.3f} {geo_chg:>10}")
+        emit(f"{'-'*case_width} {'-'*10} {'-'*10} {'-'*10}  "
+             f"{'-'*9} {'-'*9}  {'-'*9} {'-'*9}")
+        emit(f"{'GEOMEAN':<{case_width}} {geo_b:>10.3f} {geo_m:>10.3f} {geo_chg:>10}")
 
     # -----------------------------------------------------------------------
     # Print detailed metric table per case
@@ -969,7 +1095,9 @@ def main():
     emit("  Detailed metrics (base -> mod, delta%)")
     emit(f"{'='*76}")
 
-    metric_names = [n for n, _ in METRICS]
+    metric_names = [n for n, _ in METRICS] + [
+        f"Kernel_{name}" for name in MONITOR_METRICS.values()
+    ]
     for case in cases:
         base = parse_perf(os.path.join(base_dir, f"{case}.perf"))
         mod  = parse_perf(os.path.join(mod_dir,  f"{case}.perf"))
