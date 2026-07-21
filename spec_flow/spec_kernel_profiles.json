@@ -125,7 +125,8 @@
         "benchmark": "600.perlbench_s",
         "profile": "ref",
         "function_profile": "spec_runs/600.perlbench_s_ref_c910/600.perlbench_s_ref.function_profile.csv",
-        "source_cluster_count": 4
+        "source_cluster_count": 4,
+        "mechanism_group_count": 2
       }
     },
     "spec_602_gcc_speed_kernel": {
@@ -172,7 +173,8 @@
         "benchmark": "602.gcc_s",
         "profile": "ref",
         "function_profile": "spec_runs/602.gcc_s_ref_c910/602.gcc_s_ref.function_profile.csv",
-        "source_cluster_count": 4
+        "source_cluster_count": 4,
+        "mechanism_group_count": 2
       }
     },
     "spec_603_bwaves_speed_kernel": {
@@ -219,7 +221,8 @@
         "benchmark": "603.bwaves_s",
         "profile": "ref",
         "function_profile": "spec_runs/603.bwaves_s_ref_c910/603.bwaves_s_ref.function_profile.csv",
-        "source_cluster_count": 5
+        "source_cluster_count": 5,
+        "mechanism_group_count": 2
       }
     },
     "spec_605_mcf_composite_kernel": {
@@ -305,7 +308,8 @@
         "benchmark": "607.cactuBSSN_s",
         "profile": "ref",
         "function_profile": "spec_runs/607.cactuBSSN_s_ref_c910/607.cactuBSSN_s_ref.function_profile.csv",
-        "source_cluster_count": 5
+        "source_cluster_count": 5,
+        "mechanism_group_count": 3
       }
     },
     "spec_619_lbm_speed_kernel": {
@@ -352,7 +356,8 @@
         "benchmark": "619.lbm_s",
         "profile": "ref",
         "function_profile": "spec_runs/619.lbm_s_ref_c910/619.lbm_s_ref.function_profile.csv",
-        "source_cluster_count": 5
+        "source_cluster_count": 5,
+        "mechanism_group_count": 2
       }
     },
     "spec_620_omnetpp_speed_kernel": {
@@ -399,7 +404,8 @@
         "benchmark": "620.omnetpp_s",
         "profile": "ref",
         "function_profile": "spec_runs/620.omnetpp_s_ref_c910/620.omnetpp_s_ref.function_profile.csv",
-        "source_cluster_count": 5
+        "source_cluster_count": 5,
+        "mechanism_group_count": 2
       }
     },
     "spec_621_wrf_speed_kernel": {
@@ -446,7 +452,8 @@
         "benchmark": "621.wrf_s",
         "profile": "ref",
         "function_profile": "spec_runs/621.wrf_s_ref_c910/621.wrf_s_ref.function_profile.csv",
-        "source_cluster_count": 5
+        "source_cluster_count": 5,
+        "mechanism_group_count": 3
       }
     },
     "spec_623_xalancbmk_speed_kernel": {
@@ -493,7 +500,8 @@
         "benchmark": "623.xalancbmk_s",
         "profile": "ref",
         "function_profile": "spec_runs/623.xalancbmk_s_ref_c910/623.xalancbmk_s_ref.function_profile.csv",
-        "source_cluster_count": 5
+        "source_cluster_count": 5,
+        "mechanism_group_count": 2
       }
     },
     "spec_625_x264_speed_kernel": {
@@ -540,7 +548,8 @@
         "benchmark": "625.x264_s",
         "profile": "ref",
         "function_profile": "spec_runs/625.x264_s_ref_c910/625.x264_s_ref.function_profile.csv",
-        "source_cluster_count": 5
+        "source_cluster_count": 5,
+        "mechanism_group_count": 2
       }
     },
     "spec_627_cam4_speed_kernel": {
@@ -587,7 +596,8 @@
         "benchmark": "627.cam4_s",
         "profile": "ref",
         "function_profile": "spec_runs/627.cam4_s_ref_c910/627.cam4_s_ref.function_profile.csv",
-        "source_cluster_count": 5
+        "source_cluster_count": 5,
+        "mechanism_group_count": 2
       }
     },
     "spec_631_deepsjeng_speed_kernel": {
@@ -634,7 +644,8 @@
         "benchmark": "631.deepsjeng_s",
         "profile": "ref",
         "function_profile": "spec_runs/631.deepsjeng_s_ref_c910/631.deepsjeng_s_ref.function_profile.csv",
-        "source_cluster_count": 3
+        "source_cluster_count": 3,
+        "mechanism_group_count": 2
       }
     },
     "spec_638_imagick_speed_kernel": {
@@ -681,7 +692,8 @@
         "benchmark": "638.imagick_s",
         "profile": "train",
         "function_profile": "spec_runs/638.imagick_s_train_c910/638.imagick_s_train.function_profile.csv",
-        "source_cluster_count": 4
+        "source_cluster_count": 4,
+        "mechanism_group_count": 2
       }
     },
     "spec_641_leela_speed_kernel": {
@@ -728,7 +740,8 @@
         "benchmark": "641.leela_s",
         "profile": "ref",
         "function_profile": "spec_runs/641.leela_s_ref_c910/641.leela_s_ref.function_profile.csv",
-        "source_cluster_count": 5
+        "source_cluster_count": 5,
+        "mechanism_group_count": 2
       }
     },
     "spec_644_nab_speed_kernel": {
@@ -775,7 +788,8 @@
         "benchmark": "644.nab_s",
         "profile": "ref",
         "function_profile": "spec_runs/644.nab_s_ref_c910/644.nab_s_ref.function_profile.csv",
-        "source_cluster_count": 5
+        "source_cluster_count": 5,
+        "mechanism_group_count": 3
       }
     },
     "spec_648_exchange2_speed_kernel": {
@@ -822,7 +836,8 @@
         "benchmark": "648.exchange2_s",
         "profile": "ref",
         "function_profile": "spec_runs/648.exchange2_s_ref_c910/648.exchange2_s_ref.function_profile.csv",
-        "source_cluster_count": 4
+        "source_cluster_count": 4,
+        "mechanism_group_count": 2
       }
     },
     "spec_649_fotonik3d_speed_kernel": {
@@ -869,7 +884,8 @@
         "benchmark": "649.fotonik3d_s",
         "profile": "ref",
         "function_profile": "spec_runs/649.fotonik3d_s_ref_c910/649.fotonik3d_s_ref.function_profile.csv",
-        "source_cluster_count": 4
+        "source_cluster_count": 4,
+        "mechanism_group_count": 3
       }
     },
     "spec_654_roms_speed_kernel": {
@@ -916,7 +932,8 @@
         "benchmark": "654.roms_s",
         "profile": "ref",
         "function_profile": "spec_runs/654.roms_s_ref_c910/654.roms_s_ref.function_profile.csv",
-        "source_cluster_count": 5
+        "source_cluster_count": 5,
+        "mechanism_group_count": 3
       }
     },
     "spec_657_xz_speed_kernel": {
@@ -963,7 +980,8 @@
         "benchmark": "657.xz_s",
         "profile": "ref",
         "function_profile": "spec_runs/657.xz_s_ref_c910/657.xz_s_ref.function_profile.csv",
-        "source_cluster_count": 5
+        "source_cluster_count": 5,
+        "mechanism_group_count": 3
       }
     },
     "spec_blender_render_kernel": {
@@ -1010,7 +1028,8 @@
         "benchmark": "526.blender_r",
         "profile": "ref",
         "function_profile": "spec_runs/526.blender_r_ref_c910/526.blender_r_ref.function_profile.csv",
-        "source_cluster_count": 4
+        "source_cluster_count": 4,
+        "mechanism_group_count": 3
       }
     },
     "spec_bwaves_stencil_kernel": {
@@ -1057,7 +1076,8 @@
         "benchmark": "503.bwaves_r",
         "profile": "ref",
         "function_profile": "spec_runs/503.bwaves_r_ref_c910/503.bwaves_r_ref.function_profile.csv",
-        "source_cluster_count": 4
+        "source_cluster_count": 4,
+        "mechanism_group_count": 2
       }
     },
     "spec_cactubssn_stencil_kernel": {
@@ -1104,7 +1124,8 @@
         "benchmark": "507.cactuBSSN_r",
         "profile": "ref",
         "function_profile": "spec_runs/507.cactuBSSN_r_ref_c910/507.cactuBSSN_r_ref.function_profile.csv",
-        "source_cluster_count": 4
+        "source_cluster_count": 4,
+        "mechanism_group_count": 3
       }
     },
     "spec_cam4_climate_kernel": {
@@ -1151,7 +1172,8 @@
         "benchmark": "527.cam4_r",
         "profile": "ref",
         "function_profile": "spec_runs/527.cam4_r_ref_c910/527.cam4_r_ref.function_profile.csv",
-        "source_cluster_count": 5
+        "source_cluster_count": 5,
+        "mechanism_group_count": 3
       }
     },
     "spec_deepsjeng_search_kernel": {
@@ -1198,7 +1220,8 @@
         "benchmark": "531.deepsjeng_r",
         "profile": "ref",
         "function_profile": "spec_runs/531.deepsjeng_r_ref_c910/531.deepsjeng_r_ref.function_profile.csv",
-        "source_cluster_count": 5
+        "source_cluster_count": 5,
+        "mechanism_group_count": 2
       }
     },
     "spec_exchange2_search_kernel": {
@@ -1245,7 +1268,8 @@
         "benchmark": "548.exchange2_r",
         "profile": "ref",
         "function_profile": "spec_runs/548.exchange2_r_ref_c910/548.exchange2_r_ref.function_profile.csv",
-        "source_cluster_count": 5
+        "source_cluster_count": 5,
+        "mechanism_group_count": 2
       }
     },
     "spec_fotonik3d_stencil_kernel": {
@@ -1292,7 +1316,8 @@
         "benchmark": "549.fotonik3d_r",
         "profile": "ref",
         "function_profile": "spec_runs/549.fotonik3d_r_ref_c910/549.fotonik3d_r_ref.function_profile.csv",
-        "source_cluster_count": 5
+        "source_cluster_count": 5,
+        "mechanism_group_count": 3
       }
     },
     "spec_gcc_compile_kernel": {
@@ -1339,7 +1364,8 @@
         "benchmark": "502.gcc_r",
         "profile": "ref",
         "function_profile": "spec_runs/502.gcc_r_ref_c910/502.gcc_r_ref.function_profile.csv",
-        "source_cluster_count": 4
+        "source_cluster_count": 4,
+        "mechanism_group_count": 3
       }
     },
     "spec_imagick_filter_kernel": {
@@ -1386,7 +1412,8 @@
         "benchmark": "538.imagick_r",
         "profile": "ref",
         "function_profile": "spec_runs/538.imagick_r_ref_c910/538.imagick_r_ref.function_profile.csv",
-        "source_cluster_count": 4
+        "source_cluster_count": 4,
+        "mechanism_group_count": 2
       }
     },
     "spec_lbm_stream_kernel": {
@@ -1433,7 +1460,8 @@
         "benchmark": "519.lbm_r",
         "profile": "ref",
         "function_profile": "spec_runs/519.lbm_r_ref_c910/519.lbm_r_ref.function_profile.csv",
-        "source_cluster_count": 2
+        "source_cluster_count": 2,
+        "mechanism_group_count": 2
       }
     },
     "spec_leela_playout_kernel": {
@@ -1480,7 +1508,8 @@
         "benchmark": "541.leela_r",
         "profile": "ref",
         "function_profile": "spec_runs/541.leela_r_ref_c910/541.leela_r_ref.function_profile.csv",
-        "source_cluster_count": 5
+        "source_cluster_count": 5,
+        "mechanism_group_count": 2
       }
     },
     "spec_nab_md_kernel": {
@@ -1527,7 +1556,8 @@
         "benchmark": "544.nab_r",
         "profile": "ref",
         "function_profile": "spec_runs/544.nab_r_ref_c910/544.nab_r_ref.function_profile.csv",
-        "source_cluster_count": 4
+        "source_cluster_count": 4,
+        "mechanism_group_count": 2
       }
     },
     "spec_namd_pair_kernel": {
@@ -1574,7 +1604,8 @@
         "benchmark": "508.namd_r",
         "profile": "ref",
         "function_profile": "spec_runs/508.namd_r_ref_c910/508.namd_r_ref.function_profile.csv",
-        "source_cluster_count": 5
+        "source_cluster_count": 5,
+        "mechanism_group_count": 3
       }
     },
     "spec_omnetpp_event_kernel": {
@@ -1621,7 +1652,8 @@
         "benchmark": "520.omnetpp_r",
         "profile": "ref",
         "function_profile": "spec_runs/520.omnetpp_r_ref_c910/520.omnetpp_r_ref.function_profile.csv",
-        "source_cluster_count": 5
+        "source_cluster_count": 5,
+        "mechanism_group_count": 2
       }
     },
     "spec_perlbench_regex_kernel": {
@@ -1668,7 +1700,8 @@
         "benchmark": "500.perlbench_r",
         "profile": "ref",
         "function_profile": "spec_runs/500.perlbench_r_ref_c910/500.perlbench_r_ref.function_profile.csv",
-        "source_cluster_count": 4
+        "source_cluster_count": 4,
+        "mechanism_group_count": 2
       }
     },
     "spec_pop2_ocean_kernel": {
@@ -1715,7 +1748,8 @@
         "benchmark": "628.pop2_s",
         "profile": "ref",
         "function_profile": "spec_runs/628.pop2_s_ref_c910/628.pop2_s_ref.function_profile.csv",
-        "source_cluster_count": 5
+        "source_cluster_count": 5,
+        "mechanism_group_count": 3
       }
     },
     "spec_povray_ray_kernel": {
@@ -1762,7 +1796,8 @@
         "benchmark": "511.povray_r",
         "profile": "ref",
         "function_profile": "spec_runs/511.povray_r_ref_c910/511.povray_r_ref.function_profile.csv",
-        "source_cluster_count": 5
+        "source_cluster_count": 5,
+        "mechanism_group_count": 3
       }
     },
     "spec_roms_stencil_kernel": {
@@ -1809,7 +1844,8 @@
         "benchmark": "554.roms_r",
         "profile": "ref",
         "function_profile": "spec_runs/554.roms_r_ref_c910/554.roms_r_ref.function_profile.csv",
-        "source_cluster_count": 5
+        "source_cluster_count": 5,
+        "mechanism_group_count": 3
       }
     },
     "spec_wrf_stencil_kernel": {
@@ -1856,7 +1892,8 @@
         "benchmark": "521.wrf_r",
         "profile": "ref",
         "function_profile": "spec_runs/521.wrf_r_ref_c910/521.wrf_r_ref.function_profile.csv",
-        "source_cluster_count": 5
+        "source_cluster_count": 5,
+        "mechanism_group_count": 3
       }
     },
     "spec_x264_pixel_kernel": {
@@ -1903,7 +1940,8 @@
         "benchmark": "525.x264_r",
         "profile": "ref",
         "function_profile": "spec_runs/525.x264_r_ref_c910/525.x264_r_ref.function_profile.csv",
-        "source_cluster_count": 4
+        "source_cluster_count": 4,
+        "mechanism_group_count": 2
       }
     },
     "spec_xalancbmk_xml_kernel": {
@@ -1950,7 +1988,8 @@
         "benchmark": "523.xalancbmk_r",
         "profile": "ref",
         "function_profile": "spec_runs/523.xalancbmk_r_ref_c910/523.xalancbmk_r_ref.function_profile.csv",
-        "source_cluster_count": 4
+        "source_cluster_count": 4,
+        "mechanism_group_count": 2
       }
     },
     "spec_xz_lzma_kernel": {
@@ -1997,7 +2036,8 @@
         "benchmark": "557.xz_r",
         "profile": "ref",
         "function_profile": "spec_runs/557.xz_r_ref_c910/557.xz_r_ref.function_profile.csv",
-        "source_cluster_count": 5
+        "source_cluster_count": 5,
+        "mechanism_group_count": 2
       }
     }
   }

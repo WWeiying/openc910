@@ -23,20 +23,21 @@ profile：特征阶段和 RTL 阶段使用相同 case 参数和编译环境，�
 ELF。联合报告会比较两个 ELF 的 SHA256 和 Kernel 退休指令数。ELF 必须
 精确匹配；由于 C910 最多三条指令同周期退休，而 QEMU 在单条 marker
 边界截取；RTL 对 start/end 所在的两个三退休槽周期做整周期快照，因此
-退休数允许最多 6 条保守边界偏差，超过即失败。CoreMark
-的 QEMU 特征 ELF 会定义 `KERNEL_CHARACTERIZATION`，只移除 marker 内的
-计时、打印和 RTL testbench 结束写操作，因此会明确显示 ELF 不同；RTL
-ELF 不受影响。
+退休数允许最多 6 条保守边界偏差，超过即失败。特征阶段不再定义
+`KERNEL_CHARACTERIZATION`；QEMU 插件在 `perf_monitor_end` 处结束追踪，
+无需修改 marker 后的仿真结束代码，因此特征统计与 RTL 必须使用逐字节相同
+的 ELF。
 
-需要更长、更稳定但不要求与 RTL 逐指令一致的程序特征时：
+需要更长、更稳定，并与 full RTL 使用同一 ELF 的程序特征时：
 
 ```bash
 BENCH_CASES=spec_505_mcf_composite_kernel ./run_bench.sh \
   --characterize --profile full mcf_full_joint
 ```
 
-`--profile full` 自动令程序特征阶段采用 `representative`，但 kernel
-源码的正式统计区间仍由 `perf_monitor_start/end` 唯一确定。
+`--profile full` 自动令程序特征采集标签采用 `representative`；它不改变
+SPEC 构建参数，kernel 的正式统计区间仍由 `perf_monitor_start/end` 唯一
+确定，归档 ELF 必须与随后 full RTL 使用的 ELF 逐字节一致。
 
 环境变量形式等价：
 
@@ -52,6 +53,10 @@ BENCH_CASES=spec_505_mcf_composite_kernel ./run_bench.sh mcf_joint
 | `program_features/` | QEMU 架构态动态特征、ELF、trace、CSV/JSON 和校验报告 |
 | `program_features.log` | 特征阶段完整日志 |
 | `<case>.elf` | RTL 仿真实际使用的 ELF |
+| `simv` / `simv.daidir/` | 本结果集顺序/并行仿真实际执行的完整 VCS 模拟器 bundle |
+| `simv.daidir.sha256` | 生成共享库和运行时数据库的逐文件 SHA256 清单 |
+| `comp.vcs.log` | 本结果集实际使用的 VCS 编译日志 |
+| `run.info` | `simv`/编译日志 SHA256、`PERF_DETAIL` 状态、Git 与 profile provenance |
 | `PROGRAM_RTL_BOTTLENECK.md` | 程序需求与 RTL 响应的联合瓶颈候选排序 |
 | `COMPOSITE_MIX_VALIDATION.md` | 从本次 ELF 的动态函数指令数重算 composite 内部份额，并与 SimPoint 目标权重比较 |
 
@@ -134,6 +139,23 @@ cd /home/wangwy/openproject/openc910
   --tag spec_all_quick_joint
 ```
 
+中断后可使用完全相同的命令并增加 `--resume`。只有提交、profile、case
+集合、`simv` 和编译日志完全一致，且单项 ELF、退休数、详细计数器及 PASS
+状态全部通过校验的 case 才会跳过：
+
+```bash
+./spec_flow/run_spec_kernel_profiles.sh --profile full \
+  --tag spec_all_full_joint --resume
+```
+
+多个 VCS case 可以隔离并行；case 构建仍串行使用共享 `work`，完成后才将
+pattern、符号和 ELF 放入各自目录。所有 worker 使用同一个只读 `simv`：
+
+```bash
+./spec_flow/run_spec_kernel_profiles.sh --profile full \
+  --tag spec_all_full_joint --rtl-workers 2 --resume
+```
+
 当前 43 项全部是多机制 calibrated case，因此 `--calibrated-only` 只为兼容
 旧命令保留，当前不会缩小集合。full RTL 批量运行需要显著更长时间，建议先按
 case 选择执行：
@@ -171,7 +193,13 @@ cd /home/wangwy/openproject/openc910
 默认允许最多 6 条同周期退休边界偏差；可用
 `--rtl-retired-tolerance 0` 要求数值完全相等。
 
-`representative` 是默认 profile。SPEC kernel 使用各 case 的 representative 参数；CoreMark 执行 3 次完整算法迭代，并排除 marker 内的计时、打印和 RTL testbench 结束写操作。`rtl` profile 使用正常构建参数，适合逐 case 与同一 ELF 的 RTL 结果校准，不建议把很短的 RTL kernel 当作唯一的程序特征样本。
+`representative` 是默认 profile。SPEC kernel 的规模只由统一的
+`SPEC_COMPOSITE_PROFILE=full` 参数控制，不再传入旧的逐 case
+`SPEC_*_REPRESENTATIVE` 参数；CoreMark 执行 3 次完整算法迭代。特征构建
+不再通过宏删除计时、打印或 testbench 结束写操作，QEMU 插件只按 marker
+截取 ROI，因此 SPEC 特征统计与 RTL 可使用逐字节相同的 ELF。`rtl` profile
+使用 quick 参数，适合逐 case 与同一 ELF 的 RTL 结果校准，不建议把很短的
+quick kernel 当作唯一的程序特征样本。
 
 该命令只执行软件构建、QEMU 功能运行和离线分析，不启动 VCS、Verilator、Icarus 或其他 EDA/RTL 仿真。
 

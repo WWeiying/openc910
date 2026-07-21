@@ -199,6 +199,48 @@ class ResolveKernelWeightsTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "measured instruction share"):
             validate_embedded_composition(row, manifest)
 
+    def test_validates_generated_composite_full_profile_share(self):
+        row = {
+            "bench": "example",
+            "kernels": [
+                {
+                    "case": "composite",
+                    "clusters": [0, 1],
+                    "composition": [
+                        {
+                            "name": "a",
+                            "source_clusters": [0],
+                            "target_weight": 0.75,
+                            "measured_instruction_share_by_profile": {
+                                "quick": 0.70,
+                                "full": 0.751,
+                            },
+                        },
+                        {
+                            "name": "b",
+                            "source_clusters": [1],
+                            "target_weight": 0.25,
+                            "measured_instruction_share_by_profile": {
+                                "quick": 0.30,
+                                "full": 0.249,
+                            },
+                        },
+                    ],
+                }
+            ],
+        }
+        manifest = {
+            "simpoints": [
+                {"cluster": 0, "interval": 10, "weight": 0.75},
+                {"cluster": 1, "interval": 20, "weight": 0.25},
+            ]
+        }
+        result = validate_embedded_composition(row, manifest)
+        self.assertEqual(
+            [group["measured_profile"] for group in result["groups"]],
+            ["full", "full"],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

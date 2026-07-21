@@ -3,12 +3,17 @@ PLUGIN_CFLAGS := -fPIC -shared -O2 -Wall -Wextra -fvisibility=hidden
 GLIB_CFLAGS := $(shell pkg-config --cflags glib-2.0)
 GLIB_LIBS := $(shell pkg-config --libs glib-2.0)
 
-.PHONY: all check-fork clean
+.PHONY: all check check-exact check-fork clean
 
 all: simple_bbv.so simpoint_probe.so restore_replay.so kernel_trace.so
 
+check: check-fork check-exact
+
 check-fork: simple_bbv.so
 	./test_simple_bbv_fork.sh
+
+check-exact: simple_bbv.so
+	./test_simple_bbv_exact.sh
 
 simple_bbv.so: simple_bbv.c
 	@tmp="$@.tmp.$$$$"; trap 'rm -f "$$tmp"' EXIT; \

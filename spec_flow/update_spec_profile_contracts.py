@@ -7,6 +7,17 @@ from pathlib import Path
 from validate_spec_profiles import footprint_share
 
 
+REPO_ROOT = Path(__file__).resolve().parent.parent
+
+
+def display_path(path):
+    resolved = Path(path).resolve()
+    try:
+        return str(resolved.relative_to(REPO_ROOT))
+    except ValueError:
+        return str(resolved)
+
+
 def load_features(root, case):
     path = Path(root) / "cases" / case / "features.json"
     if not path.is_file():
@@ -69,6 +80,7 @@ def write_markdown(path, output):
         ])
         for group in groups:
             lines.append("- " + "、".join(f"`{case}`" for case in group))
+    sources = output.get("feature_sources", {})
     lines.extend([
         "", "## 约束与入口", "",
         "- full ROI 契约范围为 400,000 至 620,000 条动态指令。",
@@ -78,8 +90,8 @@ def write_markdown(path, output):
         "- RTL/QEMU retired 比较另允许 6 条整周期退休边界偏差，不属于 workload 契约漂移。",
         "- 机器可读契约：`spec_flow/spec_kernel_profiles.json`。",
         "- quick/full 统一入口：`spec_flow/run_spec_kernel_profiles.sh`。",
-        "- 完整特征结果：`smart_run/kernel_features/spec_all_43_quick_final/` 和",
-        "  `smart_run/kernel_features/spec_all_43_full_final/`。",
+        f"- quick 特征结果：`{sources.get('quick', '未记录')}`。",
+        f"- full 特征结果：`{sources.get('full', '未记录')}`。",
         "", "这些 kernel 用于微结构机制研究和版本间相对比较，不是 SPEC CPU2017 原程序",
         "代表区间，也不能生成或替代正式 SPEC 分数。", "",
     ])
@@ -184,6 +196,10 @@ def main():
             "cases. Calibration classes distinguish dedicated composites from "
             "semantic multi-cluster composites."
         ),
+        "feature_sources": {
+            "quick": display_path(args.quick_features),
+            "full": display_path(args.full_features),
+        },
         "feature_equivalence_groups": equivalent,
         "cases": dict(sorted(cases.items())),
     }

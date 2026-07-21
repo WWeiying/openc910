@@ -13,10 +13,19 @@ def main():
     parser.add_argument("bench")
     parser.add_argument("size", choices=("test", "train", "ref"))
     parser.add_argument("--spec-runs", default="spec_runs")
+    parser.add_argument(
+        "--manifest",
+        type=Path,
+        help="validate an explicit staged manifest before canonical promotion",
+    )
     parser.add_argument("--weight-tolerance", type=float, default=0.002)
     args = parser.parse_args()
 
-    path = Path(args.spec_runs) / f"{args.bench}_{args.size}_c910" / "manifest.json"
+    path = args.manifest or (
+        Path(args.spec_runs)
+        / f"{args.bench}_{args.size}_c910"
+        / "manifest.json"
+    )
     result = validate_manifest(
         path, args.bench, args.size, args.weight_tolerance
     )

@@ -14,6 +14,10 @@ def selected_cluster_ids(kernel):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--kernel-map", required=True)
+    parser.add_argument(
+        "--kernel-map-label",
+        help="stable path shown in the report when validating a staged map",
+    )
     parser.add_argument("--size", default="ref")
     parser.add_argument("--spec-runs", default="spec_runs")
     parser.add_argument("--out", required=True)
@@ -24,7 +28,7 @@ def main():
     lines = [
         f"# {args.size} SimPoint 与 RTL Kernel 对齐报告",
         "",
-        f"- Kernel map：`{args.kernel_map}`",
+        f"- Kernel map：`{args.kernel_map_label or args.kernel_map}`",
         f"- Calibration state：`{kernel_map.get('calibration_size', 'unspecified')}`",
         f"- SPEC input：`{args.size}`",
         "",

@@ -1980,10 +1980,34 @@ module tb();
   end
   endfunction
 
+  function automatic logic wmb_cancel_acc_req_valid();
+  begin
+    wmb_cancel_acc_req_valid =
+      |(`LSU_WMB.wmb_entry_cancel_acc_req[7:0]
+        & `LSU_WMB.wmb_entry_vld[7:0]);
+  end
+  endfunction
+
+  function automatic logic sq_cancel_acc_req_valid();
+  begin
+    sq_cancel_acc_req_valid =
+      |(`LSU_SQ.sq_entry_cancel_acc_req[11:0]
+        & `LSU_SQ.sq_entry_vld[11:0]);
+  end
+  endfunction
+
+  function automatic logic sq_cancel_ahead_wb_valid();
+  begin
+    sq_cancel_ahead_wb_valid =
+      |(`LSU_SQ.sq_entry_cancel_ahead_wb[11:0]
+        & `LSU_SQ.sq_entry_vld[11:0]);
+  end
+  endfunction
+
   function automatic [7:0] lsu_sq_cancel_width();
   begin
-    lsu_sq_cancel_width = {7'b0, `LSU_SQ.sq_ld_dc_cancel_acc_req}
-                         + {7'b0, `LSU_SQ.sq_ld_dc_cancel_ahead_wb};
+    lsu_sq_cancel_width = {7'b0, sq_cancel_acc_req_valid()}
+                         + {7'b0, sq_cancel_ahead_wb_valid()};
   end
   endfunction
 
@@ -3140,7 +3164,7 @@ module tb();
       513: get_detail_value = `LSU_WMB.wmb_st_wb_spec_fail;
       514: get_detail_value = `LSU_WMB.wmb_ld_wb_data_req;
       515: get_detail_value = `LSU_WMB.wmb_ld_dc_fwd_req;
-      516: get_detail_value = `LSU_WMB.wmb_ld_dc_cancel_acc_req;
+      516: get_detail_value = wmb_cancel_acc_req_valid();
       517: get_detail_value = `LSU_WMB.wmb_pop_depd;
       518: get_detail_value = `LSU_WMB.wmb_pop_discard_req;
       519: get_detail_value = `LSU_WMB.wmb_pop_fwd_req;
@@ -3291,7 +3315,7 @@ module tb();
       659: get_detail_value = `IFU_BHT.wr_buf_hit;
       660: get_detail_value = `IFU_BHT.bju_mispred;
       661: get_detail_value = `LSU_WMB.wmb_ld_dc_fwd_req;
-      662: get_detail_value = `LSU_WMB.wmb_ld_dc_cancel_acc_req;
+      662: get_detail_value = wmb_cancel_acc_req_valid();
       663: get_detail_value = `LSU_SQ.sq_ld_dc_newest_fwd_data_vld_req;
       664: get_detail_value = `LSU_SQ.sq_ld_dc_data_discard_req;
       665: get_detail_value = `LSU_SQ.sq_ld_dc_other_discard_req;
@@ -3418,8 +3442,8 @@ module tb();
       786: get_detail_value = `LSU_SQ.sq_ld_dc_fwd_bypass_multi;
       787: get_detail_value = `LSU_SQ.sq_ld_dc_fwd_multi;
       788: get_detail_value = `LSU_SQ.sq_ld_dc_fwd_multi_mask;
-      789: get_detail_value = `LSU_SQ.sq_ld_dc_cancel_acc_req;
-      790: get_detail_value = `LSU_SQ.sq_ld_dc_cancel_ahead_wb;
+      789: get_detail_value = sq_cancel_acc_req_valid();
+      790: get_detail_value = sq_cancel_ahead_wb_valid();
       791: get_detail_value = |`LSU_TOP.lsu_idu_ld_ag_wait_old[11:0];
       792: get_detail_value = |`LSU_TOP.lsu_idu_ld_da_wait_old[11:0];
       793: get_detail_value = |`LSU_TOP.lsu_idu_st_ag_wait_old[11:0];

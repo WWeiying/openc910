@@ -4,7 +4,11 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from spec_flow.build_cluster_composition_specs import build_case, load_profile
+from spec_flow.build_cluster_composition_specs import (
+    build_case,
+    load_profile,
+    select_profile,
+)
 
 
 class BuildClusterCompositionSpecsTest(unittest.TestCase):
@@ -53,6 +57,33 @@ class BuildClusterCompositionSpecsTest(unittest.TestCase):
         path.write_text("scope,interval,cluster,weight,function,count,percent\n")
         with self.assertRaisesRegex(ValueError, "no simpoint rows"):
             load_profile(path)
+
+    def test_profile_selection_prefers_ref_over_benchmark_local_fallback(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        root = Path(temporary.name)
+        train = (
+            root / "638.imagick_s_train_c910"
+            / "638.imagick_s_train.function_profile.csv"
+        )
+        train.parent.mkdir()
+        train.write_text("train\n")
+
+        path, size = select_profile(
+            root, "spec_638_imagick_speed_kernel", "638.imagick_s"
+        )
+        self.assertEqual((path, size), (train, "train"))
+
+        ref = (
+            root / "638.imagick_s_ref_c910"
+            / "638.imagick_s_ref.function_profile.csv"
+        )
+        ref.parent.mkdir()
+        ref.write_text("ref\n")
+        path, size = select_profile(
+            root, "spec_638_imagick_speed_kernel", "638.imagick_s"
+        )
+        self.assertEqual((path, size), (ref, "ref"))
 
 
 if __name__ == "__main__":

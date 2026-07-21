@@ -74,8 +74,10 @@ else ifneq ($(filter ${CASENAME},spec_600_perlbench_speed_kernel spec_619_lbm_sp
 SPEC_COMPOSITION_SCALE := 3
 else ifneq ($(filter ${CASENAME},spec_654_roms_speed_kernel),)
 SPEC_COMPOSITION_SCALE := 4
-else ifneq ($(filter ${CASENAME},spec_623_xalancbmk_speed_kernel spec_638_imagick_speed_kernel),)
+else ifneq ($(filter ${CASENAME},spec_623_xalancbmk_speed_kernel),)
 SPEC_COMPOSITION_SCALE := 7
+else ifneq ($(filter ${CASENAME},spec_638_imagick_speed_kernel),)
+SPEC_COMPOSITION_SCALE := 5
 else ifneq ($(filter ${CASENAME},spec_603_bwaves_speed_kernel),)
 SPEC_COMPOSITION_SCALE := 8
 else ifneq ($(filter ${CASENAME},spec_602_gcc_speed_kernel spec_625_x264_speed_kernel),)
@@ -788,6 +790,25 @@ else ifeq (${CASENAME}, spec_pop2_ocean_kernel)
     -DSPEC_POP2_STEPS=${SPEC_POP2_STEPS} \
     -DSPEC_POP2_SOLVER_ITERS=${SPEC_POP2_SOLVER_ITERS} \
     -DSPEC_POP2_DEPTH=${SPEC_POP2_DEPTH}
+  SFLAGS = -march=rv64imafdcvxtheadc -mabi=lp64d -c -O2
+else ifeq (${CASENAME}, spec_638_imagick_speed_kernel)
+  SPEC_638_WIDTH ?= 12
+  SPEC_638_HEIGHT ?= 8
+  SPEC_638_RESAMPLE_ROUNDS ?= 4
+  SPEC_638_COLOR_ROUNDS ?= 1
+  SPEC_638_FILTER_ROUNDS ?= 1
+  SPEC_638_RESAMPLE_EXTRA_ROUNDS ?= 0
+  SPEC_638_COLOR_EXTRA_ROUNDS ?= 0
+  SPEC_638_FILTER_EXTRA_ROUNDS ?= 0
+  CFLAGS += -c -O2 \
+    -DSPEC_638_WIDTH=${SPEC_638_WIDTH} \
+    -DSPEC_638_HEIGHT=${SPEC_638_HEIGHT} \
+    -DSPEC_638_RESAMPLE_ROUNDS=${SPEC_638_RESAMPLE_ROUNDS} \
+    -DSPEC_638_COLOR_ROUNDS=${SPEC_638_COLOR_ROUNDS} \
+    -DSPEC_638_FILTER_ROUNDS=${SPEC_638_FILTER_ROUNDS} \
+    -DSPEC_638_RESAMPLE_EXTRA_ROUNDS=${SPEC_638_RESAMPLE_EXTRA_ROUNDS} \
+    -DSPEC_638_COLOR_EXTRA_ROUNDS=${SPEC_638_COLOR_EXTRA_ROUNDS} \
+    -DSPEC_638_FILTER_EXTRA_ROUNDS=${SPEC_638_FILTER_EXTRA_ROUNDS}
   SFLAGS = -march=rv64imafdcvxtheadc -mabi=lp64d -c -O2
 else
   CFLAGS += -c -O2

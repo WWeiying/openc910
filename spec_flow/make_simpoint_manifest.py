@@ -103,6 +103,8 @@ def main():
     parser.add_argument("--max-k", type=int, required=True)
     parser.add_argument("--skip-intervals", type=int, default=0)
     parser.add_argument("--max-intervals", type=int)
+    parser.add_argument("--bbv-single-thread", type=int, choices=(0, 1), default=0)
+    parser.add_argument("--bbv-map-interval", type=int, default=0)
     parser.add_argument("--compiler", default="Xuantie GCC Linux glibc")
     parser.add_argument("--optimize", default="-O2 -march=rv64imafdcxtheadc -mabi=lp64d -mtune=c910")
     parser.add_argument("--qemu-cpu", default="c910")
@@ -120,6 +122,8 @@ def main():
     parser.add_argument("--simpoint-path", default="")
     parser.add_argument("--out", required=True)
     args = parser.parse_args()
+    if args.bbv_map_interval < 0:
+        parser.error("--bbv-map-interval must be non-negative")
 
     # The fork-safe Perlbench plugin format reserves bits 63:32 for the host
     # PID.  A long-lived scheduler may still export the older 2^40 value, so
@@ -176,6 +180,8 @@ def main():
             "max_intervals": args.max_intervals,
             "full_program": args.skip_intervals == 0 and args.max_intervals is None,
             "bbv_id_stride": args.bbv_id_stride,
+            "single_thread": bool(args.bbv_single_thread),
+            "map_checkpoint_interval": args.bbv_map_interval,
         },
         "compiler": args.compiler,
         "optimize": args.optimize,

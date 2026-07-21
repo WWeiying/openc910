@@ -23,7 +23,7 @@
             {
               "name": "regex",
               "mechanism": "branch_regex_engine",
-              "source_clusters": [
+              "clusters": [
                 0,
                 1,
                 3
@@ -37,7 +37,7 @@
             {
               "name": "opcode_objects",
               "mechanism": "indirect_opcode_object",
-              "source_clusters": [
+              "clusters": [
                 2
               ],
               "target_weight": 0.24820197517980247,
@@ -47,7 +47,25 @@
               }
             }
           ],
-          "max_unattributed_instruction_share": 0.1
+          "max_unattributed_instruction_share": 0.1,
+          "clusters": [
+            {
+              "id": 0,
+              "interval": 5635
+            },
+            {
+              "id": 1,
+              "interval": 17275
+            },
+            {
+              "id": 2,
+              "interval": 24815
+            },
+            {
+              "id": 3,
+              "interval": 26571
+            }
+          ]
         }
       ]
     },
@@ -70,7 +88,7 @@
             {
               "name": "compiler_graph",
               "mechanism": "pointer_graph_allocator",
-              "source_clusters": [
+              "clusters": [
                 0
               ],
               "target_weight": 0.8557573423029369,
@@ -82,7 +100,7 @@
             {
               "name": "bitmap",
               "mechanism": "integer_bitmap",
-              "source_clusters": [
+              "clusters": [
                 1
               ],
               "target_weight": 0.03773581509432604,
@@ -94,7 +112,7 @@
             {
               "name": "cfg_schedule",
               "mechanism": "branch_cfg_scheduler",
-              "source_clusters": [
+              "clusters": [
                 2,
                 3
               ],
@@ -105,7 +123,25 @@
               }
             }
           ],
-          "max_unattributed_instruction_share": 0.1
+          "max_unattributed_instruction_share": 0.1,
+          "clusters": [
+            {
+              "id": 0,
+              "interval": 2230
+            },
+            {
+              "id": 1,
+              "interval": 4535
+            },
+            {
+              "id": 2,
+              "interval": 8378
+            },
+            {
+              "id": 3,
+              "interval": 10578
+            }
+          ]
         }
       ]
     },
@@ -216,7 +252,7 @@
             {
               "name": "allocation_strings",
               "mechanism": "allocation_string_runtime",
-              "source_clusters": [
+              "clusters": [
                 0,
                 1
               ],
@@ -229,7 +265,7 @@
             {
               "name": "event_queue",
               "mechanism": "pointer_event_queue",
-              "source_clusters": [
+              "clusters": [
                 2,
                 3,
                 4
@@ -241,7 +277,29 @@
               }
             }
           ],
-          "max_unattributed_instruction_share": 0.1
+          "max_unattributed_instruction_share": 0.1,
+          "clusters": [
+            {
+              "id": 0,
+              "interval": 10977
+            },
+            {
+              "id": 1,
+              "interval": 10943
+            },
+            {
+              "id": 2,
+              "interval": 2840
+            },
+            {
+              "id": 3,
+              "interval": 358
+            },
+            {
+              "id": 4,
+              "interval": 6103
+            }
+          ]
         }
       ]
     },
@@ -264,7 +322,7 @@
             {
               "name": "dom_strings",
               "mechanism": "pointer_dom_string_cache",
-              "source_clusters": [
+              "clusters": [
                 0,
                 1,
                 3
@@ -278,7 +336,7 @@
             {
               "name": "datatype_compare",
               "mechanism": "branch_datatype_compare",
-              "source_clusters": [
+              "clusters": [
                 2
               ],
               "target_weight": 0.22798877201122794,
@@ -288,7 +346,25 @@
               }
             }
           ],
-          "max_unattributed_instruction_share": 0.1
+          "max_unattributed_instruction_share": 0.1,
+          "clusters": [
+            {
+              "id": 0,
+              "interval": 7837
+            },
+            {
+              "id": 1,
+              "interval": 7799
+            },
+            {
+              "id": 2,
+              "interval": 1110
+            },
+            {
+              "id": 3,
+              "interval": 3297
+            }
+          ]
         }
       ]
     },
@@ -311,7 +387,7 @@
             {
               "name": "half_pixel",
               "mechanism": "integer_half_pixel_filter",
-              "source_clusters": [
+              "clusters": [
                 0
               ],
               "target_weight": 0.0644695193408558,
@@ -323,7 +399,7 @@
             {
               "name": "motion_cost",
               "mechanism": "integer_sad_satd",
-              "source_clusters": [
+              "clusters": [
                 1,
                 2,
                 3
@@ -335,7 +411,25 @@
               }
             }
           ],
-          "max_unattributed_instruction_share": 0.1
+          "max_unattributed_instruction_share": 0.1,
+          "clusters": [
+            {
+              "id": 0,
+              "interval": 4318
+            },
+            {
+              "id": 1,
+              "interval": 12511
+            },
+            {
+              "id": 2,
+              "interval": 37536
+            },
+            {
+              "id": 3,
+              "interval": 1133
+            }
+          ]
         }
       ]
     },
@@ -358,7 +452,7 @@
             {
               "name": "tree_search",
               "mechanism": "branch_tree_search",
-              "source_clusters": [
+              "clusters": [
                 0,
                 2,
                 4
@@ -372,7 +466,7 @@
             {
               "name": "evaluation_setup",
               "mechanism": "integer_evaluation_setup",
-              "source_clusters": [
+              "clusters": [
                 1,
                 3
               ],
@@ -383,7 +477,29 @@
               }
             }
           ],
-          "max_unattributed_instruction_share": 0.1
+          "max_unattributed_instruction_share": 0.1,
+          "clusters": [
+            {
+              "id": 0,
+              "interval": 4858
+            },
+            {
+              "id": 1,
+              "interval": 16772
+            },
+            {
+              "id": 2,
+              "interval": 4101
+            },
+            {
+              "id": 3,
+              "interval": 995
+            },
+            {
+              "id": 4,
+              "interval": 19222
+            }
+          ]
         }
       ]
     },
@@ -406,7 +522,7 @@
             {
               "name": "primary_playout",
               "mechanism": "branch_board_playout",
-              "source_clusters": [
+              "clusters": [
                 0,
                 1
               ],
@@ -419,7 +535,7 @@
             {
               "name": "board_update",
               "mechanism": "branch_board_state_update",
-              "source_clusters": [
+              "clusters": [
                 2,
                 3,
                 4
@@ -431,7 +547,29 @@
               }
             }
           ],
-          "max_unattributed_instruction_share": 0.1
+          "max_unattributed_instruction_share": 0.1,
+          "clusters": [
+            {
+              "id": 0,
+              "interval": 12747
+            },
+            {
+              "id": 1,
+              "interval": 15079
+            },
+            {
+              "id": 2,
+              "interval": 3359
+            },
+            {
+              "id": 3,
+              "interval": 22654
+            },
+            {
+              "id": 4,
+              "interval": 4120
+            }
+          ]
         }
       ]
     },
@@ -454,7 +592,7 @@
             {
               "name": "digit_search",
               "mechanism": "branch_combinatorial_search",
-              "source_clusters": [
+              "clusters": [
                 0,
                 1,
                 2,
@@ -469,7 +607,7 @@
             {
               "name": "minimum_scan",
               "mechanism": "integer_minimum_reduction",
-              "source_clusters": [
+              "clusters": [
                 4
               ],
               "target_weight": 0.038207096179290384,
@@ -479,7 +617,29 @@
               }
             }
           ],
-          "max_unattributed_instruction_share": 0.1
+          "max_unattributed_instruction_share": 0.1,
+          "clusters": [
+            {
+              "id": 0,
+              "interval": 2825
+            },
+            {
+              "id": 1,
+              "interval": 18201
+            },
+            {
+              "id": 2,
+              "interval": 16894
+            },
+            {
+              "id": 3,
+              "interval": 7632
+            },
+            {
+              "id": 4,
+              "interval": 11476
+            }
+          ]
         }
       ]
     },
@@ -502,7 +662,7 @@
             {
               "name": "optimum_match",
               "mechanism": "integer_lzma_optimum",
-              "source_clusters": [
+              "clusters": [
                 1,
                 3,
                 4
@@ -516,7 +676,7 @@
             {
               "name": "skip_match",
               "mechanism": "integer_lzma_skip",
-              "source_clusters": [
+              "clusters": [
                 0,
                 2
               ],
@@ -527,7 +687,29 @@
               }
             }
           ],
-          "max_unattributed_instruction_share": 0.1
+          "max_unattributed_instruction_share": 0.1,
+          "clusters": [
+            {
+              "id": 0,
+              "interval": 7439
+            },
+            {
+              "id": 1,
+              "interval": 14556
+            },
+            {
+              "id": 2,
+              "interval": 5592
+            },
+            {
+              "id": 3,
+              "interval": 9231
+            },
+            {
+              "id": 4,
+              "interval": 1827
+            }
+          ]
         }
       ]
     },
@@ -550,7 +732,7 @@
             {
               "name": "matvec",
               "mechanism": "fp_sparse_matvec",
-              "source_clusters": [
+              "clusters": [
                 0,
                 1,
                 2
@@ -564,7 +746,7 @@
             {
               "name": "bicg_recurrence",
               "mechanism": "fp_bicg_recurrence",
-              "source_clusters": [
+              "clusters": [
                 3
               ],
               "target_weight": 0.31718468281531714,
@@ -574,7 +756,25 @@
               }
             }
           ],
-          "max_unattributed_instruction_share": 0.1
+          "max_unattributed_instruction_share": 0.1,
+          "clusters": [
+            {
+              "id": 0,
+              "interval": 18854
+            },
+            {
+              "id": 1,
+              "interval": 4087
+            },
+            {
+              "id": 2,
+              "interval": 10957
+            },
+            {
+              "id": 3,
+              "interval": 81
+            }
+          ]
         }
       ]
     },
@@ -597,7 +797,7 @@
             {
               "name": "advection",
               "mechanism": "fp_stencil_advection",
-              "source_clusters": [
+              "clusters": [
                 0,
                 3
               ],
@@ -610,7 +810,7 @@
             {
               "name": "rhs",
               "mechanism": "fp_stencil_rhs",
-              "source_clusters": [
+              "clusters": [
                 1
               ],
               "target_weight": 0.4640340464034046,
@@ -622,7 +822,7 @@
             {
               "name": "constraints",
               "mechanism": "fp_bounds_constraints",
-              "source_clusters": [
+              "clusters": [
                 2
               ],
               "target_weight": 0.13377601337760134,
@@ -632,7 +832,25 @@
               }
             }
           ],
-          "max_unattributed_instruction_share": 0.1
+          "max_unattributed_instruction_share": 0.1,
+          "clusters": [
+            {
+              "id": 0,
+              "interval": 4224
+            },
+            {
+              "id": 1,
+              "interval": 7034
+            },
+            {
+              "id": 2,
+              "interval": 8560
+            },
+            {
+              "id": 3,
+              "interval": 5781
+            }
+          ]
         }
       ]
     },
@@ -655,7 +873,7 @@
             {
               "name": "full_electrostatic",
               "mechanism": "fp_full_electrostatic",
-              "source_clusters": [
+              "clusters": [
                 0
               ],
               "target_weight": 0.45321536257229006,
@@ -667,7 +885,7 @@
             {
               "name": "pair_force",
               "mechanism": "fp_pair_force",
-              "source_clusters": [
+              "clusters": [
                 1,
                 2
               ],
@@ -680,7 +898,7 @@
             {
               "name": "force_merge",
               "mechanism": "fp_force_merge",
-              "source_clusters": [
+              "clusters": [
                 3,
                 4
               ],
@@ -691,7 +909,29 @@
               }
             }
           ],
-          "max_unattributed_instruction_share": 0.1
+          "max_unattributed_instruction_share": 0.1,
+          "clusters": [
+            {
+              "id": 0,
+              "interval": 18436
+            },
+            {
+              "id": 1,
+              "interval": 7075
+            },
+            {
+              "id": 2,
+              "interval": 16008
+            },
+            {
+              "id": 3,
+              "interval": 2897
+            },
+            {
+              "id": 4,
+              "interval": 14613
+            }
+          ]
         }
       ]
     },
@@ -799,7 +1039,7 @@
             {
               "name": "geometry",
               "mechanism": "branch_fp_geometry",
-              "source_clusters": [
+              "clusters": [
                 0,
                 1
               ],
@@ -812,7 +1052,7 @@
             {
               "name": "noise_shading",
               "mechanism": "fp_noise_shading",
-              "source_clusters": [
+              "clusters": [
                 2,
                 3
               ],
@@ -825,7 +1065,7 @@
             {
               "name": "queue_traversal",
               "mechanism": "pointer_bvh_queue",
-              "source_clusters": [
+              "clusters": [
                 4
               ],
               "target_weight": 0.33829313531725413,
@@ -835,7 +1075,29 @@
               }
             }
           ],
-          "max_unattributed_instruction_share": 0.1
+          "max_unattributed_instruction_share": 0.1,
+          "clusters": [
+            {
+              "id": 0,
+              "interval": 18513
+            },
+            {
+              "id": 1,
+              "interval": 2161
+            },
+            {
+              "id": 2,
+              "interval": 26902
+            },
+            {
+              "id": 3,
+              "interval": 23839
+            },
+            {
+              "id": 4,
+              "interval": 12006
+            }
+          ]
         }
       ]
     },
@@ -858,7 +1120,7 @@
             {
               "name": "stream_collide",
               "mechanism": "fp_stream_collide",
-              "source_clusters": [
+              "clusters": [
                 0
               ],
               "target_weight": 0.752052,
@@ -870,7 +1132,7 @@
             {
               "name": "grid_swap",
               "mechanism": "fp_grid_swap",
-              "source_clusters": [
+              "clusters": [
                 1
               ],
               "target_weight": 0.247948,
@@ -880,7 +1142,17 @@
               }
             }
           ],
-          "max_unattributed_instruction_share": 0.1
+          "max_unattributed_instruction_share": 0.1,
+          "clusters": [
+            {
+              "id": 0,
+              "interval": 4972
+            },
+            {
+              "id": 1,
+              "interval": 2442
+            }
+          ]
         }
       ]
     },
@@ -903,7 +1175,7 @@
             {
               "name": "dynamics",
               "mechanism": "fp_atmospheric_dynamics",
-              "source_clusters": [
+              "clusters": [
                 0,
                 1
               ],
@@ -916,7 +1188,7 @@
             {
               "name": "physics",
               "mechanism": "fp_atmospheric_physics",
-              "source_clusters": [
+              "clusters": [
                 2,
                 3
               ],
@@ -929,7 +1201,7 @@
             {
               "name": "diffusion",
               "mechanism": "fp_diffusion",
-              "source_clusters": [
+              "clusters": [
                 4
               ],
               "target_weight": 0.354996893500932,
@@ -939,7 +1211,29 @@
               }
             }
           ],
-          "max_unattributed_instruction_share": 0.1
+          "max_unattributed_instruction_share": 0.1,
+          "clusters": [
+            {
+              "id": 0,
+              "interval": 28017
+            },
+            {
+              "id": 1,
+              "interval": 29019
+            },
+            {
+              "id": 2,
+              "interval": 10275
+            },
+            {
+              "id": 3,
+              "interval": 2935
+            },
+            {
+              "id": 4,
+              "interval": 35737
+            }
+          ]
         }
       ]
     },
@@ -962,7 +1256,7 @@
             {
               "name": "zbuffer",
               "mechanism": "raster_zbuffer",
-              "source_clusters": [
+              "clusters": [
                 0
               ],
               "target_weight": 0.03144182515346012,
@@ -974,7 +1268,7 @@
             {
               "name": "ray_traversal",
               "mechanism": "bvh_raycast",
-              "source_clusters": [
+              "clusters": [
                 1,
                 3
               ],
@@ -987,7 +1281,7 @@
             {
               "name": "scene_update",
               "mechanism": "allocation_transform",
-              "source_clusters": [
+              "clusters": [
                 2
               ],
               "target_weight": 0.03713542970834376,
@@ -997,7 +1291,25 @@
               }
             }
           ],
-          "max_unattributed_instruction_share": 0.1
+          "max_unattributed_instruction_share": 0.1,
+          "clusters": [
+            {
+              "id": 0,
+              "interval": 6670
+            },
+            {
+              "id": 1,
+              "interval": 3427
+            },
+            {
+              "id": 2,
+              "interval": 25
+            },
+            {
+              "id": 3,
+              "interval": 10867
+            }
+          ]
         }
       ]
     },
@@ -1020,7 +1332,7 @@
             {
               "name": "dynamics",
               "mechanism": "fp_column_dynamics",
-              "source_clusters": [
+              "clusters": [
                 0,
                 1
               ],
@@ -1033,7 +1345,7 @@
             {
               "name": "radiation",
               "mechanism": "fp_transcendental_radiation",
-              "source_clusters": [
+              "clusters": [
                 2,
                 3
               ],
@@ -1046,7 +1358,7 @@
             {
               "name": "clouds",
               "mechanism": "fp_cloud_sedimentation",
-              "source_clusters": [
+              "clusters": [
                 4
               ],
               "target_weight": 0.2502878247985227,
@@ -1056,7 +1368,29 @@
               }
             }
           ],
-          "max_unattributed_instruction_share": 0.1
+          "max_unattributed_instruction_share": 0.1,
+          "clusters": [
+            {
+              "id": 0,
+              "interval": 3300
+            },
+            {
+              "id": 1,
+              "interval": 8181
+            },
+            {
+              "id": 2,
+              "interval": 2229
+            },
+            {
+              "id": 3,
+              "interval": 6440
+            },
+            {
+              "id": 4,
+              "interval": 14129
+            }
+          ]
         }
       ]
     },
@@ -1079,7 +1413,7 @@
             {
               "name": "mean_shift",
               "mechanism": "image_mean_shift",
-              "source_clusters": [
+              "clusters": [
                 0,
                 1,
                 2
@@ -1093,7 +1427,7 @@
             {
               "name": "morphology",
               "mechanism": "image_morphology",
-              "source_clusters": [
+              "clusters": [
                 3
               ],
               "target_weight": 0.45323327193996316,
@@ -1103,7 +1437,25 @@
               }
             }
           ],
-          "max_unattributed_instruction_share": 0.1
+          "max_unattributed_instruction_share": 0.1,
+          "clusters": [
+            {
+              "id": 0,
+              "interval": 23084
+            },
+            {
+              "id": 1,
+              "interval": 35557
+            },
+            {
+              "id": 2,
+              "interval": 4025
+            },
+            {
+              "id": 3,
+              "interval": 7542
+            }
+          ]
         }
       ]
     },
@@ -1126,7 +1478,7 @@
             {
               "name": "molecular_energy",
               "mechanism": "fp_molecular_energy",
-              "source_clusters": [
+              "clusters": [
                 0,
                 2,
                 3
@@ -1140,7 +1492,7 @@
             {
               "name": "nonbonded",
               "mechanism": "fp_nonbonded_pairs",
-              "source_clusters": [
+              "clusters": [
                 1
               ],
               "target_weight": 0.09645163858065543,
@@ -1150,7 +1502,25 @@
               }
             }
           ],
-          "max_unattributed_instruction_share": 0.1
+          "max_unattributed_instruction_share": 0.1,
+          "clusters": [
+            {
+              "id": 0,
+              "interval": 10171
+            },
+            {
+              "id": 1,
+              "interval": 15263
+            },
+            {
+              "id": 2,
+              "interval": 1436
+            },
+            {
+              "id": 3,
+              "interval": 6353
+            }
+          ]
         }
       ]
     },
@@ -1174,7 +1544,7 @@
             {
               "name": "electric_material",
               "mechanism": "fp_electric_material",
-              "source_clusters": [
+              "clusters": [
                 0
               ],
               "target_weight": 0.28352400000000005,
@@ -1186,7 +1556,7 @@
             {
               "name": "magnetic_update",
               "mechanism": "fp_magnetic_stencil",
-              "source_clusters": [
+              "clusters": [
                 2,
                 4
               ],
@@ -1199,7 +1569,7 @@
             {
               "name": "power_and_setup",
               "mechanism": "fp_power_setup",
-              "source_clusters": [
+              "clusters": [
                 1,
                 3
               ],
@@ -1210,7 +1580,29 @@
               }
             }
           ],
-          "max_unattributed_instruction_share": 0.1
+          "max_unattributed_instruction_share": 0.1,
+          "clusters": [
+            {
+              "id": 0,
+              "interval": 6283
+            },
+            {
+              "id": 1,
+              "interval": 1882
+            },
+            {
+              "id": 2,
+              "interval": 2107
+            },
+            {
+              "id": 3,
+              "interval": 0
+            },
+            {
+              "id": 4,
+              "interval": 14820
+            }
+          ]
         }
       ]
     },
@@ -1233,7 +1625,7 @@
             {
               "name": "barotropic",
               "mechanism": "fp_barotropic_step",
-              "source_clusters": [
+              "clusters": [
                 0
               ],
               "target_weight": 0.28416585791707105,
@@ -1245,7 +1637,7 @@
             {
               "name": "rhs_mixing",
               "mechanism": "fp_rhs_mixing",
-              "source_clusters": [
+              "clusters": [
                 1,
                 2
               ],
@@ -1258,7 +1650,7 @@
             {
               "name": "eos_flux",
               "mechanism": "fp_eos_bulk_flux",
-              "source_clusters": [
+              "clusters": [
                 3,
                 4
               ],
@@ -1269,7 +1661,29 @@
               }
             }
           ],
-          "max_unattributed_instruction_share": 0.1
+          "max_unattributed_instruction_share": 0.1,
+          "clusters": [
+            {
+              "id": 0,
+              "interval": 11575
+            },
+            {
+              "id": 1,
+              "interval": 17356
+            },
+            {
+              "id": 2,
+              "interval": 6434
+            },
+            {
+              "id": 3,
+              "interval": 1121
+            },
+            {
+              "id": 4,
+              "interval": 20094
+            }
+          ]
         }
       ]
     }

@@ -43,7 +43,45 @@ static uint64_t skip_intervals;
 static uint64_t skipped_intervals;
 static uint64_t max_intervals;
 static uint64_t dumped_intervals;
+static uint64_t map_interval;
 static bool exiting_early;
+static bool single_thread;
+static gint single_vcpu_index = -1;
+
+static void dump_map_locked(void);
+
+static inline void plugin_lock(void)
+{
+    if (!single_thread) {
+        g_mutex_lock(&lock);
+    }
+}
+
+static inline void plugin_unlock(void)
+{
+    if (!single_thread) {
+        g_mutex_unlock(&lock);
+    }
+}
+
+static void vcpu_init(qemu_plugin_id_t id, unsigned int vcpu_index)
+{
+    gint expected = -1;
+
+    (void)id;
+    if (!single_thread) {
+        return;
+    }
+    if (g_atomic_int_compare_and_exchange(
+            &single_vcpu_index, expected, (gint)vcpu_index)) {
+        return;
+    }
+    if (g_atomic_int_get(&single_vcpu_index) != (gint)vcpu_index) {
+        fprintf(stderr,
+                "simple_bbv: single_thread=1 requires exactly one vCPU\n");
+        _exit(2);
+    }
+}
 
 static void clear_counts_locked(void)
 {
@@ -106,20 +144,33 @@ static bool dump_interval_locked(void)
     fputc('\n', out);
     fflush(out);
     dumped_intervals++;
+    if (map_interval != 0 && dumped_intervals % map_interval == 0 &&
+        !append_output) {
+        dump_map_locked();
+    }
     return true;
 }
 
 static void dump_map_locked(void)
 {
     FILE *map;
+    char *temporary = NULL;
+    const char *target;
 
     if (!mapfile || !blocks) {
         return;
     }
 
-    map = fopen(mapfile, append_output ? "a" : "w");
+    if (append_output) {
+        target = mapfile;
+    } else {
+        temporary = g_strdup_printf("%s.tmp.%ld", mapfile, (long)getpid());
+        target = temporary;
+    }
+    map = fopen(target, append_output ? "a" : "w");
     if (!map) {
         perror("simple_bbv: fopen mapfile");
+        g_free(temporary);
         return;
     }
 
@@ -130,7 +181,19 @@ static void dump_map_locked(void)
                 block->id, block->pc, block->insns);
     }
 
-    fclose(map);
+    if (fclose(map) != 0) {
+        perror("simple_bbv: fclose mapfile");
+        if (temporary) {
+            unlink(temporary);
+        }
+        g_free(temporary);
+        return;
+    }
+    if (temporary && rename(temporary, mapfile) != 0) {
+        perror("simple_bbv: rename mapfile");
+        unlink(temporary);
+    }
+    g_free(temporary);
 }
 
 static void vcpu_tb_exec(unsigned int vcpu_index, void *userdata)
@@ -139,12 +202,12 @@ static void vcpu_tb_exec(unsigned int vcpu_index, void *userdata)
 
     (void)vcpu_index;
 
-    g_mutex_lock(&lock);
+    plugin_lock();
 
     refresh_pid_namespace_locked();
 
     if (exiting_early) {
-        g_mutex_unlock(&lock);
+        plugin_unlock();
         return;
     }
 
@@ -165,12 +228,12 @@ static void vcpu_tb_exec(unsigned int vcpu_index, void *userdata)
                 fclose(out);
                 out = NULL;
             }
-            g_mutex_unlock(&lock);
+            plugin_unlock();
             exit(0);
         }
     }
 
-    g_mutex_unlock(&lock);
+    plugin_unlock();
 }
 
 static void vcpu_tb_trans(qemu_plugin_id_t id, struct qemu_plugin_tb *tb)
@@ -182,7 +245,7 @@ static void vcpu_tb_trans(qemu_plugin_id_t id, struct qemu_plugin_tb *tb)
 
     (void)id;
 
-    g_mutex_lock(&lock);
+    plugin_lock();
     refresh_pid_namespace_locked();
     block = g_hash_table_lookup(pc_to_block, key);
     if (!block) {
@@ -193,7 +256,7 @@ static void vcpu_tb_trans(qemu_plugin_id_t id, struct qemu_plugin_tb *tb)
         g_hash_table_insert(pc_to_block, key, block);
         g_ptr_array_add(blocks, block);
     }
-    g_mutex_unlock(&lock);
+    plugin_unlock();
 
     qemu_plugin_register_vcpu_tb_exec_cb(tb, vcpu_tb_exec,
                                          QEMU_PLUGIN_CB_NO_REGS, block);
@@ -204,7 +267,7 @@ static void plugin_exit(qemu_plugin_id_t id, void *userdata)
     (void)id;
     (void)userdata;
 
-    g_mutex_lock(&lock);
+    plugin_lock();
     refresh_pid_namespace_locked();
     if (skipped_intervals < skip_intervals) {
         clear_counts_locked();
@@ -216,7 +279,7 @@ static void plugin_exit(qemu_plugin_id_t id, void *userdata)
         fclose(out);
         out = NULL;
     }
-    g_mutex_unlock(&lock);
+    plugin_unlock();
 }
 
 static bool parse_u64_arg(const char *arg, const char *prefix, uint64_t *value)
@@ -259,6 +322,9 @@ QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id,
         if (parse_u64_arg(argv[i], "max_intervals=", &max_intervals)) {
             continue;
         }
+        if (parse_u64_arg(argv[i], "map_interval=", &map_interval)) {
+            continue;
+        }
         if (g_str_has_prefix(argv[i], "outfile=")) {
             outfile = argv[i] + strlen("outfile=");
             continue;
@@ -273,6 +339,10 @@ QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id,
         }
         if (g_strcmp0(argv[i], "pid_namespace=1") == 0) {
             pid_namespace = true;
+            continue;
+        }
+        if (g_strcmp0(argv[i], "single_thread=1") == 0) {
+            single_thread = true;
             continue;
         }
         fprintf(stderr, "simple_bbv: unknown option '%s'\n", argv[i]);
@@ -299,6 +369,7 @@ QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id,
     pc_to_block = g_hash_table_new(g_direct_hash, g_direct_equal);
     blocks = g_ptr_array_new();
 
+    qemu_plugin_register_vcpu_init_cb(id, vcpu_init);
     qemu_plugin_register_vcpu_tb_trans_cb(id, vcpu_tb_trans);
     qemu_plugin_register_atexit_cb(id, plugin_exit, NULL);
 

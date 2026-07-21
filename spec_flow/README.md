@@ -201,19 +201,29 @@ SPEC_BENCH_SUITE=speed ./spec_flow/run_representative_batch.sh test 5 100000000
 ```
 
 To finish an interrupted full L2+ campaign, strictly re-run only incomplete
-cases, and finalize reports only after all 129 manifests pass:
+cases. After all 129 manifests pass, the no-argument form requires a clean
+worktree and generates a new 43-case quick feature set, a PERF_DETAIL-enabled
+full RTL run with embedded full features, and the final reports:
 
 ```sh
 cd /work
-./spec_flow/complete_l2plus.sh \
-  /work/smart_run/results/archive/spec2017_l2plus_rtl_full_1f451a653e1c_dirty
+./spec_flow/complete_l2plus.sh
 ```
 
 When another scheduler is still active, pass its PID and the completion driver
 will wait before acquiring the scheduler lock:
 
 ```sh
-L2PLUS_WAIT_PID=<scheduler-pid> ./spec_flow/complete_l2plus.sh <rtl-results>
+L2PLUS_WAIT_PID=<scheduler-pid> ./spec_flow/complete_l2plus.sh
+```
+
+To finalize an already completed clean full RTL run, pass the result directory
+and its matching clean quick/full feature sets explicitly:
+
+```sh
+L2PLUS_QUICK_FEATURES_DIR=<quick-features> \
+L2PLUS_FULL_FEATURES_DIR=<full-features> \
+  ./spec_flow/complete_l2plus.sh <rtl-results>
 ```
 
 Supported suite selectors:
@@ -246,6 +256,13 @@ an output directory. Use `check_l2plus_status.sh`, which validates every
 manifest and artifact, as the live source of truth. A campaign is complete
 only at strict `129/129`, followed by a successful `finalize_l2plus.sh` run and
 a zero-error `SPEC2017_L2PLUS_FINAL_VALIDATION.md`.
+
+Finalization also regenerates `SPEC2017_REPRESENTATIVE_KERNELS.md` and
+`SPEC2017_SIMPOINT_RTL_STATUS.md` from the staged ref-calibrated maps, profile
+contracts, clean quick/full feature sets, and the 43-case full RTL evidence.
+Both overview files are published in the same rollback-capable transaction as
+the maps and validation reports, so they cannot retain an older split-kernel or
+partial-matrix status after a successful finalization.
 
 For `train` and `ref`, prefer background runs plus explicit status checks. A
 single benchmark can take tens of minutes or longer under QEMU BBV
@@ -510,9 +527,9 @@ python3 spec_flow/aggregate_rtl_by_simpoint.py \
 ```
 
 The production close-out command performs the 129-manifest, complete cluster
-mapping, and RTL-kernel
-preflights, calibrates both maps atomically, writes both proxy/alignment
-reports, and runs the final strict gate:
+mapping, quick/full feature provenance, exact feature/RTL ELF, retired-boundary,
+detailed-counter, and RTL-kernel preflights. It then calibrates both maps,
+writes both proxy/alignment reports, and runs the final strict gate:
 
 ```sh
 ./spec_flow/finalize_l2plus.sh \
@@ -525,9 +542,56 @@ Inputs:
 spec_flow/spec2017_kernel_map.json        rate benchmark -> RTL kernel mapping
 spec_flow/spec2017_speed_kernel_map.json  speed benchmark -> RTL kernel mapping
 spec_runs/*/manifest.json                 SPEC/QEMU/SimPoint validation
+smart_run/kernel_features/<quick>/        clean quick features and archived ELF
+smart_run/results/<run>/program_features/ clean full features and archived ELF
 smart_run/results/<run>/*.summary         RTL cycles / retired instruction / IPC
 smart_run/results/<run>/*.perf            RTL detailed counters
+smart_run/results/<run>/*.elf             exact RTL workload ELF
+smart_run/results/<run>/simv*             exact archived VCS executable and daidir bundle
 ```
+
+Without existing evidence, use the end-to-end command below. It refuses dirty
+Git state, requires strict 129/129, selects exactly 43 distinct cases, and
+invokes `finalize_l2plus.sh` only after the quick and full runs succeed:
+
+```sh
+./spec_flow/run_l2plus_final_evidence.sh
+```
+
+The command is resumable by default (`L2PLUS_RESUME=1`). An existing quick
+feature set is reused only when all 43 cases, profiles, archived ELF hashes,
+clean Git snapshots, and the full commit match. A partial full RTL directory
+must additionally match the exact case list, `simv` SHA256, the complete
+`simv.daidir` file manifest, archived VCS compile-log SHA256, and `PERF_DETAIL`
+build state. Each RTL case is skipped only
+after its complete artifact set, unambiguous PASS, feature/RTL ELF hash,
+retired-instruction boundary, 1048 detailed rows, and absence of unknown cells
+all validate. Incomplete or invalid cases are rerun. Set `L2PLUS_RESUME=0` to
+require completely new output directories.
+
+Full RTL uses two isolated VCS workers by default
+(`L2PLUS_RTL_WORKERS=2`). Case construction remains serialized in the shared
+`smart_run/work` directory; each completed build is copied into a private
+runtime directory before VCS starts, so concurrent simulations share only the
+read-only simulator archived in the result directory. The worker count may be
+set from 1 to 8:
+
+```sh
+L2PLUS_RTL_WORKERS=4 ./spec_flow/run_l2plus_final_evidence.sh
+```
+
+Two simultaneous instances have been checked against the same quick mcf ELF:
+both produced `TEST PASS`, 25,949 Kernel cycles, and 19,708 retired
+instructions. For conservative license or host-load limits, set the count to
+1. Every result set archives the simulator it actually executes and validates
+that binary against the recorded `simv` SHA256, alongside the compile-log
+SHA256.
+
+The finalizer also requires the current clean source commit to equal the commit
+recorded by the RTL and both feature sets. Its validated maps and reports are
+published as one rollback-protected transaction. The
+`L2PLUS_ALLOW_SOURCE_MISMATCH=1` escape hatch is for diagnostics only and must
+not be used for final evidence.
 
 The maps default to `ref`. A completed mapping stores each cluster ID together
 with its representative interval. Calibration rejects missing/duplicate

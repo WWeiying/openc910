@@ -158,30 +158,12 @@ git -C "${REPO_ROOT}" diff > "${OUT_ROOT}/git.diff" || true
 
 PASS=0
 FAIL=0
-REPRESENTATIVE_ARGS=()
-if [[ "${PROFILE}" == representative ]]; then
-    REPRESENTATIVE_ARGS=(
-        COREMARK_ITERATIONS=3 KERNEL_CHARACTERIZATION=1
-        SPEC_BLENDER_REPRESENTATIVE=1 SPEC_BWAVES_REPRESENTATIVE=1
-        SPEC_CACTU_REPRESENTATIVE=1 SPEC_CAM4_REPRESENTATIVE=1
-        SPEC_DEEPSJENG_REPRESENTATIVE=1 SPEC_EXCHANGE2_REPRESENTATIVE=1
-        SPEC_FOTONIK_REPRESENTATIVE=1 SPEC_GCC_REPRESENTATIVE=1
-        SPEC_IMAGICK_REPRESENTATIVE=1 SPEC_LBM_REPRESENTATIVE=1
-        SPEC_LEELA_REPRESENTATIVE=1 SPEC_NAB_REPRESENTATIVE=1
-        SPEC_NAMD_REPRESENTATIVE=1 SPEC_OMNETPP_REPRESENTATIVE=1
-        SPEC_PERLBENCH_REPRESENTATIVE=1 SPEC_POP2_REPRESENTATIVE=1
-        SPEC_POVRAY_REPRESENTATIVE=1 SPEC_ROMS_REPRESENTATIVE=1
-        SPEC_WRF_REPRESENTATIVE=1 SPEC_X264_REPRESENTATIVE=1
-        SPEC_XALAN_REPRESENTATIVE=1 SPEC_XZ_REPRESENTATIVE=1
-    )
-fi
 for case_name in "${CASES[@]}"; do
     CASE_BUILD_ARGS=(
-        "${REPRESENTATIVE_ARGS[@]}"
         SPEC_COMPOSITE_PROFILE="${SPEC_COMPOSITE_PROFILE}"
     )
-    if [[ "${PROFILE}" == rtl && "${case_name}" == coremark ]]; then
-        CASE_BUILD_ARGS+=(KERNEL_CHARACTERIZATION=1)
+    if [[ "${PROFILE}" == representative && "${case_name}" == coremark ]]; then
+        CASE_BUILD_ARGS+=(COREMARK_ITERATIONS=3)
     fi
     case_dir="${CASE_ROOT}/${case_name}"
     mkdir -p "${case_dir}"
@@ -226,11 +208,7 @@ for case_name in "${CASES[@]}"; do
         printf 'kernel_profile=%s\n' "${SPEC_KERNEL_PROFILE}"
         printf 'composite_profile=%s\n' "${SPEC_COMPOSITE_PROFILE}"
         printf 'build_args=%s\n' "${CASE_BUILD_ARGS[*]:-none}"
-        if [[ "${PROFILE}" == rtl && "${case_name}" == coremark ]]; then
-            printf 'qemu_harness_adjustment=KERNEL_CHARACTERIZATION\n'
-        else
-            printf 'qemu_harness_adjustment=none\n'
-        fi
+        printf 'qemu_harness_adjustment=none\n'
     } > "${case_dir}/profile.info"
     ${OBJDUMP} -d -S -M no-aliases "${elf}" > "${case_dir}/${case_name}.objdump"
 

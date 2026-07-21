@@ -220,7 +220,20 @@ def validate_embedded_composition(row, manifest, tolerance=0.005):
     measured_sum = 0.0
     groups = []
     for group in kernels[0]["composition"]:
-        clusters = [int(item) for item in group.get("clusters", [])]
+        configured_clusters = group.get("clusters")
+        legacy_clusters = group.get("source_clusters")
+        if configured_clusters is not None and legacy_clusters is not None:
+            if list(configured_clusters) != list(legacy_clusters):
+                raise ValueError(
+                    f"{row['bench']}: composite group {group['name']} has "
+                    "conflicting clusters and source_clusters"
+                )
+        selections = (
+            configured_clusters
+            if configured_clusters is not None
+            else legacy_clusters or []
+        )
+        clusters = [int(item) for item in selections]
         if not clusters:
             raise ValueError(f"{row['bench']}: composite group has no clusters")
         duplicate = assigned.intersection(clusters)
@@ -238,7 +251,20 @@ def validate_embedded_composition(row, manifest, tolerance=0.005):
         assigned.update(clusters)
         derived_target = sum(cluster_weights[item] for item in clusters)
         stored_target = float(group["target_weight"])
-        measured = float(group["measured_instruction_share"])
+        measured_by_profile = group.get(
+            "measured_instruction_share_by_profile", {}
+        )
+        if "full" in measured_by_profile:
+            measured = float(measured_by_profile["full"])
+            measured_profile = "full"
+        elif "measured_instruction_share" in group:
+            measured = float(group["measured_instruction_share"])
+            measured_profile = "legacy"
+        else:
+            raise ValueError(
+                f"{row['bench']}: {group['name']} has no full-profile "
+                "measured instruction share"
+            )
         if abs(derived_target - stored_target) > 0.002:
             raise ValueError(
                 f"{row['bench']}: {group['name']} target weight is stale"
@@ -254,6 +280,7 @@ def validate_embedded_composition(row, manifest, tolerance=0.005):
             "name": group["name"],
             "target_weight": derived_target,
             "measured_instruction_share": measured,
+            "measured_profile": measured_profile,
         })
 
     missing = sorted(set(cluster_weights) - assigned)
@@ -492,6 +519,10 @@ def main():
     parser.add_argument("--spec-runs", default="spec_runs")
     parser.add_argument("--rtl-results", required=True)
     parser.add_argument("--kernel-map", default="spec_flow/spec2017_kernel_map.json")
+    parser.add_argument(
+        "--kernel-map-label",
+        help="stable path recorded in reports when the input map is staged",
+    )
     parser.add_argument("--size", default="test")
     parser.add_argument("--out-md", required=True)
     parser.add_argument("--out-json")
@@ -514,7 +545,7 @@ def main():
         "size": args.size,
         "spec_runs": args.spec_runs,
         "rtl_results": args.rtl_results,
-        "kernel_map": args.kernel_map,
+        "kernel_map": args.kernel_map_label or args.kernel_map,
         "suite_summary": suite_summary(rows),
         "benchmarks": rows,
     }

@@ -318,9 +318,10 @@ SPEED_CASE_GROUPS = {
 
 CASE_GROUPS.update(SPEED_CASE_GROUPS)
 
-# The only unfinished ref profile is explicitly provisional and uses the
-# benchmark's own train profile.  It must never fall back to a Rate profile.
-CASE_PROFILE_SIZES = {
+# A benchmark-local fallback is allowed only while its ref profile is absent.
+# As soon as ref exists, the generator switches automatically and records ref
+# provenance.  It must never fall back to the corresponding Rate benchmark.
+CASE_PROFILE_FALLBACK_SIZES = {
     "spec_638_imagick_speed_kernel": "train",
 }
 
@@ -351,6 +352,18 @@ CASE_PROFILE_TEMPLATES = {
 def profile_path(spec_runs: Path, benchmark: str, size: str = "ref") -> Path:
     stem = f"{benchmark}_{size}"
     return spec_runs / f"{stem}_c910" / f"{stem}.function_profile.csv"
+
+
+def select_profile(spec_runs: Path, case: str, benchmark: str):
+    ref = profile_path(spec_runs, benchmark, "ref")
+    if ref.is_file():
+        return ref, "ref"
+    fallback_size = CASE_PROFILE_FALLBACK_SIZES.get(case)
+    if fallback_size:
+        fallback = profile_path(spec_runs, benchmark, fallback_size)
+        if fallback.is_file():
+            return fallback, fallback_size
+    return ref, "ref"
 
 
 def load_profile(path: Path):
@@ -439,8 +452,7 @@ def build_case(
 def build(spec_runs: Path):
     cases = []
     for case, (benchmark, groups) in CASE_GROUPS.items():
-        profile_size = CASE_PROFILE_SIZES.get(case, "ref")
-        path = profile_path(spec_runs, benchmark, profile_size)
+        path, profile_size = select_profile(spec_runs, case, benchmark)
         if not path.is_file():
             raise FileNotFoundError(path)
         built = build_case(case, benchmark, groups, path, profile_size)

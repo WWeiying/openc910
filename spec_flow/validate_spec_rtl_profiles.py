@@ -72,8 +72,8 @@ def validate_case(
         retired = int(match.group(2))
 
     report = report_path.read_text(errors="replace")
-    if "TEST PASS" not in report:
-        errors.append("run_case.report does not contain TEST PASS")
+    if "TEST PASS" not in report or "TEST FAIL" in report:
+        errors.append("run_case.report is not an unambiguous TEST PASS")
 
     detail_rows = None
     unknown_cells = None

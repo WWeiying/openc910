@@ -98,6 +98,8 @@ SIM_DUMP := +define+NO_DUMP
 endif
 endif
 
+SIMV_BINARY ?= ./simv
+
 ifeq (${SIM}, vcs)
 TIMESCALE := -timescale=1ns/100fs
 ifeq (${DUMP}, on)
@@ -228,7 +230,7 @@ endif
 ifeq ($(findstring ${CASE}, ${CASE_LIST}), ${CASE})
 	@make -s buildcase CASE=${CASE}
 ifeq (${SIM}, vcs)
-	@cd ./work && ./simv -l run.vcs.log ${SIMV_POWER_OPT} $$(cat symbols.args) && \
+	@cd ./work && "${SIMV_BINARY}" -l run.vcs.log ${SIMV_POWER_OPT} $$(cat symbols.args) && \
 	  if [ -f ${CASE}.asm ]; then \
 	    ./gen_dyn_inst_trace.py pc_trace.log ${CASE}.asm || echo "WARN: dynamic instruction trace generation failed for ${CASE}"; \
 	  else \
@@ -271,7 +273,7 @@ ifeq ($(findstring ${CASE}, ${CASE_LIST}), ${CASE})
 	@make -s buildcase CASE=${CASE}
 ifeq (${SIM}, vcs)
 	@make -s compile
-	@cd ./work && ./simv -l run.vcs.log ${SIMV_POWER_OPT} $$(cat symbols.args) && \
+	@cd ./work && "${SIMV_BINARY}" -l run.vcs.log ${SIMV_POWER_OPT} $$(cat symbols.args) && \
 	  if [ -f ${CASE}.asm ]; then \
 	    ./gen_dyn_inst_trace.py pc_trace.log ${CASE}.asm || echo "WARN: dynamic instruction trace generation failed for ${CASE}"; \
 	  else \

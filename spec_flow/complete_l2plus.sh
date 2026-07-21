@@ -79,6 +79,6 @@ fi
 if [[ -n "${RTL_RESULTS}" ]]; then
   "${SCRIPT_DIR}/finalize_l2plus.sh" "${RTL_RESULTS}"
 else
-  "${SCRIPT_DIR}/finalize_l2plus.sh"
+  "${SCRIPT_DIR}/run_l2plus_final_evidence.sh"
 fi
 echo "[completion] finalized at $(date -u +%FT%TZ)"

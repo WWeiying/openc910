@@ -55,6 +55,21 @@ BBV_COUNTER="${OUT_DIR}/${BENCH}_${SIZE}.bb.counter"
 SIMPOINTS="${OUT_DIR}/${BENCH}_${SIZE}.simpoints"
 WEIGHTS="${OUT_DIR}/${BENCH}_${SIZE}.weights"
 PLUGIN_EXTRA=""
+if [[ "${BBV_SINGLE_THREAD:-0}" != "0" && "${BBV_SINGLE_THREAD:-0}" != "1" ]]; then
+  echo "ERROR: BBV_SINGLE_THREAD must be 0 or 1" >&2
+  exit 2
+fi
+if [[ "${BBV_MAP_INTERVAL:-0}" != "0" ]] &&
+   ! [[ "${BBV_MAP_INTERVAL}" =~ ^[1-9][0-9]*$ ]]; then
+  echo "ERROR: BBV_MAP_INTERVAL must be 0 or a positive integer" >&2
+  exit 2
+fi
+if [[ "${BBV_SINGLE_THREAD:-0}" == "1" ]]; then
+  PLUGIN_EXTRA="${PLUGIN_EXTRA},single_thread=1"
+fi
+if [[ "${BBV_MAP_INTERVAL:-0}" != "0" ]]; then
+  PLUGIN_EXTRA="${PLUGIN_EXTRA},map_interval=${BBV_MAP_INTERVAL}"
+fi
 if [[ -n "${BBV_SKIP_INTERVALS:-}" ]]; then
   PLUGIN_EXTRA="${PLUGIN_EXTRA},skip_intervals=${BBV_SKIP_INTERVALS}"
 fi
@@ -313,6 +328,8 @@ if ELF="$(find_benchmark_elf)"; then
     --simpoint-path "${SIMPOINT}"
     --optimize "${C910_OPT} -march=${C910_MARCH} -mabi=${C910_MABI} -mtune=${C910_MTUNE} -fcommon"
     --skip-intervals "${BBV_SKIP_INTERVALS:-0}"
+    --bbv-single-thread "${BBV_SINGLE_THREAD:-0}"
+    --bbv-map-interval "${BBV_MAP_INTERVAL:-0}"
     --out "${MANIFEST}"
   )
   if [[ -n "${BBV_MAX_INTERVALS:-}" ]]; then

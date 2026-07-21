@@ -5,6 +5,21 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 source "${REPO_ROOT}/spec_flow/env.sh"
 
+if ! "${QEMU}" --version >/dev/null 2>&1; then
+    if [[ "${QEMU_PLUGIN_TEST_CONTAINER:-0}" == 1 ]]; then
+        echo "ERROR: Xuantie QEMU is not runnable inside the test container" >&2
+        exit 1
+    fi
+    CONTAINER="${DOCKER_CONTAINER:-openc910-qemu}"
+    if ! docker inspect -f '{{.State.Running}}' "${CONTAINER}" 2>/dev/null |
+            grep -qx true; then
+        echo "ERROR: Xuantie QEMU is not runnable and ${CONTAINER} is not running" >&2
+        exit 1
+    fi
+    exec docker exec -e QEMU_PLUGIN_TEST_CONTAINER=1 "${CONTAINER}" \
+        bash -lc "cd /work/tools/qemu-plugins && ./test_simple_bbv_fork.sh"
+fi
+
 CC="${GCC_GLIBC}/bin/riscv64-unknown-linux-gnu-gcc"
 PLUGIN="${SCRIPT_DIR}/simple_bbv.so"
 TMP="$(mktemp -d)"

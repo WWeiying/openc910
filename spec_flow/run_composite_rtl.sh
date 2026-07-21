@@ -5,8 +5,10 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 SUITE=all
 MODE=joint
-TAG=spec2017_profile
+TAG=""
 PROFILE=quick
+RESUME=0
+RTL_WORKERS="${RTL_WORKERS:-1}"
 CALIBRATED_ONLY=0
 PROFILED_ONLY=0
 PROFILE_CONTRACTS="${SCRIPT_DIR}/spec_kernel_profiles.json"
@@ -17,17 +19,20 @@ Usage: ./spec_flow/run_spec_kernel_profiles.sh [options]
 
 Options:
   --suite rate|speed|all  select benchmark map, default all
-  --tag NAME              result tag, default spec2017_profile
+  --tag NAME              result tag, default spec2017_l2plus_rtl_<profile>
   --profile quick|full    short regression or large-workset profile
+  --rtl-workers N        isolated concurrent VCS cases, default 1
   --calibrated-only       select only kernels with calibrated composition
   --profiled-only         select only kernels with a quick/full contract
   --features-only         collect whole-composite dynamic features only
   --rtl-only              run whole-composite RTL only
+  --resume                resume a matching partial RTL result directory
   --list                  print selected SPEC profile cases without running
   -h, --help              show this help
 
 The default mode characterizes each complete SPEC kernel ELF and then runs the
-same case in RTL. Every benchmark map row must reference exactly one kernel.
+same build configuration in RTL. Every benchmark map row must reference exactly
+one kernel.
 The full profile implies --profiled-only. All current cases are calibrated
 multi-mechanism composites, so --calibrated-only is retained for compatibility
 and currently selects the same 43 cases.
@@ -44,6 +49,8 @@ while (($#)); do
       TAG="$2"; shift 2 ;;
     --profile)
       PROFILE="$2"; shift 2 ;;
+    --rtl-workers)
+      RTL_WORKERS="$2"; shift 2 ;;
     --calibrated-only)
       CALIBRATED_ONLY=1; shift ;;
     --profiled-only)
@@ -52,6 +59,8 @@ while (($#)); do
       MODE=features; shift ;;
     --rtl-only)
       MODE=rtl; shift ;;
+    --resume)
+      RESUME=1; shift ;;
     --list)
       MODE=list; shift ;;
     -h|--help)
@@ -81,6 +90,17 @@ esac
 if [[ "${PROFILE}" != quick && "${PROFILE}" != full ]]; then
   echo "ERROR: --profile must be quick or full" >&2
   exit 2
+fi
+if ! [[ "${RTL_WORKERS}" =~ ^[1-8]$ ]]; then
+  echo "ERROR: --rtl-workers must be an integer from 1 to 8" >&2
+  exit 2
+fi
+if [[ "${RESUME}" == 1 && "${MODE}" != rtl && "${MODE}" != joint ]]; then
+  echo "ERROR: --resume is only valid for RTL or joint mode" >&2
+  exit 2
+fi
+if [[ -z "${TAG}" ]]; then
+  TAG="spec2017_l2plus_rtl_${PROFILE}"
 fi
 if [[ "${PROFILE}" == full ]]; then
   PROFILED_ONLY=1
@@ -147,12 +167,18 @@ case "${MODE}" in
       --profile "${feature_profile}" --tag "${TAG}" "${CASES[@]}"
     ;;
   rtl)
+    RTL_ARGS=()
+    if [[ "${RESUME}" == 1 ]]; then RTL_ARGS+=(--resume-results); fi
     BENCH_CASES="${CASES[*]}" SPEC_KERNEL_PROFILE="${PROFILE}" \
-      "${REPO_ROOT}/smart_run/run_bench.sh" --profile "${PROFILE}" --tag "${TAG}"
+      "${REPO_ROOT}/smart_run/run_bench.sh" --profile "${PROFILE}" \
+      --tag "${TAG}" --rtl-workers "${RTL_WORKERS}" "${RTL_ARGS[@]}"
     ;;
   joint)
+    RTL_ARGS=()
+    if [[ "${RESUME}" == 1 ]]; then RTL_ARGS+=(--resume-results); fi
     BENCH_CASES="${CASES[*]}" SPEC_KERNEL_PROFILE="${PROFILE}" \
       "${REPO_ROOT}/smart_run/run_bench.sh" --characterize \
-      --profile "${PROFILE}" --tag "${TAG}"
+      --profile "${PROFILE}" --tag "${TAG}" \
+      --rtl-workers "${RTL_WORKERS}" "${RTL_ARGS[@]}"
     ;;
 esac
