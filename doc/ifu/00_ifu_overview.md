@@ -900,7 +900,7 @@ READY ──[ibctrl_lbuf_retire_vld]──▶ IDLE（循环体消费完毕）
 
 ### 14.3 关键特性
 
-- lbuf 激活时（`lbuf_ibctrl_lbuf_active=1`），IBUF 停止取 I-Cache
+- lbuf 激活时（`lbuf_ibctrel_lbuf_active=1`），IBUF 停止取 I-Cache
 - lbuf 自带分支预测状态（`front_br_bht_pre_result[1:0]`），维护循环内的 BHT 状态
 - lbuf 满或检测到不规则跳转时退回 IDLE，退化为普通取指
 
