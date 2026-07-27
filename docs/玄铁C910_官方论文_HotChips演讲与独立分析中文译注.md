@@ -164,6 +164,7 @@
 - 单位：阿里云平头哥事业部
 - 通讯作者邮箱：jianyi.mjy@alibaba-inc.com
 - 版权：© 2020 IEEE
+- IEEE 出版标识：978-1-7281-4661-4/20/$31.00
 - 说明：本文属于 ISCA 2020 工业赛道。
 
 ## 摘要
@@ -665,7 +666,7 @@ XT-910 的研发使作者形成以下判断：
 
 ## 参考文献
 
-以下保留原论文的编号、作者、出处和链接，并将题目译为中文。
+以下保留原论文的编号、作者、出处和链接，并将题目译为中文。参考文献 [1]、[2] 的 Arm URL 已去掉原 PDF 中 `utm_*`、`gclid` 等广告追踪查询参数，目标产品页面不变；这属于链接清理，不删除文献内容。
 
 1. ARM，《Cortex-A55 CPU》，https://www.arm.com/products/silicon-ip-cpu/cortex-a/cortex-a55 。
 2. ARM，《Cortex-A73 CPU》，https://www.arm.com/products/silicon-ip-cpu/cortex-a/cortex-a73 。
@@ -823,7 +824,7 @@ RISC-V Turbo 包含：
 - 内存管理；
 - Cache 与 TLB 操作。
 
-右侧柱状图以 Native RV 为基线，对 EEMBC、NBench 和 OpenSSL 展示 XT-910 扩展后的归一化性能。三组中 XT-910 柱均高于原生 RISC-V，提升约在 20% 左右，与 ISCA 论文图 20 的表述一致。原图未在柱顶标出精确数值，因此不从像素高度伪造额外小数。
+右侧柱状图以 Native RV 为基线，对 EEMBC、NBench 和 OpenSSL 展示 XT-910 扩展后的归一化性能。纵轴刻度为 0、0.2、0.4、0.6、0.8、1.0、1.2、1.4。三组中 XT-910 柱均高于原生 RISC-V，提升约在 20% 左右，与 ISCA 论文图 20 的表述一致。原图未在柱顶标出精确数值，因此不从像素高度伪造额外小数。
 
 ![Hot Chips 第 8 页](assets/xuantie910_papers/hotchips/slide-08.png)
 
@@ -961,11 +962,28 @@ RISC-V Turbo 包含：
 | total_insn / total_cycle / calls / address | 累计指令数 / 累计周期数 / 调用次数 / 地址 |
 | Export CSV | 导出 CSV |
 
+截图中的主要可辨认数值如下。这些数字是演示稿用于展示工具界面的示例采集结果，不是 C910 的通用 benchmark 分数：
+
+| 截图区域 | 原图数值 |
+|---|---|
+| CPU Type | XT910 |
+| Elapsed Insns | 1,624,104,894 |
+| Elapsed Cycles | 1,624,112,229 |
+| Function Rank - Accumulated Elapsed Cycles | 前六项约为 53.00%、20.61%、18.23%、7.92%、0.20%、0.01% |
+| Total Function Cycles Rank | `CK_Uart_GetChar` 52.96%、`CK_CircleBuffer_Read` 20.65%、`CK_CircleBuffer_IsE...` 18.26%、`CK_WaitForReply` 7.94%、`delay` 0.15%、其他 0.04% |
+| I-Cache | refs 0、miss 0、miss rate 0% |
+| D-Cache | refs 0、miss 0、miss rate 0% |
+| Branch Predict | refs 2787、miss 2772、miss rate 99.46% |
+| 指令计数 | ALU 1,292,768,929；load 366,323,290；store 197,756,743；branch 100,156,249；jump 65,842,817；rts 49,382,640；rte 874 |
+| Instruction Count Rank | ALU 62.38%、load 17.67%、store 9.54%、branch 4.83%、jump 3.17%、rts 2.38%、rte 0.01% |
+
+这里的 I/D Cache 全零和分支 miss rate 99.46% 很可能与演示数据源、事件配置或界面示例状态有关，不能据此推断 C910 的真实 Cache 或分支预测表现。该页要表达的是工具能显示哪些事件，而不是这些示例数值代表正常工作负载。
+
 ![Hot Chips 第 14 页](assets/xuantie910_papers/hotchips/slide-14.png)
 
 ## 第 15 页：实验结果
 
-左图为 EEMBC，右图为 NBench，均以 Cortex-A73 为 1.0 左右的归一化对照，图例为 A73 与 XT910。
+左图为 EEMBC，右图为 NBench，均以 Cortex-A73 为 1.0 左右的归一化对照，图例为 A73 与 XT910；两幅图的纵轴刻度均为 0、0.2、0.4、0.6、0.8、1.0、1.2、1.4。
 
 EEMBC 类别：
 
@@ -1054,8 +1072,18 @@ NBench 子项：
 - 发布平台：Chips and Cheese
 - 发表日期：2025 年 2 月 4 日
 - 本地归档：[HTML 原文](<Alibaba_T-HEAD's Xuantie C910 - by Chester Lam.html>)
+- 原始网页：https://chipsandcheese.com/p/alibabat-heads-xuantie-c910
 - 分析方法：公开资料阅读、开源 C910 RTL 阅读、定向微基准和 TH1520 实机测量
 - 实测平台：LicheePi 4A，TSMC 12 nm FinFET 工艺的 TH1520，4 个 C910 核，1 MB 共享 L2，核心频率 1.85 GHz，8 GB LPDDR4X-3733
+
+原文正文引用的技术链接：
+
+- OpenC910 开源仓库：https://github.com/XUANTIE-RV/openc910
+- IFU 早期译码 RTL `ct_ifu_ipdecode.v`：https://github.com/XUANTIE-RV/openc910/blob/main/C910_RTL_FACTORY/gen_rtl/ifu/rtl/ct_ifu_ipdecode.v
+- ROB RTL `ct_rtu_rob.v`：https://github.com/XUANTIE-RV/openc910/blob/main/C910_RTL_FACTORY/gen_rtl/rtu/rtl/ct_rtu_rob.v
+- 原文用于解释 bi-mode predictor 的论文链接：https://people.eecs.berkeley.edu/~kubitron/courses/cs152-S04/handouts/papers/p4-lee.pdf
+
+HTML 还包含 30 幅图片的 CDN 链接以及 Patreon、PayPal、Discord 等非技术链接。图片已保存为本地资产；非技术推广链接不影响文章技术内容，本文只在结尾说明其存在，不重复展开。
 
 这篇文章与前两篇官方材料的作用不同。官方论文给出设计目标和高层机制，Hot Chips 演示稿给出产品化表达；Chester Lam 的文章试图用微基准观察软件可见行为，再回到公开 RTL 寻找可能的结构原因。它能补充官方材料没有给出的预测器容量、调度队列规模、转发边界和实机存储延迟等细节，但测量结果会受到具体 SoC、固件、操作系统、频率和测试方法影响。
 
@@ -1169,6 +1197,29 @@ ID（Instruction Decode）级接收三路 73 位输入，由主译码器提取�
 重命名级检查架构寄存器匹配，建立指令间真依赖，并从整数或浮点物理寄存器池分配空闲寄存器；刚从退休级释放的寄存器也可直接再次分配。该级还继续补充多周期 ALU 类型、可用执行端口等控制信息。经过重命名后，一个微操作的打包宽度达到 271 位。这个位宽包括大量控制和依赖元数据，不表示每条指令都搬运 271 位有效数据。
 
 ![第三篇图 13：作者对各阶段微操作格式的 RTL 笔记](assets/xuantie910_papers/chipsandcheese/13_micro-op-format-notes.jpg)
+
+图 13 的图内字段可按下面三组理解。位号和信号名保留原图，中文解释说明其职责；原图在 `vl`、`vl_pred` 等名称后带有问号，表示作者当时仍在推测，本文不把问号消去。
+
+| 内部格式 | 原图字段 | 中文职责 |
+|---|---|---|
+| 73 位译码输入 | `opcode[31:0]` | 32 位原始指令数据 |
+| 73 位译码输入 | `expt_vld`、`expt_vec`、`high_hw_expt` | 异常有效、异常向量和高半字异常信息 |
+| 73 位译码输入 | `split_long`、`split_short` | 分别提示译码为较多微操作或两个微操作 |
+| 73 位译码输入 | `fence`、`bkpta_inst`、`bkptb_inst`、`no_spec` | 屏障、两类断点和禁止推测属性 |
+| 73 位译码输入 | `vlmul`、`vsew`、`pc`、`vl`、`vl_pred` | 向量寄存器分组、元素宽度、程序计数器，以及作者标作可能的向量长度/预测信息 |
+| 178 位译码输出 | `src0/1/2_vld`、`src0/1/2_reg`、`dst_vld`、`dst_reg` | 最多三个源和一个目的架构寄存器的有效位与编号 |
+| 178 位译码输出 | `srcv0/1/2_vld`、`srcv0/1/2_reg`、`dstv_vld`、`dstv_reg` | 向量源/目的寄存器信息 |
+| 178 位译码输出 | `inst_type`、`split`、`intmask`、`length` | 指令类型、拆分、整数掩码和指令长度等控制 |
+| 178 位译码输出 | `mov`、`fmov`、`iid_plus`、`illegal`、`dst_x0`、`mla` 等 | move/FPU move、指令标识增量、非法指令、写 x0、乘加等译码属性 |
+| 178 位译码输出 | `vmla`、`split_last`、`vlmul`、`vsew`、`pc`、`vmb`、`vl`、`vl_pred` | 向量乘加/拆分尾项和从取指侧继续传递的向量、PC 信息；原图蓝色表示沿取指级透传 |
+| 271 位重命名输出 | `preg`、`vreg`、`rel_preg` | 重命名后的标量/向量物理寄存器及待释放物理寄存器 |
+| 271 位重命名输出 | `bp_rdy`、`lsu_match`、`data`、`wb` | 旁路就绪、LSU 匹配、内联数据和写回控制 |
+| 271 位重命名输出 | `srcv*_vld`、`dstv_vreg`、`dst_rel_vreg`、`dst_ereg` | 向量源、向量目的、待释放向量寄存器和扩展目的寄存器 |
+| 271 位重命名输出 | `alu`、`load`、`store`、`staddr`、`bar`、`bar_type` | ALU、load、store、store 地址和屏障类别 |
+| 271 位重命名输出 | `lsu_pc`、`bju`、`pcall`、`pcfifo`、`mult`、`div`、`special`、`rts`、`expt` | LSU PC、分支跳转、调用、PC FIFO、乘除法、特殊操作、返回和异常属性 |
+| 271 位重命名输出 | `pipe6/7`、`vdiv`、`vmla`、`mtvr`、`mfvr`、`unit_stride` 等 | 执行管线选择和向量除法、乘加、标量/向量搬运、单位步长访存等属性 |
+
+从教学角度看，位宽从 73 增至 178，再增至 271，并不是操作数数据越来越宽，而是指令越接近后端，必须携带的控制、依赖、物理寄存器和端口选择信息越来越多。图中部分字段的精确定义仍应以对应 RTL 信号赋值为准。
 
 作者的软件微基准显示，只要代码完全位于 64 KB L1 I-Cache，C910 前端可持续达到每周期 3 条指令；当代码供给落到 L2，前端吞吐低于 1 IPC。对照的 SiFive P550 在更大代码工作集下更稳定，甚至从 L3 取代码时仍能维持约 1 IPC。该图反映的是特定代码布局与测试平台的取指吞吐，不代表通用 benchmark 的总 IPC。
 
