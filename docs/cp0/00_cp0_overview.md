@@ -115,7 +115,7 @@ CP0 没有 module 级 `parameter`，但在 `ct_cp0_iui.v`（行 386-708）和 `c
 | `pm[1:0]` | 2666-2674 | **当前特权级**（00=U,01=S,11=M），复位为 M |
 | `mpp[1:0]` / `spp` | 1616-1645 | mstatus 的上一特权级栈 |
 | `mpie/spie`、`mie_bit/sie_bit` | 1651-1709 | mstatus 的中断使能两级栈 |
-| `mepc_reg[62:0]` | 1983-1993 | 机器陷入返回 PC |
+| `mepc_reg[62:0]` | 1983-1993 | 机器陷入返回地址的架构 `EPC[63:1]`；读取 CSR 时在最低位补 0 |
 | `m_intr`、`m_vector[4:0]` | 2005-2027 | mcause（中断位 + cause 码） |
 | `mtval_data[63:0]` | 2041-2051 | 机器陷入辅助值 |
 | `mtvec_base/mode` | 1913-1933 | 机器陷入向量基址与模式 |

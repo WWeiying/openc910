@@ -72,7 +72,7 @@ pcgen → IF(ifctrl/ifdp) → IP(ipctrl/ipdp) → IB(ibctrl/ibdp) → ...
 
 ### 3.1 问题背景
 
-C910 每个周期从 I-Cache 取回一个 cache line 段，对应 8 个 16-bit half-word（H1~H8）。由于 RISC-V C 扩展（压缩指令）支持 16-bit 指令，因此指令边界可能在任意 half-word 处。核心问题是：**当前取指窗口中哪些 half-word 是合法指令的起始位置，其中哪些是分支？**
+C910 每个周期从 I-Cache 取回一个 128 位、16 字节取指块，对应 8 个 16-bit half-word（H1~H8）。一个 64 字节 cache line 包含 4 个取指块。由于 RISC-V C 扩展支持 16-bit 指令，指令边界可能在任意 half-word 处。核心问题是：**当前取指窗口中哪些 half-word 是合法指令的起始位置，其中哪些是分支？**
 
 ### 3.2 vpc_2_0_onehot：取指起始位置
 
@@ -81,7 +81,7 @@ C910 每个周期从 I-Cache 取回一个 cache line 段，对应 8 个 16-bit h
 input [7:0] ifdp_ipctrl_vpc_2_0_onehot;
 ```
 
-`vpc_2_0_onehot[7:0]` 是 VPC（Virtual PC）低三位的 one-hot 编码，表示本次取指从哪个 half-word 开始：
+`vpc_2_0_onehot[7:0]` 是内部半字地址 VPC 低三位的 one-hot 编码。内部 `vpc[2:0]` 对应架构字节地址 `[3:1]`，表示本次从 16 字节取指块的哪个 half-word 开始：
 
 | vpc[2:0] | onehot | 含义 |
 |----------|--------|------|
@@ -102,7 +102,7 @@ input [7:0] ifdp_ipctrl_vpc_bry_mask;
 这 8 位表示在当前取指起始点（由 vpc_onehot 确定）后，哪些 half-word 是**有效的指令起始位置**。例如：
 - 若取指从 H1 开始，且 H1 是 32-bit 指令的低半字，则 H2 是 H1 指令的高半字，H3 才是下一条指令起始，H1 的 bry_mask[7]=1，H2 的 bry_mask[6]=0，H3 的 bry_mask[5]=1，……
 
-bry_mask 由 ifdp 在 IF 级根据 vpc 和当前 cache line 中的 inst[1:0]（即每条指令的低两位）预先计算并存储。
+bry_mask 由 ifdp 在 IF 级根据 vpc 和当前 16 字节取指块中的 `inst[1:0]` 预先计算并存储。
 
 ### 3.4 bry0/bry1 的双 bank 设计
 
@@ -513,7 +513,7 @@ assign ipctrl_ifctrl_stall = ibctrl_ipctrl_stall ||
 
 ### 9.1 问题根源
 
-当取指地址发生 change flow 跳转时，新的 VPC 可能指向 cache line 的任意位置。如果当前 cache line 中的 bry 预解码数据（在 IF 级存入）是按照顺序取指的假设计算的，而实际 VPC 从中间开始，则预解码数据可能无法准确反映新起点后的指令边界，称为"missigned"（对齐错误）。
+当取指地址发生 change flow 跳转时，新的 VPC 可能指向 16 字节取指块中的任意半字位置。如果当前块的 bry 预解码数据是按顺序取指起点计算，而实际 VPC 从中间开始，预解码数据就可能无法准确反映新起点后的指令边界，称为 "missigned"（对齐错误）。
 
 ### 9.2 missigned_bry_vld 的计算
 
@@ -544,7 +544,7 @@ assign missigned_bry_update_vld = ip_data_vld &&
 
 ### 10.1 H0 是什么
 
-H0 是 ipdp 中维护的一个特殊寄存器，保存上一个取指周期残留的 16-bit 半字。当 VPC 落在 32-bit 指令的高半字时（即上一个 cache line 只取到了该指令的低半字），H0 就保存那个低半字。
+H0 是 ipdp 中维护的特殊寄存器，保存上一个 16 字节取指块末尾残留的 16-bit 半字。当一条 32-bit 指令跨越两个相邻取指块时，H0 保存前一块末尾的低半字，下一块的 H1 提供高半字。
 
 ```verilog
 // 行 1527
@@ -577,7 +577,7 @@ H0 所在位置（bit[7]，即最高优先级）的分支信息由 H0 本身覆�
 assign ipctrl_pcgen_h0_vld = h0_vld;
 ```
 
-`ipctrl_pcgen_h0_vld` 告知 pcgen 当前 IP 级存在 H0。pcgen 据此调整 BHT 读索引：H0 存在时，BHT 的索引应该用 H0 的 PC（前一 cache line 的 VPC+偏移），而不是当前 VPC。
+`ipctrl_pcgen_h0_vld` 告知 pcgen 当前 IP 级存在 H0。pcgen 据此调整 BHT 读索引：H0 存在时，BHT 的索引应使用前一取指块末尾半字的 PC，而不是当前块起始 VPC。
 
 ---
 
@@ -615,9 +615,9 @@ assign ipctrl_l0_btb_wait_next = (ipdp_ipctrl_h8_br
                               && ip_data_vld && !pcgen_ipctrl_cancel ...;
 ```
 
-两种情况需要等待下一 cache line：
-1. H8（最后一个 half-word）是分支指令——目标地址可能跨 cache line
-2. 当前取指窗口没有分支，且有效起始点在 H5~H8 之后（剩余空间太少，有意义的分支可能在下一 cache line）
+两种情况需要继续观察下一个 16 字节取指块：
+1. H8（最后一个 half-word）是分支指令，完整指令或后续信息可能跨取指块
+2. 当前取指窗口没有分支，且有效起始点位于 H5~H8，剩余空间较少
 
 ---
 

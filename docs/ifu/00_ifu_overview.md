@@ -175,11 +175,18 @@ cp0_ifu_btb_en        ← CP0 控制 BTB 使能
 
 ```verilog
 parameter PC_WIDTH = 40;  // 物理地址 40 位
-// 实际 PC 寄存器：if_pc[38:0]（39 位，bit[0] 硬为 0，对齐）
-// 完整虚地址：ifu_mmu_va[62:0]，63 位送 MMU
+// 内部 PC 寄存器：if_pc[38:0]，保存架构字节 PC[39:1]
+// MMU 地址总线：ifu_mmu_va[62:0]，保存架构虚拟地址 VA[63:1]
 ```
 
-**设计细节**：PC 只存低 39 位（`if_pc[38:0]`），高 24 位（`if_pc_high_spe`）单独维护，仅在 IU 跳转到高位地址时更新。其余情况通过符号扩展（bit[38] 扩展至 bit[62]）重建完整虚地址。这是**面积优化**——节省了 24 个寄存器。
+**首先要分清 RTL 位号和架构地址位号**：RISC-V C 扩展允许指令按 2 字节对齐，因此架构 PC 的 `PC[0]` 恒为 0。C910 不存这一位，内部统一采用半字地址：
+
+```text
+if_pc[38:0] = byte_pc[39:1]
+byte_pc[39:0] = {if_pc[38:0], 1'b0}
+```
+
+所以内部 `if_pc[0]` 不是恒为 0，而是架构字节 PC 的 `PC[1]`。内部 PC 加 1 代表字节地址增加 2。低 39 位之外的虚地址高 24 位由 `if_pc_high_spe` 单独维护，仅在 IU 提供特殊高位地址时使用；其余情况通过 `if_pc[38]` 符号扩展。这既省去常态下的高位寄存器翻转，也保留了 64 位虚拟地址信息。
 
 ### 3.3 PC 来源优先级（核心逻辑）
 
@@ -241,7 +248,15 @@ assign inc_pc_hi[35:0] = {if_pc[38:3]} + {35'b0, !ifctrl_pcgen_reissue_pcload};
 assign inc_pc[38:0] = {inc_pc_hi[35:0], {3{ifctrl_pcgen_reissue_pcload}} & if_pc[2:0]};
 ```
 
-C910 每次取一个 **cache line**（`if_pc[2:0]` 是 line 内偏移），`inc_pc` 让 `if_pc[38:3]` +1，每次推进 **8 字节**（对应 128 位取指窗口）。当 `reissue_pcload=1` 时低 3 位保留不变（重发当前行）。
+C910 的 I-Cache line 是 64 字节，但每次送入前端处理的是其中一个 **128 位、16 字节取指块**。`if_pc[2:0]` 对应架构字节 PC `[3:1]`，表示当前 PC 位于这个 16 字节块中的第几个半字。
+
+正常顺序取指时，RTL 对 `if_pc[38:3]` 加 1，并把低 3 位清零，等价于把架构字节 PC 推进到**下一个 16 字节边界**：
+
+```text
+next_byte_pc = ((byte_pc >> 4) + 1) << 4
+```
+
+若当前 PC 已在块首，内部表现为 `if_pc + 8`，但内部 8 个单位是 8 个半字，即 16 字节。`reissue_pcload=1` 时高位不增加且低 3 位保持，表示重发当前地址。
 
 ### 3.6 Way Predict
 
@@ -274,7 +289,7 @@ assign ifu_mmu_abort    = pcgen_ifctrl_cancel || !cp0_yy_clk_en || vector_pcgen_
 assign ifu_mmu_va_vld   = 1'b1;  // 每周期无条件发虚地址给 MMU
 ```
 
-**投机性地址翻译**：MMU 每周期都收到当前 PC 做翻译，`abort=1` 时告知 MMU 结果可丢弃，不影响页表状态。取指和翻译并行进行，节省一个周期。
+`ifu_mmu_va[62:0]` 表示架构虚拟地址 `VA[63:1]`，不是缺了一位精度的“63 位地址”；完整字节地址应写成 `{ifu_mmu_va[62:0],1'b0}`。MMU 每周期都收到当前 PC 做投机翻译，`abort=1` 时告知 MMU 结果可丢弃，不影响页表状态。取指和翻译并行进行，节省一个周期。
 
 ---
 
@@ -361,13 +376,12 @@ Data Array（88 位宽，每项含 4 路）：
 ### 5.2 Index 与 Tag 编码
 
 ```
-index[9:0] = vpc[12:3]       （cache line 地址，右移 3 位去掉字节偏移）
-tag[9:0]   = {vpc[19:13], vpc[2:0]}
-             高 7 位：行内哪条指令（粗粒度）
-             低 3 位：行内精确位置（区分同一 cache line 内多条分支）
+内部 index[9:0] = rtl_vpc[12:3] = byte_vpc[13:4]
+内部 tag[9:0]   = {rtl_vpc[19:13], rtl_vpc[2:0]}
+                  = {byte_vpc[20:14], byte_vpc[3:1]}
 ```
 
-**为什么 tag 用 `vpc[2:0]`？** 同一 cache line（相同 index）里可能有多条分支，tag 低 3 位区分是哪条触发了跳转。
+`rtl_vpc[12:3]` 以 16 字节取指块为索引粒度；`rtl_vpc[2:0]` 则精确指出分支位于该块的哪个半字位置。文档后续若直接引用 RTL 信号位号，均遵循“内部位 `n` 对应架构字节地址位 `n+1`”这一规则。
 
 ### 5.3 读取流程（两拍）
 
@@ -456,7 +470,7 @@ BHT 向 IP 级（ipdp）输出：
 bht_ipdp_pre_array_data_taken[31:0]   — taken 表的 32 位（16 个分支×2bit）
 bht_ipdp_pre_array_data_ntake[31:0]   — not-taken 表的 32 位
 bht_ipdp_sel_array_result[1:0]        — 选择表的 2-bit 计数器
-bht_ipdp_pre_offset_onehot[15:0]      — 当前 PC 在 cache line 中的位置
+bht_ipdp_pre_offset_onehot[15:0]      — 由 PC 低位与 GHR 低位哈希得到的计数器 one-hot 编号
 bht_ipdp_vghr[21:0]                   — 当前 VGHR，供 IP 级更新
 ```
 
@@ -529,13 +543,14 @@ assign ras_ipdp_data_vld = !ras_empty;
 ### 8.1 SRAM 组织
 
 ```
-I-Cache 物理 SRAM（共 5 个）：
+I-Cache 逻辑阵列（5 组）：
 
 Tag Array（1个，59 位宽）
   格式：[58:FIFO][57:29:Way1 valid+tag28][28:0:Way0 valid+tag28]
 
 Data Array0（Way0，1个，按 4-bank 分割）
-  bank0~3 各 128 位，共 512 位/行（= 1 cache line）
+  bank0~3 各 32 位，共 128 位/行（= 1 个 16 字节取指块）
+  1 条 64 字节 cache line 占 4 个连续数据行
 
 Data Array1（Way1，同 Data Array0 结构）
 
@@ -571,13 +586,17 @@ Refill 最后一包       1           真实 tag  ← 数据完整后才置有�
 
 ### 8.4 Data Array Bank 精确激活
 
-pcgen 根据当前 PC[4:2] 推断将访问哪个 bank（每个 bank 对应 cache line 的 1/4），分别发送 `chgflw_bank0~3` 信号，只唤醒目标 bank 的 ICG，**节省约 75% 的 Data Array 读功耗**。
+每个数据行由 4 个 32 位 bank 组成。对普通高优先级改流和顺序取指，4 个 bank
+全部读取；对 IP 级已知目标的预测改流，pcgen 检查内部目标
+`taken_pc[2:1]`（对应字节地址 `[3:2]`），关闭目标 32 位字之前的 bank，只读取
+从目标所在 bank 到 bank3 的有效后缀。因而实际可关闭 0～3 个 bank，节省量取决于
+目标在 16 字节取指块中的位置，并非固定 75%。
 
 ### 8.5 Predecode Array
 
 指令从总线取回时，`l1_refill` 模块**顺手做预解码**（`l1_refill_icache_if_pre_code[31:0]`），连同指令数据一起写入 Predecode Array。
 
-下次命中 Cache 时，IP 级直接读到预解码结果，无需重新解析，**节省 IP 级的解码周期**。每 32 位 precode 对应一条 cache line 中 8 个半字的类型信息。
+下次命中 Cache 时，IP 级直接读到预解码结果，无需重新解析，**节省 IP 级的解码周期**。每 32 位 precode 对应一个 16 字节取指块中 8 个半字的类型信息。
 
 ---
 
@@ -601,7 +620,9 @@ pcgen 根据当前 PC[4:2] 推断将访问哪个 bank（每个 bank 对应 cache
   [0] bry0    — 假设本 half-word 是指令起点时的边界标记
 ```
 
-**bry 位的作用**：RISC-V 支持 16 位压缩指令（RVC），一条 cache line 内指令的边界是动态的（不像 ARM 固定 4 字节）。`bry0/bry1` 预先计算两种可能的边界情况，IP 级根据实际起始对齐选用合适的 bry 值。
+**bry 位的作用**：RISC-V 支持 16 位压缩指令（RVC），一个 16 字节取指块内
+哪些半字是指令起点取决于前序指令长度。`bry0/bry1` 预先计算两种可能的边界
+情况，IP 级根据跨块 H0 状态和实际起始对齐选用合适的 bry 值。
 
 ### 9.3 分支类型检测
 
@@ -672,7 +693,7 @@ icache 读出的 way0_tag / way1_tag
 
 输出到 IP 级的关键信号：
 ```
-ifdp_ipctrl_vpc_2_0_onehot[7:0]   — 当前 PC[4:2] 的 one-hot（哪个 half-word 是起点）
+ifdp_ipctrl_vpc_2_0_onehot[7:0]   — 内部 PC[2:0]（字节 PC[3:1]）的 one-hot
 ifdp_ipctrl_vpc_bry_mask[7:0]     — 有效的分支位掩码
 ifdp_ipctrl_way0_X_hit            — Way0 各段的命中信息
 ifdp_ipctrl_way1_X_hit            — Way1 命中信息
@@ -732,7 +753,7 @@ ipdp 执行 IP 级的数据处理，是全 IFU 逻辑最密集的模块：
 将取指窗口中 8 个 half-word（H1~H8）逐个解析，每个 H 暂存：
 ```
 inst[31:0]      — 32 位指令内容
-cur_pc[38:0]    — 指令的 PC
+cur_pc[38:0]    — 指令的半字地址 PC，即架构字节 PC[39:1]
 target[38:0]    — 预测的跳转目标
 offset[20:0]    — 分支 offset（原始字段）
 con_br          — 是否条件分支
@@ -985,8 +1006,8 @@ wire cache_write_vld = (refill_cur_state == WFD4) && ipb_refill_data_vld;
 
 // 输出给 icache_if
 assign l1_refill_icache_if_inst_data = ipb_l1_refill_rdata[127:0];  // 指令数据
-assign l1_refill_icache_if_ptag      = physical_pc[35:8];            // 物理 tag
-assign l1_refill_icache_if_index     = virtual_pc[14:5];             // 写入位置
+assign l1_refill_icache_if_ptag      = physical_pc[38:11];           // 架构 PA[39:12]
+assign l1_refill_icache_if_index     = virtual_pc[38:0];             // 半字地址形式的写入地址
 ```
 
 `l1_refill_icache_if_first=1` 时写入时先清 valid；`l1_refill_icache_if_last=1` 时才置 valid（即上文 icache_if 的写入规则）。

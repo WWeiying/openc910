@@ -20,17 +20,17 @@
 
 ### 2.1 H0~H8 的含义
 
-C910 每个周期从 I-Cache 读取一段对齐的 cache line 区域，共 8 个 16-bit half-word，在 ipdp 中命名为 **H1~H8**（bit[7:0] 各对应一个 half-word，bit[7] = H1，bit[0] = H8）。
+C910 每个周期从 I-Cache 读取一个 128 位、16 字节取指块，共 8 个 16-bit half-word，在 ipdp 中命名为 **H1~H8**（bit[7:0] 各对应一个 half-word，bit[7] = H1，bit[0] = H8）。一个 64 字节 cache line 包含 4 个这样的取指块。
 
 另外，**H0** 是一个特殊的缓存寄存器：
 
 ```verilog
 // 行 5730-5731
-h0_cur_pc[35:0] <= ip_vpc[PC_WIDTH-2:3]; // H0 所属的 cache line 的 VPC 高位
+h0_cur_pc[35:0] <= ip_vpc[PC_WIDTH-2:3]; // H0 所属的 16 字节取指块号
 h0_data[15:0]   <= h8_data[15:0];        // H0 的数据就是上一次取指的 H8
 ```
 
-H0 产生的场景：VPC 指向 cache line 的最后一个 half-word（H8），而该 half-word 是一条 32-bit 指令的**低半字**（low 16 bits）。此时 H8 存入 H0，等到下一次取指时与新的 H1 拼成完整的 32-bit 指令。
+H0 产生的场景：当前 16 字节取指块的最后一个 half-word（H8）是一条 32-bit 指令的低半字。此时 H8 存入 H0，下一取指块到来后再与新的 H1 拼成完整的 32-bit 指令。
 
 ### 2.2 数据流
 
@@ -93,9 +93,9 @@ input [1:0]  ifdp_ipdp_l0_btb_way_pred;    // L0 BTB 记录的 way 预测
 ### 3.4 来自 BHT 的预测数据
 
 ```verilog
-input [31:0] bht_ipdp_pre_array_data_ntake; // BHT 读出的 not-taken 表 32 个条目
-input [31:0] bht_ipdp_pre_array_data_taken; // BHT 读出的 taken 表 32 个条目
-input [15:0] bht_ipdp_pre_offset_onehot;    // 目标条件分支在 cache line 中的位置（one-hot）
+input [31:0] bht_ipdp_pre_array_data_ntake; // not-taken 表的 16 个 2-bit 计数器
+input [31:0] bht_ipdp_pre_array_data_taken; // taken 表的 16 个 2-bit 计数器
+input [15:0] bht_ipdp_pre_offset_onehot;    // PC 低位与 GHR 哈希后的计数器 one-hot 编号
 input [1:0]  bht_ipdp_sel_array_result;     // 选择哪个数组的结果（taken 或 ntaken）
 input [21:0] bht_ipdp_vghr;                 // 当前的全局历史寄存器（VGHR）
 ```
@@ -180,7 +180,7 @@ assign inst_32[6:1] = inst_32_pre[6:1];
 
 当 `h0_vld=1` 时，H1（bit[7]）被 H0 的高半字占用，H1 本身是 32-bit 指令的**高半字**，不是新指令的起始，所以强制将 inst_32[7] 清零（表示 H1 不是一条 32-bit 新指令的起始）。
 
-H8（bit[0]）则永远按照 cache 中的实际值：如果 H8 的 low[1:0]==2'b11，说明 H8 是下一条 32-bit 指令的低半字，将会溢出到下一个 cache line，此时 `h0_vld_pre` 会被置 1，H8 的内容存入 H0。
+H8（bit[0]）始终按照 cache 中的实际值处理：如果 H8 的 `low[1:0]==2'b11`，说明 H8 是下一条 32-bit 指令的低半字，该指令跨到下一个 16 字节取指块，此时 `h0_vld_pre` 置 1，H8 内容存入 H0。
 
 ### 5.3 h0_vld_pre：判断 H0 是否应该有效
 
@@ -281,7 +281,10 @@ case(bht_ipdp_pre_offset_onehot[15:0])
 endcase
 ```
 
-BHT 一次读出 32 个 2-bit 计数器（对应同一 cache line 中最多 16 个 half-word 的两组数据），用 `pre_offset_onehot[15:0]` 定位当前条件分支在 cache line 中的位置，取出对应的 2-bit 计数器值。
+BHT 一次从 Taken 和 Not-Taken 两组各读出 16 个 2-bit 计数器。
+`pre_offset_onehot[15:0]` 由内部半字地址 PC `[6:3]`（即字节 PC `[7:4]`）
+与 GHR 低 4 位异或后生成，用它从选定的一组中取出对应的 2-bit 计数器。它表示
+哈希后的表内编号，不是分支在 cache line 中的物理位置。
 
 ```verilog
 // 行 4860-4863
@@ -629,7 +632,7 @@ assign pipe_h1_data[15:0] = (rtu_yy_xx_dbgon) ? had_ifu_ir[15:0] : ip_h1_data[15
 
 发往 ibdp 的每个 H 包括：
 - `ipdp_ibdp_hN_data[15:0]`：指令原始数据
-- `ipdp_ibdp_hN_base[2:0]`：该 H 在 cache line 中的偏移编号
+- `ipdp_ibdp_hN_base[2:0]`：该 H 在 16 字节取指块中的半字偏移编号
 - `ipdp_ibdp_hN_split0_type[2:0]`：向量指令拆分类型（short）
 - `ipdp_ibdp_hN_split1_type[2:0]`：向量指令拆分类型（long）
 - `ipdp_ibdp_hN_vlmul[1:0]`、`hN_vsew[2:0]`、`hN_vl[7:0]`：此 H 对应的 vtype
@@ -702,8 +705,8 @@ IB 级需要知道"本次取指共有多少个有效的 half-word"，以便正�
 | 寄存器名 | 位宽 | 更新时机 | 含义 |
 |---------|------|---------|------|
 | `h0_vld` | 1 | 每周期（pipe vld 时） | H0 缓存是否有效 |
-| `h0_data[15:0]` | 16 | h0_updt_clk | H0 的指令数据（上一 cache line 的 H8） |
-| `h0_cur_pc[35:0]` | 36 | h0_updt_clk | H0 所在的 cache line 的 VPC 高位 |
+| `h0_data[15:0]` | 16 | h0_updt_clk | H0 的指令数据（上一取指块的 H8） |
+| `h0_cur_pc[35:0]` | 36 | h0_updt_clk | H0 所在的 16 字节取指块号（内部半字地址 `[38:3]`） |
 | `h0_con_br` | 1 | h0_updt_clk | H0 是否是条件分支 |
 | `vlmul_reg[1:0]` | 2 | vtype_updt_vld | 当前向量寄存器分组 |
 | `vsew_reg[2:0]` | 3 | vtype_updt_vld | 当前向量元素宽度 |

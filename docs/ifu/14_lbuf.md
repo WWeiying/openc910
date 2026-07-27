@@ -584,7 +584,7 @@ assign front_pre_array_result[31:0] = (front_br_sel_array_result[1])
                                     ? pre_taken_result[31:0]
                                     : pre_ntaken_result[31:0];
 
-// 用 PC 低位 XOR VGHR（向量 GHR 低4位）作为索引，选出 2-bit 计数器
+// 用内部半字地址 PC[6:3] XOR VGHR 低4位，选出 2-bit 计数器
 always @(front_entry_cur_pc[6:3] or vghr[3:0] or front_pre_array_result)
 begin
 case(front_entry_cur_pc[6:3] ^ vghr[3:0])
@@ -595,6 +595,9 @@ endcase
 end
 assign front_br_bht_result = front_br_bht_pre_result[1]; // MSB = 预测方向
 ```
+
+这里的 `front_entry_cur_pc[6:3]` 是 RTL 半字地址位，对应架构字节地址
+`PC[7:4]`，不能直接按字节 PC 的 `[6:3]` 解读。
 
 回边（back_br）的计算方式完全对称。
 

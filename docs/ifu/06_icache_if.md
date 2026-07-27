@@ -92,10 +92,13 @@ Tag Array 每个 entry 存储**一个 cache set** 的全部元数据：
 
 **28 位 tag 从哪来？**
 
-C910 物理地址 40 位（PA[39:0]）：
-- PA[5:0]：cache line 内偏移（64 字节 cache line）
-- PA[10:6]：index，寻址 cache set
-- PA[38:11]：tag，共 28 位（`l1_refill_icache_if_ptag[27:0]`）
+C910 的架构物理字节地址是 `PA[39:0]`，但 `l1_refill` 内部的 `physical_pc[38:0]` 保存 `PA[39:1]`。因此：
+
+- 64 字节 cache line 的字节偏移是架构 PA `[5:0]`；
+- RTL `physical_pc[38:11]` 实际对应架构 PA `[39:12]`，形成 28 位 `l1_refill_icache_if_ptag`；
+- 在当前 `ICACHE_64K` 配置下，Tag Array 的 SRAM 地址取内部 VPC `[13:5]`，对应架构虚拟字节地址 `[14:6]`。
+
+这里是 VIPT 访问，物理 tag 和虚拟 set index 不是简单互斥切分同一根地址总线；阅读 RTL 时必须先把内部半字地址位号换算成架构字节地址位号。
 
 **FIFO bit 的作用：**
 
@@ -107,16 +110,23 @@ C910 I-Cache 的替换策略为简单的 2-way FIFO/伪 LRU。FIFO bit 记录当
 
 ### 2.3 Data Array 的 4-bank 结构
 
-每路的 Data Array 被分成 4 个 bank（bank0～bank3），每个 bank 128 位。4 个 bank 共同构成一个 512 位宽的读出数据路径，但在实际使用时：
+每路的 Data Array 被分成 4 个 **32 位** bank（bank0～bank3）。4 个 bank 使用
+同一个数据行地址，拼成一次 128 位、16 字节的取指块：
 
-- **顺序访问（sequential）**：通常只激活需要的 bank，其余保持关闭（`cen_b = 1`），节省功耗；
-- **换流（change flow）**：PC 跳转，根据新 PC 所在的 cache line 位置精确激活某几个 bank。
+```text
+bank0[31:0] + bank1[31:0] + bank2[31:0] + bank3[31:0]
+                         = 128 bit = 16 byte
+```
 
-每个 bank 128 位，对应 8 条 16 位半字（half-word）或 4 条 32 位指令。
+一条 64 字节 cache line 因此占用 4 个连续的数据行；Tag Array 按 64 字节行
+寻址，Data Array 则按 16 字节取指块寻址。
 
-**为什么是 128 位/bank？**
+- **顺序访问（sequential）**：激活全部 4 个 bank，一次得到完整 128 位取指块；
+- **换流（change flow）**：对 IP 级预测目标，可关闭目标位置之前的 32 位 bank，
+  只读取从目标所在 bank 到块末尾的有效后缀。
 
-IP 级（`ct_ifu_ipb`）每次处理 128 位（8 个 half-word），这与 cache line 的 bank 粒度对齐，方便 IP 级按 bank 边界进行流水处理。
+这种组织既匹配 IP 级每次处理 8 个 half-word 的 128 位窗口，也允许改流时做
+更细粒度的 SRAM 使能控制。
 
 ### 2.4 Predecode Array 的 32 位格式
 
@@ -397,7 +407,7 @@ assign ifu_icache_data_array0_bank0_cen_b = (
 
 | 条件 | bank0 | bank1 | bank2 | bank3 |
 |---|---|---|---|---|
-| refill 写 | 全部激活（写整个 cache line） | 同左 | 同左 | 同左 |
+| refill 写 | 全部激活（写当前 128 位 refill 数据拍） | 同左 | 同左 | 同左 |
 | 换流（chgflw） | `chgflw_bank0` | `chgflw_bank1` | `chgflw_bank2` | `chgflw_bank3` |
 | 顺序读（seq） | 全部激活 | 同左 | 同左 | 同左 |
 
@@ -405,7 +415,8 @@ assign ifu_icache_data_array0_bank0_cen_b = (
 
 **为什么顺序读要激活全部 4 个 bank？**
 
-顺序取指时，IP 级需要处理连续的 128 位数据，整个 cache line 都可能被访问，因此必须把所有 bank 都激活。
+顺序取指时，IP 级需要当前数据行中的完整 128 位取指块，因此必须把该行的
+4 个 32 位 bank 全部激活。这不等于一次读取整条 64 字节 cache line。
 
 ### 5.3 Way0 vs Way1 的 cen_b 差异
 

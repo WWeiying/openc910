@@ -53,7 +53,7 @@ PC-FIFO 和 trace 都受 `ct_had_ctrl` 的使能/读写脉冲驱动（`ctrl_pcfi
 |------|------|------|
 | in | `ctrl_pcfifo_wen` / `ctrl_pcfifo_ren` | 写/读使能（来自 ctrl）|
 | in | `rtu_had_xx_pcfifo_inst0/1/2_chgflow` | 三发退休各自是否改流指令，`ct_had_pcfifo.v:24,26,28` |
-| in | `rtu_had_xx_pcfifo_inst0/1/2_next_pc[38:0]` | 改流目标 PC，`:25,27,29` |
+| in | `rtu_had_xx_pcfifo_inst0/1/2_next_pc[38:0]` | 改流目标的半字地址，保存字节 PC `[39:1]`，`:25,27,29` |
 | in | `mmu_xx_mmu_en` | MMU 开（决定读出符号扩展），`:22` |
 | out | `pcfifo_regs_data[63:0]` | 读出给 regs→serial→tdo，`:44` |
 
@@ -108,6 +108,10 @@ PC-FIFO 和 PIPEFIFO 都是 **3-wide 入队**（每周期最多 3 条改流/事�
 ## 4. PC-FIFO：16 项控制流记录
 
 PC-FIFO 记录"分支/跳转改流后落到哪个 PC"，调试器读出后就能重建执行路径。难点是**一周期最多 3 条改流指令同时入队**（C910 三发退休）。
+
+输入的 `next_pc[38:0]` 省略了恒为 0 的架构 `PC[0]`。PC-FIFO 写入 40 位条目
+时执行 `{next_pc[38:0],1'b0}`，所以 FIFO 内和最终读出的低 40 位已经恢复成
+完整字节地址，不能再左移一次。
 
 ### 4.1 写入：3 条同时入队
 

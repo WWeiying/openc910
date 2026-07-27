@@ -36,7 +36,7 @@ addrgen 发现 mispred 时，顺便把正确的 target 写回 BTB，使下次执
 | 信号名 | 宽度 | 含义 |
 |--------|------|------|
 | `ibdp_addrgen_branch_valid` | 1 | IB 级本周期存在有效分支指令 |
-| `ibdp_addrgen_branch_base[38:0]` | 39 | 分支指令的基地址（PC 或 rs1，39 位物理地址去掉最低 1 位） |
+| `ibdp_addrgen_branch_base[38:0]` | 39 | 分支基地址的半字地址形式，保存架构地址 `[39:1]` |
 | `ibdp_addrgen_branch_offset[20:0]` | 21 | RISC-V 编码的分支偏移字段（含符号位，按 RISC-V 位域排列） |
 | `ibdp_addrgen_branch_result[38:0]` | 39 | IP 级预测的目标地址（由 ipdp 传入 ibdp 再透传） |
 | `ibdp_addrgen_btb_index_pc[38:0]` | 39 | 分支指令自身的 PC，用于计算 BTB index/tag |
@@ -125,7 +125,7 @@ assign branch_offset[PC_WIDTH-2:0] =
 
 **为什么是 `[20:1]` 而不是 `[20:0]`？**
 
-RISC-V 的 B 型指令偏移量单位是 2 字节（压缩指令最小单位），因此最低有效位（bit 0）恒为 0，编码时被省略。ibdp 传来的 21 位字段含义是：
+分支和跳转目标至少 2 字节对齐，传入的偏移字段保留了一个恒为 0 的字节地址 bit 0。addrgen 的基地址却采用半字单位，因此必须丢弃这个最低零位，使偏移和基地址具有相同单位：
 
 ```
 ibdp_addrgen_branch_offset[20]    = 符号位（imm[20]）
@@ -133,9 +133,9 @@ ibdp_addrgen_branch_offset[19:1]  = 有效偏移位 imm[19:1]
 ibdp_addrgen_branch_offset[0]     = 未使用（bit 0 恒为 0）
 ```
 
-符号扩展到 39 位后，结果等价于 `sign_ext(offset << 1)`，即把 20 位有效偏移左移一位补 0，使其以字节为单位。
+`ibdp_addrgen_branch_offset[20:1]` 是字节偏移除以 2 后的半字偏移。它与 `branch_base = byte_base >> 1` 相加，结果仍是半字地址；最终恢复字节目标时再在最低位补 0。这里不是把偏移左移到字节单位。
 
-**JAL/JALR 的情况**：JAL 的偏移同样 bit 0 恒为 0；JALR 的目标是 `rs1 + sign_ext(imm12)`，但 ibdp 已经把 rs1 的值作为 `branch_base` 传入，而 `branch_offset` 对应 JALR 的立即数（12 位符号扩展到 21 位后传入）。此时 `[20:1]` 的截取实际上把 JALR 的 12 位立即数右移了一位，这意味着 ibdp 在传 JALR offset 时已经预先左移了一位做了适配，或者由 base 选择逻辑统一处理——总之 ibdp 与 addrgen 之间有约定的编码格式。
+JALR 的寄存器目标检查主要在 IU/BJU 路径完成；本模块只按 IFU 上游已经形成的 `branch_base/branch_offset` 接口约定做加法，不应从这一行 RTL 推导额外的“预先左移适配”。
 
 ### 3.3 base 地址选择
 
@@ -224,9 +224,13 @@ assign branch_tag[9:0]   = {ibdp_addrgen_btb_index_pc[19:13],
                              ibdp_addrgen_btb_index_pc[2:0]};
 ```
 
-BTB 有 1024 个 entry（10 位 index），因此取 PC[12:3] 作为 index（覆盖 4KB 范围内的不同位置）。
+这里的 PC 位号属于内部半字地址：
 
-tag 由 PC[19:13]（7 位）和 PC[2:0]（3 位）拼接而成，共 10 位。PC[2:0] 表示指令在 cache line 内的字节偏移（细粒度），而 PC[12:3] 已作为 index 区分，中间的 PC[12:13] 范围则用 tag 中的高 7 位区分——这样 index 和 tag 加起来覆盖了 PC[19:0] 的全部 20 位信息（去掉 PC[1:0] 这两位总是 0 的对齐位）。
+- index `rtl_pc[12:3]` 对应架构字节 PC `[13:4]`，以 16 字节取指块为粒度，10 位模式跨度为 16 KiB；
+- tag 高 7 位 `rtl_pc[19:13]` 对应字节 PC `[20:14]`；
+- tag 低 3 位 `rtl_pc[2:0]` 对应字节 PC `[3:1]`，表示块内半字位置。
+
+三者共同覆盖字节 PC `[20:1]`。RVC 下只有架构 `PC[0]` 恒为 0，`PC[1]` 可以为 0 或 1。
 
 与 BTB 读取时的 index/tag 计算方式完全对称，保证读写能定位到同一个 entry。
 
@@ -391,4 +395,3 @@ ibdp_addrgen_branch_result[38:0] ─┘              branch_mispred
     pcload→pcgen      BTB update   L0-BTB update
     (chgflw)          (target写回) (hit entry写回)
 ```
-

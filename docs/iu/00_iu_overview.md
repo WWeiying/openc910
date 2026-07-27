@@ -169,6 +169,17 @@ IU 侧（检查结果回送 IFU，ct_iu_top.v:461-472）：
 | `iu_ifu_pcfifo_full` | PCFIFO 满，反压 IFU 不许再发分支 |
 | `iu_ifu_mispred_stall` | 误预测处理期间暂停 |
 
+这里的 PC 总线有两种编码，观察波形时不能混用：
+
+- PCFIFO 的 `cur_pc[39:0] / tar_pc[39:0]` 已经是完整的 40 位字节地址；
+- `iu_ifu_chgflw_pc[62:0]` 保存架构虚拟地址 `VA[63:1]`，完整重定向地址为
+  `{iu_ifu_chgflw_pc, 1'b0}`；
+- `iu_ifu_cur_pc[38:0]` 保存架构字节地址 `PC[39:1]`，完整地址为
+  `{iu_ifu_cur_pc, 1'b0}`。
+
+这是 RISC-V 指令至少按 2 字节对齐带来的无损压缩，并不表示这些 PC 是奇地址或
+缺少有效地址信息。
+
 这组接口与 `doc/ifu/04_bht.md`、`doc/branch_prediction.md` 第 12 节的 Verdi 观察信号
 一一对应：预测在 IFU，**验证与训练数据源在 IU 的 BJU**。
 

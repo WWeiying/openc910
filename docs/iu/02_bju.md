@@ -234,11 +234,16 @@ RTU 退休时从 PCFIFO 弹出的将是**修正后的**信息，可直接用于�
 ```verilog
 assign iu_yy_xx_cancel    = ex2_pipe2_chgflw_vld;            // 全核取消
 assign iu_ifu_chgflw_vld  = ex2_pipe2_chgflw_vld;            // IFU 重定向
-assign iu_ifu_chgflw_pc   = {tar_pc_msb[23:0], tar_pc[38:0]};// 63 位完整 VA
+assign iu_ifu_chgflw_pc   = {tar_pc_msb[23:0], tar_pc[38:0]};// 架构 VA[63:1]
 assign iu_ifu_bht_check_vld    = ex2_pipe2_conbr_vld;        // 条件分支必发（不只误预测时）
 assign iu_ifu_bht_condbr_taken = ex2_pipe2_conbr_taken;
 assign iu_ifu_chk_idx[24:0]    = ex2_pipe2_chk_idx[24:0];
 ```
+
+`iu_ifu_chgflw_pc[62:0]` 没有携带架构虚拟地址的 `VA[0]`。RISC-V 指令地址至少
+按 2 字节对齐，因此 `VA[0]` 恒为 0；IFU 使用的完整字节地址应理解为
+`{iu_ifu_chgflw_pc, 1'b0}`。同理，本模块中的 `tar_pc[38:0]` 表示低地址部分
+`VA[39:1]`，其内部最低位对应架构地址位 1，而不是架构地址位 0。
 
 注意 `bht_check_vld` 的条件是 `conbr_vld`（有效条件分支）而非 mispred——
 **BHT 是计数器，预测对了也要加强**。这组信号对应 `doc/ifu/04_bht.md` 的写口，

@@ -9,7 +9,7 @@
 `ct_ifu_ifdp` 是 C910 IFU 的 **IF 级数据通路（Data Path）**，与 `ct_ifu_ifctrl`（控制通路）构成 IF 流水级的完整实现。
 
 ifdp 的核心工作是：
-1. 接收来自 ICache 或 L1 Refill 的 128 位 cache line，将其分解为 8 个 16 位 half-word（H1~H8）
+1. 接收来自 ICache 或 L1 Refill 的 128 位、16 字节取指块，将其分解为 8 个 16 位 half-word（H1~H8）
 2. 同时对每个 half-word 提供预解码信息（precode）
 3. 进行 Tag 比较，判断 cache 是否命中（Way0/Way1）
 4. 接收 BTB（L1）和 L0 BTB 的预测信息，打拍传给 IP 级
@@ -238,7 +238,7 @@ endcase
 end
 ```
 
-`pcgen_ifdp_pc[2:0]` 是当前取指 VPC 的低 3 位（代表字节偏移除以 2，即 half-word 偏移）。one-hot 编码将这 3 位转换为 8 位掩码，指示"当前取指从 128 位 cache line 的第几个 half-word 开始"。
+`pcgen_ifdp_pc[2:0]` 是半字地址的低 3 位，对应架构字节 VPC `[3:1]`。one-hot 编码将其转换为 8 位掩码，指示当前取指从 16 字节取指块的第几个 half-word 开始。一个 64 字节 I-Cache line 包含 4 个这样的取指块。
 
 **为什么需要 one-hot？**
 
@@ -260,7 +260,7 @@ endcase
 end
 ```
 
-`vpc_bry_mask` 与 `if_vpc_2_0_onehot` 类似但用途不同：one-hot 指示"起始位置"，而 vpc_bry_mask 是一个"从起始位置到末尾的连续 1 的掩码"，用于屏蔽掉 VPC 之前的 half-word 对应的 BRY 信息（这些 half-word 属于上一次取指已经处理过的，或者是 cache line 中本次取指不需要的部分）。
+`vpc_bry_mask` 与 `if_vpc_2_0_onehot` 类似但用途不同：one-hot 指示起始位置，而 vpc_bry_mask 是从起始位置到取指块末尾的连续 1 掩码，用于屏蔽 VPC 之前、本次不应处理的 half-word。
 
 ```verilog
 // 行 1668-1671

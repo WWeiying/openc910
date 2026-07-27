@@ -73,6 +73,19 @@ IFU 内部三级流水：**PCGEN → IF → IP → IB**（IB 后进 IBUF）。�
 > 更大范围用有 1~2 拍延迟但容量大的 BTB/BHT；间接跳转和返回用专用结构。
 > 精度逐级提高，延迟逐级增加。
 
+### 2.1 本文的 PC 位号约定
+
+C910 IFU/RTU 内部多数 39 位 PC 使用半字地址：
+
+```text
+rtl_pc[38:0] = byte_pc[39:1]
+byte_pc      = {rtl_pc, 1'b0}
+```
+
+因此本文写 `rtl_vpc[n]` 时指 RTL 信号位号，它对应架构字节地址位 `byte_vpc[n+1]`。
+`iu_ifu_chgflw_pc[62:0]` 同理保存架构 VA `[63:1]`。IU PCFIFO 的 `[39:0]`
+以及 `rtu_cp0_epc[63:0]` 已经是完整字节地址，是例外。
+
 ---
 
 ## 3. 五个预测器的分工
@@ -84,7 +97,7 @@ IFU 内部三级流水：**PCGEN → IF → IP → IB**（IB 后进 IBUF）。�
 
 ### 3.2 BTB（主目标预测）
 - 1024 项 ×4 路组相联，存 `{valid, tag, target[19:0], way_pred[1:0]}`。
-- index = `vpc[12:3]`，tag = `{vpc[19:13], vpc[2:0]}`。
+- index = `rtl_vpc[12:3]` = 字节 PC `[13:4]`，tag = `{rtl_vpc[19:13], rtl_vpc[2:0]}` = `{byte_pc[20:14],byte_pc[3:1]}`。
 - 读 2 拍：PCGEN 送 index → IF 读出 → IP 做 tag 比较定命中路。
 - **Refill Buffer 延迟写**：way_pred 在 miss 时还不知道，先缓存待 2 拍后补全再写 BTB。
 
@@ -596,10 +609,10 @@ RTU 退休时做"重量"恢复（精确恢复所有预测器状态）。
 | `vghr_reg` | [21:0] | IP 持续 | **投机全局历史寄存器**。每预测一条条件分支就左移追加预测方向（bit0=最新）。错误路径下会被污染，flush 后从 `rtughr_reg` 恢复。高位是最旧历史，低位是最新。 |
 | `rtughr_reg` | [21:0] | RTU 持续 | **退休全局历史寄存器**。只在 RTU 按程序序退休条件分支时更新，始终保存精确历史。误预测时用它恢复 `vghr_reg`。 |
 | `bht_ipdp_vghr` | [21:0] | IP | 送给 ipdp 的当前 VGHR 值，用于 IP 级计算 Predict Array 读索引。 |
-| `bht_ipdp_sel_array_result` | [1:0] | IP | Select Array 输出。bit[1]=1 选 Taken 表，=0 选 Not-Taken 表；bit[0] 是该表对应的 2-bit 计数器 MSB（即方向预测值）。**这是 BHT 最终方向预测的出口。** |
-| `bht_ipdp_pre_array_data_taken` | [31:0] | IP | Taken 表读出的 32 个 2-bit 计数器打包值（16 个分支×2bit）。 |
+| `bht_ipdp_sel_array_result` | [1:0] | IP | Select Array 的 2-bit 选择计数器。bit[1]=1 选 Taken 表，=0 选 Not-Taken 表；bit[0] 是选择计数器的低位，不是最终方向。最终方向来自所选 Predict Array 计数器的 MSB。 |
+| `bht_ipdp_pre_array_data_taken` | [31:0] | IP | Taken 表读出的 16 个 2-bit 计数器打包值。 |
 | `bht_ipdp_pre_array_data_ntake` | [31:0] | IP | Not-Taken 表读出的数据，同上。 |
-| `bht_ipdp_pre_offset_onehot` | [15:0] | IP | 当前分支在 32-bit 批读结果中的 one-hot 偏移，用于提取正确的 2-bit 计数器。 |
+| `bht_ipdp_pre_offset_onehot` | [15:0] | IP | 内部 PC `[6:3]`（字节 PC `[7:4]`）与 GHR 低位哈希后的 one-hot 编号，用于从 16 个 2-bit 计数器中选择一路。 |
 | `bht_ind_btb_vghr` | [7:0] | IP | 送给 Indirect BTB 的 VGHR 低 8 位，用于计算间接跳转读索引（折叠异或）。 |
 | `bht_ind_btb_rtu_ghr` | [7:0] | RTU | 送给 Indirect BTB 的 RTUGHR 低 8 位，用于计算间接跳转写索引。 |
 
@@ -618,11 +631,11 @@ RTU 退休时做"重量"恢复（精确恢复所有预测器状态）。
 | `l0_btb_ifdp_hit` | 1 | PCGEN | **L0 BTB 命中标志**。=1 表示当前 PC 在 16 项 L0 BTB 中命中，下一拍直接用 L0 BTB 目标取指，无需等 BTB。 |
 | `l0_btb_ifdp_entry_hit` | [15:0] | PCGEN | 16 项 entry 各自的命中 one-hot 向量。哪一位为 1 表示哪个 entry 命中，可用来追踪是哪条热点分支在驱动 L0 BTB。 |
 | `l0_btb_ifctrl_chglfw_vld` | 1 | PCGEN | L0 BTB 触发改流有效。=1 且 hit=1 时，IF 级接受 L0 BTB 提供的目标。 |
-| `l0_btb_ifctrl_chgflw_pc` | [38:0] | PCGEN | L0 BTB 提供的预测跳转目标 PC。 |
+| `l0_btb_ifctrl_chgflw_pc` | [38:0] | PCGEN | L0 BTB 提供的半字地址目标；完整字节 PC 为 `{signal,1'b0}`。 |
 | `l0_btb_ifctrl_chgflw_way_pred` | [1:0] | PCGEN | 对应 BTB 的 way_pred，传递给 BTB 做 way 预测更新。 |
 | `entry0_vld` ~ `entry15_vld` | 1×16 | — | 每个 entry 的有效位。冷启动时全 0，热点分支 addrgen 更新后置 1。 |
-| `entry0_tag` ~ `entry15_tag` | [14:0]×16 | — | 各 entry 存储的 PC tag（`vpc[15:1]`），用于命中比对。 |
-| `entry0_target` ~ `entry15_target` | [19:0]×16 | — | 各 entry 存储的目标 PC 低 20 位（+高位符号扩展拼出 39 位）。 |
+| `entry0_tag` ~ `entry15_tag` | [14:0]×16 | — | 各 entry 存储内部 PC `[14:0]`，对应架构字节 PC `[15:1]`，用于命中比对。 |
+| `entry0_target` ~ `entry15_target` | [19:0]×16 | — | 各 entry 存储内部目标 `[19:0]`，对应字节 PC `[20:1]`；高位沿用当前内部 PC `[38:20]`，不是符号扩展。 |
 | `l0_btb_update_vld_bit` | 1 | IB+1 | addrgen 触发 L0 BTB 更新有效脉冲。 |
 
 **行为说明**：
@@ -638,7 +651,7 @@ RTU 退休时做"重量"恢复（精确恢复所有预测器状态）。
 | 信号名 | 位宽 | 流水级 | 功能说明 |
 |--------|------|--------|---------|
 | `btb_ifdp_way0_vld` ~ `way3_vld` | 1×4 | IF→IP | 4 路各自的有效位，读出后在 IP 做 tag 比较。 |
-| `btb_ifdp_way0_target` ~ `way3_target` | [19:0]×4 | IF→IP | 4 路各自的目标 PC 低 20 位。 |
+| `btb_ifdp_way0_target` ~ `way3_target` | [19:0]×4 | IF→IP | 4 路各自的内部目标 `[19:0]`，对应字节 PC `[20:1]`。 |
 | `btb_ifdp_way0_pred` ~ `way3_pred` | [1:0]×4 | IF→IP | 4 路的 way_pred（2 位 LRU/PLRU 替换预测），用于下次命中时直接选路。 |
 | `refill_buf_target_pc` | [19:0] | — | **Refill Buffer**：BTB miss 时暂存目标，等 2 拍 way_pred 确定后才真正写入 SRAM。 |
 | `refill_buf_way_pred` | [1:0] | — | Refill Buffer 中等待写入的 way_pred。 |
@@ -664,7 +677,7 @@ RTU 退休时做"重量"恢复（精确恢复所有预测器状态）。
 | `ibctrl_ras_pcall_vld` | 1 | IB | **call 压栈有效**。=1 表示 IB 级识别到 call 指令（JAL/JALR rd=ra），触发 RAS push。 |
 | `ibctrl_ras_preturn_vld` | 1 | IB | **ret 弹栈有效**。=1 表示 IB 级识别到 ret（JALR x0,ra,0），触发 RAS pop，用栈顶值作预测目标。 |
 | `ras_ipdp_data_vld` | 1 | IP | RAS 在 IP 级提供的目标有效。=1 表示当前 IP 处理的是 ret 且 RAS 非空，目标有效。 |
-| `ras_l0_btb_push_pc` | [38:0] | IB | push 时写入 RAS 的返回地址（call 的下一条 PC）。 |
+| `ras_l0_btb_push_pc` | [38:0] | IB | push 时写入 RAS 的半字地址返回 PC；与反汇编比较时补最低零位。 |
 | `ras_l0_btb_ras_push` | 1 | IB | push 触发信号，与 `ibctrl_ras_pcall_vld` 同步。 |
 
 **行为说明**：
@@ -702,7 +715,7 @@ RTU 退休时做"重量"恢复（精确恢复所有预测器状态）。
 | 信号名 | 位宽 | 流水级 | 功能说明 |
 |--------|------|--------|---------|
 | `ipctrl_pcgen_chgflw_pcload` | 1 | IP | **IP 级改流触发**。=1 表示 IP 级综合各预测器决策为"预测 taken"，通知 PCGEN 立即改流到 `ipctrl_pcgen_chgflw_pc`。这是分支预测改变取指流向的核心信号。 |
-| `ipctrl_pcgen_chgflw_pc` | [38:0] | IP | IP 级给出的预测跳转目标 PC（来自 BTB/RAS/Ind-BTB 之一）。 |
+| `ipctrl_pcgen_chgflw_pc` | [38:0] | IP | IP 级给出的半字地址预测目标（来自 BTB/RAS/Ind-BTB 之一）。 |
 | `ipctrl_pcgen_branch_taken` | 1 | IP | BHT 预测该条件分支为 taken（方向预测结果）。 |
 | `ipctrl_pcgen_branch_mistaken` | 1 | IP | BTB 预测的目标与 addrgen 算出的真实目标不匹配（BTB target 错误），触发目标纠正。 |
 | `ipctrl_bht_con_br_vld` | 1 | IP | 通知 BHT "IP 级有条件分支"，触发 BHT 投机更新 VGHR。 |
@@ -712,7 +725,7 @@ RTU 退休时做"重量"恢复（精确恢复所有预测器状态）。
 | `ipctrl_btb_way_pred_error` | 1 | IP | BTB way_pred 预测错误（命中但选路错误），需要更新 way_pred。 |
 | `ipctrl_ibctrl_l0_btb_hit` | 1 | IP | 本条分支已被 L0 BTB 处理（命中）的标志，IP 级看到时无需再触发改流。 |
 | `ipctrl_ibctrl_l0_btb_miss` | 1 | IP | 分支在 L0 BTB 中 miss，将在 IB+1 的 addrgen 后更新 L0 BTB。 |
-| `ipctrl_ipdp_chgflw_pc` | [38:0] | IP | 改流 PC（同 `ipctrl_pcgen_chgflw_pc`，送给 ipdp 做记录）。 |
+| `ipctrl_ipdp_chgflw_pc` | [38:0] | IP | 半字地址改流 PC（同 `ipctrl_pcgen_chgflw_pc`，送给 ipdp 做记录）。 |
 
 **行为说明**：
 - `ipctrl_pcgen_chgflw_pcload=1` 是最重要的"预测生效"信号：每次拉高说明 IP 级发出了一次跳转预测，IFU 从下一拍开始从目标地址取指。
@@ -732,7 +745,7 @@ RTU 退休时做"重量"恢复（精确恢复所有预测器状态）。
 | `bju_tarpc_cmp_fail` | 1 | EX1 | 目标 PC 比较失败原始信号（`ex1_pipe2_pc != ex1_pipe2_src0`）。`bju_jmp_mispred` 由此派生。 |
 | `ex1_pipe2_iid_oldest` | 1 | EX1 | **IID 年龄最老标志**。=1 表示 pipe2 当前执行的分支是 ROB 中程序序最老的，才有资格触发纠错改流。乱序下保证正确性的关键。 |
 | `iu_ifu_chgflw_vld` | 1 | EX2 | **BJU 纠错改流有效**。=1 说明误预测确认，IFU 收到后立即从 `iu_ifu_chgflw_pc` 重新取指。 |
-| `iu_ifu_chgflw_pc` | [62:0] | EX2 | BJU 给出的正确目标 PC（真实分支目标）。 |
+| `iu_ifu_chgflw_pc` | [62:0] | EX2 | BJU 给出的架构目标 VA `[63:1]`；完整 64 位字节地址为 `{signal,1'b0}`。 |
 | `iu_idu_mispred_stall` | 1 | EX1→清 | **IDU 误预测 stall**。误预测时拉高，直到 RTU 退休该分支（`rtu_yy_xx_flush`）才清除。期间 IDU 不接受新指令分发，防止错误路径污染后端。 |
 | `iu_ifu_mispred_stall` | 1 | EX1→清 | **IFU 误预测 stall**。与上类似但可被 `rtu_iu_flush_fe` 提前清除，让取指更早重启。 |
 | `bju_top_mispred_iid` | [6:0] | EX1 | 锁存的误预测分支 IID（ROB 入口号），供 RTU 做年龄比较（只 flush 该 IID 及以后的指令）。 |

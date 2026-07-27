@@ -675,7 +675,7 @@ assign ibctrl_pcgen_pc[PC_WIDTH-2:0] = chgflw_pc[PC_WIDTH-2:0];
 
 直接输出多路复用后的 `chgflw_pc`，优先级见第 3.2 节。
 
-`PC_WIDTH = 40`，因此总线宽度为 39 位（`[38:0]`），对应 C910 的物理地址宽度（39 位，不含最低位，因为指令地址必须对齐）。
+`PC_WIDTH = 40` 表示架构物理字节地址宽度为 40 位。该总线只保存架构地址 `[39:1]`，所以 RTL 宽度为 39 位 `[38:0]`；恢复普通字节 PC 时应在最低位补 `1'b0`。
 
 ### 7.3 ibctrl_pcgen_way_pred[1:0]（I-Cache way 预测）
 

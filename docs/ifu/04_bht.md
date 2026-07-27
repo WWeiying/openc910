@@ -83,6 +83,11 @@ Bi-Mode 有三个表：
 
 简言之：**只有当 Select Array 和实际结果"意见相反"时，才更新 Select Array**。这个规则在 RTL 的 `sel_array_check_updt_vld` 信号中体现（详见第 8 节）。
 
+**本文的 PC 位号约定**：BHT 接收的 `[38:0]` PC 是半字地址，RTL
+`rtl_vpc[38:0]` 保存架构字节地址 `byte_vpc[39:1]`。因此 RTL 位
+`rtl_vpc[n]` 对应字节地址位 `byte_vpc[n+1]`；与反汇编地址比较时应使用
+`{rtl_vpc, 1'b0}`。
+
 ---
 
 ## 2. 物理结构总览
@@ -103,7 +108,7 @@ Bi-Mode 有三个表：
 | 属性 | 说明 |
 |------|------|
 | 深度 | 1K 项（10-bit 索引） |
-| 位宽 | 64 bit（每项存 32 个 2-bit 计数器对） |
+| 位宽 | 64 bit（16 个 Taken 计数器 + 16 个 Not-Taken 计数器，每个 2 bit） |
 | 逻辑组成 | Taken 表 32-bit + Not-Taken 表 32-bit，合并在同一个 SRAM |
 | 总容量 | 1024 × 64 = 65536 bit = **64 Kbit** |
 
@@ -122,17 +127,22 @@ assign bht_pre_ntaken_data[31:0] = {bht_pre_data_out[63:62],
                                     bht_pre_data_out[ 3: 2]};   // 奇数对 bit[3:2]
 ```
 
-每 4 bit 中，低 2 bit 是一个 Taken 计数器，高 2 bit 是一个 Not-Taken 计数器，交错存储。这样一次 SRAM 读操作可以同时拿到 32 个 Taken 和 32 个 Not-Taken 计数器，覆盖当前 cache line 里所有可能的分支位置。
+每 4 bit 中，低 2 bit 是一个 Taken 计数器，高 2 bit 是一个 Not-Taken
+计数器，交错存储。一次 SRAM 读操作同时得到 **16 个 Taken 和 16 个
+Not-Taken 计数器**；随后由 PC 低位与 GHR 低位的哈希结果选择其中一路。
 
 ### 2.2 Select Array（选择表）
 
 | 属性 | 说明 |
 |------|------|
-| 深度 | 128 项（7-bit 索引，对应 vpc[12:6]） |
+| 深度 | 128 项（7-bit 索引，对应内部 `rtl_vpc[12:6]`，即字节 PC `[13:7]`） |
 | 位宽 | 16 bit（8 个 2-bit 计数器） |
 | 总容量 | 128 × 16 = 2048 bit = **2 Kbit** |
 
-每项 16 bit 存储 8 个 2-bit 计数器，对应一个 64-byte cache line 中 8 个可能的条件分支位置（间隔 8 byte）。
+每项 16 bit 存储 8 个 2-bit 选择计数器。行索引使用内部
+`rtl_vpc[12:6]`，行内选择使用 `rtl_vpc[5:3]`；二者合起来就是
+`rtl_vpc[12:3]`，对应字节 PC `[13:4]`，所以每个计数器覆盖一个
+16 字节取指块。一个块中若有多条条件分支，它们共享该选择计数器。
 
 ### 2.3 总容量
 
@@ -349,19 +359,27 @@ else if(bht_sel_array_rd)
   bht_sel_array_index[6:0] = pcgen_bht_pcindex[9:3];
 ```
 
-Select Array 用虚拟 PC 的 `vpc[12:6]`（即 `pcgen_bht_pcindex[9:3]`，7 bit）索引，共 128 项。这里直接用 PC 而不用 GHR 哈希，原因是 Select Array 的作用是标识"这条指令本身的偏置倾向"，而不是"历史下的计数"——分支的偏置属性在大多数程序中基本稳定，与历史无关。
+Select Array 用内部虚拟 PC 的 `rtl_vpc[12:6]`（即
+`pcgen_bht_pcindex[9:3]`，对应字节 PC `[13:7]`）索引，共 128 项。这里直接
+用 PC 而不用 GHR 哈希，原因是 Select Array 的作用是记录该 PC 区域的偏置
+倾向，而不是记录特定历史下的预测状态。
 
-`pcgen_bht_pcindex[9:0]` 来自 `pcgen` 阶段，对应 `vpc[12:3]`（以 8-byte 对齐的粒度）。低 3 位 `[2:0]`（即 `vpc[5:3]`）在读出后进一步用于从 16-bit 数据中选择对应的 2-bit 计数器。
+`pcgen_bht_pcindex[9:0]` 来自 `pcgen` 阶段，对应内部
+`rtl_vpc[12:3]`，也就是字节 PC `[13:4]`，粒度为 16 字节。其高 7 位
+`[9:3]` 选择 SRAM 行，低 3 位 `[2:0]`（内部 `rtl_vpc[5:3]`，即字节
+PC `[6:4]`）在读出后从 16-bit 数据中选择一个 2-bit 计数器。
 
 ### 5.2 数据组织
 
-每个 Select Array 表项 16 bit，对应 8 个 2-bit 计数器，编号 0～7，分别对应 `vpc[5:3] = 000`～`111`（即 cache line 内 8 个 8-byte 对齐位置）。
+每个 Select Array 表项 16 bit，对应 8 个 2-bit 计数器，编号 0～7，分别
+对应内部 `rtl_vpc[5:3] = 000`～`111`，也就是一个 128 字节地址区域内的
+8 个 16 字节取指块。
 
 ```
-bit[1:0]  → 对应 vpc[5:3]=000 的分支的 Select 计数器
-bit[3:2]  → 对应 vpc[5:3]=001
+bit[1:0]  → 对应 rtl_vpc[5:3]=000 的取指块的 Select 计数器
+bit[3:2]  → 对应 rtl_vpc[5:3]=001
 ...
-bit[15:14] → 对应 vpc[5:3]=111
+bit[15:14] → 对应 rtl_vpc[5:3]=111
 ```
 
 ### 5.3 if_pc_onehot 的作用
@@ -379,7 +397,9 @@ endcase
 end
 ```
 
-`if_pc_onehot` 是 `pcgen_bht_ifpc[5:3]`（即 `vpc[5:3]`）的 one-hot 展开，作为选通信号，从 16-bit Select Array 读出值中选出对应的 2-bit 计数器：
+`if_pc_onehot` 是 `pcgen_bht_ifpc[5:3]`（即内部 `rtl_vpc[5:3]`、字节
+PC `[6:4]`）的 one-hot 展开，作为选通信号，从 16-bit Select Array 读出值中
+选出对应的 2-bit 计数器：
 
 ```verilog
 // 行 744-751
@@ -545,13 +565,18 @@ assign pre_offset_if_0[3:0] = pcgen_bht_ifpc[6:3] ^ pre_vghr_offset_0[3:0];
 assign pre_offset_if_1[3:0] = pcgen_bht_ifpc[6:3] ^ pre_vghr_offset_1[3:0];
 ```
 
-Predict Array 每个表项存了 32 个 2-bit 计数器（对应 cache line 内 16 个位置 × taken/ntaken 各一套）。要从这 32 个中选出当前分支对应的那个，需要计算"偏移量"：
+Predict Array 每个表项存 32 个 2-bit 计数器，即 Taken 和 Not-Taken 两组各
+16 个。要从选定的一组中选出当前分支对应的计数器，需要计算 4 位哈希偏移：
 
 ```
-pre_offset = vpc[6:3] ^ vghr[3:0]
+pre_offset = rtl_vpc[6:3] ^ vghr[3:0]
+           = byte_vpc[7:4] ^ vghr[3:0]
 ```
 
-这里将 PC 的 `[6:3]`（4 bit）与 GHR 的低 4 位异或，得到 0～15 的偏移，再转为 16-bit one-hot。设计上使用 vpc 低位与 GHR 低位做额外的哈希，是为了进一步减少同一 Predict Array 表项内不同分支的别名冲突。
+这里将内部 PC `[6:3]`（即字节 PC `[7:4]`）与 GHR 的低 4 位异或，得到
+0～15 的偏移，再转为 16-bit one-hot。该 one-hot 是**哈希后的计数器编号**，
+不是分支在 cache line 中的物理位置；引入 PC 低位是为了减少同一 Predict Array
+行内的别名冲突。
 
 有 4 套 pre_offset（ip_0 / ip_1 / if_0 / if_1）：
 
@@ -639,7 +664,7 @@ assign entry_updt_data[36:0] = {
   bju_sel_rst[1:0],           // [35:34] Select Array 旧读出值
   bju_pred_rst[1:0],          // [33:32] Predict Array 旧读出值
   bju_ghr[21:0],              // [31:10] 分支发生时的 GHR 快照
-  iu_ifu_cur_pc[12:3]         // [9:0]   分支指令 PC 低 10 位
+  iu_ifu_cur_pc[12:3]         // [9:0]   内部 PC[12:3]，即字节 PC[13:4]
 };
 ```
 
@@ -940,8 +965,8 @@ BHT 为 lbuf 提供专门的输出接口（`bht_lbuf_*`），将 Predict Array �
 | `ipctrl_bht_con_br_taken` | 1 | ipctrl | IP 级分支的预测方向（当前预测） |
 | `ipctrl_bht_more_br` | 1 | ipctrl | IP 级有多于一条分支 |
 | `ipctrl_bht_vld` | 1 | ipctrl | IP 级有效 |
-| `pcgen_bht_pcindex[9:0]` | 10 | pcgen | vpc[12:3]，用于 Sel Array 索引 |
-| `pcgen_bht_ifpc[6:0]` | 7 | pcgen | vpc[9:3]，用于 if_pc_onehot |
+| `pcgen_bht_pcindex[9:0]` | 10 | pcgen | 内部 `rtl_vpc[12:3]`，即字节 PC `[13:4]`，用于 Sel Array 行和行内选择 |
+| `pcgen_bht_ifpc[6:0]` | 7 | pcgen | 内部 `rtl_vpc[6:0]`，即字节 PC `[7:1]`；其中 `[5:3]` 用于 `if_pc_onehot` |
 | `pcgen_bht_seq_read` | 1 | pcgen | 顺序取指，触发 Sel Array 读 |
 | `pcgen_bht_chgflw` | 1 | pcgen | 跳转取指，触发 Sel Array 读 |
 | `lbuf_bht_active_state` | 1 | lbuf | Loop Buffer 激活 |

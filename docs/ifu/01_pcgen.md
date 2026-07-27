@@ -77,7 +77,7 @@ C910 IFU 流水线分为三级：
 | `vector_pcgen_reset_on` | input | 1 | 异常向量模块 | 复位处理中标志 |
 | `rtu_ifu_chgflw_pc[38:0]` | input | 39 | RTU（退休单元） | 精确异常恢复 PC |
 | `rtu_ifu_chgflw_vld` | input | 1 | RTU | 精确异常控制流变更有效 |
-| `iu_ifu_chgflw_pc[62:0]` | input | 63 | IU（整数执行单元） | 分支预测失误恢复 PC（64位完整虚地址） |
+| `iu_ifu_chgflw_pc[62:0]` | input | 63 | IU（整数执行单元） | 分支预测失误恢复地址，保存架构 VA `[63:1]` |
 | `iu_ifu_chgflw_vld` | input | 1 | IU | IU 控制流变更有效 |
 | `addrgen_pcgen_pc[38:0]` | input | 39 | addrgen（地址生成） | L1 ICache refill 完成后重取 PC |
 | `addrgen_pcgen_pcload` | input | 1 | addrgen | addrgen PC 加载使能 |
@@ -93,7 +93,7 @@ C910 IFU 流水线分为三级：
 | `ifctrl_pcgen_reissue_pcload` | input | 1 | IF 控制 | IF 级重发有效 |
 | `ifctrl_pcgen_chgflw_no_stall_mask` | input | 1 | IF 控制 | IF 级 chgflw（排除 stall 遮蔽后） |
 
-注意 `iu_ifu_chgflw_pc` 是 63 位宽，而其他 PC 仅 39 位。这是因为 IU 执行时知道完整的 64 位虚地址（[62:0]，bit0 恒为 0），而 IFU 内部其他来源的 PC 已经是经过符号扩展处理的 39 位地址，高位用 bit[38] 符号扩展即可重建 64 位地址。
+注意 `iu_ifu_chgflw_pc` 是 63 位宽，而其他 PC 仅 39 位。两者都省略了架构地址中恒为 0 的最低位：`iu_ifu_chgflw_pc[62:0]` 对应架构 VA `[63:1]`，普通 `[38:0]` PC 对应架构地址 `[39:1]`。恢复字节地址时必须在右侧补 `1'b0`。
 
 ### 2.3 stall 与流水线控制端口
 
@@ -117,7 +117,7 @@ C910 IFU 流水线分为三级：
 | `ipctrl_pcgen_inner_way_pred[1:0]` | input | IP 级顺序取指的 way predict（来自 BTB 查询结果） |
 | `ipctrl_pcgen_inner_way0` | input | IP 级顺序取指 way0 命中标志 |
 | `ipctrl_pcgen_inner_way1` | input | IP 级顺序取指 way1 命中标志 |
-| `ipctrl_pcgen_h0_vld` | input | 当前 cache line 的 h0（第一个半字）有效（影响 BHT index 计算） |
+| `ipctrl_pcgen_h0_vld` | input | 存在跨越相邻 16 字节取指块的 H0 残留半字（影响 BHT index 计算） |
 
 ### 2.5 分支信息输入
 
@@ -167,9 +167,9 @@ C910 IFU 流水线分为三级：
 parameter PC_WIDTH = 40;
 ```
 
-`PC_WIDTH = 40` 意味着 PC 寄存器 `if_pc` 宽度为 40 位，但由于 RISC-V 指令地址必须 2 字节对齐（即最低位恒为 0），实际使用 `[PC_WIDTH-2:0]` 即 `[38:0]`，共 39 位有效地址位（代表 40 位物理地址空间）。
+`PC_WIDTH = 40` 表示架构物理字节地址宽度为 40 位。由于 RISC-V C 扩展下指令至少按 2 字节对齐，架构 `PC[0]` 恒为 0，RTL 只保存 `PC[39:1]`，因此 `if_pc` 的信号位宽是 39 位 `[38:0]`。
 
-这一设计让地址空间达到 2^39 = 512 GB 的物理寻址范围。所有内部 PC 信号均为 39 位（`[38:0]`），最低位（bit 0）隐式为 0。
+这 39 个存储位加上隐含的架构 `PC[0]=0`，仍覆盖完整的 `2^40` 字节，即 1 TiB 物理地址空间。要特别注意：RTL 的 `if_pc[0]` 对应架构 `PC[1]`，它并不恒为 0。
 
 ### 3.2 关键寄存器一览
 
@@ -205,7 +205,7 @@ CPU 在任何一拍都可能有多个"希望改变 PC"的请求同时到来。�
 
 ### 4.2 主 MUX（ifpc_chgflw_pre）
 
-这是更新 `if_pc` 寄存器时使用的 MUX，覆盖完整的 39 位地址：
+这是更新 `if_pc` 寄存器时使用的 MUX，覆盖完整的 39 位内部半字地址，即架构字节地址 `[39:1]`：
 
 ```verilog
 // 第 406-428 行
@@ -244,7 +244,7 @@ else // ifctrl_pcgen_reissue_pcload
 | 7 | `ipctrl_pcgen_reissue_pcload` | IP 级（预译码/分支预测级）检测到需要重发（re-issue）的情况，例如 BTB 访问后发现预测有误需要重新取 | 重发（reissue）是已发现当前取指不合适，必须纠正，但优先级低于 IB 级的更"确定"的控制流变更 |
 | 8 | `ipctrl_pcgen_chgflw_pcload` | IP 级 BTB 命中预测到分支跳转，提前改变控制流（投机跳转） | 纯粹的预测跳转，优先级低于重发，因为重发代表检测到错误，而预测跳转只是"可能正确" |
 | 9 | `ifctrl_pcgen_chgflw_no_stall_mask` | IF 级 L0 BTB 命中，触发小范围的控制流变更（且当前没有 stall 遮蔽） | 最低层的预测机制，仅在没有任何更高优先级事件时才生效 |
-| 10（最低）| 默认（`if_pc` 保持，使用 `inc_pc`） | 顺序执行，PC 按 cache line 宽度递增 | 无任何控制流变更事件时的默认行为 |
+| 10（最低）| 默认（使用 `inc_pc`） | 顺序执行，PC 推进到下一个 16 字节边界 | 无任何控制流变更事件时的默认行为 |
 
 ### 4.4 pc_bus MUX（用于索引 BTB/BHT/ICache）
 
@@ -285,7 +285,7 @@ begin
   else if(pcgen_chgflw)
     if_pc[38:0] <= ifpc_chgflw_pre;   // 控制流变更：跳到新 PC
   else if(!ifctrl_pcgen_stall)
-    if_pc[38:0] <= inc_pc[38:0];      // 正常推进：PC += cache line 宽度
+    if_pc[38:0] <= inc_pc[38:0];      // 正常推进：到下一个 16 字节边界
   else
     if_pc[38:0] <= if_pc[38:0];       // stall：保持当前 PC
 end
@@ -333,12 +333,11 @@ assign pcgen_chgflw = had_ifu_pcload ||
 
 ### 6.1 为什么不是简单的 +4
 
-在普通的 RISC 处理器中，PC 每次递增 4（一条 32 位指令）。但 C910 的 pcgen 每次取指并不是取一条指令，而是取一整个 **cache line 对齐块**。以 ICache 的物理组织为例：
+在普通的标量描述中，32 位指令的顺序 PC 常写作 `PC+4`。C910 前端一次处理 128 位，即 16 字节取指块；一个 64 字节 I-Cache line 包含 4 个这样的块。内部 `if_pc` 采用半字地址，因此：
 
-- ICache 每次取 64 字节（一个 cache line）
-- 但 pcgen 的取指粒度是 **8 字节（一个 cache way 的最小寻址单元，即 3 位偏移对应 8 bytes）**
-
-因此 inc_pc 的设计是：每次 PC 推进 **8 字节**（即 `if_pc[2:0]` 固定为 0，`if_pc[5:3]` 在 0~3 之间滚动，也就是每拍推进到下一个 8B 对齐块）。
+- `if_pc[2:0]` 对应架构字节 PC `[3:1]`，表示 16 字节块内的 8 个半字位置；
+- `if_pc[4:3]` 对应架构字节 PC `[5:4]`，表示 64 字节 cache line 内的 4 个取指块；
+- 顺序推进应到达下一个 16 字节边界，而不是下一个 8 字节地址。
 
 ### 6.2 inc_pc 的实现
 
@@ -352,9 +351,9 @@ assign inc_pc[38:0] = {
 ```
 
 **正常推进（`ifctrl_pcgen_reissue_pcload == 0`）**：
-- `inc_pc_hi = if_pc[38:3] + 1`，即高 36 位加 1（等效于 if_pc 加 8）
+- `inc_pc_hi = if_pc[38:3] + 1`，即 16 字节块号加 1
 - 低 3 位 `{3{0}} & if_pc[2:0] = 3'b000`，始终为 0
-- 结果：**inc_pc = if_pc + 8**（下一个 8B 对齐地址）
+- 结果：架构字节 PC 前进到**下一个 16 字节边界**。仅当当前 PC 已位于块首时，内部数值才等于 `if_pc + 8`
 
 **reissue（`ifctrl_pcgen_reissue_pcload == 1`）**：
 - `inc_pc_hi = if_pc[38:3] + 0`，高位保持不变
@@ -363,7 +362,7 @@ assign inc_pc[38:0] = {
 
 这个设计优雅地用一个条件信号控制了两种行为，避免了额外的 MUX 层。
 
-**体系结构原理**：IFU 每拍都向 ICache 发出一个 8B 对齐的取指请求，通过 `seq_tag_req`（仅在 `pc_bus[4:3] == 2'b00` 时有效，即每 4 个 8B 块的第一个才发 tag 请求）来控制 cache 行内的顺序访问。这允许 IFU 在一个 cache line 内连续取 4 个 8B 块（地址 +0/+8/+16/+24），只需第一次做 tag 比较，大幅降低了 ICache 的功耗。
+**体系结构原理**：IFU 每拍处理一个 16 字节取指块。`seq_tag_req` 仅在内部 `pc_bus[4:3] == 2'b00` 时有效；这两位对应字节地址 `[5:4]`，所以条件表示到达 64 字节 cache line 的第一个取指块。一个 line 内依次处理地址 `+0/+16/+32/+48` 四个块，tag 只需在行首顺序请求时重新读取，从而降低 I-Cache 功耗。
 
 ---
 
@@ -371,15 +370,19 @@ assign inc_pc[38:0] = {
 
 ### 7.1 问题背景：39 位 PC 与 64 位虚地址
 
-C910 是支持 64 位虚地址的处理器（RV64GC）。完整的虚地址是 63 位（[62:0]，最低位为 0）。然而 IFU 内部大多数 PC 信号仅有 39 位（[38:0]），通过 bit[38] 的符号扩展可以重建 64 位地址：
+C910 支持 64 位架构虚拟地址。IFU/MMU 接口省略恒为 0 的架构 `VA[0]`：总线 `[62:0]` 保存架构 VA `[63:1]`。IFU 内部大多数 PC 信号 `[38:0]` 则保存架构 VA `[39:1]`，通常通过内部 `if_pc[38]` 向高位符号扩展：
 
 ```
-VA[62:0] = { {24{if_pc[38]}}, if_pc[38:0] }
+ifu_mmu_va[62:0] = { {24{if_pc[38]}}, if_pc[38:0] }  // 架构 VA[63:1]
+byte_va[63:0]     = { ifu_mmu_va[62:0], 1'b0 }
 ```
 
 这种设计适用于**内核空间**（高地址，bit[38]=1，扩展成全 1）和**低用户空间**（bit[38]=0，扩展成全 0）。在典型操作系统使用场景下，这两种情况覆盖了几乎所有正常的取指地址。
 
-但有一个例外：**IU 分支预测失误恢复**时，IU 给出的是完整的 64 位目标地址 `iu_ifu_chgflw_pc[62:0]`。这个地址可能是一个任意的 64 位值，高 24 位 `[62:39]` 不一定等于 bit[38] 的符号扩展。例如，跳转目标可能是某个非规范地址或特殊映射区域。
+但有一个例外：**IU 分支预测失误恢复**时，IU 在
+`iu_ifu_chgflw_pc[62:0]` 上给出架构 VA `[63:1]` 的全部 63 位。其总线高
+24 位 `[62:39]`，即架构 VA `[63:40]`，不一定等于内部 `if_pc[38]` 的符号扩展；
+完整字节地址仍需在最低位补 0。
 
 ### 7.2 if_pc_high_spe 寄存器的作用
 
@@ -430,7 +433,7 @@ end
 
 只有 **stall** 时才保持 `if_pc_high_spe` 不变，因为 stall 期间 PC 不推进，`if_pc` 保持 IU 给出的那个地址不变，高 24 位依然需要保留。
 
-### 7.4 如何重建完整 64 位虚地址
+### 7.4 如何重建 MMU 地址与完整字节地址
 
 这一重建逻辑在 MMU 接口处：
 
@@ -442,7 +445,7 @@ assign ifu_mmu_va_high[23:0] = (if_pc_high_spe_vld)
 assign ifu_mmu_va[62:0] = {ifu_mmu_va_high[23:0], if_pc[38:0]};
 ```
 
-**设计精髓**：绝大多数情况下，高 24 位只是 bit[38] 的符号扩展（无需额外存储），只有 IU 控制流变更后紧接着的若干拍可能需要非符号扩展的高位。使用一个 1 bit 的 valid 标志 + 24 bit 的数据寄存器，在极少数情况下保存完整信息，而通常情况下只占用这 25 个触发器，大大节省了面积。
+这里得到的是架构 VA `[63:1]`。若调试或分析需要普通字节地址，还应计算 `{ifu_mmu_va[62:0],1'b0}`。绝大多数情况下，高 24 位只是 `if_pc[38]` 的符号扩展；只有 IU 控制流变更后的特殊地址需要额外保存高位。
 
 ---
 
@@ -489,7 +492,7 @@ else                        // 4. 正常顺序推进
 
 **级别 2：stall 时保持**。stall 说明 IF 级没有在推进，下一拍还是同一个地址，way predict 也应保持。注意这里还检查了 `ifctrl_pcgen_stall_flop`（stall 打拍），这是因为 stall 解除后的第一拍，IF 可能仍在处理同一地址。
 
-**级别 3：chgflw 后第一拍（chgflw_flop）且处于 cache line 内部**。`pcgen_chgflw_flop` 表示上一拍发生了 chgflw，这一拍是 chgflw 的"第一个目标地址"。如果目标地址不在新 cache line 的首部（`inc_pc[4:3] != 2'b00`），那么 way predict 应来自 chgflw 时保存的 `chgflw_way_pred_flop`。
+**级别 3：chgflw 后第一拍（chgflw_flop）且处于 cache line 内部**。内部 `inc_pc[4:3]` 对应架构字节地址 `[5:4]`。如果目标不在新 64 字节 cache line 的首个 16 字节块（`inc_pc[4:3] != 2'b00`），way predict 应来自 chgflw 时保存的 `chgflw_way_pred_flop`。
 
 **级别 4（最低）：正常顺序取指用 inner_way_pred**。这来自 BTB 对下一个 cache 块的 way 预测结果。
 
@@ -527,7 +530,7 @@ assign inner_way_pred_default = (ipctrl_pcgen_inner_way1 || ipctrl_pcgen_inner_w
                               : 2'b11;  // 两路都没有命中 → bypass
 ```
 
-`inc_pc[4:3]` 表示即将取指的地址在 cache line 中的块位置（0~3）。当处于 cache line 的后半部分（块 2 或块 3，`[4:3] == 2'b10 or 11`），使用来自 IP 级 BTB 预测的 `inner_way_pred`（BTB 已经扫描了这个 cache line 里的分支，可能知道跳转目标 way）；否则使用 `inner_way_pred_default`（基于当前 cache line 的标签命中情况）。
+`inc_pc[4:3]` 表示即将处理的 16 字节取指块在 64 字节 cache line 中的位置（0~3），对应架构字节地址 `[5:4]`。当处于后两个块时，使用来自 IP 级的 `inner_way_pred`；否则使用基于当前 cache line 标签命中的默认预测。
 
 ### 8.6 Way Predict Stall 的触发
 
@@ -565,7 +568,8 @@ assign pcgen_ifctrl_cancel = pcgen_chgflw_without_l0_btb ||
 ```
 
 IF Cancel 包含：
-- `pcgen_chgflw_without_l0_btb`：除 L0 BTB 以外的所有 chgflw（L0 BTB 触发的 chgflw 是当前 cache line 内的短跳转，IF 级自身处理，无需 cancel）
+- `pcgen_chgflw_without_l0_btb`：除 L0 BTB 以外的所有 chgflw；L0 BTB 是最早的
+  IF 级预测路径，其改流由 IF 级自身衔接，不在这里触发同级 cancel
 - `rtu_ifu_xx_expt_vld`：RTU 检测到异常，必须立即 cancel IF 级正在取的指令
 - `dbg_cancel`：进入调试模式时的单次脉冲 cancel
 

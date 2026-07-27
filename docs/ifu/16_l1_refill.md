@@ -122,7 +122,7 @@ pcgen ───── pcgen_l1_refill_chgflw ──────> l1_refill（改
 | `l1_refill_icache_if_first` | 这是 cache line 的第一包（写 tag 但 valid=0） |
 | `l1_refill_icache_if_last` | 这是 cache line 的最后一包（写 tag valid=1） |
 | `l1_refill_icache_if_index[38:0]` | I-Cache index（来自虚拟 PC） |
-| `l1_refill_icache_if_ptag[27:0]` | I-Cache tag（来自物理 PC[38:11]） |
+| `l1_refill_icache_if_ptag[27:0]` | I-Cache 物理 tag（内部 PC `[38:11]`，对应架构 PA `[39:12]`） |
 | `l1_refill_icache_if_inst_data[127:0]` | 经字节序转换后的 128 位指令数据 |
 | `l1_refill_icache_if_pre_code[31:0]` | 预解码信息（同时写入 predecode array） |
 | `l1_refill_icache_if_fifo` | cache through FIFO 属性 |
@@ -482,11 +482,11 @@ assign l1_refill_icache_if_last  = (refill_cur_state[3:0] == WFD4) &&
 assign l1_refill_icache_if_ptag[27:0] = physical_pc[PC_WIDTH-2:11];
 ```
 
-I-Cache 是 VIPT（Virtual Index, Physical Tag）结构。物理地址的高 28 位（bit[38:11]）作为 tag 写入 Tag Array。bit[10:0] 是 cache line 内的偏移（index 低位），不参与 tag 比较。
+I-Cache 是 VIPT（Virtual Index, Physical Tag）结构。这里的 `physical_pc` 是省略架构 `PA[0]` 的半字地址，所以内部 `[38:11]` 对应架构物理字节地址 `[39:12]`。这 28 位写入 Tag Array；不能把 RTL `[38:11]` 直接标成架构 PA `[38:11]`。
 
 ### 6.4 Index 地址递增
 
-每接收一包数据（128 位 = 16 字节），虚拟/物理 PC 的 bit[4:3] 需要加 1（因为 16 字节 = 2^4，bit[3:0] 是 16 字节对齐的偏移）：
+每接收一包数据（128 位 = 16 字节），内部半字地址的 `[4:3]` 加 1并将 `[2:0]` 清零。内部 `[4:3]` 对应架构字节地址 `[5:4]`，所以该操作让地址前进一个 16 字节块：
 
 ```verilog
 // 行 509-511（physical_pc 递增）
@@ -645,7 +645,7 @@ assign l1_refill_ipb_ppc[39:0] = {physical_pc[PC_WIDTH-2:0], 1'b0};
 assign l1_refill_ipb_vpc[39:0] = {virtual_pc[PC_WIDTH-2:0], 1'b0};
 ```
 
-低 1 位补 0 是因为 `physical_pc` 存储的是字（2 字节）粒度的地址（最低 1 位已去掉），传给 IPB 时需要恢复为字节地址。
+低 1 位补 0 是因为 `physical_pc/virtual_pc` 存储的是半字（2 字节）地址，即架构地址 `[39:1]`；传给 IPB 时恢复成完整字节地址 `[39:0]`。
 
 ---
 
@@ -710,4 +710,3 @@ T8    INV_WFD2   等待第 2 包...
 T11   INV_WFD4   最后一包收完 → 回 IDLE
 T12   IDLE       ifctrl 从 chgflw 后的新 PC 取指（与 refill 无关）
 ```
-

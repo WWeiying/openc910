@@ -110,6 +110,20 @@ make verdi
 为结束。以后更换 ELF 时必须重新查看 `smart_run/work/symbols.args` 和对应反汇编，
 不能照搬这两个地址。
 
+### 2.4 波形中的 PC 编码
+
+IFU 和 RTU 内部多数 `[38:0]` PC 省略了架构 `PC[0]`，保存的是字节 PC `[39:1]`；
+`iu_ifu_chgflw_pc[62:0]` 保存架构虚拟地址 `[63:1]`。与 ELF、反汇编或符号地址比较前，
+必须恢复最低零位：
+
+```text
+byte_pc40 = {rtl_pc39[38:0], 1'b0}
+byte_va64 = {rtl_va63[62:0], 1'b0}
+```
+
+不能按位宽机械处理所有信号：`rtu_cp0_epc[63:0]`、`rtu_pad_retire*_pc[39:0]`
+和 IU PCFIFO 的 `pc[39:0]` 已经是完整字节地址，不需要再左移。
+
 ---
 
 ## 3. 第一组：全局架构骨架
@@ -123,8 +137,8 @@ ROB 和 flush 信号。
 | `RTU` | `rtu_yy_xx_retire0/1/2` | 三个退休槽 | 每拍置位数反映退休带宽，但折叠会使“ROB 项数”和“架构指令数”不同 |
 | `RTU.x_ct_rtu_rob` | `rob_entry_num[6:0]` | ROB 占用 | 上升表示进入多于退休，下降表示后端正在排空 |
 | 同上 | `rob_full`、`rob_empty` | ROB 满/空 | full 可反压派发；empty 时无退休通常是前端断供 |
-| `RTU.x_ct_rtu_rob.x_ct_rtu_rob_rt` | `retire_inst0_cur_pc[38:0]` | 退休槽 0 的完整 PC | 与反汇编对照、定位循环和函数 |
-| 同上 | `rob_cur_pc[38:0]` | ROB 头部当前 PC | 观察最老指令停在哪里 |
+| `RTU.x_ct_rtu_rob.x_ct_rtu_rob_rt` | `retire_inst0_cur_pc[38:0]` | 退休槽 0 的半字地址 PC | 补最低零位后与反汇编对照 |
+| 同上 | `rob_cur_pc[38:0]` | ROB 头部半字地址 PC | 补最低零位后观察最老指令停在哪里 |
 | `RTU` | `rtu_yy_xx_flush` | 后端 flush | 错误路径最终被清理和重命名状态恢复 |
 | `RTU` | `rtu_idu_flush_fe`、`rtu_idu_flush_is` | 前端/发射域 flush | 区分清理范围 |
 | `RTU.x_ct_rtu_retire` | `flush_cur_state[4:0]` | flush 状态机 | 观察恢复过程而不只看一个脉冲 |
@@ -164,7 +178,7 @@ ROB 和 flush 信号。
 
 | 位置 | 信号 | 作用 |
 |---|---|---|
-| `IFU.x_ct_ifu_pcgen` | `if_pc[38:0]` | 当前 IF PC |
+| `IFU.x_ct_ifu_pcgen` | `if_pc[38:0]` | 当前 IF 半字地址 PC；字节 PC 为 `{if_pc,1'b0}` |
 | 同上 | `pcgen_chgflw` | 任一来源要求改变 PC |
 | 同上 | `rtu_ifu_chgflw_vld/pc` | 异常、退休级 flush 等精确重定向 |
 | 同上 | `iu_ifu_chgflw_vld/pc` | BJU 执行级发现误预测后的早重定向 |
@@ -290,7 +304,7 @@ way prediction 错误、边界修正和后端反压都可能使前端停顿。
 | 同上 | `bju_jmp_mispred` | 跳转类型/预测错误 |
 | 同上 | `bju_tarpc_cmp_fail` | 预测目标与真实目标不符 |
 | 同上 | `bju_chgflw_vld` | EX1 判定需要改变控制流 |
-| 同上 | `iu_ifu_chgflw_vld`、`iu_ifu_chgflw_pc[62:0]` | EX2 向 IFU 发正确目标 |
+| 同上 | `iu_ifu_chgflw_vld`、`iu_ifu_chgflw_pc[62:0]` | EX2 向 IFU 发架构 VA `[63:1]`；完整目标需补最低零位 |
 | 同上 | `iu_yy_xx_cancel` | 立即取消年轻错误路径 |
 | 同上 | `iu_idu_mispred_stall`、`iu_ifu_mispred_stall` | 恢复期间冻结 IDU/IFU |
 | `RTU.x_ct_rtu_retire` | `retire_inst0_mispred` | 误预测分支到达退休端 |
@@ -1073,6 +1087,10 @@ RTU.rtu_ifu_chgflw_pc[38:0]
 
 - 同步异常由某条指令触发，`epc/mtval/expt_vec` 对应该指令。
 - 异步中断在合法退休边界被接收，不应破坏之前已经提交的指令。
+
+这里 `rtu_cp0_epc[63:0]` 已是完整字节 PC，而 `rtu_ifu_chgflw_pc[38:0]`
+仍是半字地址。两者比较时应使用
+`rtu_cp0_epc[39:0] == {rtu_ifu_chgflw_pc[38:0],1'b0}`。
 - `mret/sret` 恢复特权状态并重定向到保存的返回 PC。
 
 低功耗/时钟门控观察：

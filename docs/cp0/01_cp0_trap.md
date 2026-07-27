@@ -87,7 +87,7 @@ RISC-V 的陷入（trap，统称异常 exception 与中断 interrupt）要求硬
 | `cp0_yy_priv_mode[1:0]` | 4094 | 当前特权级 pm |
 | `cp0_ifu_vbr[39:0]` | 4134 | 当前特权级的陷入向量基址（M 用 mtvec，S 用 stvec） |
 | `cp0_ifu_rvbr[39:0]` | 4137 | 复位向量基址（mrvbr） |
-| `cp0_iu_ex3_efpc[38:0]` | 4171 | MRET/SRET 返回地址 |
+| `cp0_iu_ex3_efpc[38:0]` | 4171 | MRET/SRET 返回地址 `[39:1]`；IU 使用时最低位隐含为 0 |
 | `cp0_iu_ex3_efpc_vld` | 4173 | efpc 有效 |
 | `cp0_pad_mstatus[63:0]` | 4388 | mstatus 全值（送 pad 调试观测） |
 | `regs_iui_int_sel[14:0]` | 4005 | 已过滤的中断请求位图（送 iui 编码） |
