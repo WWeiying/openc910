@@ -19,9 +19,15 @@ ALU 是 IU 中最简单也最高频的执行单元，完成：
 - **杂项类**：条件搬运 mveqz/mvnez、tstnbz（字节测零）、tst（位测试）、ff1/ff0（找首个 1/0）、rev/revw（字节序反转）
 - **mtvr 转发**：整数→向量寄存器搬运指令的数据转交 VFPU
 
-注意这份 RTL 里大量 T-Head 自定义指令（addsl/ext/extu/mveqz/tstnbz/ff1/rev…）——
-这正是 `-march=rv64imafdcvxtheadc` 中 `xtheadc` 扩展的硬件支持，CoreMark 分数
-6.1 与 4.4 的差距就来自能否用上这些指令（见 smart_run 性能调优记录）。
+注意这份 RTL 里有大量 T-Head 自定义操作（addsl/ext/extu/mveqz/tstnbz/
+ff1/rev 等）。RTL 能证明执行单元支持相应功能码，但不能仅凭模块名把每条操作
+精确归入某个编译器 `-march` 扩展字符串；不同版本的 Xuantie 工具链可能把多组
+XThead 子扩展打包或采用不同命名。确认某个二进制是否真正使用这些硬件，应以
+该工具链的 `-march` 帮助、编译器生成的反汇编和动态执行轨迹为准。
+
+同样，开启扩展前后的 CoreMark 分数变化不能全部归因于 ALU 新指令。扩展还可能
+改变代码尺寸、对齐、分支布局和访存序列。可靠归因至少要同时比较：静态指令数、
+关键函数反汇编、动态指令数、周期数、分支误预测和 I-Cache 行为。
 
 ### 1.2 流水结构：单拍执行
 
@@ -52,14 +58,19 @@ parameter ADDER_MAX   = 21'h01;       // 复用低 5 位编码"长指令"结果
 parameter ADDER_ADDSL = 21'h20;
 ```
 
-`rslt_sel[20:0]` 是 **21 位独热码**，IDU 译码时就生成（见 `doc/idu/19_rf_dp.md`
-的 pipe0/1 译码）。为什么不用 5 位二进制编码？——独热码做多路选择只需一层
-AND-OR，**译码逻辑被移到了流水线更早、时序更松的 RF 级**，EX1 的关键路径上
-一个译码器都不用摆。这是高频设计的典型手法：时序紧的级只留数据通路。
+`rslt_sel[20:0]` 采用 **21 位独热形式**，由 IDU 在进入执行单元之前生成（见
+`docs/idu/19_rf_dp.md` 的 pipe0/1 译码）。与在 EX1 再把一个紧凑二进制操作码
+完整译成各个结果选择条件相比，这种接口把大部分“当前要哪一种结果”的信息提前
+展开；EX1 可以直接按位选择各候选结果。这里能由 RTL 确认的是**译码位置前移和
+选择条件展开**，不能仅凭独热编码断言综合网表一定只有“一层 AND-OR”，也不能
+在没有时序报告时断言 RF 级一定更松。综合器仍可能重构选择网络，最终逻辑深度、
+扇出和关键路径应以综合/STA 结果为准。
 
-注意第二组 parameter（ADDER_MAX 等）**复用了低 6 位编码**：max/min/addsl 这些
-"长指令"（alu_short=0）单独用一套选择树（见 2.7），与短指令编码空间不冲突，
-因为两棵选择树由 `alu_short` 区分使用。
+注意第二组 parameter（ADDER_MAX 等）**复用了低 6 位的位型**：max/min/addsl
+这些“长结果路径”操作（`alu_short=0`）单独使用一套选择树（见 2.7）。例如
+`ADDER_MAX=21'h1` 与短路径的 `ADDER_ADD=21'h1` 数值相同，但二者由
+`alu_short` 选择不同结果树，因此语义不冲突。也就是说，`rslt_sel` 的值不能
+脱离 `alu_short` 单独解释；看波形时必须把两个信号放在一起。
 
 ### 2.2 三个门控时钟域（ct_iu_alu.v:265-322）
 
@@ -105,13 +116,17 @@ assign alu_rf_fwd_vld = idu_iu_rf_pipex_sel && idu_iu_rf_pipex_dst_vld
    max/min/addsl 这类"长指令"虽然也是 EX1 出结果，但走的是独立选择树、
    到达时间晚，**不进前递路径**——前递总线是全核时序最紧的网络，宁可让长指令
    的消费者多等一拍（从 EX2 写回拿数），也不能拖垮前递路径的时钟频率。
-2. **flush 只清 vld 不清数据**：错误路径指令的数据留在寄存器里没有副作用，
-   下条指令会覆盖它。少清几百 bit 寄存器，flush 路径的扇出小很多。
+2. **flush 只清 vld 不清数据**：在 `rtu_yy_xx_flush` 被采样的有效时钟沿，
+   `alu_ex1_inst_vld/alu_ex1_fwd_vld` 被清零；数据寄存器可以继续保留旧位型。
+   旧数据是否存在并不重要，关键是所有消费端都必须用 valid 限定它。这里应说
+   “减少了数据寄存器复位/清零控制”，而不能只由 RTL 推导出准确的物理扇出收益。
 
-数据部分（ex1_inst_clk 域，ct_iu_alu.v:354-425）值得注意的是源操作数被**复制
-三份**锁存：`alu_ex1_src0/1`、`alu_ex1_adder_src0/1`、`alu_ex1_shifter_src0/1`
-（ct_iu_alu.v:387-392）。功能上完全一样，目的同样是物理扇出隔离：adder、
-shifter、logic 三个 EU 各用自己的副本，64 位×2 的高扇出网络被切成三段短线。
+数据部分（ex1_inst_clk 域，ct_iu_alu.v:354-425）值得注意的是源操作数在 RTL
+中被**复制成三组寄存器名**：`alu_ex1_src0/1`、`alu_ex1_adder_src0/1`、
+`alu_ex1_shifter_src0/1`（ct_iu_alu.v:387-392）。三组保存相同输入，分别供
+misc、adder 和 shifter 路径使用。这种写法明显为分离负载、便于物理实现提供了
+结构条件，但综合器是否保留三份寄存器、如何复制驱动和布线，仍由约束与综合/
+布局布线结果决定；不应把 RTL 中的三个变量直接等同于版图中必然存在的三套触发器。
 
 另外 `eu_sel[2:0]` 在 RF 级由 rslt_sel 按段归并（ct_iu_alu.v:350-352）：
 
@@ -121,7 +136,9 @@ assign idu_iu_rf_pipex_eu_sel[1] = |idu_iu_rf_pipex_rslt_sel[9:5];    // shifter
 assign idu_iu_rf_pipex_eu_sel[2] = |idu_iu_rf_pipex_rslt_sel[20:10];  // other 组
 ```
 
-EX1 最后一级 4:1 选择就用这个 3 位独热码，又一次"译码前移"。
+EX1 的短结果路径再用这个 3 位独热码在 adder、shifter、other 三组候选中选择，
+也就是**三组结果选择**，不是 4:1 选择。若 `eu_sel` 不是合法 one-hot，case
+会落入 `default` 或不能表达预期语义；正确性依赖 IDU 生成合法编码。
 
 ### 2.4 加法器组（ct_iu_alu.v:427-488）
 
@@ -132,23 +149,33 @@ assign adder_data_out_subw[31:0] = src0[31:0] - src1[31:0];
 assign adder_data_out_addw[31:0] = src0[31:0] + src1[31:0];
 ```
 
-四个加法器**并行展开**而不是复用一个（加法/减法/64 位/32 位共用一个加法器
-需要在输入端加取反和选择逻辑，会把选择延迟加进加法关键路径）。面积换时序。
+RTL 分别写出了 64 位加、64 位减、32 位加和 32 位减四个并行候选表达式，选择在
+其后完成。这种结构避免在源代码层先把所有操作合并成一个带复杂输入选择的算术
+表达式，体现了用并行候选换取较直接选择路径的意图。但“综合网表中一定有四个
+彼此独立的加法器”不能由这几行 RTL 单独证明：综合器可能共享、拆分或重构算术
+逻辑，准确面积和关键路径必须查看综合网表与时序报告。
 
 **addsl（add with shift，ct_iu_alu.v:447-461）**：`rd = src0 + (src1 << imm[1:0])`，
-对应 T-Head `th.addsl`。数组寻址 `base + index*4/8` 一条指令完成——这是 CoreMark
-中出现频率极高的模式，xtheadc 提分的主力之一。
+对应 T-Head `th.addsl`，可把若干 `base + index*2^n` 地址形成模式压成一条指令。
+它对某个 benchmark 的实际贡献取决于编译器是否生成该指令以及动态执行次数；
+不能在没有反汇编和动态轨迹的情况下断言它是 CoreMark 的高频指令或主要提分来源。
 
 **比较与 max/min（ct_iu_alu.v:466-488）**：
 
 ```verilog
-assign adder_sltu  = src0 < src1;                       // 无符号
-assign adder_slts  = $signed(src0) < $signed(src1);     // 有符号
-assign adder_rslt_slt = adder_inst_cmp_unsign ? adder_sltu : adder_slts;  // func[3] 选
+assign adder_sltu  = src0[63:0] < src1[63:0];                   // 64 位无符号
+assign adder_sltuw = src0[31:0] < src1[31:0];                   // 32 位无符号
+assign adder_slts  = $signed(src0[63:0]) < $signed(src1[63:0]); // 64 位有符号
+assign adder_sltsw = $signed(src0[31:0]) < $signed(src1[31:0]); // 32 位有符号
+assign adder_rslt_slt = adder_inst_cmp_unsign ? adder_sltu : adder_slts;
+assign adder_sltw     = adder_inst_cmp_unsign ? adder_sltuw : adder_sltsw;
 assign adder_rslt_max[63:0] = adder_rslt_slt ? src1 : src0;
 ```
 
-slt 的结果直接复用为 max/min 的选择信号——比较器只做一套。
+RTL 并行形成 64/32 位、有符号/无符号四个比较候选，再由
+`adder_inst_cmp_unsign` 选择当前指令所需结果。max/min 直接复用选中的 slt
+结果控制两个源操作数的多路选择，因而没有再写一套独立的 max/min 比较表达式。
+至于综合后比较逻辑是否共享、共享到什么程度，要以综合网表为准。
 
 ### 2.5 移位器组（ct_iu_alu.v:490-689）
 
@@ -160,9 +187,11 @@ assign shifter_r_shift_in[63:0] = src0 & {64{func[4]}}              // 循环移
 assign shifter_r_rslt[127:0]    = {shifter_r_shift_in, src0} >> src1[5:0];
 ```
 
-**一个 128 位逻辑右移器统一实现 srl/sra/循环右移**：高 64 位按指令类型填
-0 / 符号 / 原数据，移完取低 64 位。三种右移共享同一个桶形移位器，只差高位
-填充逻辑——又是面积优化。
+RTL 用一个 128 位拼接值的右移表达式统一描述 srl/sra/循环右移：高 64 位按
+指令类型填 0、符号位或原数据，移完取低 64 位。这个写法让三种操作共享同一套
+“拼接后右移”的逻辑描述；综合后是否实现为一套共享桶形移位网络、网络具体宽度
+以及面积收益，需要由综合结果确认，不能把 Verilog 的一个 `>>` 运算符直接当成
+一个确定的物理宏单元。
 
 **ext/extu 位段提取（ct_iu_alu.v:517-689）**：T-Head `th.ext rd,rs,msb,lsb` =
 取 rs[msb:lsb] 并符号/零扩展。实现分三步：
@@ -176,8 +205,10 @@ assign shifter_r_rslt[127:0]    = {shifter_r_shift_in, src0} >> src1[5:0];
 assign shifter_ext_rslt = shifter_ext_shift & shifter_ext_and_mask | shifter_ext_or_mask;
 ```
 
-两个 64 项 case 看着吓人，综合后就是两个 64:1 选择器/译码器，深度 log2(64)=6 级，
-完全可接受。**为什么符号位单独查表而不是从移位结果取 bit[width-1]？**——那样
+两个 64 项 case 在逻辑意义上是按 6 位索引选择 64 个候选。综合后的具体门级
+拓扑、逻辑深度和是否满足目标频率取决于综合器优化、标准单元库和物理布局，不能
+仅由 `case` 项数断言为严格 6 级或“完全可接受”。体系结构意图仍然清楚：
+**为什么符号位单独查表而不是从移位结果取 bit[width-1]？**——那样
 符号位要等移位完成才能用，串行依赖拉长路径；查表与移位**并行**进行。
 
 ### 2.6 逻辑与杂项组（ct_iu_alu.v:691-915）
@@ -200,10 +231,10 @@ assign shifter_ext_rslt = shifter_ext_shift & shifter_ext_and_mask | shifter_ext
 
 ### 2.7 结果选择树与输出（ct_iu_alu.v:928-1043）
 
-四级选择结构：
+结果选择结构：
 
 ```
- adder 组果 ──case(rslt_sel[4:0])──► alu_ex1_adder_fwd_data ──┐
+ adder 组结果 ─case(rslt_sel[4:0])──► alu_ex1_adder_fwd_data ──┐
  shifter 组 ──case(rslt_sel[9:5])──► alu_ex1_shifter_fwd_data ─┼─case(eu_sel[2:0])──► alu_ex1_fwd_data
  logic/misc ──case(rslt_sel[20:10])► alu_ex1_other_fwd_data ──┘
  max/min/addsl ──case(rslt_sel)────► alu_ex1_long_data  （独立选择树，L929-945）
@@ -220,12 +251,16 @@ assign alu_rbus_ex1_pipex_data[63:0] = alu_ex1_alu_short ? alu_ex1_fwd_data
 
 `data` 与 `fwd_data` 的区别：**fwd_data 只含短指令结果**（给前递网络，时序最紧）；
 **data 是最终写回值**（短/长指令二选一，给 RBUS 在 EX2 写回，多一拍余量）。
-长指令（max/min/addsl）因此前递无效、写回正常——依赖它们的指令从 PRF 或
-EX2 写回总线拿数，多等 1 拍。
+长结果路径操作（max/min/addsl）因此不声明该 ALU 的 EX1 快速前递有效，但仍
+通过正常数据写回路径产生结果。消费者具体多等几拍取决于 IDU 的唤醒、RBUS
+广播/PRF 写回时序和是否存在其他 stall；本文能直接确认的是它们不能使用这里的
+`alu_rbus_ex1_pipex_fwd_vld` 快速前递，不能仅凭该位推导所有场景固定多等一拍。
 
-每位 `rslt_sel` 全 0（如 jal 的链接地址写由别处处理、纯 mtvr 指令）时 case 落
-default 输出 x——RTL 靠 vld 信号保证 x 不会被消费，仿真中看到 fwd_data 为 x
-不一定是 bug，先看 vld。
+每位 `rslt_sel` 全 0（例如只借用 ALU 管线向 VFPU 传递数据的 `mtvr`）时 case
+落 default 输出 x。RTL 靠对应的结果有效信号保证该 x 不会作为整数 ALU 结果
+被消费；仿真中看到 `fwd_data` 为 x 时，应先联合检查 `data_vld/fwd_vld`。
+jal/jalr 的链接值不属于这里的 ALU 结果，而由 Pipe0 SPECIAL 的
+`PSEUDO_AUIPC` 微操作产生。
 
 ### 2.8 mtvr 通路（ct_iu_alu.v:1045-1091）
 
@@ -236,9 +271,16 @@ EX1: iu_vfpu_ex1_pipex_mtvr_vld + vreg/vsew/vlmul/vl   （通知 VFPU 准备写�
 EX2: iu_vfpu_ex2_pipex_mtvr_vld + src0                 （数据本体晚一拍送达）
 ```
 
-控制信息早一拍、数据晚一拍的**两拍握手**：VFPU 用 EX1 信息做写口仲裁/旁路准备，
-EX2 数据到了直接写，互不卡顿。`had_idu_wbbr_vld` 时数据可被调试器注入值替换
-（ct_iu_alu.v:1081-1083，硬件调试 write-back-by-register 功能）。
+控制信息在 EX1 接口出现，数据在 EX2 接口出现，形成分拍传递关系。RTL 能确认
+这两个接口的时序与字段，至于 VFPU 内部如何仲裁、是否发生停顿，应继续沿 VFPU
+接收端核查，不能只从 IU 发送端概括为“互不卡顿”。`had_idu_wbbr_vld` 时数据可
+被调试器注入值替换（ct_iu_alu.v:1081-1083，硬件调试 write-back-by-register
+功能）。
+
+还要区分**接口存在**与**当前顶层配置的端到端功能完整**：本模块确实生成 mtvr
+送往 VFPU 的接口；但当前所核查顶层中的向量重命名/退休相关 VRT、VREG PST 路径
+存在 dummy 常量边界。因此，这一节只能证明 IU 侧 mtvr 发送机制，不能单独证明
+当前配置具备完整可用的向量架构状态提交能力。
 
 ---
 
@@ -253,8 +295,11 @@ EX2 数据到了直接写，互不卡顿。`had_idu_wbbr_vld` 时数据可被调
 | 入 | HAD | `had_idu_wbbr_*` | 调试数据注入 |
 
 ALU 自己**不直接连 CBUS**——pipe0/1 的完成信号由 CBUS 模块直接从
-`idu_iu_rf_pipe0/1_sel + iid` 打拍生成（ALU 指令必然 2 拍完成，无需 ALU 汇报，
-见 07_cbus.md）。这就是 L917-920 注释 "deal alu complete bus signal in cbus" 的含义。
+`idu_iu_rf_pipe0/1_sel + iid` 打拍生成。准确地说，这是因为该类 ALU 操作在
+这条数据通路中不产生执行期异常，CBUS 可以在 RF 接受后推定其执行成分会完成；
+并不是等到“2 拍结果已写回”才收到 ALU 的实报。CBUS `cmplt` 与 RBUS 的 preg
+数据写回属于两条不同协议。这就是 L917-920 注释
+`deal alu complete bus signal in cbus` 的含义。
 
 ---
 
@@ -266,9 +311,11 @@ ALU 自己**不直接连 CBUS**——pipe0/1 的完成信号由 CBUS 模块直�
 |------|--------|
 | `idu_iu_rf_pipex_sel` vs `alu_ex1_inst_vld` | RF→EX1 一拍延迟关系 |
 | `alu_ex1_rslt_sel[20:0]` | 独热码哪一位有效 = 当前指令类型 |
-| `alu_rbus_ex1_pipex_fwd_vld/fwd_data` | 前递发生：下一拍依赖指令就能发射 |
+| `alu_rbus_ex1_pipex_fwd_vld/fwd_data` | EX1 快速前递有效及数据；依赖者是否紧邻发射还要结合 IDU ready/issue 与端口竞争 |
 | `alu_ex1_alu_short` | 0 = max/min/addsl 长指令，确认它不前递 |
-| `rtu_yy_xx_flush` 与 `alu_ex1_inst_vld` 同拍 | flush 杀指令的瞬间 |
+| `rtu_yy_xx_flush`、`forever_cpuclk` 与 `alu_ex1_inst_vld` | flush 在有效沿被采样后清 valid；不要把电平同拍误解为异步立即删除数据 |
 
-跑 coremark 时把两条 ALU 的 `alu_ex1_inst_vld` 摆在一起，可以直观看到双发射
-的占空比——IPC 1.27 时大约一半的拍两条同时为高。
+跑 CoreMark 时把两条 ALU 的 `alu_ex1_inst_vld` 摆在一起，可以直观看到 ALU
+双发射的实际占空比。不要从整机 IPC 直接推算“两条 ALU 同时有效”的比例；IPC
+还包含分支、访存、乘除、浮点/向量以及折叠退休计数。应直接统计
+`alu0_vld && alu1_vld`、`alu0_vld || alu1_vld` 和各自单独有效的周期数。

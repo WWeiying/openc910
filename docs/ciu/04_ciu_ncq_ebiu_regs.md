@@ -1,300 +1,607 @@
-# C910 CIU NCQ/EBIU/接口与寄存器 模块详细教学文档
+# C910 CIU NCQ、EBIU、L2CIF 与控制接口教学文档
 
-> RTL 文件：`ct_ciu_ncq.v`（约 1872 行）、`ct_ciu_ncq_gm.v`（约 125 行）、`ct_ebiu_top.v`（约 786 行）、`ct_ebiu_read_channel.v`（约 691 行）、`ct_ebiu_write_channel.v`（约 3070 行）、`ct_ebiu_cawt_entry.v`（约 177 行）、`ct_ebiu_ncwt_entry.v`（约 240 行）、`ct_ciu_l2cif.v`（约 1212 行）、`ct_ciu_bmbif.v`（约 303 行）、`ct_ciu_apbif.v`（约 506 行）、`ct_ciu_regs.v`（约 767 行）
->
-> 上层：`ct_ciu_top.v` 实例化 `x_ct_ciu_ncq`(行 3578)、`x_ct_ebiu_top`(行 3729)、`x_ct_ciu_l2cif`(行 3278)、`x_ct_ciu_bmbif`(行 2677)、`x_ct_ciu_apbif`(行 3985)、`x_ct_ciu_regs`(行 3917)、`x_ct_ciu_ebiuif`(行 3200)
-
----
-
-## 目录
-
-1. [模块概述](#1-模块概述)
-2. [NCQ：非相干队列](#2-ncq非相干队列)
-3. [NCQ 全局监视器 ncq_gm](#3-ncq-全局监视器-ncq_gm)
-4. [EBIU：外部 AXI 主接口](#4-ebiu外部-axi-主接口)
-5. [EBIU 读通道](#5-ebiu-读通道)
-6. [EBIU 写通道与 NCWT/CAWT](#6-ebiu-写通道与-ncwtcawt)
-7. [L2CIF：L2 Cache 接口](#7-l2cifl2-cache-接口)
-8. [EBIUIF / BMBIF](#8-ebiuif--bmbif)
-9. [APBIF：APB 外设桥](#9-apbifapb-外设桥)
-10. [CIU 寄存器](#10-ciu-寄存器)
-11. [设计取舍小结](#11-设计取舍小结)
+> 主要 RTL：`ct_ciu_ncq.v`、`ct_ciu_ncq_gm.v`、
+> `ct_ebiu_top.v`、`ct_ebiu_read_channel.v`、
+> `ct_ebiu_write_channel.v`、`ct_ebiu_ncwt_entry.v`、
+> `ct_ebiu_cawt_entry.v`、`ct_ciu_l2cif.v`、
+> `ct_ciu_ebiuif.v`、`ct_ciu_bmbif.v`、
+> `ct_ciu_bmbif_kid.v`、`ct_ciu_apbif.v`、`ct_ciu_regs.v`
 
 ---
 
-## 1. 模块概述
+## 1. 数据路径总览
 
-本文覆盖 CIU 的**非相干路径**与**对外接口/配置**部分——这些模块不参与 MOESI 侦听核心，但负责把请求送达最终目的地（内存、外设、L2C）以及配置整个 CIU。
+```text
+PIU0..3 非相干 AR/AW/W
+          |
+          v
+         NCQ --------------------+
+          |                      |
+          v                      v
+        EBIU                  APBIF
+          |                      |
+          v                      +-> PLIC/CLINT/HAD/L2PMP/RMR
+       片外 AXI
 
-```
-非相干请求(piu0-3 uncached + piu4 设备) ──► NCQ ──► EBIU(AXI) ──► 内存
-                                              └──► APBIF ──► APB 外设
-相干请求(SAB/CTCQ/VB) ──► L2CIF ──► L2 Cache
-                       └──► EBIUIF ──► EBIU(AXI) ──► 内存
-配置/控制 ──► CIU regs(smpen/sf_dis/...)
+SNB 外部读 / CTCQ DVM读 -------> EBIU read channel
+L2C/SNB victim AW/W -> VB ------> EBIU write channel
+
+SNB0/SNB1/CTCQ/DCA ------------> L2CIF -> L2 bank0/1
 ```
 
----
-
-## 2. NCQ：非相干队列
-
-### 2.1 职责
-
-**NCQ（Non-Coherent Queue）**汇聚所有**非相干访问**：uncached 内存、设备寄存器、IO、以及 piu4 设备口的请求。这类访问**不缓存、不侦听**，绕开整个 SAB/MOESI 机制，直接转发给 EBIU 或 APB。
-
-### 2.2 内部 FIFO 结构（`ct_ciu_ncq.v`）
-
-NCQ 由一组浅 FIFO 构成，读写地址/数据/应答各一条：
-
-| FIFO | 深度 | 宽度 | 用途 | file:line |
-|------|------|------|------|-----------|
-| RAQ（读地址） | 2 | ARWIDTH=74 | 缓冲非相干读地址 | `ct_ciu_ncq.v:735` |
-| RDQ（读数据） | 2 | RWIDTH=138 | 缓冲读返回数据 | `ct_ciu_ncq.v:891` |
-| WAQ（写地址） | 2 | AWWIDTH=74 | 缓冲非相干写地址 | `ct_ciu_ncq.v:1056` |
-| WOQ（写序队列） | **16** | 8 | 跟踪写顺序 | `ct_ciu_ncq.v:1236,1255` |
-| WDQ（写数据） | 2 | 152 | 缓冲写数据 | `ct_ciu_ncq.v:1343` |
-| WBQ（写应答） | 2 | 10 | 缓冲 B 响应（bresp+bid） | `ct_ciu_ncq.v:1515` |
-| DSQ（数据源队列） | 16 | — | 跟踪每个写的数据源 | `ct_ciu_ncq.v:1388` |
-
-地址/数据 FIFO 都很浅（深 2），因为非相干访问不像一致性事务那样要长时间挂起等侦听——它们快进快出。但**写序 WOQ 深 16**：非相干写常要求强保序（Strongly-Ordered），必须排队保证写到设备的顺序与程序序一致。
-
-### 2.3 关键端口
-
-| 组 | 信号 | 方向 | file:line |
-|----|------|------|-----------|
-| PIU 读 | `piu0_ncq_ar_bus[73:0]`/`ar_req` | in | `ct_ciu_ncq.v` 端口表 |
-| PIU 写 | `piu0_ncq_aw_bus[73:0]`/`aw_req`、`wcd_bus[143:0]`/`wcd_req` | in | 同上 |
-| 授权 | `ncq_piu0_ar_grant`/`aw_grant`/`wcd_grant` | out | 同上 |
-| 送 EBIU | `ncq_ebiu_arvalid`/`awvalid`/`wvalid` | out | `ct_ciu_ncq.v:231-235` |
-| 送 APB | `ncq_apbif_arvalid`/`awvalid`/`wvalid` | out | `ct_ciu_ncq.v:50-54` |
-
-NCQ 按地址判断目标是内存（→EBIU）还是外设（→APBIF）。
+当前 NCQ 的请求端是 PIU0～PIU3。PIU4 对应
+`ct_piu_top_dummy_device`，其请求信号固定无效，不能把它计入当前有效 DMA 或
+设备主流量。
 
 ---
 
-## 3. NCQ 全局监视器 ncq_gm
+## 2. NCQ：非相干请求的排队与分流
 
-`ct_ciu_ncq_gm.v`（125 行）实现非相干区的**独占监视器（exclusive monitor）**，支持 RISC-V 的 **LR/SC（Load-Reserved / Store-Conditional）**原子操作。
+### 2.1 “非相干”在本模块中的含义
+
+PIU 已根据 cache/domain 属性把请求分类到 NCQ。NCQ 不执行 SNB 的 cp 查询和
+per-core AC snoop，而是把请求送往 EBIU 或 APBIF。它仍然需要：
+
+- 保存地址、数据和返回；
+- 维持 AW 与 W 的对应关系；
+- 对 write-ordered 和 strongly-ordered 类别应用不同约束；
+- 处理 exclusive/locked 访问；
+- 把返回按 ID 送回正确 PIU。
+
+因此“绕开一致性”不等于“无排序、无状态、单周期直通”。
+
+### 2.2 队列容量和真实用途
+
+| 结构 | 深度 | 主要保存内容 |
+|------|------|--------------|
+| RAQ | 2 | 已被 NCQ 接受、待 APBIF/EBIU 接受的读地址 |
+| RDQ | 2 | APBIF/EBIU 返回、待 PIU 接收的读数据 |
+| WAQ | 2 | 已被 NCQ 接受、待 APBIF/EBIU 接受的写地址 |
+| WOQ | 16 | AW 接受顺序中的 PIU/source ID |
+| WDQ | 2 | 核侧写数据 |
+| DSQ | 16 | 已接受 AW 对应的 W 目的地是 APB 还是 EBIU |
+| WBQ | 2 | APBIF/EBIU 返回、待 PIU 接收的 B 响应 |
+
+WOQ 源码中存在过时的“32-entry”注释，但可执行参数为
+`WOQ_DEPTH=16`，文档以实例参数为准。
+
+### 2.3 为什么 WOQ、DSQ 比地址 FIFO 深
+
+AW 与 W 是解耦通道。NCQ 接受 AW 后，W 可能稍后才到。NCQ 使用：
+
+- WOQ 保存 AW 接受的 PIU/ID 顺序，使后续 W 只从当前队首来源接收；
+- DSQ 在 AW 真正送往 APBIF 或 EBIU 时记录目的地，使同序 W 发往同一目标。
+
+这是一种 **地址和数据重新关联机制**。它不能单独代表所有内存类型的完整顺序
+语义；strongly-ordered outstanding、外部总线返回顺序和 barrier 还由其它
+状态机共同实现。
+
+### 2.4 APB 与 EBIU 的地址选择
+
+NCQ 使用：
 
 ```verilog
-// ct_ciu_ncq_gm.v:49-51
-reg        gm_exclusive;   // 独占监视有效
-reg [73:0] gm_cont;        // 监视的独占地址 + lock 信息
+addr[39:27] == sysio_ciu_apb_base[39:27]
 ```
 
-工作原理：
-- **LR（load-reserved）**：`gm_set_vld_x` 置位，把目标地址记入 `gm_cont`，`gm_exclusive=1`（开始监视这个地址）。
-- **SC（store-conditional）**：写时比较地址（`ct_ciu_ncq_gm.v:76-81`，比较 bit[73:34]）。若监视仍有效且地址匹配且 lock 位置位 → `gm_success_x=1`（SC 成功）；若期间地址被别人写过 → 监视失效 → SC 失败。
+选择 APB 区域，未命中则选择 EBIU。读写路径还分别保存
+`ncq_ar_apbif_sel/ncq_aw_apbif_sel`，在一个 APB 事务未返回时限制另一类 APB
+事务插入。因而：
 
-参数（`ct_ciu_ncq_gm.v:70-74`）：`ADDRW=40`、`LOCK=10`（lock 位位置）、`GMWIDTH=74`。这是 CIU 为不可缓存/设备区原子操作提供的硬件支持（缓存区的原子性由 MOESI 保证，无需 gm）。
+- 地址比较只是目标区域分类；
+- `ncq_apbif_*valid` 还受到当前 outstanding 状态门控；
+- 最终接受必须看 APBIF/EBIU grant；
+- grant 后 RAQ/WAQ 才 pop。
+
+### 2.5 返回队列
+
+APBIF 和 EBIU 的 R 都先竞争 RDQ 空位；B 都先竞争 WBQ 空位。若同周期两端
+同时返回，RTL 对 R 和 B 都采用 **APBIF 固定优先**：
+
+```verilog
+rdq_create_bus = apbif_ncq_rvalid ? apbif_rbus : ebiu_rbus;
+wbq_create_bus = apbif_ncq_bvalid ? apbif_bbus : ebiu_bbus;
+```
+
+因此此处不是轮询仲裁。APBIF valid 为 1 时，NCQ 只给 APBIF grant，EBIU 必须
+继续保持返回。NCQ 给下游的 R/B grant 表示返回已进入 RDQ/WBQ，不表示 PIU
+已接收；PIU 的 grant 出现后，返回队列才 pop。
 
 ---
 
-## 4. EBIU：外部 AXI 主接口
+## 3. 全局监视器 `ct_ciu_ncq_gm`
 
-### 4.1 职责
+当前 NCQ 只实例化核 0、核 1 两个 GM。核 2、核 3 的 `gm_success/gm_vld`
+固定为 0，这与当前双核配置一致。
 
-**EBIU（External Bus Interface Unit）**是 CIU 对片外世界的**标准 AXI 主接口**。当数据不在任何 L1、也不在 L2 时，EBIU 用 AXI 协议去访问片外内存（DDR）或外设。外部信号即顶层的 `biu_pad_ar*/aw*/w*/r*/b*`（标准 AXI 五通道）。
+### 3.1 建立监视
 
-### 4.2 子模块（`ct_ebiu_top.v:556-765`）
+当 RAQ 头部的 locked read 被 APBIF 或 EBIU 接受时：
 
 ```verilog
-ct_ebiu_read_channel  x_ct_ebiu_read_channel  (...);   // 行 557：AR/R 读通道
-ct_ebiu_snoop_channel_dummy x_ct_ebiu_snoop_channel_dummy (...); // 行 651：侦听通道(桩)
-ct_ebiu_write_channel x_ct_ebiu_write_channel (...);   // 行 669：AW/W/B 写通道
-ct_ebiu_lowpower      x_ct_ebiu_lowpower      (...);   // 行 765：低功耗握手
+gm_ar_req = raq_valid && raq_pop_en && arlock && !bar;
 ```
 
-> snoop_channel 在本配置下是 dummy 桩（`ct_ebiu_snoop_channel_dummy.v`，83 行）——OpenC910 不接受外部主设备对自己的侦听（它是 ACE 的 master 侧而非完整 interconnect 节点）。
+按 ARID 中的 core 编号选择对应 GM，在时钟沿：
 
-EBIU 汇聚的请求来源：NCQ（非相干读写）、VB（相干写回）、SNB/CTCQ 经 EBIUIF（相干读取/DVM）。
+```text
+gm_exclusive <- 1
+gm_cont[73:0] <- raq_pop_bus[73:0]
+```
+
+所以监视建立点是 **读地址从 NCQ 被目的端接受**，不是 PIU 刚把读送入 RAQ
+的周期。
+
+### 3.2 清除与成功判定
+
+任意被 NCQ 接受处理的写地址若与监视项的完整 40-bit PA 相等，会清除该 GM：
+
+```verilog
+gm_clr_vld = gm_aw_req && waq_pop_en
+          && (waq_addr == gm_cont.addr);
+```
+
+当前写是否成功还要求：
+
+```verilog
+gm_aw_req
+&& waq_pop_bus[LOCK]
+&& gm_exclusive
+&& (gm_cont[73:0] == waq_pop_bus[73:0])
+```
+
+最后一项比较整个 74-bit 总线，不只是地址。这比“地址相同且 monitor 有效”更
+严格，属性或 ID 不同也可能失败。NCQ 把所有核的 `gm_success` 归约成
+`ncq_xx_aw_needissue`：
+
+- 成功或普通写：继续向 APB/EBIU 发实际写；
+- failed exclusive：不向目标发实际 AW/W，但仍产生失败响应路径。
+
+该结构可作为非相干 exclusive monitor 理解。把它直接称为 RISC-V LR/SC 的
+全部架构实现仍需结合核侧 AMO/LR/SC 解码和总线 lock 映射验证。
+
+---
+
+## 4. EBIU 的外部接口边界
+
+`ct_ebiu_top` 实例化读通道、写通道、低功耗控制和 dummy snoop channel。外部
+可见的主要接口是：
+
+```text
+AR/R/AW/W/B
+RACK/BACK
+CACTIVE/CSYSREQ/CSYSACK
+```
+
+外部没有 AC/CD/CR 端口。因此准确称呼是“带 ACE 风格属性和确认信号的外部
+AXI 主接口子集”，不宜写成不加限定的完整 ACE coherent interconnect。
+
+RACK/BACK 在 EBIU 读写通道中根据已消费的最终 R/B 生成确认脉冲和计数状态，
+不是由名称自动产生，也不是所有配置下固定常量。
 
 ---
 
 ## 5. EBIU 读通道
 
-`ct_ebiu_read_channel.v`（691 行）实现 AXI AR/R 主逻辑：发读地址、收读数据，并把返回数据路由回正确的 SAB 项。
+### 5.1 请求源与地址缓冲
 
-- **参数**：`RWIDTH=169`（`ct_ebiu_read_channel.v:490`），`DEPTH=SAB_DEPTH=24`（`ct_ebiu_read_channel.v:511`）——读返回要能指向 24 个 SAB 项之一。
-- **SAB 项选择**：输出 `ebiu_ebiuif_entry_sel[23:0]`（`ct_ebiu_read_channel.v:162`），24 位 one-hot，标识这次读返回数据该写进哪个 SAB 项（相干读 miss 到内存的回填）。
+读通道有三类来源：
 
-读通道把多个 outstanding 读的返回数据，按 AXI rid 配对回各自的 SAB 项 / NCQ 项。
+| 来源 | 典型用途 |
+|------|----------|
+| NCQ | 非相干内存读 |
+| EBIUIF/SNB | 可缓存 miss、维护等需要的外部读 |
+| CTCQ | 保留的 DVM operation/sync 类外部读请求；当前配置不产生有效流量 |
 
----
+仲裁结果先写入一个当前 AR 地址缓冲。`ebiu_pad_arvalid` 由该缓冲 valid 驱动，
+只有 `arvalid && pad_ebiu_arready` 后才能清除或装入下一请求。因此来源 grant
+表示其请求已进入 EBIU 地址缓冲，不等于外部 slave 已经在同周期接受。
 
-## 6. EBIU 写通道与 NCWT/CAWT
+三源选择状态 `ar_snb_sel[2:0]` 在“任一来源 valid 且 `clk_en`”时轮转，并不
+要求本周期已经 grant。也就是说，依赖阻塞或地址缓冲忙时，优先状态仍可能
+继续推进；它实现的是随请求活动轮转的选择偏好，而不是严格按成功服务次数
+轮询。当前 `ct_ebiu_snoop_channel_dummy` 又使外部 DVM AC 入口无效，
+`ct_ciu_ctcq` 也不产生有效的 DVM Complete AR，因此 CTCQ 读源是保留结构，
+不能据此声称当前系统已有端到端片外 DVM 流量。
 
-`ct_ebiu_write_channel.v`（3070 行，最大的 EBIU 子模块）实现 AXI AW/W/B 主逻辑，并维护两张**写跟踪表**做地址冲突检测与保序：
+### 5.2 ARID 编码
 
-### 6.1 NCWT（非相干写跟踪表，16 项）
+EBIU 用 8-bit ARID 的高位区分返回目标：
 
-`ct_ebiu_ncwt_entry`（240 行）共 **16 个实例**（`ct_ebiu_write_channel.v` 中 grep 得 16）。每项跟踪一个非相干写（`ct_ebiu_ncwt_entry.v:69-76`）：
+| ARID | 来源 |
+|------|------|
+| bit7=0 | NCQ，低位保留 NCQ ID |
+| `[7:6]=10` | SNB，bit5 区分 SNB0/1，`[4:0]` 是 SAB entry |
+| `[7:6]=11` | CTCQ，`[5:0]` 是 CTCQ ID |
 
-```verilog
-reg        ncwt_vld;        // 项有效
-reg [7:0]  ncwt_addr;       // cache line 地址 [13:6]
-reg [7:0]  ncwt_id;         // 写 ID
-reg [1:0]  ncwt_bresp;      // 写响应状态
-reg        ncwt_resp_done;  // 响应已交回源
-reg        ncwt_bus_done;   // 总线写完成
-reg        ncwt_gm_fail;    // 独占写失败
-```
+外部 R 返回时按 RID 组合解码，不需要额外按发出顺序猜测来源。
 
-完成条件（`ct_ebiu_ncwt_entry.v:121-123`）：`ncwt_pop_en = ncwt_vld & ncwt_resp_done & ncwt_bus_done`——既要总线写完、又要响应交回源才释放。它还输出读/写对该地址的依赖（`nc_wo_rd_depd_ncwt_x`/`nc_wo_wr_dped_ncwt_x`，行 213-214），实现非相干区的同地址保序。
+### 5.3 两项 R FIFO 与最终交付
 
-### 6.2 CAWT（相干地址写跟踪表，32 项）
+外部 `rvalid` 且 R FIFO 未满时，数据、RID、RRESP、RLAST 进入深度 2 的
+RFIFO。RFIFO 头部再向 NCQ、SNB0、SNB1 或 CTCQ保持 valid，直到目标 grant。
 
-`ct_ebiu_cawt_entry`（177 行）共 **32 个实例**（grep 得 32）。每项记一个**相干写回**的地址（`ct_ebiu_cawt_entry.v:67-69`）：
-
-```verilog
-reg [7:0] cawt_addr;  // cache line 地址 [13:6]
-reg [2:0] cawt_mid;   // 写源 master ID
-reg       cawt_vld;
-```
-
-它做地址冲突比较（`ct_ebiu_cawt_entry.v:149-152`）：
-
-```verilog
-ca_rd_addr_hit_cawt_x = cawt_vld && (ebiuif_ebiu_araddr[13:6] == cawt_addr[7:0]);  // 读撞写回
-ca_wr_addr_hit_cawt_x = cawt_vld && (vb_ebiu_awaddr[13:6]   == cawt_addr[7:0]);    // 写撞写回
-snb0_snpext_addr_hit_cawt_x = cawt_vld && (snb0_yy_snpext_index[7:0] == cawt_addr[7:0]); // 侦听撞写回
-```
-
-**为什么 CAWT 比 NCWT 大（32 vs 16）？** 相干写回涉及更多并发源（2 L2C bank + 2 SNB bank + 各核），且必须与读、侦听做严格地址冲突检测以保一致性正确性，需要更多跟踪表项。
-
-### 6.3 请求类型与独占（`ct_ebiu_write_channel.v:518-563`）
-
-```verilog
-parameter SO_ID    = 5'b11101;  // Strongly-Ordered 强保序 ID
-parameter WO_EX_ID = 5'b11110;  // Write-Order Exclusive 写序独占 ID
-assign ncq_aw_wo = ncq_xx_awcache[1];    // 写序
-assign ncq_aw_so = !ncq_xx_awcache[1];   // 强保序
-assign ncq_aw_ex = ncq_xx_awlock;        // 独占写
-```
-
-每核还有独占写失败 FSM（`ncq_so_ex_fail_coreN_cur_state[1:0]`，`ct_ebiu_write_channel.v:229-237`），配合 ncq_gm 处理 SC 失败回报。
+对 SNB，`RID[4:0]` 解码成 24-bit one-hot entry select。该选择只定位哪个
+SAB entry 接收数据；entry 是否收齐整个 burst、后续是否写 L2、是否已返回
+PIU，要看 RLAST 和 SAB 状态机。
 
 ---
 
-## 7. L2CIF：L2 Cache 接口
+## 6. EBIU 写通道
 
-`ct_ciu_l2cif.v`（1212 行）是 CIU 与共享 **L2 Cache** 之间的接口，把 SAB/CTCQ/VB 的请求翻译成对 L2C 的访问。
+### 6.1 两个地址来源
 
-### 7.1 双 bank
+写地址来源为：
 
-L2C 分两个 bank（与 SNB 双 bank 对应，按地址分流），所有信号都成对带 `_bank_0`/`_bank_1` 后缀（`ct_ciu_l2cif.v:19-26`）：
+- NCQ：非相干写；
+- VB：来自 L2C/SNB 的 victim、writeback 或维护类写。
 
-```verilog
-ciu_l2c_addr_bank_0 / _bank_1        // 地址
-ciu_l2c_addr_vld_bank_0 / _bank_1    // 地址有效
-ciu_l2c_clr_cp_bank_0 / _bank_1      // ◄ 清 cp 位（snoop filter 维护）
-ciu_l2c_ctcq_req_bank_0 / _bank_1    // CTCQ 请求
-ciu_l2c_dca_req_bank_0 / _bank_1     // DCA 请求
-```
+两源使用状态位轮换选择，但还分别受到 NCWT/CAWT 空间、地址依赖和 SO 控制
+门控。`aw_vb_sel` 和读通道相似：只要任一来源 valid 且 `clk_en` 就翻转，
+而不是等真实 AW grant 后才翻转。被 EBIU grant 后，地址先进入当前 AW
+缓冲；外部 AW 接受仍需
+`ebiu_pad_awvalid && pad_ebiu_awready`。
 
-### 7.2 cp 位图的载体
+波形中还会看到 `ebiu_*_aw_grant_gated`。它们由“来源已选中且跟踪队列未满”
+产生，主要用于数据路径和时钟门控，并没有包含全部地址依赖、SO 状态以及当前
+AW 缓冲 ready 条件。只有不带 `_gated` 的 `ebiu_*_aw_grant` 才表示该请求
+真正创建进 EBIU 写地址路径。不能用 `_grant_gated` 单独统计已接受事务数。
 
-注意 `ciu_l2c_clr_cp_bank_*` / `ciu_l2c_set_cp_bank_*`（`ct_ciu_top.v:55-56,80-81`）——这正是 `02_ciu_snb_sab.md` §10 讲的 **set_cp/clr_cp 命令的物理出口**。SAB 算出要更新 cp 位图，经 L2CIF 把 set/clr 命令送到 L2C tag。**cp 位图寄生在 L2C 的 tag SRAM 里**，L2CIF 是 SAB 操纵它的通道。
-
-L2C 返回的响应里带 `l2c_ciu_resp_bank_*[4:0]`（HIT/ERR/PD/IS）和 cp 位图，回送给 SAB（`02_ciu_snb_sab.md` §5）。
-
-### 7.3 请求类型（13 种）
-
-L2CIF 透传 SAB 的 13 种 L2C 命令（`ciu_l2c_type_bank_*[12:0]`），即 `02` 文档讲的 read/allocate/clean/clean&inv/write SD-UC-UD-SC/acc_tag/invalid/unique/shared（`ct_ciu_snb_sab_entry.v:1759-1808`）。数据宽 512 位（`l2c_ciu_data_bank_*[511:0]`），即整条 cache line。
-
----
-
-## 8. EBIUIF / BMBIF
-
-### 8.1 EBIUIF（`ct_ciu_ebiuif.v`，412 行）
-
-EBIUIF 是 **SNB/VB/CTCQ 与 EBIU 之间的连接桥**。相干读 miss 到内存、相干写回、DVM 广播都经它转给 EBIU 的读/写通道。它也把 EBIU 读回的数据按 `entry_sel` 路由回 SAB 项（配合 §5），并参与 §6/§10 的地址依赖（`vb_ebiuif_addr_depd`、`ebiuif_vb_index`）。
-
-### 8.2 BMBIF（`ct_ciu_bmbif.v`，303 行）
-
-**BMBIF（Barrier/Monitor Bus Interface）**仲裁来自 CTCQ、NCQ、SNB0、SNB1 的 **barrier/monitor 请求**，并把授权分发回各 PIU master（`ct_ciu_bmbif.v:18-24`）：
+### 6.2 `aw_needissue`
 
 ```verilog
-bmbif_ctcq_bar_req / bmbif_ncq_bar_req / bmbif_snb0_bar_req / bmbif_snb1_bar_req  // 屏障请求
-bmbif_piu0_ctcq_grant / _ncq_grant / _snb0_grant / _snb1_grant                   // 授权回 PIU
-piu0_bmbif_req_bus[8:0]  // 请求总线（9 位）
+aw_needissue =
+  NCQ ? ncq_xx_aw_needissue
+      : (vb_ebiu_awsnoop != 3'b100);
 ```
 
-它确保多核内存屏障（barrier）在所有相关通道间正确排序——屏障前的访存必须先全局可见，屏障后的才能发出。
+因此两类请求可能被 EBIU 在内部“接受并完成本地处理”，但不发片外 AW/W：
 
-> **`ct_ciu_bmbif_kid.v`** 是 BMBIF 的**跨时钟域（CDC）封装**变体（"kid" 即 CIU 里成对出现的
-> 同步外壳，与 `regs_kid` 同理）：当 PIU master 与 CIU 处于不同时钟域时，barrier 请求/授权信号
-> 经它做两级触发器同步后再进 BMBIF 仲裁，防止亚稳态。逻辑与 `ct_ciu_bmbif.v` 相同，只多一层同步。
+- failed exclusive NCQ 写；
+- VB 的 Evict 编码 `awsnoop==100`。
 
----
+判断片外写是否真实发生，必须观察：
 
-## 9. APBIF：APB 外设桥
+```text
+aw_needissue
+ebiu_pad_awvalid && pad_ebiu_awready
+ebiu_pad_wvalid && pad_ebiu_wready
+ebiu_pad_wlast
+pad_ebiu_bvalid 与内部 B 接受
+```
 
-`ct_ciu_apbif.v`（506 行）把 NCQ 来的非相干访问桥接到 **APB 外设**。
+### 6.3 NCWT：16 项 write-ordered 写跟踪
 
-### 9.1 4 态 FSM（`ct_ciu_apbif.v:253-256`）
+只有 `ncq_aw_wo` 被接受时创建 NCWT：
 
 ```verilog
-parameter IDLE  = 2'b00;   // 空闲
-parameter WADDR = 2'b01;   // 写地址阶段
-parameter REQ   = 2'b10;   // APB SETUP（发起）
-parameter PEND  = 2'b11;   // APB ACCESS（等 pready）
+ncq_aw_wo = ncq_xx_awcache[1];
+ncq_aw_so = !ncq_xx_awcache[1];
 ```
 
-转移（`ct_ciu_apbif.v:274-298`）：IDLE 收到读请求直接进 REQ，收到写请求先进 WADDR 等数据，再 REQ → PEND（等外设 `pready`）→ 完成回 IDLE。这正是 APB 协议的 SETUP/ACCESS 两拍握手。
+每个 NCWT 保存：
 
-### 9.2 外设片选（`ct_ciu_apbif.v:140-144`）
+- valid；
+- PA[13:6]；
+- ID；
+- 总线 B 是否完成；
+- 响应是否已交回 NCQ；
+- exclusive fail 和 B response。
+
+释放要求 bus side 和 source response side 都完成。failed exclusive 可在创建
+时把 bus_done 视为完成，因为没有实际片外写。
+
+NCWT 只比较 PA[13:6] 做 write-ordered 地址依赖。这是保守低索引比较，不是
+完整 PA 相等；不同高位地址可能发生假冲突。
+
+### 6.4 Strongly-ordered 写
+
+SO 写不创建 NCWT，而是使用每核 outstanding 状态、计数和独占失败 FSM。
+`ciu_so_ostd_dis` 进一步限制 SO outstanding 行为。不能把 NCWT 描述成所有
+NCQ 写的统一跟踪表。
+
+RTL 注释还明确假定：同核相同 AWID 的返回由 slave 保序；不同核同时访问同一
+IP 的约束部分依赖软件。因此，完整 SO 语义包含硬件协议假设，不能只从一个
+队列深度推导。
+
+### 6.5 CAWT：32 项已发 VB 写跟踪
+
+VB 写被 EBIU 接受且 `aw_needissue=1` 时创建 CAWT。CAWT 保存 PA[13:6] 和
+MID，直到对应外部 B 返回才释放。它参与：
+
+- 新 VB 写与已有写的冲突；
+- SNB/EBIUIF 读与正在外写 line 的冲突；
+- 保留的外部 snoop index 与写出的冲突。
+
+这些比较同样只用 PA[13:6]，会保守阻塞低索引相同的不同 tag 地址。CAWT=32、
+NCWT=16 是 RTL 容量事实；“前者更大一定是因为来源更多”没有源码直接证据，
+不作为确定结论。
+
+当前 `ct_ebiu_snoop_channel_dummy` 把外部 AC valid 固定为 0，因此 CAWT 中
+面向外部 snoop index 的命中比较器虽然存在，正常配置下没有有效请求驱动；
+当前实际活跃的是新 VB 写和 SNB/EBIUIF 外部读等内部路径的地址依赖检查。
+
+### 6.6 AW 与 W 来源顺序
+
+写通道还有 16 项 source-order 环形队列。AW 被接受时记录来源是 NCQ 还是
+VB；W 通道按队头选择相同来源，直到该笔写数据完成后推进。它解决 AXI 中 AW/W
+解耦后的来源匹配。
+
+VB entry 在最后一个 W beat 交给 EBIU 时即可释放，而对应片外 B 继续由 CAWT
+跟踪。这是“数据源缓冲释放”和“总线事务最终完成”分离的典型例子。
+
+---
+
+## 7. L2CIF
+
+### 7.1 bank 与源优先关系
+
+每个 L2 bank 的地址类接口有：
+
+```text
+CTCQ maintenance > DCA > SNB
+```
+
+RTL 直接体现为：
 
 ```verilog
-psel_clint;        // CLINT：核本地中断/定时器
-psel_had;          // HAD：硬件调试
-psel_l2pmp[3:0];   // L2 PMP：物理内存保护（每核一个）
-psel_plic;         // PLIC：平台级中断控制器
-psel_rmr;          // RMR：复位管理寄存器
+snb_addr_vld = snb_req && !ctcq_req && !dca_req;
+dca_req_out  = dca_req && !ctcq_req;
+ctcq_req_out = ctcq_req;
 ```
 
-APBIF 按地址解码出目标外设，拉对应 `psel`，转发 `paddr/pwdata/pwrite/penable`，回收 `prdata/pready`。
+SNB 得到的 `l2c_snb_addr_grant` 来自 L2 ready，但它只有在 SNB 实际未被更高
+优先源屏蔽时才具有接受意义。波形分析不能只看 ready 常高而忽略最终 valid。
+
+### 7.2 CTCQ maintenance 扇出
+
+一笔 CTCQ L2 maintenance 同时针对 bank0、bank1。L2CIF FSM：
+
+1. 分别保持两 bank 请求；
+2. 每个 bank ready 后清其 pending request；
+3. 分别记录两 bank completion；
+4. 两个 completion 都到达后，给 CTCQ 一个总 completion。
+
+因此 `l2c_ctcq_cmplt` 不是任意一个 bank 完成，而是两 bank 完成位均已记录。
+
+### 7.3 DCA
+
+DCA 是 PIU 侧用于直接 cache access 的调试/CSR 读路径。四个 PIU 请求按
+`casez` 固定优先选择，精确优先级为
+`PIU0 > PIU1 > PIU2 > PIU3`；它按 index bit6 只访问一个 L2 bank。这里应
+称为固定优先，不应与 `ct_prio` 的有状态优先级混淆。
+
+### 7.4 SNB 数据与元数据
+
+L2CIF 透传：
+
+- 13-bit L2 操作类型；
+- `set_cp/clr_cp`；
+- SRC、SID、MID；
+- 地址；
+- 512-bit 数据；
+- response、cp、completion。
+
+L2C 的 prefetch、snpl2 和 victim 请求则经 L2CIF 返回 SNB/VB。VB 不是主动
+向 L2 发地址请求的源；victim 数据方向是 L2 -> VB。
 
 ---
 
-## 10. CIU 寄存器
+## 8. EBIUIF
 
-`ct_ciu_regs.v`（767 行）是 CIU 的配置/控制寄存器堆。最关键的是 **CHR2 寄存器**（`chr2_data[10:0]`，`ct_ciu_regs.v:127`），它的位直接控制一致性行为：
+EBIUIF 连接 SNB 与 EBIU 读通道，并把 EBIU R 解码后的 bank/entry 选择和数据
+送回对应 SNB。它也接收 EBIU 对 CAWT 地址冲突的结果，供 SNB 外部访问排序。
+EBIUIF 还保留外部 snoop 与 CAWT 的依赖比较接口，但当前外部 AC 由 dummy
+通道固定为无效，所以这部分比较逻辑在当前配置中是静默的。
 
-| 输出信号 | 含义 | 影响 | file:line |
-|----------|------|------|-----------|
-| `ciu_chr2_sf_dis` | **Snoop Filter 关闭** | =1 时强制广播全部核（关过滤），见 `02` §6 | `ct_ciu_regs.v:102,453` |
-| `ciu_chr2_bar_dis` | Barrier 关闭 | 关闭屏障处理 | `ct_ciu_regs.v:100,452` |
-| `ciu_chr2_dvm_dis` | DVM 关闭 | 关闭 DVM 同步广播，见 `03` §8 | `ct_ciu_regs.v:101,454` |
-| `ciu_xx_smpen[3:0]` | **每核 SMP 使能** | 未使能的核不参与一致性，见 `02` §6 | `ct_ciu_regs.v:114,656` |
-| 各 `*_icg_en` | 时钟门控使能 | 各子模块低功耗控制 | `ct_ciu_regs.v:446-450` |
-| `ciu_so_ostd_dis` | SO 写 outstanding 关闭 | 强保序写不允许 outstanding | `ct_ciu_regs.v:455` |
-
-`ciu_chr2_sf_dis` 与 `ciu_xx_smpen` 是 snoop filter 的两个软件后门：
-- **smpen**：多核启动时逐核加入 SMP 域；只有 smpen=1 的核才进 cp 位图过滤、才会被侦听。这是“哪些核参与一致性”的总开关（`02` §6 第三步）。
-- **sf_dis**：debug/兼容用，关掉过滤退化为广播。
-
-CIU 还有 CCR2（L2 时延/预取配置）、CER2（ECC 错误注入）、以及每核私有 CSR（经 `ct_ciu_regs_kid.v`，`ct_ciu_regs.v:579`）。`smpen[3:2]` 在 2 核配置里钉为 0（`ct_ciu_regs.v:634,639`），呼应 piu2/piu3 是 dummy。
+VB 写不经 EBIUIF 转发数据，而是直接连接 EBIU write channel；CTCQ 的外部
+DVM AR 也直接连接 EBIU read channel。把 EBIUIF笼统画成“所有
+SNB/VB/CTCQ 到 EBIU 的统一桥”会掩盖真实端口关系。
 
 ---
 
-## 11. 设计取舍小结
+## 9. BMBIF
 
-| 决策 | 内容 | 为什么 | 出处 |
-|------|------|--------|------|
-| NCQ 绕开侦听 | 非相干访问不进 SAB | 不缓存就不需一致性，快进快出 | `ct_ciu_ncq.v` |
-| 地址 FIFO 浅(2) | RAQ/RDQ/WAQ/WDQ 深 2 | 非相干访问不长期挂起 | `ct_ciu_ncq.v:735…` |
-| WOQ 深 16 | 写序队列独大 | 强保序写须排队保程序序 | `ct_ciu_ncq.v:1236` |
-| ncq_gm 独占监视 | 为非缓存区做 LR/SC | 缓存区原子靠 MOESI，设备区需专用监视器 | `ct_ciu_ncq_gm.v` |
-| EBIU = AXI 主 | 标准 AXI 对外 | 通用 SoC 集成 | `ct_ebiu_top.v` |
-| snoop_channel dummy | 不接受外部侦听 | OpenC910 是 master 侧 | `ct_ebiu_snoop_channel_dummy.v` |
-| NCWT 16 / CAWT 32 | 写跟踪表分相干/非相干 | 相干写并发源多、须严格冲突检测 | `ct_ebiu_write_channel.v` |
-| L2C/SNB 双 bank | 按地址分两路 | 奇偶 line 并行，吞吐翻倍 | `ct_ciu_l2cif.v:19-26` |
-| cp 位图寄生 L2 tag | set/clr_cp 经 L2CIF | 复用 L2 tag SRAM，省独立目录 | `ct_ciu_top.v:55-56,80-81` |
-| BMBIF 集中仲裁屏障 | 4 源 barrier 统一排序 | 保证多核屏障语义 | `ct_ciu_bmbif.v` |
-| APBIF 4 态 FSM | IDLE/WADDR/REQ/PEND | 实现 APB 两拍握手 | `ct_ciu_apbif.v:253-256` |
-| smpen/sf_dis 后门 | 软件控制一致性范围 | 多核启动 + debug 回退 | `ct_ciu_regs.v:453,656` |
+`ct_ciu_bmbif` 为四个目的模块各实例化一个 `ct_ciu_bmbif_kid`：
+
+```text
+SNB0、SNB1、NCQ、CTCQ
+```
+
+每个 kid 接收 PIU0～PIU3 的目的请求，用有状态 `ct_prio` 选择一个来源，并把
+one-hot 来源写入深度 4 的 FIFO。目的模块看到 FIFO 头部的请求，grant 后 pop。
+
+### 9.1 kid 不是 CDC 同步模块
+
+源码中没有双触发器同步器；它是仲裁和来源 FIFO。`kid` 名称不能作为 CDC
+证据。
+
+### 9.2 一个细微但重要的 payload 约束
+
+FIFO 只保存 4-bit 来源 one-hot，不保存 9-bit 请求 payload。输出 payload 是
+用 FIFO 头部 one-hot 从 **当前 PIU live bus** 中选择：
+
+```verilog
+bmbif_xx_req_bus =
+  source_onehot[3] ? piu3_bmbif_req_bus :
+  ...
+```
+
+因此集成协议要求 PIU 在该目的事务真正被 grant 前保持请求 bus 内容稳定。
+另外 create 逻辑未用 `xx_fifo_full` 门控；正常工作依赖每个 PIU/目的组合不会
+违反保持和 outstanding 约束。这里不应把 FIFO 存在误解成“payload 已被完全
+缓冲，源端可立即任意改变”。
+
+BMBIF 提供 barrier 向四个目的的排队和来源关联。体系结构上的“屏障前访问已
+全局可见”还取决于 SNB、NCQ、CTCQ 对 barrier 的完成条件，不能只由 BMBIF
+自身证明。
 
 ---
 
-*文档覆盖 `ct_ciu_ncq.v`、`ct_ciu_ncq_gm.v`、`ct_ebiu_top.v`、`ct_ebiu_read_channel.v`、`ct_ebiu_write_channel.v`、`ct_ebiu_cawt_entry.v`、`ct_ebiu_ncwt_entry.v`、`ct_ciu_l2cif.v`、`ct_ciu_ebiuif.v`、`ct_ciu_bmbif.v`、`ct_ciu_apbif.v`、`ct_ciu_regs.v` 的核心逻辑（合计约 9100 行）。*
+## 10. APBIF
+
+### 10.1 FSM 与接受事件
+
+```text
+IDLE --read accepted--> REQ -> PEND -> IDLE
+IDLE --AW accepted----> WADDR --W accepted--> REQ -> PEND -> IDLE
+```
+
+- IDLE 中读优先于写；
+- AR/AW grant 表示 APBIF 已在时钟沿锁存地址、ID、保护属性；
+- 写还要在 WADDR 等 W，并按地址 `[3:2]` 选 128-bit WDATA 中的 32-bit lane；
+- REQ 是 APB setup，`psel=1, penable=0`；
+- PEND 是 APB access，`psel=1, penable=1`；
+- 目标 `pready` 或 no-target/no-issue 条件使事务完成。
+
+### 10.2 精确地址解码
+
+| 目标 | 解码 |
+|------|------|
+| PLIC | `addr[26] == 0` |
+| CLINT | `addr[26:16] == 11'h400` |
+| HAD | `addr[26:16] == 11'h401` |
+| L2PMP | `addr[26:16] == 11'h402` |
+| RMR | `addr[26:16] == 11'h403` |
+
+L2PMP 再用地址 `[15:14]` 选择 core0～core3。
+
+### 10.3 返回
+
+APB 32-bit read data 被复制四次形成 128-bit NCQ RDATA。目标 `perr` 形成
+`{resp_err,1'b0}` 的 RRESP/BRESP。地址没有命中任何目标时，`perr` 也被置 1，
+并通过 `psel_none` 完成本地错误返回。
+
+当前 `ct_piu_other_io_sync` 的 L2PMP `pready/perr/rdata` 固定为
+`1/0/0`，所以虽然 APBIF 有完整 L2PMP decode，当前连接只提供零数据 dummy
+响应。
+
+---
+
+## 11. CIU 寄存器
+
+### 11.1 多核访问仲裁
+
+`regs_sel_raw={piu3,piu2,piu1,piu0}`。同时请求时，`casez` 选择优先级：
+
+```text
+PIU3 > PIU2 > PIU1 > PIU0
+```
+
+这是真正的固定优先。寄存器 FSM 非空闲后把选择锁存在 `regs_sel_ff`，保持当前
+owner 直到访问完成；新高优先请求不能中途抢占。
+
+### 11.2 CHR2 位定义
+
+| bit | 输出 | RTL 作用 |
+|-----|------|----------|
+| 0 | `ciu_chr2_bar_dis` | barrier completion 可绕过依赖 |
+| 1 | `ciu_icg_en` | CIU 子模块 ICG module enable |
+| 4 | `ciu_chr2_sf_dis` | L2 hit 时过滤候选退化为 `1111` |
+| 5 | `ciu_chr2_dvm_dis` | 寄存器输出存在，但当前 `ct_ciu_ctcq` 可执行逻辑未使用 |
+| 6 | `l2c_icg_en` | L2C 时钟门控使能 |
+| 7 | `regs_apbif_icg_en` | regs/APBIF 时钟门控使能 |
+| 8 | `ciu_sysio_icg_en` | sysio 相关门控 |
+| 9 | `ciu_global_icg_en` | CIU 全局门控控制 |
+| 10 | `ciu_so_ostd_dis` | SO outstanding 限制 |
+
+bit2、bit3 在 `chr2_data[10:0]` 中存在，但当前列出的输出没有赋予它们上述功能，
+不能擅自补名称。
+
+bit5 清楚地展示了“端口存在”和“功能生效”是两个不同层次。`ct_ciu_regs` 确实把
+`chr2_data[5]` 导出为 `ciu_chr2_dvm_dis`，顶层也把它连入 `ct_ciu_ctcq`；
+但该信号在当前生成 RTL 中除端口声明和 `Force` 注释外没有被任何可执行表达式
+引用。因此写 bit5 对当前 CTCQ/DVM 行为没有可由 RTL 证明的影响，不能把它当
+作已经生效的 DVM disable 开关。
+
+`bar_dis=1` 的可执行效果应描述成允许 SAB barrier completion 忽略
+`depd_vld`，比笼统说“关闭全部屏障处理”更准确。
+
+### 11.3 SMP enable
+
+核 0、核 1 有真实 `ct_ciu_regs_kid`，SMPR bit0 可写入 `smpen[0/1]`。当前：
+
+```verilog
+smpen[2] = 0;
+smpen[3] = 0;
+```
+
+`smpen` 参与 SAB 的 `cp_after_mask` 和 CTCQ DVM 目标选择。它不直接改写所有
+cache line 的 cp，也不能把置位瞬间理解成全系统目录已经自动重建。
+
+### 11.4 时钟门控结论边界
+
+这些 ICG 位控制 RTL 的 gated-clock enable。未定义工艺 ICG 宏时，通用
+`gated_clk_cell` 可能把输出直接连输入；DC 文件列表则使用工艺 ICG。文档因此
+只断言门控意图和逻辑使能，不由寄存器位单独推导实际动态功耗。
+
+---
+
+## 12. 波形分析方法
+
+### 12.1 NCQ 读
+
+```text
+piuN_ncq_ar_req / ncq_piuN_ar_grant
+raq_create/pop/full
+raq_apbif_sel
+ncq_apbif_arvalid / apbif_ncq_ar_grant
+ncq_ebiu_arvalid / ebiu_ncq_ar_grant
+rdq_create/pop/full
+ncq_piuN_rvalid / piuN_ncq_r_grant
+```
+
+这能区分等待 NCQ 空间、目的选择、APB/EBIU 接受、目标 latency 和 PIU 返回
+背压。
+
+### 12.2 外部写
+
+```text
+NCQ/VB AW valid 与 EBIU grant
+aw_needissue
+cur_waddr_buf_awvalid / pad_awready
+source-order FIFO head
+pad_wvalid / pad_wready / wlast
+pad_bvalid / bfifo
+NCWT 或 CAWT valid/pop
+最终 NCQ B grant；VB 查看本地写数据完成和 CAWT 的片外 B 释放
+```
+
+若 `aw_needissue=0`，没有片外 AW/W 是设计行为，不是总线卡死。
+
+VB 的生命周期尤其不能只看信号名：`ebiu_vb_bvalid` 是 EBIU 在接收 VB 最后
+一个 W beat 后本地产生的一周期固定 OK 响应，用于结束 VB 本地数据源事务；
+它不是片外 B。真实片外 B 是
+`pad_ebiu_bvalid && ebiu_pad_bready`，先进入 BFIFO，再按 BID 命中并释放
+CAWT。因而“VB entry 已释放”和“外部写已收到 B”可以相隔很多周期。
+
+### 12.3 L2
+
+```text
+ctcq/dca/snb req
+最终 ciu_l2c_*_vld
+l2c ready
+SID/MID/type/set_cp/clr_cp
+l2c completion/resp/cp
+```
+
+同时看“源请求”和“最终输出 valid”，才能发现请求是否被更高优先源屏蔽。
+
+---
+
+## 13. 关键结论
+
+1. NCQ 当前接收 PIU0～PIU3，PIU4 device 口是静态 dummy。
+2. WOQ/DSQ 解决 AW/W 来源和目的关联，不等于完整强序语义。
+3. GM 当前只实现核 0/1，成功比较整个 74-bit 请求内容。
+4. EBIU 外部是 AXI 数据通道加一致性属性/确认，不是完整外部 AC/CD/CR 节点。
+5. RID 高位精确区分 NCQ、SNB bank/SAB entry 和 CTCQ。
+6. NCWT 只跟踪 write-ordered NCQ 写；SO 写使用独立每核状态。
+7. CAWT 跟踪真实发出的 VB 写到片外 B 返回；VB 本地 `ebiu_vb_bvalid` 不是
+   片外 B，NCWT/CAWT 地址依赖都只比较 PA[13:6]。
+8. `aw_needissue=0` 的 failed exclusive 或 Evict 不发片外 AW/W。
+9. L2CIF 地址优先级为 CTCQ、DCA、SNB；CTCQ maintenance 等两个 bank 完成。
+10. BMBIF kid 是仲裁器和来源 FIFO，不是 CDC，也不保存 9-bit payload。
+11. APBIF 实现标准 setup/access 时序、精确目标 decode 和本地错误返回。
+12. CIU regs 同时请求时固定 PIU3 最高优先，访问期间锁定 owner；
+    `CHR2[5]` 虽导出 DVM disable 信号，但当前 CTCQ 可执行逻辑未使用它。

@@ -166,7 +166,10 @@ IR 阶段 (重命名完成)
 | `dp_xx_rf_pipe6_dst_vreg_dupx[6:0]` | in | Pipe6 RF 读出阶段目标 vreg |
 
 > **为什么需要多个流水阶段的广播？**  
-> 不同指令在不同流水阶段产生结果：ALU 2 拍、load AG 推测 1 拍（后续需确认）、load WB 3 拍、向量 1–5 拍。is_pipe_entry 针对每种路径分别检测，确保能够在最早可用的时刻将源就绪状态置位，最大化发射并行性。
+> 各执行路径在不同接口阶段暴露"预计可用"、"可旁路"和"已写回"信息。`is_pipe_entry`
+> 按物理寄存器号匹配这些广播，尽量在最终 PRF 写回前唤醒消费者，同时保留
+> `rdy_clear`/launch-fail 清除路径。接口名能证明相对阶段，不能单独推导所有指令的
+> 固定端到端延迟。
 
 ### 2.4 来自 RTU/ROB 的 IID 分配
 
@@ -246,7 +249,7 @@ ct_idu_is_pipe_entry  x_ct_idu_is_dp_inst3 ( ... );
 | 操作码 | `entry_opcode[31:0]` | 32 位原始操作码 |
 | 目标 | `entry_dst_preg[6:0]` | 目标物理整型寄存器 |
 | | `entry_dst_vreg[6:0]` | 目标物理向量寄存器 |
-| | `entry_dst_ereg[4:0]` | 目标物理扩展寄存器（FP 等）|
+| | `entry_dst_ereg[4:0]` | 目标物理 EREG；索引该操作产生的 `fflags` 等状态贡献版本 |
 | | `entry_dst_vld` | 有整型目标寄存器 |
 | | `entry_dstv_vld` | 有向量目标寄存器 |
 | | `entry_dste_vld` | 有扩展目标寄存器 |
@@ -261,24 +264,27 @@ ct_idu_is_pipe_entry  x_ct_idu_is_dp_inst3 ( ... );
 
 #### 3.2.2 分层门控时钟设计
 
-`is_pipe_entry` 针对不同字段使用独立的门控时钟，节省功耗：
+`is_pipe_entry` 针对不同字段生成独立的局部时钟请求，使只在特定指令类型中有意义的字段不必随每次 IS 槽更新：
 
 ```verilog
-// 仅当 IS_DST_VLD=1（有目标寄存器）时，preg 字段的时钟才打开
+// 仅当 IS_DST_VLD=1（有目标寄存器）时，请求更新 preg 字段
 assign create_preg_clk_en = x_create_gateclk_en && x_create_data[IS_DST_VLD];
 
-// 仅当 IS_DSTV_VLD=1（有向量目标）时，vreg 字段的时钟才打开
+// 仅当 IS_DSTV_VLD=1（有向量目标）时，请求更新 vreg 字段
 assign create_vreg_clk_en = x_create_gateclk_en && x_create_data[IS_DSTV_VLD];
 
-// 仅当 IS_DSTE_VLD=1 时，ereg 字段的时钟才打开
+// 仅当 IS_DSTE_VLD=1 时，请求更新 ereg 字段
 assign create_ereg_clk_en = x_create_gateclk_en && x_create_data[IS_DSTE_VLD];
 
-// 仅当有 bar 或 expt 时，才打开 bar_type/expt 等字段的时钟
+// 仅当有 bar 或 expt 时，请求更新 bar_type/expt 等字段
 assign create_other_clk_en = x_create_gateclk_en
                              && (x_create_data[IS_BAR] || x_create_data[IS_EXPT-6]);
 ```
 
-> **设计意图**：IS 阶段的数据在整个指令生命周期中停留时间较长（可能多拍等待发射），且 4 个实例同时运行，功耗开销显著。通过细粒度门控，只有指令真正用到的字段才开启时钟，大幅降低动态功耗。
+> **准确边界**：上述 `*_clk_en` 是送入 `gated_clk_cell.local_en` 的局部请求，不等于物理时钟必然关闭或打开。公共门控模型的使能关系是
+> `global_en && (module_en || local_en)`，扫描使能还可通过工艺 ICG 的 `TE` 打开时钟；未定义
+> `C910_USE_TSMC28_ICG` 时，当前 RTL 模型直接令 `clk_out = clk_in`。因此 RTL 能证明的是字段更新条件被分组，
+> 实际门控和功耗收益需要结合所用宏、综合网表与功耗分析确认。
 
 #### 3.2.3 源操作数相关项子模块
 
@@ -487,17 +493,29 @@ C910 使用**分布式动态调度**：每条指令在进入发射队列前，�
 
 对 srcv2，额外还处理 `ctrl_xx_rf_pipe6_vmla_lch_vld_dupx` 等 RF 读出阶段的信号，用于 vmla 操作数的提前就绪标记。
 
-### 6.4 LSU 多级唤醒路径的意义
+### 6.4 LSU 多阶段依赖跟踪的准确边界
 
-load 指令延迟不固定（命中 L1 需 3 拍，缺失更长）。设计采用多级广播：
+load 的结果时刻会受 cache 命中、TLB、对齐、forward、replay 和下层存储返回影响，
+不能在这里固定写成“L1 命中 3 拍”或把 AG/DC/WB 名称直接换算成绝对
+`+1/+2/+3` 周期。`ct_idu_dep_reg_entry` 可确认的接口行为是：
 
+```text
+AG  load valid + preg 匹配
+    -> 记录该源与在途 load 的匹配状态 lsu_match
+
+DC  load valid / load_fwd valid + preg
+    -> 在已记录匹配及相应资格条件下更新可调度状态
+
+WB  wb valid + preg
+    -> 把最终写回完成反映到 ready/wb 状态
 ```
-AG（+1拍）推测唤醒 --> 如果 DC 阶段 miss，需撤销（取消已发射的消费者）
-DC（+2拍）确认唤醒 --> 命中确认，不再撤销
-WB（+3拍）最终写回 --> 对 L1 miss 的情况最终唤醒
-```
 
-IS 阶段的 `dep_reg_entry` 对三个阶段均有监测，使得等待 load 结果的指令可以在 AG 阶段就被"乐观唤醒"，从而减少停顿周期。`IS_SRC0_LSU_MATCH` 位记录该源是否由 LSU 路径唤醒，供发射队列内部判断是否需要额外验证。
+其中 AG 事件是“目的号匹配/在途阶段广告”，不是 cache hit 证明；DC 的普通
+load-valid 与 load-forward 也承担不同条件，不能统称为“命中确认后绝不撤销”。
+消费者最终能否发射还要经过 entry freeze、队列年龄、执行端口和取消条件。
+`IS_SRC*_LSU_MATCH` 在创建数据中携带与 load 在途关系有关的初始状态，entry
+内部还会锁存后续 AG 匹配；它不是一位完整的“L1 hit/miss”结果。详细优先级见
+[22_dep.md](22_dep.md) 的 `ct_idu_dep_reg_entry` 逐项说明。
 
 ---
 
@@ -511,14 +529,17 @@ IS 阶段的 `dep_reg_entry` 对三个阶段均有监测，使得等待 load 结
 
 来自 IR 阶段的 `dp_ir_instXY_src_match[3:0]` 向量（由 `ct_idu_ir_dp` 生成）按位编码了 instX 的源是否与 instY 的目标寄存器重合：
 
-| 位 | 含义（以 inst01\_src\_match 为例）|
+| 位 | 含义（以 `dp_ir_inst01_src_match` 为例） |
 |---|---|
-| [0] | inst0.src0 匹配 inst1 目标整型寄存器 |
-| [1] | inst0.src1 匹配 inst1 目标整型寄存器 |
-| [2] | inst0.src0/src1 匹配 inst1 目标向量寄存器 |
-| [3] | inst0.src 匹配 inst1 目标向量寄存器（vector 专用）|
+| [0] | 较年轻 inst1 的整数 `src0` 最终依赖较老 inst0 的整数目的 |
+| [1] | inst1 的整数 `src1` 最终依赖 inst0 的整数目的 |
+| [2] | inst1 的整数 `src2`/目的旧值源最终依赖 inst0 的整数目的 |
+| [3] | inst1 的标量浮点 `srcf2` 或向量接口 `srcv2` 依赖 inst0 的对应目的 |
 
-> 实际各位定义取决于 ir\_dp 的计算规则，但基本遵循"src 匹配 dst"的语义。
+`01` 的顺序是“生产者槽 0 → 消费者槽 1”，不是“inst0 的源匹配 inst1 的
+目的”。bit[2:0] 直接来自整数 RT，bit[3] 是
+`frt_dp_inst01_srcf2_match || vrt_dp_inst01_srcv2_match`。当前 VRT 为常量占位，
+因此正常可观测的 bit[3] 主要还要结合 FRT 与实际构建配置解释。
 
 ### 7.3 is\_instXY\_src\_match 寄存器
 
@@ -566,8 +587,13 @@ assign is_inst0_lch_rdy_aiq0_create0[23:0] =
 
 这个位图随指令数据写入发射队列，当 AIQ0 中那个条目的指令完成发射（或完成执行）后，可以据此"回点"地通知所有依赖于它的等待指令。
 
-> **为什么要用这种方式而非简单地写回后广播比较？**  
-> 同批指令进入各自的发射队列时，生产者（如 inst0）的结果尚未产生，不能通过写回广播来唤醒。`lch_rdy` 位图在分发时就预先记录了消费者指令与生产者队列条目的绑定关系，形成精确的"定向唤醒"路径，避免广播开销，也避免 WAW/WAR 带来的误唤醒。
+> **为什么需要这组位图？**
+> 同包较年轻消费者创建时，较老生产者刚被分配到某个 IQ entry，尚无执行结果可
+> 写回。`lch_rdy` 把“消费者的哪个源”与“生产者落入哪个队列 entry”在 dispatch
+> 时绑定起来，使后续 launch 相关事件能按 entry 关系更新等待状态。它与 preg
+> 写回广播是互补机制，不等于系统不再广播；位图自身也有面积、扇出和更新代价。
+> WAW/WAR 主要由重命名消除，这里的核心问题是同包 RAW 生产者尚未出现在旧 RAT
+> 稳态中的依赖表示，而不是靠位图去修复 WAW/WAR。
 
 ---
 
@@ -702,7 +728,10 @@ aiq0_create0_data[AIQ0_SRC0_PREG:...]    = is_aiq0_create0_data[IS_SRC0_DATA:...
 aiq0_create0_data[AIQ0_LCH_RDY_AIQ0:...] = is_aiq0_create0_lch_rdy_aiq0[23:0];
 ```
 
-> **门控操作数 MUX**：`{AIQ0_WIDTH{ctrl_aiq0_create0_gateclk_en}} & aiq0_create0_data` 利用掩码将使能信号直接混入数据路径，等价于 "如果不创建则全零"，在时序路径上避免额外 MUX，同时通过掩零降低翻转率以节省功耗。
+> **数据掩码的精确含义**：`{AIQ0_WIDTH{ctrl_aiq0_create0_gateclk_en}} & aiq0_create0_data`
+> 在使能为 0 时把输出逐位钳为 0，在使能为 1 时透传数据。这说明 RTL 的功能形式是“按位与掩码”，
+> 不能据此断言综合网表中不存在 MUX，也不能仅凭源码定量断言时序或功耗一定更优；综合器可能按标准单元库、
+> 约束和扇出选择等价实现。
 
 ### 10.3 bypass\_data 的作用
 
@@ -760,7 +789,7 @@ LSIQ 格式包含 LSU 特有字段：
 | VMLA\_TYPE/VMLA\_SHORT | VMLA 变体类型信息 |
 | SPLIT\_NUM/SPLIT\_LAST | 向量拆分信息 |
 | SRCV0/V1/V2/VM 数据 | 4 个向量源操作数 |
-| DST\_EREG/VREG/PREG | 扩展、向量、整型目标 |
+| DST\_EREG/VREG/PREG | 状态贡献 EREG、向量/浮点数据物理号、整数目标物理号；字段名相邻不表示三类数据共享寄存器文件 |
 
 ---
 
@@ -902,9 +931,9 @@ assign is_inst0_pid = {5{is_inst0_pcfifo}} & is_inst0_alloc_pid;
 
 | 机制 | 实现 | 意义 |
 |------|------|------|
-| 分级门控时钟 | 按字段类型分 5 组时钟 | 降低 IS 阶段功耗 |
-| 多源唤醒广播 | dep\_reg/vreg\_entry 监听 10+ 路广播 | 最早发现操作数就绪 |
-| LSU 推测唤醒 | AG → DC → WB 三级广播 | 减少 load-use 停顿 |
+| 分级门控时钟 | 按字段类型生成局部更新请求 | 减少无关字段更新机会；物理门控与功耗效果取决于 ICG 宏和实现 |
+| 多源依赖更新 | dep\_reg/vreg\_entry 分别比较所连接的执行、DC 和 WB 事件 | 在不同生产者可用点更新 `rdy/wb`；各 dep 变体的输入集合并不相同 |
+| LSU load 依赖处理 | AG 生成 `lsu_match` 预匹配，DC 的 load/data-forward 条件参与 issue-ready 或 ready，WB 更新 write-back 状态 | 将预匹配、可供发射的数据条件和最终写回分开；三者不是同义的“三级完成广播” |
 | 同组内 lch\_rdy | 分发时预计算生产者-消费者绑定 | 避免组内 WAW 误唤醒 |
 | 移位 MUX | IS 槽位动态重排 | 支持 1\~4 路变宽分发 |
 | ROB 条目聚合 | create0/1/2 各自可含多条指令 | 提升 ROB 利用率 |

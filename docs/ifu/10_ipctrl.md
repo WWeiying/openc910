@@ -2,7 +2,7 @@
 
 ## 1. 模块概述
 
-`ct_ifu_ipctrl`（IP Stage Control）是 C910 处理器取指单元（IFU）IP 流水级的控制核心，负责将 IF 级取回的原始 I-Cache 数据转化为可供后续流水线消费的分支预测决策。它是贯通分支检测、BTB/BHT 融合、Change Flow 生成、I-Cache Miss 处理以及 Bry（Branch Residual）信息管理五大功能的枢纽模块，共约 2022 行 RTL。
+`ct_ifu_ipctrl`（IP Stage Control）是 C910 取指单元（IFU）IP 流水级的控制核心。原始指令位主要由并行的 `ct_ifu_ipdp` 处理；IPCTRL 组合 IFDP 给出的 I-Cache tag/预解码信息、IPDP 给出的指令边界和分支类型、BHT 方向结果及 L0/常规 BTB 信息，决定流水能否前推、是否需要改变 PC、是否需要 refill 或 reissue。它还维护 BRY（RTL 对指令边界预解码信息的命名）更新和 L0 BTB 训练分类，共约 2022 行生成 RTL。
 
 ### 在 IFU 流水线中的位置
 
@@ -36,28 +36,28 @@ pcgen → IF(ifctrl/ifdp) → IP(ipctrl/ipdp) → IB(ibctrl/ibdp) → ...
 | 信号 | 位宽 | 含义 |
 |------|------|------|
 | `ifdp_ipctrl_vpc_2_0_onehot[7:0]` | 8 | VPC\[2:0\] 的 one-hot 编码，确定本次取指从哪个 half-word 开始 |
-| `ifdp_ipctrl_vpc_bry_mask[7:0]` | 8 | 有效 bry 位掩码（哪些 half-word 是合法的指令起始点） |
-| `ifdp_ipctrl_w0b0_bry_data[7:0]` | 8 | Way0/Bank0 的 bry 数据（每位对应一个 half-word 是否是分支指令） |
-| `ifdp_ipctrl_w0b0_br_taken[7:0]` | 8 | Way0/Bank0 预解码：该 half-word 是否有"taken"分支 |
-| `ifdp_ipctrl_w0b0_br_ntake[7:0]` | 8 | Way0/Bank0 预解码：该 half-word 是否有"not taken"分支 |
+| `ifdp_ipctrl_vpc_bry_mask[7:0]` | 8 | 从当前 VPC half-word 到窗口末尾的连续有效范围掩码；它本身不判断指令边界 |
+| `ifdp_ipctrl_w0b0_bry_data[7:0]` | 8 | Way0/Bank0 的指令起始边界候选，每位对应一个 half-word |
+| `ifdp_ipctrl_w0b0_br_taken[7:0]` | 8 | Way0/Bank0 中“直接分支或直接跳转”候选；命名中的 taken 不是实际执行结果 |
+| `ifdp_ipctrl_w0b0_br_ntake[7:0]` | 8 | Way0/Bank0 中“无条件直接跳转”子集；用于 BHT 为 not-taken 时仍强制重定向 |
 | `ifdp_ipctrl_way0_*_hit` | 1 | Way0 各地址段 tag 命中标志（分4段：7:0、15:8、23:16、28:24） |
 | `ifdp_ipctrl_way_pred[1:0]` | 2 | IF 级预测的命中 way（哪个 way 应该命中） |
 | `ifdp_ipctrl_pa[27:0]` | 28 | 物理地址高位（用于 refill 请求） |
 | `ifdp_ipctrl_refill_on` | 1 | 当前是否处于 refill 过程中（已有行在填充） |
-| `ifdp_ipctrl_tsize` | 1 | 预取尺寸有效标志 |
+| `ifdp_ipctrl_tsize` | 1 | 本次访问采用 cache-line refill/I-Cache 命中路径；等于 `icache_en && cacheable` |
 
 ### 来自 ipdp 的输入（IP 级数据通路反馈）
 
 | 信号 | 位宽 | 含义 |
 |------|------|------|
-| `ipdp_ipctrl_h0_vld` | 1 | H0 寄存器有效（说明存在上一周期残留的半字） |
+| `ipdp_ipctrl_h0_vld` | 1 | H0 寄存器有效（存在上一取指窗口 H8 留下的跨窗口低 half-word） |
 | `ipdp_ipctrl_h0_br` | 1 | H0 是分支指令 |
 | `ipdp_ipctrl_h0_con_br` | 1 | H0 是条件分支 |
-| `ipdp_ipctrl_h0_ab_br` | 1 | H0 是无条件分支（absolute branch） |
+| `ipdp_ipctrl_h0_ab_br` | 1 | H0+H1 是 precode 所识别的直接无条件跳转 |
 | `ipdp_ipctrl_bht_result` | 1 | BHT 预测结果（1=taken，0=not taken） |
 | `ipdp_ipctrl_bht_data[1:0]` | 2 | BHT 2-bit 计数器原始值 |
-| `ipdp_ipctrl_btb_way0_target[19:0]` | 20 | BTB Way0 存储的目标 PC 低位 |
-| `ipdp_ipctrl_btb_way0_pred[1:0]` | 2 | BTB Way0 存储的 way 预测 |
+| `ipdp_ipctrl_btb_way0_target[19:0]` | 20 | 常规 BTB 位置槽 0 存储的目标 PC 低位 |
+| `ipdp_ipctrl_btb_way0_pred[1:0]` | 2 | 位置槽 0 存储的 I-Cache way 预测 |
 | `ipdp_ipctrl_con_br_first_branch` | 1 | 本取指窗口第一条分支是条件分支 |
 | `ipdp_ipctrl_con_br_more_than_one` | 1 | 本取指窗口有两条以上条件分支 |
 | `ipdp_ipctrl_l0_btb_vld` | 1 | L0 BTB 命中有效 |
@@ -91,7 +91,7 @@ input [7:0] ifdp_ipctrl_vpc_2_0_onehot;
 | ... | ... | ... |
 | 3'b111 | 8'b00000001 | 从 H8 开始取 |
 
-> **为什么用 one-hot？** 后续所有 casez 逻辑都以 one-hot 为 selector，避免多级 mux，关键路径更短。
+> **为什么用 one-hot？** 后续边界推进和掩码逻辑可以直接对位置位做逐位运算或 `casez` 选择，结构上省去重复的 3-to-8 解码。是否改善了芯片关键路径以及改善多少，需由综合和 STA 验证。
 
 ### 3.3 vpc_bry_mask：有效 bry 掩码
 
@@ -99,18 +99,24 @@ input [7:0] ifdp_ipctrl_vpc_2_0_onehot;
 input [7:0] ifdp_ipctrl_vpc_bry_mask;
 ```
 
-这 8 位表示在当前取指起始点（由 vpc_onehot 确定）后，哪些 half-word 是**有效的指令起始位置**。例如：
-- 若取指从 H1 开始，且 H1 是 32-bit 指令的低半字，则 H2 是 H1 指令的高半字，H3 才是下一条指令起始，H1 的 bry_mask[7]=1，H2 的 bry_mask[6]=0，H3 的 bry_mask[5]=1，……
+这 8 位只表示“从当前 VPC 位置到取指窗口末尾”的**连续位置范围**。例如从 H3 开始时，它为 `00111111`，屏蔽 H1、H2 而保留 H3~H8。IFDP 仅根据 `pcgen_ifdp_pc[2:0]` 生成该掩码，不读取指令低位，也不在这里判断 16/32 位边界。
 
-bry_mask 由 ifdp 在 IF 级根据 vpc 和当前 16 字节取指块中的 `inst[1:0]` 预先计算并存储。
+真正的指令起始位置来自 `bry_data`，或者在 missigned 情况下由 IPCTRL 根据 `ipdp_ipctrl_inst_32` 重新构造。最终有效边界通常可理解为：
+
+```text
+VPC 之后的位置范围
+AND
+在某种 H1 边界假设下计算出的指令起始位
+```
 
 ### 3.4 bry0/bry1 的双 bank 设计
 
-每个 way（Way0、Way1）各有两个 bank（Bank0、Bank1），对应两种假设：
-- **Bank0（bry0）**：假设当前取指窗口的 H1 是一条指令的**低半字**（即 H1 处于指令中间）
-- **Bank1（bry1）**：假设当前取指窗口的 H1 是一条指令的**起始**（即 H1 是新指令）
+每个 I-Cache way（Way0、Way1）各有两个边界假设（Bank0、Bank1）：
 
-之所以要存两份预解码数据，是因为在 IF 阶段无法确知 H1 究竟是不是指令起始（需要等到解码结果）。bry0_hit/bry1_hit 信号决定哪份数据有效：
+- **Bank0（bry0）**：假设 H1 **不是**新指令起点；典型情况是上一窗口 H8 保存于 H0，H1 是跨窗口 32 位指令的高半字。因此 H1 的 bry0 固定为 0，H2 才固定为新的起点。
+- **Bank1（bry1）**：假设 H1 是新指令起点，因此 H1 的 bry1 固定为 1，再依据各 half-word 的低两位递推后续边界。
+
+refill 时，`ct_ifu_precode` 同时计算两套边界并存入 I-Cache precode array。查询时，IFDP/IPCTRL 根据当前 VPC 和 IPDP 保存的跨窗口 H0 状态选择正确假设：
 
 ```verilog
 // 行 698-701
@@ -120,10 +126,13 @@ assign way1_bry0_hit = h0_vld || ifdp_ipctrl_w1_bry0_hit;
 assign way1_bry1_hit = !h0_vld && ifdp_ipctrl_w1_bry1_hit;
 ```
 
-- **h0_vld=1**：上一周期有残留半字（H0），则当前取指窗口的 H1 不是新指令起始，用 bry0 数据
-- **h0_vld=0**：无残留，H1 是新指令起始，由 `ifdp_ipctrl_w0_bry1_hit` 判断用哪 bank
+- **`h0_vld=1`**：强制认为 Bank0 假设有效，H1 与 H0 拼成跨窗口指令；
+- **`h0_vld=0`**：检查当前 VPC 在 Bank0/Bank1 边界向量中的命中情况，选择能把当前 VPC 解释为合法指令起点的假设；
+- 若无 H0 且两种假设在当前 VPC 都不命中，则触发 `bry_missigned_stall`，用真实 `inst_32` 信息重建边界。
 
-> **设计动机**：这是一种典型的"预先计算两种情况，运行时选择"的优化，避免等待解码完成再索引。
+特别要避免按名字误读：`bry0_hit`/`bry1_hit` 表示**当前 VPC 与哪套边界假设一致**，不是“发现第 0/1 条分支”。`br_taken`、`br_ntake` 才进一步给出合法边界上的直接控制流类型。
+
+> **设计动机**：同时保存两种跨窗口边界假设，让常见路径可以直接选择预解码结果；只有假设都不适用时才动态重建。这是在存储少量额外 precode 与减少前端串行边界解析之间做的权衡。
 
 ---
 
@@ -131,7 +140,7 @@ assign way1_bry1_hit = !h0_vld && ifdp_ipctrl_w1_bry1_hit;
 
 ### 4.1 问题描述
 
-同一个取指窗口（8 个 half-word）中可能存在多条条件分支指令。BHT 每周期只能给出一个预测结果（针对第一条分支），后续分支无法同时处理。
+同一个取指窗口（8 个 half-word）中可能存在多条条件分支。当前 IP/BHT 路径一次围绕第一条条件分支形成方向历史推进和窗口截断，不能在同一拍把所有后续条件分支都作为独立预测事件处理。
 
 ### 4.2 检测逻辑
 
@@ -158,7 +167,9 @@ assign masked_bry_update_vld = ip_data_vld &&
 assign br_more_than_one_stall = masked_bry_update_vld;
 ```
 
-`br_more_than_one_stall` 会向上游发送 stall（通过 `ipctrl_ifctrl_stall`），同时将 bry_data 更新为"截断到第一条条件分支处"的新掩码，下一周期再处理后续指令。
+`br_more_than_one_stall` 被加入 `ipctrl_ifctrl_stall`，冻结 IF 上游的新窗口；同时，IPCTRL 计算 `vpc_onehot_masked_bry_update` 和各 bank 的 `bry_data_masked`，把 IFDP 中保存的起始点/剩余边界推进到第一条条件分支之后，供下一轮处理剩余部分。
+
+它特意**没有**加入 `ip_self_stall`。因此当前 IP 流水项的 `ip_vld` 仍可成立并送往 IB，行为不是“整条 IP 流水停住后原样重做”，而是“先提交当前可处理片段，冻结上游窗口，再处理剩余片段”。如果一个窗口有更多条件分支，这个过程可能重复，不应笼统限定为只多停 1 拍。
 
 ### 4.4 hit_cnt：way 预测计数器
 
@@ -179,11 +190,13 @@ assign ipctrl_pcgen_inner_way0 = (hit_cnt[2:0] == 3'b000);
 assign ipctrl_pcgen_inner_way1 = (hit_cnt[2:0] == 3'b111);
 ```
 
-这是一个 3-bit 饱和计数器，用于统计最近访问 way0 还是 way1 更多。当计数器饱和到 0 时，告知 pcgen 当前程序"固定在 way0"，饱和到 7 则"固定在 way1"。这用于优化 way 预测，减少不必要的 tag 查询。
+这是一个 3-bit 饱和偏置状态：Way0 hit 时向 0 移动，Way1 hit 时向 7 移动；只有达到端点才通过 `inner_way0/1` 告知 PCGEN，可在 cache line 内部顺序取指时形成单路 way 预测，否则 PCGEN 默认 `2'b11`（两路都读）。
+
+这里有一个必须按 RTL 原样理解的边界：`hit_cnt` 每个 `forever_cpuclk` 都观察 `icache_way0_hit/way1_hit`，没有用 `ip_data_vld`、stall 或 pipedown 门控，而且异常会把 `icache_way0_hit` 强制为 1。因此它不是“每个已提交 I-Cache 访问只统计一次”的严格计数器；同一 stalled 流水项可能重复推动它，异常也会向 Way0 方向偏置。它更接近低成本的近期 way 倾向启发式状态，不能当成真实 Way0/Way1 访问比例性能计数器。
 
 ---
 
-## 5. BTB 命中判断与 Way 预测错误
+## 5. I-Cache 命中判断与 Way 预测错误
 
 ### 5.1 icache_way0_hit / icache_way1_hit
 
@@ -197,9 +210,9 @@ assign icache_way0_hit = ifdp_ipctrl_way0_28_24_hit &&
 assign icache_way0_hit_short = ifdp_ipctrl_way0_28_24_hit_dup && ...
 ```
 
-tag 命中信号被分为 4 段来自 ifdp，全部为 1 才算命中。`icache_way0_hit_short` 使用 `_dup`（duplicate）版本，是为了**时序优化**——在关键路径上复制一份 FF，降低负载。
+tag 命中信号由 IFDP 分成 4 段寄存，四段全部为 1 才构成对应 I-Cache way 命中。`icache_way0_hit_short` 使用 IFDP 保存的 `_dup` 寄存器副本。让不同逻辑锥消费独立寄存器输出具有降低单点扇出的结构意图；物理实现是否真的复制单元、改善多少时序，需要综合与 STA 证明。
 
-> **为什么 expt_vld 也置 hit？** 异常时不需要真正的 cache 数据，但流水线仍需前进，故将 way0 hit 假设为真，以维持流水线状态机的正确。
+> **为什么 expt_vld 也置 Way0 hit？** 异常时 `ip_data_vld` 明确要求 `!ifdp_ipctrl_expt_vld`，所以这个“命中”不会把 I-Cache 数据当作正常指令提交；异常通过独立的 `ip_expt_vld` 进入下游。将共享的选路逻辑归一到 Way0 可避免异常路径出现两路均不命中的不定选择。还要注意它会影响未加 valid 门控的 `hit_cnt`。
 
 ### 5.2 ip_data_vld：IP 级数据有效
 
@@ -224,9 +237,11 @@ assign ip_data_vld = ifctrl_ipctrl_vld &&
 `ip_data_vld` 为真要求：
 1. IF 级有效（`ifctrl_ipctrl_vld`）
 2. 没有异常（非 expt_vld）
-3. 命中的 way 与预测的 way 一致（非 refill 状态）；或 refill 状态下 way0 命中
+3. 正常 cache 路径中 `tsize=1`，且命中的 way 已在 way prediction 中打开；或 refill 旁路状态下逻辑 Way0 命中
 
 **为什么 way 必须与预测一致？** 若实际命中的 way 与预测不同，说明 way 预测出错，此时数据来自错误的 cache bank，需要 reissue（重新取指）而不是继续流水。
+
+`tsize=0` 不一定表示异常或“无数据”，而是 I-Cache 未启用或 MMU 标记为 non-cacheable。此时正常 I-Cache hit 路径被关闭，IPCTRL 会发起一拍的非 cache-line refill/取数事务，返回数据仍通过 `refill_on + 逻辑 Way0` 路径形成 `ip_data_vld`。
 
 ### 5.3 Way Pred Error 与 Reissue
 
@@ -253,7 +268,7 @@ assign ipctrl_pcgen_reissue_way_pred[1:0] = (way_mispred_reissue)
 assign ipctrl_pcgen_reissue_pc[PC_WIDTH-2:0] = ipdp_ipctrl_vpc[PC_WIDTH-2:0];
 ```
 
-Reissue 用相同的 VPC 但正确的 way pred 重新取指。`ipctrl_btb_way_pred_error` 输出给 BTB，让 BTB 更新 way 预测信息。
+Reissue 使用相同 VPC 和 `{icache_way1_hit, icache_way0_hit}` 重新取指，从而打开实际命中的数据 bank。`ipctrl_btb_way_pred_error` 同时通知常规 BTB 当前保存的 I-Cache way prediction 不匹配；这里的“way pred error”不是 BTB 位置槽命中错误，也不是分支方向误预测。
 
 ---
 
@@ -287,7 +302,7 @@ assign ipctrl_ifctrl_bht_stall = ibctrl_ipctrl_stall ||
                                  miss_under_refill_stall;
 ```
 
-当 IB 级 stall、bry 对齐错误 stall 或 miss under refill stall 时，BHT 读索引不前进（BHT 是 pipeline 结构，需要知道哪一周期的 VPC 对应哪一次读）。注意 `br_more_than_one_stall` **不**在 `bht_stall` 中，因为多分支 stall 时 VPC 仍然前进到下一个分支处。
+当 IB 级 stall、BRY 边界重建或 miss-under-refill 时，BHT 预测流水不能接受新的对应项。注意 `br_more_than_one_stall` **不**在 `bht_stall` 中：此时 IF 的新窗口被冻结，但同一窗口的剩余 BRY 和条件分支预测上下文需要继续推进，不能把 BHT 流水也按普通自 stall 原样冻结。
 
 ### 6.3 ipctrl_bht_con_br_vld：向 BHT 反馈
 
@@ -303,11 +318,11 @@ assign ipctrl_bht_more_br      = con_br_more_than_one && !bht_result && ip_data_
 ```
 
 每当 IP 级处理到条件分支时（第一条分支是条件分支），向 BHT 模块反馈：
-- `con_br_vld`：本周期有条件分支，BHT 需要更新 GHR（Global History Register）
-- `con_br_taken`：预测方向（taken/not-taken）
-- `more_br`：还有更多分支（BHT 可能需要多次更新 GHR）
+- `con_br_vld`：本周期处理一条条件分支，BHT 可投机推进虚拟全局历史（VGHR）
+- `con_br_taken`：写入 VGHR 的预测方向，不是分支执行结果
+- `more_br`：当前窗口还有后续条件分支，BHT 选择下一候选预测信息时使用
 
-> **为什么 IP 级就更新 GHR？** 这是"投机更新"（Speculative Update）。GHR 在分支实际执行前就根据预测方向更新，让后续分支能使用更新后的 GHR 进行预测。若最终预测出错，退休阶段会用正确历史恢复 GHR。
+> **为什么 IP 级就更新 GHR？** 这是投机历史更新。`ct_ifu_bht` 的 `vghr_reg` 在 `ipctrl_bht_con_br_vld` 时移入预测方向，让更年轻的分支看到预测后的历史；BJU 误预测可用执行侧历史纠正，RTU flush 时则从由退休条件分支维护的 `rtughr_reg` 恢复。这里更新的是历史上下文，不等于训练 BHT 方向计数器为“正确结果”。
 
 ---
 
@@ -324,7 +339,7 @@ assign ip_pcload     = ip_chgflw_pre && branch_chgflw;
 ```
 
 其中：
-- `ip_chgflw_pre`：本取指窗口有分支（`h0_vld` 表示 H0 是分支，`bry0_hit`/`bry1_hit` 表示 bry 预解码命中）
+- `ip_chgflw_pre`：当前数据有效，而且 H0 或某套 BRY 边界假设可解释当前窗口；它只建立“分支选择逻辑可以工作”的前提，不单独证明窗口里一定有分支
 - `branch_chgflw = bht_result ? branch_taken : branch_ntake`：根据 BHT 方向选择是否真正改变流向
 
 ```verilog
@@ -335,9 +350,21 @@ assign branch_chgflw = (bht_result)
                        : branch_ntake;  // BHT 预测 ntaken → 若有无条件分支仍需跳转
 ```
 
-> **branch_taken 和 branch_ntake 的含义**：
-> - `branch_taken`：是否有"预解码认为 taken"的分支（来自 bry 预解码 BTB 存储的 taken 信息）
-> - `branch_ntake`：是否有"预解码认为 ntaken"的分支（无条件跳转会同时标记 ntaken，表示它是一条无条件分支但 BHT 预测了 not taken 方向——不存在，无条件分支没有 ntaken。实际上 ntake 用于标记"绝对分支但预解码为 not taken"，主要指 BTB miss 的绝对跳转）
+这里最容易被信号名误导。结合 `ct_ifu_precode` 可得到准确语义：
+
+- `*_br_taken` 来自 precode 的 `h*_br`，覆盖可由这条直接目标路径处理的条件分支和直接无条件跳转（`JAL`、`C.J`）；
+- `*_br_ntake` 来自 `h*_ab_br`，只覆盖直接无条件跳转（`JAL`、`C.J`）；
+- 两者异或得到 `*_con_br`，即条件分支集合；
+- JALR/return 等间接控制流由 Ind-BTB/RAS 等专门路径处理，不能因为字段名 `ab_br` 就把 JALR 也算进来。
+
+因此公式的体系结构含义是：
+
+```text
+BHT 预测 taken     -> 条件分支或直接无条件跳转都可重定向
+BHT 预测 not-taken -> 条件分支顺序执行，但直接无条件跳转仍必须重定向
+```
+
+`taken/ntake` 在这里是为两种 BHT 选择路径准备的候选向量名，不是该分支已经执行得到的真实 taken/not-taken 结果。
 
 ### 7.2 ip_chgflw_mask：避免重复改变流向
 
@@ -349,7 +376,7 @@ assign ip_chgflw_mask = ip_if_pcload
                      && !ip_chgflw_mistaken_flop;
 ```
 
-当 IF 级已经预测到了同一个跳转目标（L0 BTB 命中）时，IP 级不需要再发 chgflw。`l0_btb_hit_l1_btb` 表示当前 IP 级的分支在 L0 BTB 中有记录，并且 IF 级已经按照这个记录取指了。
+当 IF 级已经根据 L0 BTB 重定向，而且 IP 级选中的常规 BTB 位置槽目标与 L0 目标一致时，IP 级不需要再次发 chgflw。`l0_btb_hit_l1_btb` 是根据当前方向路径、命中 I-Cache way 和分支所在的 half-word 位置组，选择 IFDP 预先计算的 L0/常规 BTB target 比较结果；它不是重新查询一次 L0 tag。
 
 > **为什么需要 mask？** L0 BTB 是在 IF 级查询的，比 IP 级的 BHT+BTB 早一个周期。如果 L0 BTB 预测正确（`ip_if_pcload`），IP 级再发一次 chgflw 会造成重复跳转，产生错误流。
 
@@ -363,8 +390,8 @@ assign ipctrl_chgflw_vld = (branch_chgflw)
 ```
 
 两种触发情形：
-1. **分支 taken**：本周期有分支且未被 L0 BTB mask 掉
-2. **分支 mistaken**（预测错误的 not taken 修正）：IF 级预测了 taken 但 IP 级判断应该 not taken
+1. **本级需要重定向**：合法边界上存在由当前 BHT 选择路径要求重定向的直接控制流，且没有被“L0 已做出相同重定向”屏蔽；
+2. **撤销较早重定向**：IF 级已经按非 RAS 的 L0 项跳转，但 IP 级判断当前条件分支应顺序执行，需要回到顺序取指窗口。
 
 ### 7.4 ip_chgflw_mistaken：预测方向出错
 
@@ -378,7 +405,7 @@ assign ip_chgflw_mistaken_pre = ip_if_pcload
 assign ip_chgflw_mistaken = ip_chgflw_mistaken_pre && !branch_chgflw;
 ```
 
-`ip_chgflw_mistaken` 为真时：IF 级跳转了（`ip_if_pcload`）但 IP 级判断不应该跳（`!branch_chgflw`），需要纠正。这会触发 `ipctrl_pcgen_branch_mistaken`，让 pcgen 回到正确的顺序 PC。
+`ip_chgflw_mistaken` 为真时：IF 级按非 RAS L0 项跳转了（`ip_if_pcload`），但 IP 级判断当前路径不应重定向（`!branch_chgflw`），需要纠正。条件还排除了 `con_br_more_than_one`，避免尚未完成窗口内多分支拆分时过早定性。这会触发 `ipctrl_pcgen_branch_mistaken`，并使用 IFDP 保存的 `l0_btb_mispred_pc` 恢复顺序取指。
 
 #### ip_chgflw_mistaken_flop
 
@@ -431,8 +458,24 @@ assign chgflw_pc[PC_WIDTH-2:0] = {chgflw_pc_high[PC_WIDTH-22:0],chgflw_pc_low[19
 ```
 
 目标 PC 构造：
-- **低 20 位**：来自 BTB 存储的目标地址（4 个 way 中选一个，依据 `way0_br_taken[7:0]` 的优先级）
-- **高位**：taken 时取 VPC 的高位（BTB 目标在同一 64K 范围），mistaken 时取 `l0_btb_mispred_pc`（L0 BTB 中错误预测的 PC）
+
+- **低 20 个内部 PC 位**：按最早分支位置从常规 BTB 的 4 个固定位置槽中选择；槽0对应 H1/H2，槽1对应 H3/H4，槽2对应 H5/H6，槽3对应 H7/H8。它们不是 I-Cache 的 4 个 way；
+- **高位**：真正重定向时取当前 VPC 高位；撤销 L0 重定向时取 `l0_btb_mispred_pc` 高位，同时低位选择逻辑在没有 `br_ntake` 候选时也回退到该地址；
+- 内部 PC 省略架构 bit0，所以低 20 位覆盖架构地址 `[20:1]`，对应 2 MiB 区域，不是 64 KiB。跨该高位边界的正确性还需结合常规 BTB 的写入约束、PCGEN 更高位处理和后端纠错路径分析，不能只看本段拼接便断言所有目标都与源 PC 同区。
+
+### 7.7 改流目标和“目标处 I-Cache way”同时预测
+
+常规 BTB 的每个位置槽除 `target[19:0]` 外，还保存 `pred[1:0]`。IPCTRL 用与 target 相同的分支位置优先级选择对应 `pred`：
+
+```text
+当前分支位置
+  -> 选择 BTB 槽0/1/2/3
+  -> 同时得到 target_low[19:0] 和 target_way_pred[1:0]
+```
+
+最终 `ipctrl_pcgen_chgflw_way_pred` 在正常重定向时携带该目标 way prediction，使 PCGEN 访问目标窗口时可只打开预测的数据 bank；撤销 L0 重定向时则置 `2'b11`，让两路都可读，优先保证恢复正确。
+
+还要区分另一个同名接口 `ipctrl_btb_way_pred`：它把**当前 IP 窗口实际命中的 I-Cache way**反馈给 BTB 的 pending/update 路径。若当前两路都未命中，或者 refill 数据借用逻辑 Way0 通道，RTL 改用 I-Cache FIFO/替换位构造将要填入的 way。前者是 BTB 读出后随改流送往目标访问的预测，后者是当前窗口到达时供 BTB 记录/校正的实际或替换 way 信息；必须结合 BTB pending 状态关联它属于哪次先前改流，不能仅凭 IPCTRL 单模块把它称为当前分支源或目标。
 
 ---
 
@@ -460,8 +503,10 @@ assign ip_refill_pre = ifctrl_ipctrl_vld &&
 ```
 
 条件：
-- 正常状态（非 refill_on）：没有命中任何 way → 需要 refill
-- Refill 进行中（refill_on）：Way0 未命中 → 填充的数据还没到，继续等待
+- 正常状态（非 refill_on）：`tsize=0`，或者 `tsize=1` 但两路均未命中，都需要通过 refill/BIU 路径取数；
+- refill 旁路状态（refill_on）：逻辑 Way0 未命中，说明当前返回 beat 尚未成为本 VPC 的有效数据。
+
+第一项很重要：`ip_refill_pre` 既覆盖 cacheable I-Cache miss，也覆盖 I-Cache 关闭或 non-cacheable 的取指。后者在 L1 Refill 中使用单 beat、不写 I-Cache 的路径，不能全部归类成“cache line miss”。
 
 ### 8.2 ipctrl_l1_refill_miss_req：发送 Miss 请求
 
@@ -477,7 +522,9 @@ assign ip_icache_refill = (ip_refill_pre &&
 assign ipctrl_l1_refill_miss_req = ip_icache_refill;
 ```
 
-关键约束：`!l1_refill_ipctrl_busy`——当 L1 Refill 状态机正在处理其他 miss 时，不重复发送请求。这防止了 miss 请求的重复发送。
+关键约束：`!l1_refill_ipctrl_busy`——L1 Refill 状态机非 IDLE 时不接收新请求。同一组“有取数需要且 refill 当前空闲”的条件还生成 `icache_refill_reissue`，进而产生 `ipctrl_pcgen_reissue_pcload`：PCGEN 保存/重发当前 VPC，而 refill 状态机开始接管该地址的取数。
+
+当前开源 RTL 中 `icache_chk_err_refill` 和其寄存版本均被直接绑为 0，`ipctrl_pcgen_chk_err_reissue` 也为 0。即使数组 wrapper 存在 `L1_CACHE_ECC` 相关配置，不能据此声称 IPCTRL 的 parity/ECC error-refill 路径在当前生成版本中有效。
 
 ### 8.3 miss_under_refill_stall：等待 refill 完成
 
@@ -502,10 +549,36 @@ assign ipctrl_ifctrl_stall = ibctrl_ipctrl_stall ||
 
 | stall 类型 | 触发条件 | 影响 |
 |-----------|---------|------|
-| `ibctrl_ipctrl_stall` | IB 级满了（指令 buffer 满） | IP 级所有操作暂停 |
+| `ibctrl_ipctrl_stall` | IB 级不能接收新的 IP 输出 | IP→IB valid/exception 保持，IF 上游停止推进 |
 | `bry_missigned_stall` | Bry 对齐出错，需重新计算 | IP 自 stall，重新解析 bry |
 | `miss_under_refill_stall` | Miss 且 refill 状态机忙 | 等待 refill 完成 |
-| `br_more_than_one_stall` | 多条条件分支 | IP stall 一周期，重新处理 |
+| `br_more_than_one_stall` | 当前剩余窗口有多条条件分支且第一条预测不跳 | 冻结 IF 上游并推进 BRY 剩余片段，但不取消当前 `ip_vld` |
+
+`ipctrl_ifctrl_stall_short` 只包含 IB stall、bry missigned 和 miss-under-refill，排除了 `br_more_than_one_stall`；完整 `ipctrl_ifctrl_stall` 才包含后者。这与 IFCTRL 的 `stall_short` 构成较早的 PCGEN 反压路径。实际时序收益需要 STA 证明。
+
+### 8.5 `ip_vld`：正常数据和异常共用下行流水
+
+```verilog
+assign ip_expt_vld = ifctrl_ipctrl_vld &&
+                     (ifdp_ipctrl_expt_vld || ipdp_ipctrl_ip_expt_vld);
+
+assign ip_vld = (ip_data_vld || ip_expt_vld) &&
+                !icache_chk_err_refill &&
+                !icache_chk_err_refill_ff &&
+                !pcgen_ipctrl_cancel &&
+                !ip_self_stall &&
+                !rtu_ifu_xx_dbgon;
+```
+
+正常指令需要 `ip_data_vld`，取指异常则通过 `ip_expt_vld` 单独使流水项有效，因此异常不要求正常 I-Cache 数据命中。两者都受 cancel、自 stall 和 debug 接管控制。`br_more_than_one_stall` 不在 `ip_self_stall` 中，所以前文所述的当前片段仍可下传。
+
+`ipctrl_ibctrl_vld` 和 `ipctrl_ibctrl_expt_vld` 是真正的 IP→IB 寄存有效位：pipe cancel 清零，IB stall 时保持。在 debug 模式下，普通 `ip_vld` 被 `had_ifu_ir_vld` 替代，异常 valid 被清零。这说明 HAD 注入是显式的旁路协议，不能用正常 I-Cache/BRY 条件解释 debug 指令的有效性。
+
+### 8.6 当前 RTL 的时钟实现边界
+
+IPCTRL 中 `ip_chgflw_mistaken_flop`、L0 训练分类寄存器、`hit_cnt` 以及 IP→IB valid/exception 寄存器都直接使用 `forever_cpuclk`，本文件没有实例化有效的局部 `gated_clk_cell`。源码保留了 parity error clock 的注释模板，但对应错误信号在当前版本被绑 0，实例本身未生成。
+
+因此，不能像读取 IFDP 那样把 `ipctrl_ifdp_gateclk_en` 误认为 IPCTRL 自己的门控时钟。该信号是 IPCTRL 输出给 IFDP 的本地门控条件；IPCTRL 自身寄存器是否在综合后由工具自动门控，需要查看综合网表和时钟门控报告。
 
 ---
 
@@ -513,7 +586,7 @@ assign ipctrl_ifctrl_stall = ibctrl_ipctrl_stall ||
 
 ### 9.1 问题根源
 
-当取指地址发生 change flow 跳转时，新的 VPC 可能指向 16 字节取指块中的任意半字位置。如果当前块的 bry 预解码数据是按顺序取指起点计算，而实际 VPC 从中间开始，预解码数据就可能无法准确反映新起点后的指令边界，称为 "missigned"（对齐错误）。
+当 change flow 使 VPC 落在 16 字节窗口中部时，预存的 Bank0/Bank1 两套 H1 假设不一定能把该 VPC 解释成合法边界。若无 H0 且当前 VPC 在两套 BRY 中都不命中，IPCTRL 将其归类为 `missigned`，使用 IPDP 已得到的真实 16/32 位长度信息重新递推边界。
 
 ### 9.2 missigned_bry_vld 的计算
 
@@ -526,7 +599,7 @@ assign missigned_bry_vld[6] = (vpc_onehot[6])
 // ...以此类推向低位传播
 ```
 
-这是一个链式逻辑：从 H1 开始，若某个 half-word 是 32-bit 指令的低半字（`bry_vld_32[7]`），则下一个 half-word 被占用（是其高半字），有效性为 0。该逻辑重新从 VPC 出发构建正确的指令边界。
+这是一个链式逻辑。VPC one-hot 指向的位置被强制视为新的起点；随后若某个有效起点是 32 位指令的低 half-word，下一个 half-word 被该指令占用，边界位为 0，否则下一个位置可成为新起点。最后再与 `ifdp_ipctrl_vpc_bry_mask` 相与，屏蔽 VPC 之前的位置。
 
 ### 9.3 触发 stall
 
@@ -536,7 +609,7 @@ assign missigned_bry_update_vld = ip_data_vld &&
                                  (!h0_vld && !bry0_hit && !bry1_hit);
 ```
 
-当 `ip_data_vld` 有效但当前 bry 数据既无 h0 也无 bry0/bry1 命中时，说明 bry 预解码对当前 VPC 无效，触发 1 周期 stall 以更新 bry 数据。
+当 `ip_data_vld` 有效但无 H0且当前 VPC 在 bry0/bry1 都不命中时，触发自 stall，并把重建的 `missigned_bry` 反向写入 IFDP 保存的 BRY 状态。典型无额外反压情况下下一拍即可按新边界继续；若同时存在 IB stall、cancel 等控制，实际持续周期应看握手波形，不能把组合条件机械地固定为永远 1 周期。
 
 ---
 
@@ -558,7 +631,7 @@ assign h0_vld = ipdp_ipctrl_h0_vld;
 assign way0_bry0_hit = h0_vld || ifdp_ipctrl_w0_bry0_hit;
 ```
 
-若 `h0_vld=1`，则 `way0_bry0_hit` 强制为 1。这意味着：只要 H0 有效，当前取指窗口的 H1 就对应 bry0（H0 是上一条指令的低半字，H1 是其高半字），bry0 数据是正确的。
+若 `h0_vld=1`，两路的 `way*_bry0_hit` 都强制为 1，而 `way*_bry1_hit` 被压为 0。这意味着当前窗口必须按 Bank0 假设解释：H0 是跨窗口 32 位指令的低 half-word，H1 是其高 half-word，新的独立指令边界从 H2 开始。具体使用 I-Cache Way0 还是 Way1，仍由 tag hit 选择。
 
 ### 10.3 H0 对分支预解码的覆盖
 
@@ -568,7 +641,7 @@ assign w0b0_br_taken[7] = ifdp_ipctrl_w0b0_br_taken[7] || ipdp_ipctrl_h0_br;
 assign w0b0_br_ntake[7] = ifdp_ipctrl_w0b0_br_ntake[7] || ipdp_ipctrl_h0_ab_br;
 ```
 
-H0 所在位置（bit[7]，即最高优先级）的分支信息由 H0 本身覆盖。若 H0 是一条分支指令（`h0_br`），则强制置 taken；若 H0 是无条件分支（`h0_ab_br`），则置 ntake（无条件分支在 BTB 预解码角度标记为 ntake 表示"B 型绝对跳转"）。
+跨窗口指令被映射到当前候选向量的 bit7（最高位置优先级）。若 H0+H1 解码为当前直接分支集合中的指令，`h0_br` 把它加入 `br_taken` 候选；若它是 `JAL`/`C.J` 这类直接无条件跳转，`h0_ab_br` 还把它加入 `br_ntake` 子集。这里仍是供 BHT 两种方向选择的**类型候选**，不是把尚未执行的条件分支“强制判为 taken”。
 
 ### 10.4 ipctrl_pcgen_h0_vld
 
@@ -577,7 +650,7 @@ H0 所在位置（bit[7]，即最高优先级）的分支信息由 H0 本身覆�
 assign ipctrl_pcgen_h0_vld = h0_vld;
 ```
 
-`ipctrl_pcgen_h0_vld` 告知 pcgen 当前 IP 级存在 H0。pcgen 据此调整 BHT 读索引：H0 存在时，BHT 的索引应使用前一取指块末尾半字的 PC，而不是当前块起始 VPC。
+`ipctrl_pcgen_h0_vld` 告知 PCGEN 当前 IP 级存在跨窗口 H0。PCGEN 对它的直接使用点位于 **IP reissue 的 BHT PC 选择**：若 reissue 且 H0 有效，`ifpc_bht_chgflw_pre[6:3]` 使用 reissue PC 的窗口号减 1，低三位保持，从而让重发时的 BHT 上下文回到跨窗口指令开始所在的前一 16 字节块；无 H0 时直接使用 reissue PC。它并不是无条件地改写正常顺序取指的 BHT 索引。
 
 ---
 
@@ -585,7 +658,7 @@ assign ipctrl_pcgen_h0_vld = h0_vld;
 
 ### 11.1 l0_btb_hit 与 l0_btb_miss
 
-L0 BTB 是一个极小的直接映射 BTB，在 IF 级查询，能比 IP 级 BTB 提前一拍预测跳转。
+L0 BTB 是 16 项并行 tag 比较的小型前置目标缓存，在 IF 级较早给出快速重定向。它没有地址 index 后只比较单项的“直接映射”读结构；16 个 entry 都参与比较，分配则由循环 FIFO 指针选择。
 
 ```verilog
 // 行 1153-1161
@@ -600,12 +673,32 @@ assign l0_btb_miss = (!ipdp_ipctrl_l0_btb_vld || ipdp_ipctrl_l0_btb_ras && ipdp_
                   && !ip_expt_vld;
 ```
 
-- `l0_btb_hit`：IP 级发现 change flow 且被 L0 BTB mask 掉了 → L0 BTB 预测正确，命中
-- `l0_btb_miss`：分支需要跳转但 L0 BTB 没有记录（或记录了 RAS 但不适用）→ 需要更新 L0 BTB
+- `l0_btb_hit`：IP 级本来会重定向，但确认 IF 级 L0 重定向目标与所选常规 BTB 目标一致，因而被 mask；
+- `l0_btb_miss`：在 L0 BTB 的 WAIT 关联窗口内，没有普通 L0 有效项（或当前项标记为 RAS），同时出现值得建立普通 L0 项的直接控制流。
 
-`bht_data == 2'b11` 表示 BHT 计数器完全饱和（Strongly Taken），只有在饱和状态才值得写入 L0 BTB，避免频繁更新不稳定的分支。
+对条件分支，`l0_btb_miss` 只在 `bht_data==2'b11`（strongly taken）时建立候选；直接无条件跳转通过 `branch_ntake` 不受该门槛限制。这是 L0 容量很小时的准入过滤：只让稳定 taken 的条件分支和必跳的直接跳转占用条目。`l0_btb_ipctrl_st_wait` 还要求这次分类与 L0 BTB 先前进入 WAIT 的取指窗口对应，它不是独立的全局 miss 统计脉冲。
 
-### 11.2 l0_btb_wait_next
+### 11.2 `l0_btb_mispred`：已有快速预测需要纠正
+
+```verilog
+assign l0_btb_mispred =
+       ip_if_pcload
+    && !ipdp_ipctrl_l0_btb_ras
+    && !l0_btb_hit_l1_btb
+    && ip_pcload
+    && l0_btb_ipctrl_st_wait
+ || ip_chgflw_mistaken
+    && l0_btb_ipctrl_st_wait;
+```
+
+它覆盖两类情况：
+
+1. IF 级已按普通 L0 项重定向，IP 级也确认当前分支应该重定向，但常规 BTB 目标与 L0 目标不一致；
+2. IF 级已按普通 L0 项重定向，IP 级却判断条件分支不应跳转，即 `ip_chgflw_mistaken`。
+
+这与 `l0_btb_miss` 不同：miss 是缺少可用普通项并准备建立稳定分支，mispred 是已有较早预测给出了错误方向/目标，需要使对应项降级、清除或重训。IPCTRL 将 hit/miss/mispred 以及 `st_wait` 打拍送往 IBCTRL/IBDP，真正的 L0 entry 写入控制在后续路径完成。
+
+### 11.3 l0_btb_wait_next
 
 ```verilog
 // 行 1994-2000
@@ -615,9 +708,13 @@ assign ipctrl_l0_btb_wait_next = (ipdp_ipctrl_h8_br
                               && ip_data_vld && !pcgen_ipctrl_cancel ...;
 ```
 
-两种情况需要继续观察下一个 16 字节取指块：
-1. H8（最后一个 half-word）是分支指令，完整指令或后续信息可能跨取指块
-2. 当前取指窗口没有分支，且有效起始点位于 H5~H8，剩余空间较少
+三种情况会要求 L0 BTB 的关联状态继续观察后续窗口：
+
+1. H8（最后一个 half-word）呈现分支预解码，控制流指令可能跨窗口；
+2. 当前窗口没有分支，且有效起始点位于 H5~H8，当前可观察范围较短；
+3. `br_more_than_one_stall` 正在把同一窗口拆成多个条件分支片段。
+
+最终输出还要求 `ip_data_vld`，并排除 cancel、`ip_self_stall` 和 debug。这里的“wait next”是 L0 训练/分类的时间关联控制，不表示 I-Cache 一定顺序读取下一行。
 
 ---
 
@@ -629,18 +726,18 @@ assign ipctrl_l0_btb_wait_next = (ipdp_ipctrl_h8_br
 |------|------|
 | `ipctrl_pcgen_chgflw_pcload` | 需要改变 PC 流向 |
 | `ipctrl_pcgen_chgflw_pc` | 新的目标 PC |
-| `ipctrl_pcgen_reissue_pcload` | Way 预测出错，重发取指 |
-| `ipctrl_pcgen_branch_taken` | 本周期 taken 分支 |
-| `ipctrl_pcgen_branch_mistaken` | IF 级预测方向出错需纠正 |
-| `ipctrl_pcgen_h0_vld` | H0 有效，影响 BHT 索引 |
+| `ipctrl_pcgen_reissue_pcload` | I-Cache way prediction 不匹配，或开始 refill/非缓存取数时重发当前 VPC |
+| `ipctrl_pcgen_branch_taken` | IP 级形成了未被 L0 mask 的预测重定向；不是执行完成的真实 taken |
+| `ipctrl_pcgen_branch_mistaken` | IP 级撤销较早的普通 L0 重定向；不是 BJU 最终误预测信号 |
+| `ipctrl_pcgen_h0_vld` | H0 有效，reissue 时调整 BHT PC 到前一取指窗口 |
 
 ### 12.2 向 BHT 的输出
 
 | 信号 | 含义 |
 |------|------|
-| `ipctrl_bht_con_br_vld` | 本周期有条件分支，更新 GHR |
-| `ipctrl_bht_con_br_taken` | 预测方向 |
-| `ipctrl_bht_more_br` | 还有更多分支 |
+| `ipctrl_bht_con_br_vld` | 本周期处理条件分支，投机推进 VGHR |
+| `ipctrl_bht_con_br_taken` | 写入投机历史的预测方向 |
+| `ipctrl_bht_more_br` | 同一剩余窗口还有条件分支 |
 | `ipctrl_bht_vld` | BHT 操作有效 |
 
 ### 12.3 向 L1 Refill 的输出
@@ -648,8 +745,8 @@ assign ipctrl_l0_btb_wait_next = (ipdp_ipctrl_h8_br
 | 信号 | 含义 |
 |------|------|
 | `ipctrl_l1_refill_miss_req` | 发送 miss 请求 |
-| `ipctrl_l1_refill_vpc` | Miss 对应的虚拟 PC |
-| `ipctrl_l1_refill_ppc` | Miss 对应的物理 PC |
+| `ipctrl_l1_refill_vpc` | 请求对应的内部虚拟 PC（省略架构 bit0） |
+| `ipctrl_l1_refill_ppc` | `{MMU physical tag, VPC 页内低位}` 拼成的内部物理 PC |
 
 ---
 
@@ -670,7 +767,7 @@ IF 级取指完成
         │         │
         │         └─ way 与 way_pred 不符 ─→ way_mispred_reissue ─→ reissue_pcload
         │
-        ├─── bry0_hit / bry1_hit / h0_vld
+        ├─── bry0_hit / bry1_hit / h0_vld（边界假设有效）
         │         │
         │         └─ ip_chgflw_pre
         │                  │
@@ -687,8 +784,9 @@ IF 级取指完成
         │                  └── !l1_refill_busy ─→ miss_req
         │                      l1_refill_busy  ─→ miss_under_refill_stall
         │
-        └─── con_br_more_than_one ─→ br_more_than_one_stall
-                                     + bry_data 更新（截断到第一条分支处）
+        └─── con_br_more_than_one ─→ br_more_than_one_stall（只冻结 IF 上游）
+                                     + 提交当前片段
+                                     + bry_data 推进到剩余片段
 ```
 
 ---
@@ -697,8 +795,9 @@ IF 级取指完成
 
 `ct_ifu_ipctrl` 的设计体现了几个重要原则：
 
-1. **预计算两套数据（bry0/bry1）**，运行时根据 h0_vld 选择，避免等待解码完成
-2. **分层 stall**：自 stall（ip_self_stall）不向上游传播 valid，下游 stall（ibctrl_stall）阻止 IP 级前进
-3. **投机更新 GHR**：IP 级就更新 BHT 的历史寄存器，让后续分支能用到更新的历史，失败时由 RTU 恢复
-4. **L0 BTB mask**：避免 IF 级（L0 BTB）和 IP 级（L1 BTB+BHT）对同一跳转重复改变 PC
-5. **复制关键信号（_dup）**：减少扇出，在时序关键路径上插入寄存器
+1. **预计算两套边界（bry0/bry1）**：分别覆盖 H1 非起点/是起点，跨窗口时由 H0 强制选择 Bank0，特殊改流则可动态重建。
+2. **分层 stall**：`ip_self_stall` 抑制当前正常输出，IB stall 保持下行 valid，多条件分支 stall 只冻结 IF 上游并拆分当前窗口。
+3. **投机更新 VGHR**：IP 级移入预测方向，BJU 误预测和 RTU flush 分别提供纠正/恢复来源。
+4. **L0 BTB mask 与训练分类**：目标一致时避免重复改流，并把 hit、miss、mispred 送到后续更新路径。
+5. **I-Cache way prediction 恢复**：实际 tag hit 与已打开 data bank 不一致时，以相同 VPC 和正确 way mask 重发。
+6. **复制关键信号**：IFDP 保存 Way0 分段 hit 的独立寄存副本供不同 IPCTRL 逻辑锥使用；其物理扇出和时序收益需由综合/STA 验证。

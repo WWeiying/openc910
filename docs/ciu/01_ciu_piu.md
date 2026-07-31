@@ -1,326 +1,487 @@
 # C910 CIU PIU 模块详细教学文档
 
-> RTL 文件：`ct_piu_top.v`（约 2732 行）、`ct_piu_other_io.v`（约 236 行）
+> 主要 RTL：`ct_piu_top.v`
 >
-> 相关文件：`ct_piu_top_dummy.v`（约 503 行）、`ct_piu_top_dummy_device.v`（约 171 行）、`ct_piu_other_io_dummy.v`（约 98 行）、`ct_piu_other_io_sync.v`（约 353 行）
->
-> 上层：`ct_ciu_top.v`（实例化 5 个 PIU，见 `00_ciu_overview.md`）
+> 相关 RTL：`ct_piu_top_dummy.v`、`ct_piu_top_dummy_device.v`、
+> `ct_piu_other_io.v`、`ct_piu_other_io_sync.v`、
+> `ct_piu_other_io_dummy.v`
 
 ---
 
-## 目录
+## 1. PIU 的准确定位
 
-1. [模块概述](#1-模块概述)
-2. [端口说明](#2-端口说明)
-3. [参数与关键编码](#3-参数与关键编码)
-4. [PIU 的角色：BIU 与 CIU 之间的适配器](#4-piu-的角色biu-与-ciu-之间的适配器)
-5. [AR 通道：读请求与 bank 路由](#5-ar-通道读请求与-bank-路由)
-6. [AW 通道：写请求](#6-aw-通道写请求)
-7. [AC 通道：侦听请求下发到核](#7-ac-通道侦听请求下发到核)
-8. [CR 通道：侦听响应回收](#8-cr-通道侦听响应回收)
-9. [CD 通道：侦听数据回收与打包](#9-cd-通道侦听数据回收与打包)
-10. [Barrier FSM](#10-barrier-fsm)
-11. [dummy 与 dummy_device 变体](#11-dummy-与-dummy_device-变体)
-12. [ct_piu_other_io](#12-ct_piu_other_io)
-13. [设计取舍小结](#13-设计取舍小结)
+`ct_piu_top` 是一个真实处理器核的 BIU 与 CIU 内部模块之间的接口适配器。它
+不负责决定一条 cache line 的最终一致性状态；它负责：
 
----
+1. 接收核侧 AR、AW、W，并把请求分类到 BMBIF、CTCQ、NCQ 或两个 SNB；
+2. 保存“地址请求已经从核侧接受、但下游尚未接受”的状态；
+3. 仲裁 SNB0、SNB1、CTCQ 发给该核的 AC；
+4. 把已被核接受的 AC 与将来的 CR/CD 响应按顺序重新关联；
+5. 汇聚 SNB、NCQ、CTCQ、barrier 的 R/B，并送回核；
+6. 产生 `piu_xx_no_op`，表示 PIU 内若干主要队列和 barrier FSM 处于空闲。
 
-## 1. 模块概述
+一条事务在 PIU 中至少可能经过三次不同意义的交接：
 
-### 1.1 职责
-
-`ct_piu_top`（Processor Interface Unit）是**每个核接入 CIU 的适配器**。一个核的 BIU 通过一组 ACE-lite + 侦听通道的信号（顶层 pad 名 `ibiuN_pad_*`）连到对应 PIU。PIU 的工作可以拆成两条对称的方向：
-
-- **上行（核 → CIU）**：接收核发出的读地址（AR）、写地址（AW）、写数据（W）请求，按地址把读/写请求路由到正确的 SNB bank（或 CTCQ/NCQ），并做 outstanding 跟踪。
-- **下行（CIU → 核）**：接收来自 SAB/CTCQ 的**侦听请求**，经 **AC 通道**下发给核；再把核回来的**侦听响应（CR）**和**侦听脏数据（CD）**收集、缓冲、打包，回送给发起侦听的 SAB 项。
-
-PIU 内部本身不做一致性判断（那是 SAB 的事），它是**通道仲裁 + FIFO 缓冲 + 协议打包**的集合。每条通道都配独立 FIFO，使多个一致性事务能流水重叠。
-
-### 1.2 位置
-
-```
-核N BIU ──ibiuN_pad_*──► PIU N ──► (上行) AR→SNB0/1 or NCQ/CTCQ
-                              │       AW→SNB0/1 or NCQ
-                              │       W →SNB/NCQ
-                              │
-                              ◄── (下行) AC←SNB0/SNB1/CTCQ 侦听
-                                  CR→SAB  CD→SAB(经 pkb 打包)
+```text
+核 -> PIU 输入缓冲
+PIU 输入缓冲 -> CIU 下游模块
+CIU 返回缓冲 -> 核
 ```
 
-C910 顶层实例化 5 个：piu0/piu1 用真实 `ct_piu_top`，piu2/piu3 用 `ct_piu_top_dummy`，piu4 用 `ct_piu_top_dummy_device`（`ct_ciu_top.v:2041-2664`）。
+因此“PIU 接收到请求”“SNB 接收到请求”和“核收到结果”是三个独立事件。
 
 ---
 
-## 2. 端口说明
+## 2. 当前实例与接口边界
 
-PIU 端口极多（按 `ct_piu_top.v` 端口表分组，仅列代表性信号）。
+| 端口 | 实例 | 当前行为 |
+|------|------|----------|
+| PIU0 | `ct_piu_top` | 真实核 0 |
+| PIU1 | `ct_piu_top` | 真实核 1 |
+| PIU2 | `ct_piu_top_dummy` | 不主动请求；可终止传入 AC |
+| PIU3 | `ct_piu_top_dummy` | 与 PIU2 相同 |
+| PIU4 | `ct_piu_top_dummy_device` | 全部请求与响应路径均为静态桩 |
 
-### 2.1 来自/送往核 BIU（经顶层 `ibiuN_pad_*` 转换为 `ibiu_ciu_*` / `ciu_ibiu_*`）
-
-| 信号 | 方向 | 位宽 | 含义 | file:line |
-|------|------|------|------|-----------|
-| `ibiu_ciu_arsnoop` | in | [3:0] | 核读请求的 snoop 类型（ReadShared/ReadUnique…） | `ct_piu_top.v:214` |
-| `ibiu_ciu_arcache` | in | [3:0] | 读请求 cache 属性（区分 cacheable/non-cacheable） | `ct_piu_top.v:207` |
-| `ibiu_ciu_awsnoop` | in | [2:0] | 核写请求 snoop 类型 | `ct_piu_top.v:227` |
-| `ibiu_ciu_awcache` | in | [3:0] | 写请求 cache 属性 | `ct_piu_top.v:220` |
-| `ibiu_ciu_acready` | in | — | 核已准备好接收 AC 侦听 | `ct_piu_top.v:203` |
-| `ibiu_ciu_crvalid` / `crresp` | in | — / [4:0] | 核回送的侦听响应（CR 通道） | `ct_piu_top.v:237-238` |
-| `ibiu_ciu_cdvalid` / `cddata` | in | — / [127:0] | 核回送的侦听脏数据（CD 通道） | `ct_piu_top.v:233,236` |
-| `ibiu_ciu_back` / `rack` | in | — | 写应答/读应答握手 | `ct_piu_top.v:231,239` |
-| `ciu_ibiu_acaddr` | out | [39:0] | 下发给核的侦听地址 | `ct_piu_top.v:281` |
-| `ciu_ibiu_acsnoop` | out | [3:0] | 下发给核的侦听类型 | `ct_piu_top.v:283` |
-| `ciu_ibiu_acprot` | out | [2:0] | 侦听属性（含 inst 位） | `ct_piu_top.v:282` |
-| `ciu_ibiu_acvalid` | out | — | 侦听有效 | `ct_piu_top.v:284` |
-| `ciu_ibiu_crready` | out | — | PIU 可接收核的 CR | `ct_piu_top.v:1554` |
-
-### 2.2 与 SNB0 / SNB1（相干 bank）
-
-| 信号 | 方向 | 含义 | file:line |
-|------|------|------|-----------|
-| `piu_snb0_ar_req` / `piu_snb0_ar_bus[70:0]` | out | 路由到 bank0 的读请求 | `ct_piu_top.v:324,943` |
-| `piu_snb1_ar_req` / `piu_snb1_ar_bus[70:0]` | out | 路由到 bank1 的读请求 | `ct_piu_top.v:335,944` |
-| `piu_snb0_aw_req` / `piu_snb1_aw_req` | out | 写请求路由 | `ct_piu_top.v:1158-1159` |
-| `snb0_piu_acbus[54:0]` / `snb0_piu_acvalid` | in | bank0 发来的侦听请求 | `ct_piu_top.v:257-258` |
-| `snb1_piu_acbus[54:0]` / `snb1_piu_acvalid` | in | bank1 发来的侦听请求 | `ct_piu_top.v:269-270` |
-| `piu_snb0_ac_grant` / `piu_snb1_ac_grant` | out | AC 仲裁授权回给 bank | `ct_piu_top.v:322,333` |
-| `piu_snb0_cr_req` / `piu_snb0_cr_bus[9:0]` | out | 把 CR 响应送回 bank0 的 SAB | `ct_piu_top.v:1544,1550` |
-
-### 2.3 与 CTCQ / NCQ
-
-| 信号 | 方向 | 含义 | file:line |
-|------|------|------|-----------|
-| `ctcq_piu_acbus[54:0]` / `ctcq_piu_acvalid` | in | CTCQ 发来的侦听请求（第 3 个 AC 来源） | `ct_piu_top.v:194-195` |
-| `piu_ctcq_ac_grant` | out | CTCQ AC 仲裁授权 | `ct_piu_top.v:307` |
-| `piu_ctcq_cr_req` / `piu_ctcq_cr_bus` | out | CR 响应送回 CTCQ | `ct_piu_top.v:1546,1552` |
-
-> dummy_device（piu4）还有到 NCQ 的非相干通道，见第 11 节。
+PIU0/1 核侧接口带有 AXI/ACE 风格的 AR、R、AW、W、B 和 AC、CR、CD 信号。
+当前 EBIU 外部端口并没有 AC/CR/CD，因此不能由 PIU 接口形式推导整个外部接口
+是完整 ACE 节点。
 
 ---
 
-## 3. 参数与关键编码
+## 3. 先建立统一的握手语义
 
-PIU 把请求/响应打包成定宽总线，参数定义了各字段在总线里的位置。
+### 3.1 `valid/ready`
 
-### 3.1 AR 总线字段（`ct_piu_top.v:820-860`）
+对核侧标准通道，接受事件是：
+
+```text
+accept = valid && ready
+```
+
+在该周期的有效时钟沿，接收方才可把 payload 记入寄存器或 FIFO。仅有 valid
+表示源端提出并保持请求；仅有 ready 表示接收方有能力接收。
+
+### 3.2 CIU 内部 `req/grant`
+
+CIU 内部许多接口使用 `req/grant`。通常：
+
+```text
+accept = req && grant
+```
+
+部分 RTL 的 `grant` 已经隐含当前请求被选择，例如 PIU AC 的来源 grant 由
+`ac_sel` 和 FIFO 空闲共同生成。阅读时仍应同时核对请求是否有效、选择信号和
+目标寄存器的 create 条件。
+
+### 3.3 状态更新
+
+组合逻辑算出 create/pop 后，FIFO valid、读写指针或 FSM 只在时钟沿更新。
+所以波形上常见：
+
+```text
+周期 N：valid && ready = 1
+周期 N 的时钟沿：payload 被采样
+周期 N+1：内部 FIFO valid 和输出 payload 可见
+```
+
+`ct_fifo` 没有组合 fall-through；新请求不会在同一组合周期直接穿过空 FIFO。
+
+---
+
+## 4. AR：读地址接收、分类与下游交接
+
+### 4.1 分类表达式
+
+PIU 对读请求使用：
 
 ```verilog
-parameter ADDRW       = `PA_WIDTH;   // 物理地址宽度（40）
-parameter ARSOOP_0   = 23;  ARSOOP_3 = 26;   // arsnoop[3:0]
-parameter ARDOMAIN_0 = 27;  ARDOMAIN_1 = 28; // 一致性域
-parameter ARBAR_0    = 29;  ARBAR_1  = 30;   // barrier 位
-parameter ARSNB0     = 31;  ARSNB1   = 32;   // ◄ 该读请求该进哪个 SNB bank
-parameter ARNCQ      = 33;                   // ◄ 该读请求进 NCQ(非相干)
-parameter ARCTC      = 34;                   // ◄ 该读请求进 CTCQ
-parameter ARADDR_0   = 35;  ARADDR_H = 74;   // 地址字段
-parameter ARWIDTH    = 75;
-parameter ARWIDTH_SNB = 71;  // 送给 SNB 的窄总线
+ar_ca  = |arcache[3:2]
+      || (arcache[1] && (ardomain[1] ^ ardomain[0]));
+ar_ctc = &arsnoop[3:0];
 ```
 
-注意 `ARSNB0/ARSNB1/ARNCQ/ARCTC` 这 4 个 one-hot 位，是 PIU 解析核请求后打上的**路由标签**：决定这个读请求送往哪条下游路径。
-
-### 3.2 AC 总线字段（侦听请求，55 位）
-
-```
-AC bus[54:0] = { addr[39:0], xid[4:0]=4'b0001+snb1, sid[4:0], inst, acsnoop[3:0] }
-```
-该格式在 SAB 侧组装（`ct_ciu_snb_sab_entry.v:1411-1416`）。PIU 内对应的解码参数有 `AC_SNOOP_3:AC_SNOOP_0`、`AC_INST`、`AC_ADDR_H:AC_ADDR_0`、`AC_SID_4:AC_SID_0`、`AC_XID_4:AC_XID_0`（用于 `ct_piu_top.v:1471-1473,1578-1580`）。
-
-### 3.3 其它通道宽度
-
-| 参数 | 值 | 用途 | file:line |
-|------|----|----|----------|
-| `CR_WIDTH` | 5 | CR 响应位宽（crresp[4:0]） | `ct_piu_top.v:1508` |
-| `CRR_WIDTH` | 10 | CR 回送总线（sid[4:0]+crresp[4:0]） | `ct_piu_top.v:1512` |
-| `RSPQ_WIDTH` | 12 | CR 响应队列项宽 | `ct_piu_top.v:1566` |
-| `CD_IDF_WIDTH` | 9 | CD SID FIFO 项宽 | `ct_piu_top.v:1607` |
-| `PKB_WIDTH` | 158 | CD 包缓冲项宽（含 wstrb+werr+data[127:0]+控制） | `ct_piu_top.v:1693` |
-
----
-
-## 4. PIU 的角色：BIU 与 CIU 之间的适配器
-
-C910 的核与外部用 **ACE-lite + 侦听三通道** 协议交互。PIU 做三件“翻译”工作：
-
-1. **协议字段提取**：从核的 AR/AW 信号里读出 snoop 类型、cache 属性、地址，判断这是相干读、相干写、非相干访问、还是 CTC，并打上路由标签（§3.1）。
-2. **下游路由**：按标签把请求送到 SNB0/SNB1（相干，按地址 bit[6] 分 bank）或 NCQ（非相干）或 CTCQ。
-3. **侦听三通道收发**：把上游 SAB/CTCQ 的侦听请求经 AC 发给核，把核的 CR/CD 收回。每条通道都有 FIFO，支持多事务流水。
-
----
-
-## 5. AR 通道：读请求与 bank 路由
-
-### 5.1 bank 选择：地址 bit[6]
-
-C910 把相干侦听分成两个并行 bank（SNB0/SNB1），按 **cache line 地址的 bit[6]** 区分奇偶行（`ct_piu_top.v:876-877`）：
+随后生成四个路由位：
 
 ```verilog
-assign ibiu_ciu_arxid[SNB1] = !ibiu_ciu_arbar[0] && !ar_ctc && ar_ca && ibiu_ciu_araddr[6];
-assign ibiu_ciu_arxid[SNB0] = !ibiu_ciu_arbar[0] && !ar_ctc && ar_ca && !ibiu_ciu_araddr[6];
+CTCQ = !arbar[0] &&  ar_ctc;
+NCQ  = !arbar[0] && !ar_ctc && !ar_ca;
+SNB1 = !arbar[0] && !ar_ctc &&  ar_ca &&  araddr[6];
+SNB0 = !arbar[0] && !ar_ctc &&  ar_ca && !araddr[6];
 ```
 
-- `ar_ca`：cacheable（相干）请求才进 SNB；非相干进 NCQ。
-- `arbar[0]`：barrier 事务单独走（不进 bank）。
-- `araddr[6]==1` → SNB1，`==0` → SNB0。两个 bank 的 SAB 各自独立，奇偶 line 的一致性事务可以真正并行。
+若 `arbar[0]=1`，上述四个位都为 0，请求由单独的 barrier 路径识别。这里的
+`ar_ca` 是本 RTL 的路由判据，不能简化成“`arcache!=0` 就一定可缓存”。
 
-### 5.2 路由与窄总线
+### 4.2 两项 AR FIFO
 
-打好标签后，AR 请求经 dfifo 流出，按标签产生 bank 请求（`ct_piu_top.v:929-944`）：
+核侧 ready 为：
 
 ```verilog
-assign ar_req_snb1 = ar_req_bus[ARSNB1];
-assign ar_req_snb0 = ar_req_bus[ARSNB0];
-assign piu_snb1_ar_req = ar_dfifo_sab1_req;
-assign piu_snb0_ar_req = ar_dfifo_sab0_req;
-// 送给 SNB 的是窄总线（71 位），去掉了 CTC/NCQ/SNB 路由标签
-assign piu_snb0_ar_bus[ARWIDTH_SNB-1:0] = {ar_req_bus[ARWIDTH-1:ARADDR_0], ar_req_bus[ARBAR_1:0]};
+ciu_ibiu_arready = !ar_dfifo_full;
 ```
+
+入队条件为 `ibiu_ciu_arvalid && !ar_dfifo_full`，等价于核侧 AR 握手。FIFO
+保存完整地址、属性、ID、barrier 位和 PIU 已生成的路由位，深度为 2。
+
+AR FIFO 头部随后向唯一目标保持请求：
+
+| FIFO 中的标签 | 下游 |
+|---------------|------|
+| barrier | BMB/barrier 合并逻辑 |
+| CTCQ | CTCQ |
+| NCQ | NCQ |
+| SNB0 | SNB0 |
+| SNB1 | SNB1 |
+
+只有相应下游 grant 出现时，`ar_grant` 才使 FIFO pop。也就是说：
+
+- 核侧 AR 握手：请求的所有权从核转给 PIU；
+- 下游 grant：请求的所有权从 PIU AR FIFO 转给目标模块；
+- 两者可以不是同一周期。
+
+### 4.3 PA[6] 分 bank 的含义
+
+对于可缓存非 CTC 读，PA[6]=0 进入 SNB0，PA[6]=1 进入 SNB1。因为 cache
+line 为 64B，PA[5:0] 是 line 内字节偏移，PA[6] 是相邻 line 的最低索引位。
+两个 SNB 可并行处理不同 bank 的事务，但这只是提供并行机会，不保证吞吐量
+严格翻倍。
 
 ---
 
-## 6. AW 通道：写请求
+## 5. AW 与 W：写地址分类和数据关联
 
-写地址通道与读对称，同样按 `awaddr[6]` 选 bank（`ct_piu_top.v:1004-1005`）：
+### 5.1 写地址分类与读地址并不完全相同
+
+写侧只用：
 
 ```verilog
-assign ibiu_ciu_awxid[SNB1] = !ibiu_ciu_awbar[0] && aw_ca && ibiu_ciu_awaddr[6];
-assign ibiu_ciu_awxid[SNB0] = !ibiu_ciu_awbar[0] && aw_ca && !ibiu_ciu_awaddr[6];
+aw_ca = |awcache[3:2];
 ```
 
-写请求产生 `piu_snb0_aw_req` / `piu_snb1_aw_req`（`ct_piu_top.v:1158-1159`）。写应答时还要回送 SID（`aw_grant_sid`，`ct_piu_top.v:1188`）以匹配 outstanding 写。写数据（W 通道）与写回的脏数据 CD 一起，最终经 SAB 写进 L2C 或经 VB 写回内存。
+路由为 barrier、NCQ、SNB0 或 SNB1，没有 AW 到 CTCQ 的路径。文档不能把
+AR 的 `domain/cache/snoop` 判定公式机械套到 AW。
 
----
+### 5.2 AW 是两个分类槽位，不是普通的二项 FIFO
 
-## 7. AC 通道：侦听请求下发到核
+PIU 把 AW 分成：
 
-这是 PIU 下行的第一段：把上游来的侦听送给核。
+- WS 类：特定 WU/WLU 且 domain 为 `01`，或 barrier；
+- WNS 类：其余写地址。
 
-### 7.1 三源仲裁
-
-一个 PIU 的 AC 通道可能同时被 **SNB0、SNB1、CTCQ** 三个来源请求（`ct_piu_top.v:1413-1427`）：
+每类各有一个 valid 和一个 payload 寄存器。ready 按当前 AW 类型返回：
 
 ```verilog
-assign snb0_ac_valid = snb0_piu_acvalid && !ctcq_mask_snb;
-assign snb1_ac_valid = snb1_piu_acvalid && !ctcq_mask_snb;
-assign ac_valid[2:0] = {ctcq_piu_acvalid, snb1_ac_valid, snb0_ac_valid};
-assign ac_idle       = !ac_dfifo_full;
-
-ct_prio #(.NUM(3)) x_ct_piu_ac_prio(...);   // 3 选 1 优先级仲裁 → ac_sel
+awready = (aw_create_ws  && !ws_dfifo_vld)
+       || (!aw_create_ws && !wns_dfifo_vld);
 ```
 
-- **`ctcq_mask_snb`**：CTC 是两段连续传输，中间不能被 SNB 侦听打断。一旦 CTCQ 被授权且 acbus 标记还有后续，就锁住 SNB（`ct_piu_top.v:1491-1494`），保证 CTC 原子性。
+虽然源码中的总 create 信号写成 `awvalid`，真正的槽位 create 还与对应
+`~*_dfifo_vld` 相与。因此，合法接受仍对应 `awvalid && awready`，并在时钟沿
+写入所选槽位。
 
-授权信号反馈给来源（`ct_piu_top.v:1482-1484`）：
+输出选择优先 WNS：
 
 ```verilog
-assign piu_snb0_ac_grant = ac_idle && ac_sel[0];
-assign piu_snb1_ac_grant = ac_idle && ac_sel[1];
-assign piu_ctcq_ac_grant = ac_idle && ac_sel[2];
+aw_req_bus = wns_dfifo_vld ? wns_dfifo_data : ws_dfifo_data;
 ```
 
-### 7.2 AC DFIFO 与下发
+这只是当前组合选择优先关系，不应扩展成完整体系结构写顺序的唯一规则；后续
+还有 WD SID FIFO、NCQ/SNB 排序和 EBIU 写跟踪。
 
-被选中的 acbus 进入 2 深的 AC DFIFO，再下发给核（`ct_piu_top.v:1442-1473`）：
+### 5.3 AW grant 后建立 W 数据归属
+
+AW 被 BMBIF、NCQ 或某个 SNB 接受后，PIU 把目标 XID、SID、地址低位等写入
+WD SID FIFO。后续核侧 W beat 不再携带完整目标信息，PIU 用该 FIFO 头部把
+写数据重新关联到接受该 AW 的下游。
+
+Evict 是特殊情况：`aw_pop_evict` 时不创建 WD SID 项，因为这种事务不要求
+核侧跟随普通 W 数据。是否最终向片外发 AW/W，还要由 EBIU 的 `aw_needissue`
+判断。
+
+---
+
+## 6. AC：从 CIU 维护/侦听源到真实核
+
+### 6.1 三个来源与有状态仲裁
+
+PIU 接收三个 AC 来源：
+
+```text
+SNB0、SNB1、CTCQ
+```
+
+`ct_prio #(.NUM(3))` 是会更新内部优先关系的仲裁器，不应描述成固定优先级。
+SNB 请求还可能被 `ctcq_mask_snb` 屏蔽。
+
+`ct_prio` 采用优先关系矩阵。复位后低编号来源优先；某来源被选择并写入 AC
+FIFO 时，`clr` 使该来源在后续竞争中降到其它来源之后。因此它具有轮转式的
+有状态公平性，而不是每周期简单从 bit0 开始编码。不过这种公平性只覆盖
+**同时具备仲裁资格且仲裁器持续获得入 FIFO 机会** 的来源：CTCQ 对 SNB 的
+显式屏蔽、AC FIFO 满和下游长期背压仍会改变实际等待时间。
+
+### 6.2 来源 grant 的准确含义
+
+当 AC FIFO 未满时：
 
 ```verilog
-assign ac_dfifo_create_bus = {AC_WIDTH{ac_sel[2]}} & ctcq_piu_acbus |
-                             {AC_WIDTH{ac_sel[1]}} & snb1_piu_acbus |
-                             {AC_WIDTH{ac_sel[0]}} & snb0_piu_acbus;
-// pop 时拆出最终给核的侦听信号
-assign ciu_ibiu_acvalid      = ac_req_vld;
-assign ciu_ibiu_acsnoop[3:0] = ac_req_bus[AC_SNOOP_3:AC_SNOOP_0];
-assign ciu_ibiu_acprot[2:0]  = {2'b00, ac_req_bus[AC_INST]};
-assign ciu_ibiu_acaddr       = ac_req_bus[AC_ADDR_H:AC_ADDR_0];
+piu_snb0_ac_grant = ac_idle && ac_sel[0];
+piu_snb1_ac_grant = ac_idle && ac_sel[1];
+piu_ctcq_ac_grant = ac_idle && ac_sel[2];
 ```
 
-每发出一个 AC，就在 **RSPQ（CR 响应队列）**里登记一项（`ct_piu_top.v:1575-1597`），记录该侦听的 xid/sid/addr，用来把将来回来的 CR 响应配对回正确的 SAB 项。RSPQ 深 12。
+这些 grant 表示 **被选 AC 已被 PIU 的两项 AC FIFO 接收**。它们不表示：
+
+- 真实核已经看到 AC；
+- 核已经查询 L1；
+- CR 已经返回；
+- 整个原始一致性事务已经完成。
+
+### 6.3 从 AC FIFO 到核侧
+
+FIFO 头部仅在 RSPQ 未满时对核拉高 `ciu_ibiu_acvalid`。最终核侧接受事件是：
+
+```verilog
+ciu_ibiu_acvalid && ibiu_ciu_acready
+```
+
+同一个事件同时：
+
+1. pop AC FIFO；
+2. 在 12 项 RSPQ 中创建记录；
+3. 保存该 AC 的 `xid[4:0]`、`sid[4:0]` 和地址 `[5:4]`。
+
+因此 RSPQ 只记录 **已被核侧接受** 的 AC，不记录仍在 PIU AC FIFO 中等待的
+请求。这一细节保证后续按序到达的 CR 能与真实已发 AC 一一对应。
+
+### 6.4 `ctcq_mask_snb` 的严格解释
+
+CTCQ AC 被 PIU FIFO 接受时，PIU 把该 AC 地址字段最低位锁存到
+`ctcq_mask_snb`。源码注释说明该位表示还有第二次 transfer。该位为 1 时，
+SNB0/1 AC 暂不参与仲裁；下一次 CTCQ AC grant 再根据其 addr[0] 更新该位。
+
+可以据此断言的是：两段 CTC 维护 AC 之间不会插入普通 SNB AC。不能据此断言
+所有 cache-to-cache 数据、所有 DVM 或所有系统事务都获得了全局原子性。
 
 ---
 
-## 8. CR 通道：侦听响应回收
+## 7. CR：控制响应的缓存、关联与回送
 
-核处理完侦听后，经 CR 通道回 `crresp[4:0]`。PIU 的处理链（`ct_piu_top.v:1514-1552`）：
+### 7.1 核侧接受
 
-1. **CR DFIFO**（深 2）缓冲核来的 crresp：`cr_dfifo_create_en = ibiu_ciu_crvalid && !cr_dfifo_full`（行 1514）；`ciu_ibiu_crready = !cr_dfifo_full`（行 1554）。
-2. **配对**：从 RSPQ pop 出当初登记的 xid/sid，与 cr_dfifo pop 的 crresp 拼成回送总线 `piu_xx_cr_bus = {sid[4:0], crresp[4:0]}`（行 1548）。
-3. **回送来源**：按 xid 判断这条侦听原本来自哪（`ct_piu_top.v:1544-1546`）：
-   ```verilog
-   assign piu_snb0_cr_req = rspq_pop_xid[1] && !rspq_pop_xid[0] && cr_req_vld;
-   assign piu_snb1_cr_req = rspq_pop_xid[1] &&  rspq_pop_xid[0] && cr_req_vld;
-   assign piu_ctcq_cr_req = rspq_pop_xid[4] && cr_req_vld;
-   ```
-4. **是否有数据**：若 crresp 的 DT 位（数据传输位）置位，说明核会经 CD 通道送脏数据，于是在 **CD SID FIFO**（深 8）登记一项，等数据到来配对（`ct_piu_top.v:1615-1639`）。
+CR FIFO 深度为 2：
 
----
+```verilog
+ciu_ibiu_crready = !cr_dfifo_full;
+cr_create = ibiu_ciu_crvalid && ciu_ibiu_crready;
+```
 
-## 9. CD 通道：侦听数据回收与打包
+核侧 CR 握手只表示五位 `crresp` 进入 PIU。它还没有被原始 SNB/CTCQ 接收。
 
-当被侦听的核持有脏数据时，经 CD 通道回送 128 位/拍的数据。PIU 把它打包成统一格式再交给 SAB 写 L2C/写回。
+### 7.2 与 RSPQ 头部配对
 
-- **CD SID FIFO**（深 8，`ct_piu_top.v:1626`）：记录每段脏数据应配的 sid/xid/addr。`cd_pkb_sid_bus[11:0]` 把这些 ID 字段拼好（`ct_piu_top.v:1685-1688`），区分数据归属哪个 SNB bank（`cd_xid_snb0/cd_xid_snb1`）。
-- **包缓冲 PKB**（PKB_WIDTH=158，`ct_piu_top.v:1693-1706`）：把 128 位数据 + 16 位 wstrb + werr + last + xid + addr + sid 打成一个完整“包”。PKB 有多个分立时钟门控（data0~data3，`ct_piu_top.v:1748-1817`），按拍只点亮正在写的那段，省功耗。
-- **优先级 CD > WD**（`ct_piu_top.v:1819`）：侦听脏数据写回比普通写数据优先，尽快释放被侦听核。
+CR 没有重新携带原 AC 的完整来源信息。PIU 假定核按已接受 AC 的协议顺序返回
+CR，因此把 CR FIFO 头与 RSPQ 头组合：
 
-最终这些打好的数据经 SAB 写进 L2C（脏数据进 L2）或转给 CTC 的请求者。
+```text
+RSPQ.xid  -> 选择 SNB0、SNB1 或 CTCQ
+RSPQ.sid  -> 找到目标模块内部事务项
+CRRESP    -> 返回控制结果
+```
 
----
+当对应下游给出 `*_cr_grant` 时，同一个事件 pop CR FIFO 和 RSPQ。若下游持续
+背压，CR 与 RSPQ 均保持，核侧最终也可能因两项 CR FIFO 满而看到
+`crready=0`。
 
-## 10. Barrier FSM
+### 7.3 DT 不是 dirty
 
-PIU 内有一个 3 位的 barrier 状态机 `bar_cur_state` / `bar_next_state`（`ct_piu_top.v:352,356`）。Barrier（内存屏障）事务（`arbar/awbar` 位）不进 SNB bank，而是单独排序，确保屏障前后的访存顺序在多核间正确可见。屏障完成通过 `ctcq_piuX_bar_cmplt` 等信号回报（CTCQ 侧 `ct_ciu_ctcq.v:650`）。
+RTL 明确定义 `CR_RRESP_DT=0`。DT 是 Data Transfer：若该位为 1，表示该
+侦听响应之后存在 CD 数据。因此，下游接受 CR 时，PIU 还会把该事务的 XID、
+SID 和地址 `[5:4]` 写入 8 项 CD SID FIFO。
 
----
-
-## 11. dummy 与 dummy_device 变体
-
-### 11.1 ct_piu_top_dummy（piu2/piu3）
-
-OpenC910 默认只造 2 核，piu2/piu3 用 `ct_piu_top_dummy`（503 行）占位。它**不接真实核**，所有上行请求输出钉成无效、所有侦听响应钉成“立即完成”。目的：
-
-- 让一致性位图保持 **4 位固定宽度**（`cp[3:0]`、`smpen[3:0]`、`snp_req_en[3:0]`），上层逻辑无需为不同核数改宽度；
-- 当 SAB 算出的 `cp_after_mask` 在这两位上恰好为 0（因为 `smpen[3:2]=0`，`ct_ciu_regs.v:634,639`），对应的 `snp2/snp3` 子 FSM 立即 `cmplt`，不影响 `snp_cmplt`。
-
-### 11.2 ct_piu_top_dummy_device（piu4）
-
-piu4 用 `ct_piu_top_dummy_device`（171 行），是**非相干设备入口**。它接外部主设备/DMA：
-
-- 这类访问**不缓存、不侦听**，PIU4 直接把请求送进 NCQ（非相干队列）；
-- 它不参与 MOESI、不出现在 cp 位图里——这正是它叫 “device” 且与 piu0-3 分开的原因。
-
-### 11.3 ct_piu_other_io_dummy
-
-对应 piu2/piu3 的杂项 IO 桩（98 行），把 L2PMP/regs/中断相关输出全部钉成 0/无效（`ct_piu_other_io_dummy.v:73-91`），如 `piu_regs_sel=0`、`piu_xx_regs_no_op=1`、`pready_l2pmp_x=1`。
+“DT=1”不能单独证明 line 是 Modified 或 dirty；CR 的其它位、请求类型、核内
+状态和数据路径必须联合解释。
 
 ---
 
-## 12. ct_piu_other_io
+## 8. CD 与普通 W：共享 package buffer
 
-`ct_piu_other_io`（236 行）是每个真实核 PIU 旁边的“杂项 IO”模块，处理与一致性主数据流无关、但属于该核的杂项信号（`ct_piu_other_io.v:17-120`）：
+### 8.1 CD SID FIFO
 
-- **中断转发**：把 sysio 来的各级中断（`sysio_piu_me_int/ms_int/mt_int/se_int/ss_int/st_int`）转成 `ciu_ibiu_*_int` 给核；
-- **CSR 通路**：核的 CSR 访问（`ibiu_ciu_csr_sel/csr_wdata`）与回读（`ciu_ibiu_csr_rdata[127:0]`）；
-- **L2PMP（L2 物理内存保护）的 APB 从口**：`psel_l2pmp_x`、`x_prdata_l2pmp[31:0]`；
-- **HPCP（高性能计数器）/debug 接口**：`piu_regs_hpcp_cnt_en`、`ciu_ibiu_dbgrq_b`、`ciu_ibiu_hpcp_l2of_int`；
-- **低功耗/调试模式**：`piu_sysio_lpmd_b`、`piu_sysio_jdb_pm`。
+CD SID FIFO 只为 **已经被 SNB/CTCQ 接受且 DT=1 的 CR** 创建。其内容为：
 
-它内部只是实例化了 `ct_piu_other_io_sync`（353 行，做跨时钟域同步，`ct_piu_other_io.v:179-230`），本身无逻辑——纯连线 + 子模块例化。
+- 两位 XID：区分 SNB0/SNB1；
+- 地址 `[5:4]`：决定 128-bit beat 在 512-bit line 中的位置；
+- 五位 SID：定位目标事务项。
+
+FIFO 实例深度为 8。RTL 另外维护四位计数器，并用最高位作为
+`cd_sid_fifo_full`：计数从 0 增到 8 后 `cnt[3]=1`。此时 `cr_req_vld` 被压低，
+所以 SNB/CTCQ 不能 grant 一个还需要创建 CD SID 的 CR；已经进入两项 CR FIFO
+的响应可以暂存等待。CD SID pop 后计数降回 7，CR 回送才继续。这里应按这条
+create/pop/计数链理解容量，不能只看 FIFO 实例输出被命名为
+`cd_sid_fifo_full_fake`。
+
+### 8.2 package buffer 的实际功能
+
+PKB 在 CD 与普通核侧 W 之间仲裁，并把最多四个 128-bit beat 组装成
+512-bit 数据：
+
+```text
+输入：128-bit data + byte strobe/error + SID/XID/address-low
+内部：按地址[5:4]或递增/递减顺序写 data0..data3
+完成：收到 last 后 pkb_rdy=1
+输出：535-bit WCD 总线或 NCQ 的 128-bit W 数据
+```
+
+空闲时若 CD 和 WD 同时请求，CD 优先；同一包尚未收完时，PKB 保持已选择的
+来源，不能在四个 beat 中途切换。这是局部 package-buffer 仲裁，不应写成所有
+系统写数据永远“CD 全局优先”。
+
+### 8.3 输出目标
+
+完整包依据保存的 XID 送往 BMBIF、NCQ、SNB1 或 SNB0。NCQ 只取由地址
+`[5:4]` 指定的一个 128-bit lane；SNB/BMB 路径可接收打包后的 512-bit
+内容。
+
+数据进入 PKB 只表示 PIU 已经收齐并保存它。只有目标 `*_wcd_grant` 出现，
+PKB 才 pop；目标模块后续写 L2、进入 VB 或完成外部写仍属于更下游阶段。
 
 ---
 
-## 13. 设计取舍小结
+## 9. Barrier 合并与完成
 
-| 决策 | 内容 | 为什么 |
-|------|------|--------|
-| 每核一个 PIU | piu0-3 相干 + piu4 设备 | 适配器解耦，核侧协议变化不污染 CIU 内部 |
-| 路由标签 ARSNB0/1/NCQ/CTC | PIU 解析请求后打 one-hot 标签 | 下游只看标签转发，逻辑简单 |
-| 地址 bit[6] 分 bank | 奇偶 cache line 进不同 SNB | 双 bank 并行，翻倍侦听吞吐 |
-| AC 三源优先仲裁 | SNB0/SNB1/CTCQ 经 ct_prio 选 1 | 一个核的 AC 通道串行下发，需仲裁 |
-| ctcq_mask_snb 锁 | CTC 传输中锁住 SNB 侦听 | 保证 CTC 两段传输原子、不被打断 |
-| 每通道独立 FIFO | AC/CR/CD/RSPQ/PKB 各自缓冲 | 多事务流水重叠，提高吞吐 |
-| CD > WD 优先 | 侦听脏数据写回优先于普通写 | 尽快释放被侦听核，降低侦听延迟 |
-| dummy 钉 0 占位 | piu2/3 用 dummy 模块 | 位图固定 4 位宽，不为核数改逻辑 |
-| 分段时钟门控 | PKB data0~3 各自门控 | 按拍只点亮在写的那段，省功耗 |
+PIU 的 barrier FSM 状态为：
+
+```text
+BAR_IDLE -> BAR_REQ -> BAR_WAIT/W_BAR_CMPLT -> BAR_RESP -> BAR_IDLE
+```
+
+读 barrier 从 AR FIFO 头部识别；写 barrier 还需要等待相应写数据被接收。
+PIU 经 BMBIF 把 barrier 要求送往 CTCQ、NCQ、SNB0、SNB1，并等待相关完成
+条件，最后构造对核的 R 或 B 响应。
+
+“barrier 已进入 PIU”“BMBIF 已接受 barrier”“各目标报告完成”和“核已接收
+barrier 响应”是不同阶段。体系结构上的可见性保证来自整条协议和各目标对
+barrier 的实现，不应只由 `bar_cur_state` 某一个状态名推导。
 
 ---
 
-*文档覆盖 `ct_piu_top.v` 全部约 2732 行逻辑，并涵盖 `ct_piu_other_io.v`、`ct_piu_top_dummy.v`、`ct_piu_top_dummy_device.v`、`ct_piu_other_io_dummy.v` 的角色与差异。*
+## 10. 返回 R/B 与 `no_op`
+
+PIU 对来自 SNB0、SNB1、NCQ、barrier、CTCQ 的 R 进行仲裁并保存到返回缓冲，
+再驱动核侧 R。B 路径同样先仲裁、缓冲，再交给核。来源模块得到的 R/B grant
+表示 PIU 已接收其返回，不表示核已在同周期接收。
+
+真实 PIU 的 `piu_xx_no_op` 由 AR、AW、WD SID、barrier、R/B、RACK/BACK
+等主要内部状态共同计算。它适合表示“PIU 所跟踪的主要事务为空闲”，但不是
+整个核、整个 CIU 或所有异步外设绝对静止的证明。
+
+---
+
+## 11. dummy 变体的真实行为
+
+### 11.1 `ct_piu_top_dummy`
+
+PIU2/3：
+
+- AR/AW/WCD/BMB 请求固定无效；
+- 不接收 SNB/NCQ/CTCQ 的普通 R/B；
+- 对传入 SNB0、SNB1、CTCQ AC，组合产生 AC grant；
+- 在时钟沿保存 AC SID，随后保持零 `crresp` 的 CR 请求，直到来源 grant；
+- `piu_xx_no_op=1`。
+
+所以“dummy 所有输出全 0”并不准确；其主动请求和数据响应为零，但保留了最小
+AC->CR 终止路径。
+
+这个终止路径有严格使用边界。每个 AC 来源只有一个 CR 请求寄存器，但 AC
+grant 没有用“本来源 CR 尚未处理”作为条件；同一来源在前一个 CR 被 grant
+之前再次送入 AC，会覆盖已保存的 SID。当前配置通过 `smpen[3:2]=0` 不把
+PIU2/3 作为正常侦听目标，因此正常路径依赖的是“不会向 dummy 连续投递 AC”
+这一系统不变量，而不是 dummy 内部具备排队能力。
+
+此外，SNB0 CR 被 grant 后，源码把 `piu_snb0_cr_sid` 赋成
+`piu_snb1_cr_sid`，而不是保持自己的 SID。该周期同时清除了
+`piu_snb0_cr_req`，所以 valid 为 0 时这通常只是无效载荷上的拷贝粘贴痕迹；
+验证环境仍应遵守“只在 `cr_req=1` 时解释 CR bus”，不能把无效周期 SID 当成
+有效事务信息。`piu_xx_no_op` 又被固定为 1，因此它也不反映 dummy 内部尚待
+grant 的 CR。
+
+### 11.2 `ct_piu_top_dummy_device`
+
+该模块当前：
+
+- 所有 SNB AR/AW/WCD 请求固定为 0；
+- 不接受 SNB R/B；
+- `piu_xx_no_op=1`；
+- 没有形成有效外部 DMA 到 NCQ 的实现。
+
+模块名中的 `device` 只能说明预留角色或生成配置来源，不能用来宣称当前硬件已
+提供可工作的非相干设备主入口。
+
+---
+
+## 12. `ct_piu_other_io`
+
+真实核旁还有一个 `ct_piu_other_io`，内部实例化 `ct_piu_other_io_sync`。主要
+信号包括：
+
+- 机器态/监督态中断转发；
+- debug request、低功耗模式和性能计数相关控制；
+- 核侧 CSR select/wdata 与 CIU regs 回读；
+- L2PMP APB 目标接口。
+
+### 12.1 “sync” 名称不能替代 CDC 证据
+
+在当前可见 RTL 中，中断和若干 debug 信号主要是直接赋值，没有看到统一的
+两级触发器同步器。CSR 请求则在 `forever_cpuclk` 下锁存并保持。因此，文档
+不能仅凭模块名 `*_sync` 宣称所有接口都完成了标准双触发器跨时钟域同步。
+
+### 12.2 当前 L2PMP 路径是 dummy 返回
+
+`ct_piu_other_io_sync.v` 当前固定：
+
+```verilog
+pready_l2pmp_x = 1'b1;
+perr_l2pmp_x   = 1'b0;
+rdata_l2pmp_x  = 32'b0;
+```
+
+所以 APBIF 虽然解码并连接 L2PMP 目标，当前核侧这一路只会立即返回零数据且
+无错误。接口存在与功能实现完整必须分别描述。
+
+---
+
+## 13. 波形观察建议
+
+### 13.1 观察一次 AR
+
+按顺序加入：
+
+```text
+ibiu_ciu_arvalid, ciu_ibiu_arready, ibiu_ciu_araddr
+ar_dfifo_create_en, ar_dfifo_full, ar_dfifo_pop_bus_vld
+ar_req_snb0/snb1/ncq/ctc/bar
+piu_*_ar_req, *_piu_ar_grant
+```
+
+先确认核侧接受，再确认 FIFO 头分类，最后确认下游接受。
+
+### 13.2 观察一次完整 AC/CR/CD
+
+```text
+snb0/snb1/ctcq_piu_acvalid, ac_sel, piu_*_ac_grant
+ac_dfifo_full, ac_dfifo_pop_bus_vld
+ciu_ibiu_acvalid, ibiu_ciu_acready, rspq_create_en
+ibiu_ciu_crvalid, ciu_ibiu_crready, crresp
+piu_*_cr_req, *_piu_cr_grant
+cd_sid_fifo_create_en, ibiu_ciu_cdvalid
+pkb_vld, pkb_rdy, piu_*_wcd_req, *_piu_wcd_grant
+```
+
+这组信号能回答：AC 是仅进入 PIU，还是已被核接受；CR 是否指示 CD；CD 是否
+收齐；最终数据是否已转交下游。
+
+### 13.3 时钟门控解释
+
+PKB 的四段数据寄存器各有 gated clock，使能只在对应 128-bit 段写入时拉起。
+这是 RTL 的更新和低功耗意图。仿真中是否看到实际门控后的时钟，取决于
+`gated_clk_cell` 编译宏；面积与功耗收益则需要综合实现结果支持。

@@ -34,7 +34,9 @@ C910 是一款超标量乱序执行处理器，其指令调度分为以下几个
 | 操作数存储 | RS 中保存操作数值 | IQ 只保存物理寄存器编号，发射时从 RF 读 |
 | 面积 | 较大（每项含操作数字段） | 较小（项目内不存实际数据） |
 
-C910 AIQ 属于**分布式发射队列**模型：AIQ0 专服务 ALU Pipe0（含除法、特殊指令），AIQ1 专服务 ALU Pipe1（含乘法）。这种分发保证了两条 ALU 通路可以同时发射。
+C910 AIQ 属于**分布式发射队列**模型：AIQ0 面向 Pipe0（含 ALU、除法和特殊路径），AIQ1 面向 Pipe1（含 ALU 和乘法路径）。两个独立队列在结构上允许两条整数管线同周期各选出一项；能否同时成功推进还取决于源就绪、执行资源、共享端口、stall 和 RF launch 检查，不能写成无条件保证。
+
+> **当前配置边界**：AIQ entry 仍包含 VREG、MFVR/MTVR 和向量配置等兼容字段，唤醒网络也保留对应端口；但当前 `x_vec_inst=0`、`misa_vector=0`，不能把这些保留字段视作当前 RVV 指令流中的活跃事件。标量整数、标量浮点与非向量访存相关路径不受这一说明影响。
 
 ### 1.3 AIQ 服务的功能单元
 
@@ -121,7 +123,7 @@ IID 位宽    = 7 位（指令标识符，用于年龄比较）
 | `iu_idu_ex2_pipe0_wb_preg_dupx[6:0]` | 7 | I | Pipe0 EX2 写回物理寄存器号 |
 | `iu_idu_ex2_pipe0_wb_preg_vld_dupx` | 1 | I | Pipe0 EX2 写回有效 |
 | `lsu_idu_wb_pipe3_wb_preg_dupx[6:0]` | 7 | I | LSU 写回物理寄存器号 |
-| `lsu_idu_ag_pipe3_load_inst_vld` | 1 | I | LSU AG 段 load 指令有效（早期唤醒） |
+| `lsu_idu_ag_pipe3_load_inst_vld` | 1 | I | LSU AG 段 load 指令有效；与目的 preg 比较后生成 `lsu_match` 预匹配状态，本身不直接把 `rdy` 置 1 |
 | `rtu_idu_flush_fe/is` | 1 | I | 前端/发射队列冲刷信号 |
 | `rtu_yy_xx_flush` | 1 | I | 全局冲刷（用于 entry_cnt 复位） |
 
@@ -175,7 +177,13 @@ always @(...) begin
 end
 ```
 
-**为什么双向扫描**：如果两个通道都从低地址扫，当队列中只剩一个空项时，两个通道会选中同一个 entry，造成写冲突。反向扫描保证只要队列剩余空项 >= 2，两条指令一定选中不同 entry。当只剩一个空项时，通过 `aiq0_ctrl_1_left_updt` 信号通知 ctrl，控制层不会同时派遣两条指令。
+**为什么双向扫描**：create0 选择最低编号空项，create1 选择最高编号空项；在按
+当前 `entry_vld` 观察到至少两个空项时，这两个 one-hot 指针必然不同。只剩一个
+空项时，两路编码器会指向同一项，因此正确性还依赖
+`aiq0_ctrl_1_left_updt`/full 反馈使上游不同时发出两个功能 create。也就是说，
+“双向扫描”解决多空项时的选择分离，“最后一个空项”由容量协议解决，两者缺一
+不可。指针方程也没有把同拍 pop 当成新空项参与选择；pop/create 同拍的容量行为
+要结合计数更新和上游 stall 一起看。
 
 ### 4.2 Entry 创建使能生成
 
@@ -202,11 +210,16 @@ assign aiq0_entry_create_sel[7:4] = {4{ctrl_aiq0_create1_dp_en}}
                                      & aiq0_entry_create1_in[7:4];
 ```
 
-注释说明（行 826-829）：`aiq0_entry_create0_in` 与 `aiq0_entry_create1_in` 不可能同时为 1，故可用取反实现选择，降低关键路径延迟。
+生成源注释称该分区写法用于 “better timing”。其功能前提是：在发生有效双创建
+时，上游容量协议保证 create0/create1 不命中同一 entry。低半区利用
+`~(create0_dp_en & create0_in)` 形成选择，高半区利用
+`create1_dp_en & create1_in` 形成选择，确实改变了每半区的选择逻辑锥；是否比
+统一 MUX 快、改善多少关键路径，需要综合与 STA 证明，不能把注释直接写成已测得
+的时序结论。
 
 ### 4.4 Age Vector（年龄向量）
 
-每条入队指令携带一个 7 位的 `agevec`，记录队列中比自己**年轻**（后入队）的 entry 集合（不含自身）。该向量在入队时由顶层计算：
+每条入队指令携带一个 7 位的 `agevec`，记录创建时已经存在、因而比自己**更老**的 entry 集合（不含自身，并排除同周期即将 pop 的项）。该向量在入队时由顶层计算：
 
 ```verilog
 // ct_idu_is_aiq0.v，行 817-824
@@ -221,7 +234,7 @@ assign aiq0_entry_create1_agevec[7:0] = aiq0_entry_vld[7:0]
                                         | aiq0_entry_create0_in[7:0];
 ```
 
-每个 entry 存储的 `agevec[6:0]` 是 7 位（表示另外 7 个 entry 中哪些比自己年轻），bit 位顺序为从入队时刻的那一帧看，其他 entry 是否存在。发射后弹出 entry 时，其他 entry 的 `agevec` 要减去已弹出的 entry：
+每个 entry 存储的 `agevec[6:0]` 是 7 位，表示另外 7 个物理 entry 中哪些是自己的更老竞争者。bit 到物理 entry 的映射会跳过自身。某 entry 被 RF 确认 pop 后，其他 entry 从自己的 agevec 中清除该已离队项：
 
 ```verilog
 // ct_idu_is_aiq0_entry.v，行 917-920
@@ -281,13 +294,13 @@ AIQ entry 中每个 dep_reg_entry 接收的写回广播来源汇总：
 | Pipe0 EX2 ALU | `iu_idu_ex2_pipe0_wb_preg_dupx` + `vld` | ALU0 执行完成 |
 | Pipe1 EX2 ALU/MULT | `iu_idu_ex2_pipe1_wb_preg_dupx` + `vld` | ALU1/MUL 执行完成 |
 | Pipe1 MULT 延迟唤醒 | `iu_idu_ex2_pipe1_mult_inst_vld_dupx` + `preg` | 乘法提前唤醒 |
-| LSU AG 段 Load | `lsu_idu_ag_pipe3_load_inst_vld` + `preg` | Load 早期唤醒（推测） |
-| LSU DC 段 Load | `lsu_idu_dc_pipe3_load_inst_vld_dupx` + `preg` | Load DC 段确认 |
-| LSU DC 段 Fwd | `lsu_idu_dc_pipe3_load_fwd_inst_vld_dupx` + `preg` | Load 转发 |
+| LSU AG 段 Load | `lsu_idu_ag_pipe3_load_inst_vld` + `preg` | 生成/刷新 `lsu_match` 预匹配，不单独置 `rdy` |
+| LSU DC 段 Load | `lsu_idu_dc_pipe3_load_inst_vld_dupx` + `preg` | preg 匹配时进入 `load_data_ready`，可更新 `rdy` |
+| LSU DC 段 Fwd | `lsu_idu_dc_pipe3_load_fwd_inst_vld_dupx` + 已保存的 `lsu_match` | 形成 `load_issue_data_ready`，直接参与本周期 `rdy_for_issue` |
 | LSU WB | `lsu_idu_wb_pipe3_wb_preg_dupx` + `vld` | LSU 写回 |
 | DIV | `iu_idu_div_inst_vld` + `preg` | 除法完成 |
-| VFPU Pipe6 MFVR | `vfpu_idu_ex1_pipe6_mfvr_inst_vld_dupx` + `preg` | 向量到整数移动 |
-| VFPU Pipe7 MFVR | `vfpu_idu_ex1_pipe7_mfvr_inst_vld_dupx` + `preg` | 向量到整数移动 |
+| VFPU Pipe6 MFVR 接口 | `vfpu_idu_ex1_pipe6_mfvr_inst_vld_dupx` + `preg` | 保留的向量到整数移动唤醒端口；当前 RVV 配置关闭 |
+| VFPU Pipe7 MFVR 接口 | `vfpu_idu_ex1_pipe7_mfvr_inst_vld_dupx` + `preg` | 同上 |
 | RF Pipe0 发射前递 | `dp_xx_rf_pipe0_dst_preg_dupx` + `ctrl_xx_rf_pipe0_preg_lch_vld_dupx` | 发射级前递 |
 | RF Pipe1 发射前递 | `dp_xx_rf_pipe1_dst_preg_dupx` + `ctrl_xx_rf_pipe1_preg_lch_vld_dupx` | 发射级前递 |
 
@@ -421,11 +434,11 @@ entry1 的 agevec 存储的 7 位按如下对应关系映射到 8 个 entry：
 （跳过了 entry1 自身）
 ```
 
-**为什么年龄优先而不是简单优先级**：年龄优先保证了指令的执行次序相对合理（旧指令先执行可减少后续依赖等待），避免新指令反复抢占旧指令的发射机会（饥饿问题）。
+**为什么年龄优先而不是固定 entry 编号优先**：该仲裁从当前 ready 集合中选最老项，使较早进入队列且已经就绪的指令不会仅因落在较低固定优先级 entry 而反复被更年轻 ready 项抢占。它改善队列内的公平性，但“绝不饥饿”还依赖执行端最终能够接受请求、冻结项能够被解除以及系统整体持续前进，不能由 age vector 单独保证。
 
-### 7.2 Bypass 发射（零延迟旁路）
+### 7.2 Bypass 发射（跳过队列驻留等待）
 
-当队列为空且入队指令源操作数全部就绪时，可以跳过队列直接发射（bypass），减少一个周期延迟：
+当 `aiq0_create_bypass_empty` 成立、create0 的源操作数满足旁路条件且无相关 stall/resource 冲突时，create0 可以在创建路径上同时形成 issue。这里的“bypass”是跳过“先驻留队列、后续周期再参加仲裁”的等待，并不表示从译码到执行结果的端到端延迟为零：
 
 ```verilog
 // ct_idu_is_aiq0.v，行 655-661
@@ -441,7 +454,7 @@ assign aiq0_bypass_en = aiq0_create_bypass_empty  // 队列为空
                         && aiq0_create0_rdy_bypass;
 ```
 
-只有 create0（不是 create1）才能 bypass，且要求队列完全为空（含冻结项）：
+只有 create0（不是 create1）能够触发该 bypass。`aiq0_create_bypass_empty` 检查的是各 entry 的 `vld_with_frz`，而 entry 中 `vld_with_frz = vld && !frz`，所以它准确表示“当前没有**未冻结**的有效候选”，并不等价于物理队列连冻结项也完全为空：
 
 ```verilog
 // ct_idu_is_aiq0.v，行 686-693
@@ -449,27 +462,33 @@ assign aiq0_create_bypass_empty = !(aiq0_entry0_vld_with_frz
                                     || ... || aiq0_entry7_vld_with_frz);
 ```
 
-**Bypass 的意义**：对于简单整数指令序列（操作数已就绪），避免每条指令都经历一个"入队→等待→仲裁→发射"的完整周期，直接在派遣周期发射，提升 IPC。
+**Bypass 的意义**：对于满足条件的 create0，避免额外的队列驻留和下一轮年龄仲裁。该指令仍会分配 entry；旁路时 create 的 `frz` 会阻止同一条指令再次被普通仲裁选中，之后仍要经过 RF 检查、执行与完成。性能收益取决于工作负载和后续流水级，不是固定 IPC 增益。
 
 ### 7.3 发射条件总览
 
 ```
-最终发射 entry：
-    if (bypass_en) → 直接发射 create0 的指令（数据走 bypass_data 路径）
-    else           → 发射 entry_issue_en 指向的 entry（恰好只有 1 位为 1）
+最终有效性：
+    aiq0_xx_issue_en = bypass_en || (|entry_ready)
 
-aiq0_dp_issue_entry[7:0] = bypass ? create0_in : entry_issue_en
-aiq0_dp_issue_read_data  = bypass ? bypass_data : entry_read_data（MUX 选出）
+数据与 entry 编号的组合选择：
+    if (create_bypass_empty) → 选择 create0_in 与 bypass_data
+    else                     → 选择 entry_issue_en 与 entry_read_data
 ```
+
+这里必须区分“数据默认从哪一路选出”和“该路是否构成有效发射”。RTL 的数据 MUX 使用 `create_bypass_empty`，但真正的旁路发射还要求更严格的 `bypass_en`；队列没有未冻结项但 create0 不满足旁路条件时，输出总线可以呈现 bypass 数据，`aiq0_xx_issue_en` 却为 0，下游不得把该数据当作有效指令。
 
 ### 7.4 issue_en 一致性保证
 
-由于 `aiq0_older_entry_ready` 对 `agevec` 做 AND-OR，数学上最终 `entry_issue_en[7:0]` 只有一位或零位为 1（不可能两位同时为 1），理由：
+在 age vector 持续满足“任意两项的先后关系一致、较年轻项记录较老项”这一队列
+不变量时，`aiq0_older_entry_ready` 的 AND-OR 仲裁会使
+`entry_issue_en[7:0]` 为 one-hot-or-zero：
 
-- 若 entry_i 和 entry_j 同时就绪，必有一个的 agevec 记录了另一个（较老的那个的 `older_entry_ready` 为 1），被屏蔽。
-- 特殊情况：两条指令同周期入队（互为同代），agevec 互相不记录对方。此时两者同时 ready 时均无 older_entry 阻止，可能 issue_en 两位为 1。
+- 若 entry_i 和 entry_j 同时就绪，较年轻者的 agevec 记录较老者，因此是**较年轻者**的 `older_entry_ready` 为 1并被屏蔽。
+- 同周期双创建也显式编码顺序：create0 的 agevec 不含 create1，而 create1 的 agevec 额外包含 create0。因此二者以后同时 ready 时，create1 会把 create0 视为更老候选，不会因为“同周期入队”而同时被选中。
 
-> C910 的仲裁逻辑在同代指令中有额外处理：每周期最多入队 2 条，一个走 create0（agevec 不含 create1），一个走 create1（agevec 含 create0），所以实际上同代指令入队后 create1 的 agevec 已包含 create0，不会出现两位 issue_en 为 1 的情况。
+这不是本地归约门在任意损坏状态下都能独立保证的性质；它还依赖 create/pop/flush
+对所有 entry 年龄位的更新保持上述不变量。验证时应同时断言 age 反对称性和
+`$onehot0(aiq0_entry_issue_en)`，而不是只观察最终 issue 向量。
 
 ---
 
@@ -493,7 +512,10 @@ C910 提供三种宽度版本，以适应不同 IQ 的源操作数数量：
 | `ct_idu_is_aiq_lch_rdy_2` | 2 位 | BIQ/LSIQ（2 个源） |
 | `ct_idu_is_aiq_lch_rdy_3` | 3 位 | AIQ0/AIQ1（3 个源） |
 
-三个模块逻辑完全相同，仅数据位宽由参数 `WIDTH` 控制（1/2/3），是设计的参数化复用。
+三个文件实现相同形状的状态优先级和 write-through 选择，但不是同一个可传参模块
+的三个实例：`_1` 是标量位实现，`_2`/`_3` 在各自模块内使用固定的本地
+`WIDTH`。因此可以称为“按 1/2/3 位手工派生的结构复用”，不能称为一个模块的
+完全参数化复用；端口宽度和生成源码仍应分别核查。
 
 ### 8.3 lch_rdy 内部逻辑
 
@@ -519,7 +541,7 @@ begin
 end
 ```
 
-**读出端口**（组合逻辑，无延迟）：
+**读出端口**（带同周期 read-through 的组合逻辑）：
 
 ```verilog
 // 行 88-100：支持 write-through 读
@@ -533,7 +555,7 @@ begin
 end
 ```
 
-**write-through 的意义**：当同一周期有 create_en 时，读端口直接输出组合逻辑结果，不走寄存器，避免多一个周期的延迟，确保 RF 仲裁 level 的信号时序正确。
+**write-through 的精确含义**：若被监视 entry 在本周期由 create0/create1 写入，`x_read_lch_rdy` 直接选择本周期计算出的 `src_match`；否则读取已寄存的 `lch_rdy`。因此，匹配结果可在创建周期经组合路径被观察，而寄存状态在有效 `y_clk` 上升沿后才更新。“同周期可读”不等于零传播延迟，也不能单凭 RTL 保证该组合路径满足目标频率。
 
 ### 8.4 lch_rdy 在 AIQ0 entry 中的应用
 
@@ -750,7 +772,7 @@ assign create_vreg_clk_en   = x_create_gateclk_en && x_create_data[AIQ0_DSTV_VLD
 assign create_other_clk_en  = x_create_gateclk_en && x_create_data[AIQ0_EXPT_VLD];// 只有有异常
 ```
 
-这样，当入队的是简单整数指令（无异常、无向量），异常相关寄存器不翻转，节约动态功耗。
+这样，局部 `local_en` 只在对应字段需要更新时请求打开相关寄存器时钟，可减少无关字段翻转。实际门控还受全局、模块和扫描使能控制，动态功耗节省幅度需要实现后分析；当前向量指令关闭时，向量字段门控通常不会由有效 RVV 指令触发。
 
 ---
 
@@ -938,14 +960,14 @@ Cycle N:    同一周期发射
 
 | 特性 | 设计选择 | 原因 |
 |------|----------|------|
-| 选择策略 | 年龄优先（Age-based） | 防止饥饿，保持程序顺序合理性 |
-| 双通道入队 | 反向扫描分离 | 避免写冲突，最大化吞吐 |
-| Bypass | 队列空时直接发射 | 减少 1 周期延迟 |
-| 推测唤醒 | Load 在 AG 段即唤醒 | 减少 load-use 延迟 |
-| write-through lch_rdy | 入队周期即刻可读 | 减少 lch_rdy 建立延迟 |
-| 门控时钟分域 | 按字段特性分 5 个时钟域 | 降低动态功耗 |
-| `_dupx` 信号 | 写回总线信号复制 | 降低扇出，满足时序 |
-| `gateclk_en` 分离 | 控制路径与数据路径分开 | 门控时钟使能提前准备，不影响功能正确性 |
+| 选择策略 | 年龄优先（Age-based） | 从 ready 集合中优先选择更老项，降低固定优先级造成的长期抢占风险 |
+| 双通道入队 | create0/1 从相反方向扫描空闲项 | 在满足分配条件时避免两个 create 槽选择同一 entry；实际吞吐还受上游分发和队列剩余空间限制 |
+| Bypass | 无未冻结候选且 create0 满足条件时跳过队列驻留 | 可省去一轮队列驻留/仲裁等待；不是端到端零延迟 |
+| Load 分阶段依赖处理 | AG 记录 preg 预匹配；DC 的 load-valid 可置 ready，DC forward 与预匹配共同参与 issue-ready；WB 记录写回 | 缩短可前递 load 的等待，同时保留 ready 清除和重发机制 |
+| write-through lch_rdy | 创建周期组合读到最新匹配值 | 避免必须等寄存后的下一周期再观察 |
+| 门控时钟分域 | 按字段特性分局部时钟域 | 降低无更新寄存器的翻转机会 |
+| `_dupx` 信号 | 写回总线信号复制 | 用于分散扇出；是否满足时序由 STA 验证 |
+| `gateclk_en` 分离 | 使用比最终 issue 条件更宽松的活动条件 | 减少局部时钟请求对完整 ready/仲裁路径的依赖；具体相位裕量由 STA 确认 |
 
 ---
 

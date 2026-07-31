@@ -6,7 +6,7 @@
 
 ## 1. 模块概述
 
-`ct_ifu_ifctrl` 是 C910 IFU（指令获取单元）中 **IF 流水级的控制核心**。它不参与任何数据通路运算，专注于"这一拍 IF 级能不能动、能不能向 IP 级输出有效指令"这一问题，并向上游（pcgen）、下游（ifdp、ipctrl）、以及各协同模块（L1 ICache、L0 BTB、BHT、BTB、l1_refill）发出协调信号。
+`ct_ifu_ifctrl` 是 C910 IFU（指令获取单元）中 **IF 流水级的控制核心**。它以控制逻辑为主，回答“这一拍 IF 级能不能动、能不能向 IP 级输出有效指令”，并向上游（pcgen）、下游（ifdp、ipctrl）及协同模块（I-Cache、L0 BTB、BHT、常规 BTB、l1_refill）发出协调信号。模块内部仍包含 invalidation 地址/计数器、诊断读数据选择等小规模数据处理，因此不宜绝对表述为“不参与任何数据通路运算”。
 
 其主要职责可以归纳为五类：
 
@@ -43,7 +43,7 @@ assign if_self_stall = (l1_refill_ifctrl_refill_on &&
 | 条件 | 含义 | 为什么要 stall |
 |---|---|---|
 | `l1_refill_on && !(trans_cmplt && pc_hit)` | Refill 进行中，但数据还没回来或 PC 不匹配 | 数据无效，不能流水 |
-| `!if_pc_vld` | MMU 翻译未完成（`!mmu_ifu_pavld`）或低功耗 `no_op` | 物理地址未知，不能做 tag 比较 |
+| `!if_pc_vld` | `mmu_ifu_pavld=0`，或 CP0 发出 `no_op` 请求 | 本拍地址/异常翻译结果尚不可提交给 IF 级 |
 | `icache_inv_on` | I-Cache 正在做 invalidation | inv 期间 cache 内容不可信 |
 | `bht_inv_on` | BHT 正在做 invalidation | 预测结构不稳定 |
 | `btb_inv_on` | BTB 正在做 invalidation | 分支目标不可信 |
@@ -67,9 +67,9 @@ assign ifctrl_pcgen_stall_short = if_self_stall || ipctrl_ifctrl_stall_short;
 
 `ipctrl_ifctrl_stall` 来自 IP 级（指令预处理级），当 IP 级发生反压时，IF 级也必须停顿，防止覆盖 IP 级还未消费的数据。
 
-`if_stage_stall` 被扇出到所有上游和协同模块，一旦置位，整个 IF 级及以上均停止前进。
+`if_stage_stall` 被送往 PCGEN、BHT、IFDP 和 L0 BTB，使与当前 IF 流水项相关的状态保持一致。它不是全核或整个 IFU 所有状态机的“总冻结”；例如 refill、invalidation 等独立协议仍可继续运行并最终解除 stall。
 
-**为什么要有 `stall_short`？** pcgen 是 if 的上游，pcgen 的时序路径较长（它要产生下一个 PC）。如果用完整的 `if_stage_stall`，时序会很紧。因此专门为 pcgen 准备了一条去掉部分 late-arriving 信号的 `stall_short` 信号，以放松时序约束。
+**为什么要有 `stall_short`？** RTL 注释明确将其标为 timing consideration。`stall_short` 用 `ipctrl_ifctrl_stall_short` 代替完整的 `ipctrl_ifctrl_stall`，同时保留全部 `if_self_stall` 条件，为 PCGEN 提供一条更早形成的下游反压路径。它究竟减少了多少延迟，需要查看综合/STA；不能仅凭名字断言去掉了哪些具体 late-arriving 逻辑。
 
 ### 2.3 if_inst_data_vld 与 if_pc_vld 的区别
 
@@ -84,8 +84,8 @@ assign if_inst_data_vld = (!l1_refill_ifctrl_refill_on &&
 assign if_pc_vld = mmu_ifu_pavld && !ifu_no_op_req;
 ```
 
-- `if_inst_data_vld`：指令数据面是否有效（来自 cache 或 refill）
-- `if_pc_vld`：PC 地址面是否有效（MMU 翻译完成）
+- `if_inst_data_vld`：指令数据面是否有效（来自 I-Cache 或 refill）
+- `if_pc_vld`：MMU 是否给出了可继续流入 IF 级的 PA/异常结果，且 CP0 未请求 no-op
 
 两者相"与"才能构成有效的 IF 输出：
 
@@ -94,7 +94,9 @@ assign if_pc_vld = mmu_ifu_pavld && !ifu_no_op_req;
 assign if_vld = if_inst_data_vld && if_pc_vld && !if_cancel && !if_self_stall;
 ```
 
-**设计原因**：数据和地址来自不同路径——数据来自 ICache/Refill（SRAM 访问），地址来自 MMU（TLB 查找），它们可以并行进行，但都必须有效才能产生合法的取指结果。
+**设计原因**：数据和地址来自不同路径——数据来自 I-Cache/refill（SRAM 或返回通路），地址和翻译异常来自 MMU。两条路径可以并行，但必须在同一个 IF 流水项上对齐后才能向 IP 级推进。
+
+这里必须注意：`mmu_ifu_pavld` 不等于“TLB 命中且绝无异常”。`ct_mmu_iutlb` 明确在 I-uTLB 命中、MMU 关闭/M 模式直通，以及访问故障、refill 页故障、VA 非法等异常结果形成时都可令 `pavld=1`。异常再由 IFDP 的 `mmu_ifu_pgflt` 等信号随流水传递。因此 `pavld` 更准确的含义是“本次翻译已有可消费结果”，而不只是“成功得到正常 PA”。
 
 ---
 
@@ -144,6 +146,57 @@ end
 
 注意 `pcgen_ifctrl_pipe_cancel` 具有最高优先级，可以在 IP 级 stall 期间强制清零 vld。这是因为 `pipe_cancel` 代表深层跳转（如分支误预测恢复），必须无条件作废流水中的指令。
 
+### 3.4 Reissue：资源恢复后重发当前取指
+
+IF 级因 refill、I-Cache invalidation、诊断读或高优先级 change-flow 中断后，原 PC 对应的 SRAM/MMU 访问不一定仍然有效。IFCTRL 将这些“需要重新访问”的原因汇总并打一拍：
+
+```verilog
+assign icache_reissue = l1_refill_ifctrl_reissue ||
+                        (icache_inv_done || icache_read_done) &&
+                        (!l1_refill_ifctrl_ctc || l1_refill_inv_wfd_back) ||
+                        pcgen_ifctrl_reissue;
+
+always @(posedge ifctrl_reissue_clk or negedge cpurst_b)
+  if(!cpurst_b)
+    ifctrl_pcgen_reissue_pcload <= 1'b0;
+  else
+    ifctrl_pcgen_reissue_pcload <= icache_reissue;
+```
+
+四类来源分别是：
+
+| 来源 | 为什么需要重发 |
+|---|---|
+| `l1_refill_ifctrl_reissue` | refill 的目标窗口刚返回或返回出错，原先被冻结的 PC 需要重新建立正常取指访问 |
+| `icache_inv_done` | invalidation 期间前端读取被禁止，完成后需重新访问当前 PC |
+| `icache_read_done` | CP0 诊断读占用了 I-Cache 端口，完成后恢复正常取指 |
+| `pcgen_ifctrl_reissue` | PCGEN 自己检测到需要重发的高优先级情况 |
+
+`ifctrl_pcgen_reissue_pcload` 会参与 PCGEN 的 PC 选择，并在 L0 BTB 快速重定向条件中具有更高优先级：`ifctrl_pcload` 明确要求它为 0。这样可避免“恢复当前窗口”和“根据当前窗口的旧预测再次跳转”在同一拍竞争。
+
+### 3.5 Valid、pipedown 与 BHT 推进不是同一个信号
+
+`ifctrl_ifdp_pipedown` 要求 IF 数据有效且 IP 级不 stall，用于真正更新 IF→IP 数据寄存器；`ifctrl_ipctrl_vld` 是带保持和 pipe-cancel 清除语义的流水有效位。另一个容易混淆的输出是：
+
+```verilog
+assign ifctrl_bht_pipedown = !ipctrl_ifctrl_bht_stall;
+```
+
+BHT 有独立的预测流水和更新条件，所以它使用 IPCTRL 专门返回的 `bht_stall`，并不直接复制 `ifctrl_ifdp_pipedown`。观察波形时，不能用某一个 `pipedown` 替代所有 IFU 子流水级的推进条件。
+
+### 3.6 `ifu_hpcp_frontend_stall` 的统计边界
+
+IFCTRL 生成的前端停顿条件是：
+
+```verilog
+if_frontend_stall = !if_inst_data_vld
+                  || !if_pc_vld
+                  || if_self_stall
+                  || ipctrl_ifctrl_stall;
+```
+
+当 `hpcp_ifu_cnt_en=1` 时，该条件被寄存为 `ifu_hpcp_frontend_stall` 供性能监控使用。它覆盖 refill/无数据、MMU 结果未就绪、I-Cache/预测结构 invalidation、vector/debug、way-predict stall 以及 IP 级反压等多类原因，是一个**前端未能正常前推的总括事件**。该计数高只能说明前端供给受阻，不能单独归因成 I-Cache miss、分支误预测或纯前端带宽不足；细分归因必须同时观察组成项。
+
 ---
 
 ## 4. L0 BTB 协调
@@ -155,7 +208,7 @@ end
 assign ifctrl_l0_btb_stall = if_stage_stall;
 ```
 
-L0 BTB 的 stall 与整个 IF 级的 stall 完全同步——IF 级停，L0 BTB 也停，不做新的方向预测更新。
+L0 BTB 的 stall 与 `if_stage_stall` 完全同步。IF 级不能前进时，L0 BTB 不应把当前查找/命中当成新的前端流水项继续推进。L0 BTB 主要保存目标和快速重定向资格，而非 BHT 那样的方向预测表，因此这里不应称为“停止方向预测更新”。
 
 ### 4.2 ifctrl_l0_btb_inv
 
@@ -164,7 +217,9 @@ L0 BTB 的 stall 与整个 IF 级的 stall 完全同步——IF 级停，L0 BTB 
 assign ifctrl_l0_btb_inv = cp0_ifu_btb_inv && !btb_inv_ff;
 ```
 
-L0 BTB 的 inv 信号与 BTB（L1）的 inv 信号来源相同，都是 `cp0_ifu_btb_inv`，并且都使用了边沿检测（见 4.3 节）。即执行 `fence.i` 或 CP0 软件触发 BTB inv 时，L0 BTB 和 L1 BTB 同时被清空。
+L0 BTB 的 inv 信号与常规 BTB 的 inv 信号来源相同，都是 `cp0_ifu_btb_inv` 的上升沿脉冲。因此，软件通过 CP0 `MCOR` 的 BTB invalidation 位发起操作时，IFCTRL 同时触发 L0 BTB 和常规 BTB 清除。
+
+当前 RTL 没有在 IFCTRL 内把 `fence.i` 或 LSU 的 I-Cache invalidation 请求自动转换为 `cp0_ifu_btb_inv`，所以不能笼统写成“执行 `fence.i` 就同时清空 L0 BTB/BTB”。若软件需要同步清预测结构，必须由软件或更上层控制显式发起相应 CP0 操作。
 
 ### 4.3 L0 BTB pcload 的产生
 
@@ -206,7 +261,7 @@ parameter INS_INV_ALL = 4'b1101;  // LSU 发起的全部 invalidation
 共 10 个状态，分三条业务路径：
 1. **CP0 诊断读**（READ_*）：软件通过 CP0 寄存器直接读取 I-Cache 内容
 2. **CP0 全量 inv**（INV_ALL）：`cp0_ifu_icache_inv`，遍历所有 cache 行清 valid
-3. **LSU 发起的 inv**（INS_*）：`fence.i` 或 DCache 写后的 I-Cache 一致性维护
+3. **LSU/CTCQ 发起的 inv**（INS_*）：处理送到 IFU 的 I-Cache 全量或逐行 invalidation 请求
 
 ### 5.2 完整状态转移图
 
@@ -247,9 +302,14 @@ parameter INS_INV_ALL = 4'b1101;  // LSU 发起的全部 invalidation
 
 **为什么需要反复遍历多个索引？**
 
-C910 的 I-Cache 是 VIPT 结构：使用虚拟地址的低位做 index，物理地址的高位做 tag。对于 32K I-Cache，index 使用 VA[12:5]（8 位，256 组）；对于 64K I-Cache，index 使用 VA[13:5]（9 位，512 组）。
+C910 的 I-Cache 是 VIPT 结构：使用虚拟地址中的组索引位访问 SRAM，再用物理 tag 判断命中。C910 IFU 内部 PC 省略了恒为 0 的架构字节地址 bit0，所以阅读 RTL 位号时必须换算：
 
-当 LSU 发出 `icache.ipa` 或 `icache.iva` 时，给出的是物理地址（PA）。同一个 PA 可能映射到不同的 VA（别名，aliasing），因此同一个 PA 的数据可能以不同 VA 的 index 存入了不同 cache 行。为了保证完全 invalidate，**必须遍历所有可能被此 PA 的数据占用的 index**。
+| 配置 | RTL 内部索引 | 对应架构字节地址 | 组数 |
+|---|---|---|---:|
+| 32 KiB | 内部 PC `[12:5]` | VA `[13:6]` | 256 |
+| 64 KiB（当前 `cpu_cfig.h`） | 内部 PC `[13:5]` | VA `[14:6]` | 512 |
+
+LSU 接口分别提供物理 tag `lsu_ifu_icache_ptag[27:0]` 和页内组索引低位 `lsu_ifu_icache_index[5:0]`。同一个物理页可能通过不同虚拟地址映射到 I-Cache，而超出 4 KiB 页内偏移的虚拟 index 高位无法由物理 tag 唯一确定。为消除 VIPT synonym/alias，IFCTRL 必须遍历这些可能的 index 高位，并在每个候选 set 中比较物理 tag。
 
 ```verilog
 // 行 893-904（以 32K cache 为例）
@@ -261,9 +321,10 @@ parameter CNT_REG_VAL = 5'b00111;  // 初始值 7，需遍历 8 次
 `endif
 ```
 
-计数器 `addr_inv_count_reg[4:0]` 控制遍历次数：
-- 32K cache：VA[12:11] 不确定（2 位），需遍历 4 次（`CNT_REG_VAL = 3`）
-- 64K cache：VA[13:11] 不确定（3 位），需遍历 8 次（`CNT_REG_VAL = 7`）
+计数器 `addr_inv_count_reg[4:0]` 控制遍历次数。下列内部 PC 位号换算到架构字节地址后需要整体加 1：
+
+- 32 KiB：内部 VA `[12:11]`，即架构 VA `[13:12]`，共 4 种候选（初值 3）；
+- 64 KiB：内部 VA `[13:11]`，即架构 VA `[14:12]`，共 8 种候选（初值 7）；
 - 128K cache：4 位不确定，遍历 16 次
 - 256K cache：5 位不确定，遍历 32 次
 
@@ -275,7 +336,7 @@ assign icache_line_inv_index[PC_WIDTH-2:0] =
     {23'b0, addr_inv_count_reg[4:0], lsu_ifu_icache_index[5:0], 5'b0};
 ```
 
-其中 `lsu_ifu_icache_index[5:0]` 是 LSU 提供的 PA[10:5]（确定的 index 低位），`addr_inv_count_reg[4:0]` 对应不确定的高位，每次循环递减 1，从而覆盖所有可能的别名行。
+其中 `lsu_ifu_icache_index[5:0]` 填入内部地址 `[10:5]`，对应架构页内 line index `[11:6]`；`addr_inv_count_reg[4:0]` 填入更高的候选虚拟 index 位。状态机每检查一个候选 set 后将计数器减 1，从而覆盖全部可能别名。
 
 **INS_TAG_REQ → INS_TAG_RD → INS_CMP → INS_INV 路径时序**：
 
@@ -316,12 +377,24 @@ assign icache_inv_over = ~(|icache_inv_cnt[12:2]) &&
                          !(vector_ifctrl_reset_on && (|icache_inv_cnt[1:0]));
 ```
 
-- 全量 inv 时，`icache_inv_cnt` 从 `INV_CNT_VAL`（例如 32K cache = 511）倒计数
-- 正常 inv 每拍递减 4（因为每次 tag 写操作同时 inv 4 组），加速遍历
-- 复位时（`vector_ifctrl_reset_on`）每拍递减 1，逐行清除
-- `icache_inv_over` = 计数器到 0，触发 `icache_all_inv_done`
+- 全量 inv 时，计数器从与容量对应的地址编码初值开始：32 KiB 为 1023，当前 64 KiB 配置为 2047；
+- 普通全量 inv 每拍减 4，但 `icache_inv_tag_req` 仅在 `icache_inv_cnt[1:0]==2'b11` 时有效；
+- 地址通过 `{icache_inv_cnt, 3'b0}` 构造，而 tag SRAM 再取内部地址 `[WIDTH:5]` 作为 set index；
+- 因此普通路径每个有效请求只处理 **一个 set**：32 KiB 共 256 个请求，64 KiB 共 512 个请求；
+- `vector_ifctrl_reset_on` 时计数器每拍减 1，并仍只在低两位为 `11` 时发请求，相当于每 4 拍推进一个 set；
+- `icache_inv_over` 观察计数器高于低两位的部分；普通路径在最后一个有效 set 请求时即可形成 done。
 
-**为什么普通 inv 每次减 4？** ICache 的 tag SRAM 通常每次写一个 word 可以同时控制多行的 valid 位。每次写入 4 组的 valid，因此计数器步进为 4，减少 inv 所需拍数，降低停顿时间。
+**为什么计数器减 4？** 这是内部 PC 省略 bit0 后的地址编码步进。tag SRAM 的 set index 从内部地址 bit5 开始，而低两位被 `tag_req` 的节拍条件固定；减 4 正好让 SRAM set index 每拍减 1。它并不表示一次 SRAM 写同时清 4 个 set。
+
+还有一个不明显但很重要的实现细节：`icache_inv_tag_req` 对 `INS_TAG_REQ` 也统一附加了 `&icache_inv_cnt[1:0]`。逐行 invalidation 自己使用的是 `addr_inv_count_reg`，却仍依赖全量计数器低两位处于 `2'b11`。全量 inv 在最后一个 set 完成的时钟沿仍会执行一次减法，计数器下溢后低两位保持为 `11`，随后逐行 inv 才能正常发 tag 请求。也就是说，当前实现把“上电/复位时已经完成过一次全量 inv，并留下正确请求相位”作为隐含时序不变量。验证逐行失效时，应在波形中同时检查：
+
+```text
+icache_inv_cur_state == INS_TAG_REQ
+&& icache_inv_cnt[1:0] == 2'b11
+&& ifctrl_icache_if_tag_req
+```
+
+如果只强制状态机进入 `INS_TAG_REQ`，却没有建立计数器相位，SRAM tag 读请求可能不会发出。
 
 ### 5.6 icache_inv_tag_wen[2:0] 写使能编码
 
@@ -338,7 +411,7 @@ end
 
 | 状态 | wen[2:0] | 含义 |
 |---|---|---|
-| INV_ALL / INS_INV_ALL | 3'b000 | 全量 inv 由 ICache 接口自行驱动（计数器控制） |
+| INV_ALL / INS_INV_ALL | 3'b000 | FIFO 位、Way1 tag 和 Way0 tag 三组 bit-write 均使能；写入数据把两路 valid 清零 |
 | INS_INV（精确单行 inv） | `{0, ~Way1_hit, ~Way0_hit}` | 只清除命中的那路；bit[1]=0 表示写 Way1，bit[0]=0 表示写 Way0 |
 | 其他 | 3'b111 | 全部不写（or: 读操作不需要 wen） |
 
@@ -380,17 +453,16 @@ assign ind_btb_inv_on = ind_btb_ifctrl_inv_on;
 
 这三个 `inv_on` 信号直接来自 BTB/BHT 模块，表示该模块正在执行内部的 invalidation 操作。只要任何一个为高，就会通过 `if_self_stall` 阻止 IF 级前进，避免在清除期间读取到错误的预测信息。
 
-### 6.3 fence.i 时的 inv 顺序
+### 6.3 I-Cache 与预测结构失效是两条独立控制链
 
-执行 `fence.i` 指令时，需要同时 invalidate I-Cache、BTB、BHT、L0 BTB，防止缓存了旧的指令编码或旧的跳转预测。顺序如下：
+从当前 RTL 可验证的关系是：
 
-1. `fence.i` 由 LSU 执行完毕后，LSU 发出 `lsu_ifu_icache_all_inv`
-2. ifctrl 检测到后进入 `INS_INV_ALL` 状态，开始 I-Cache 全量 inv，同时将 `ifctrl_ipb_inv_on` 置高，阻止 prefetch buffer 继续提供旧指令
-3. 同一时刻，CP0 也会发出 `cp0_ifu_btb_inv` 和 `cp0_ifu_bht_inv`（通过软件配合）
-4. ifctrl 检测到上升沿，发出 `ifctrl_btb_inv` 和 `ifctrl_bht_inv` 脉冲
-5. 各模块完成后回报 `done`，ifctrl 检测 done 上升沿后向 CP0 回报
+1. LSU/CTCQ 的 `lsu_ifu_icache_all_inv` 或 `lsu_ifu_icache_line_inv` 驱动 I-Cache `INS_*` 状态机，并经 `ifctrl_ipb_inv_on` 阻止 IPB 在此期间继续工作；
+2. CP0 的 `cp0_ifu_icache_inv` 驱动 I-Cache `INV_ALL` 路径；
+3. CP0 的 `cp0_ifu_btb_inv`、`cp0_ifu_bht_inv`、`cp0_ifu_ind_btb_inv` 分别驱动常规 BTB/L0 BTB、BHT 和间接 BTB 的清除；
+4. 各结构分别返回自己的 done，IFCTRL 再将相应完成脉冲送回 CP0 或 LSU。
 
-整个过程中 `if_self_stall` 持续为高，流水线在 IF 级冻结。
+这些控制链可以在系统软件安排下组合使用，但 IFCTRL 中没有“任意 I-Cache inv 自动连带清空所有预测结构”的组合逻辑。分析 `fence.i` 的完整实现时，还需继续沿 IDU/LSU 的指令译码、CTCQ 请求类型和软件约定追踪，不能仅根据本模块推断固定顺序。
 
 ---
 
@@ -414,7 +486,7 @@ assign all_inv_req    = icache_all_inv &&
                         !vector_ifctrl_sm_start;
 ```
 
-**例外：CTC（Cache-Through-Coherent）模式**
+**例外：L1 Refill 的 `CTC_INV` 仲裁状态**
 
 ```verilog
 // 行 865-871
@@ -423,7 +495,7 @@ assign ins_all_inv_req = lsu_ifu_icache_all_inv &&
                           l1_refill_ifctrl_ctc);   // CTC 时可以同时 inv
 ```
 
-`l1_refill_ifctrl_ctc` 表示当前 refill 是 Cache-Through 模式（不写 cache，只透传），此时 cache 不会被修改，可以安全地进行 inv。
+`l1_refill_ifctrl_ctc` 在 RTL 中严格等于 refill 状态机处于 `CTC_INV`。该状态发生在 refill 已经等待返回数据（`WFD1`/`INV_WFD1`）时又收到 LSU invalidation 请求：refill 暂停在 `CTC_INV`，等待 `ifctrl_l1_refill_ins_inv_dn`，然后回到 `INV_WFD1` 丢弃/排空原事务的返回数据。此时允许 IFCTRL 启动 invalidation，是两个状态机显式握手的结果，而不是“cache-through、不写 cache”的通用存储属性。
 
 ### 7.2 ifctrl 向 L1 Refill 发送的信号
 
@@ -437,8 +509,8 @@ assign ifctrl_l1_refill_ins_inv_dn = ifu_lsu_icache_inv_done;
 ```
 
 - `inv_on`：通知 L1 Refill 不要现在开始新的 refill（会冲突）
-- `inv_busy`：更严格的信号，表示 SM 已经进入 inv 状态
-- `ins_inv`：通知 L1 Refill 是 LSU 发起的 inv（需要等待 wfd，即 write-fence-done）
+- `inv_busy`：更严格的信号，表示 SM 已经进入 inv/read 状态
+- `ins_inv`：通知 L1 Refill 当前有 LSU 发起的全量或逐行 inv；若 refill 已在等待返回数据，双方通过 `CTC_INV` 和 inv-done 协调先完成失效，再排空原 refill 返回
 - `ins_inv_dn`：通知 L1 Refill LSU inv 已完成
 
 ---
@@ -452,14 +524,14 @@ assign ifctrl_l1_refill_ins_inv_dn = ifu_lsu_icache_inv_done;
 assign if_pc_vld = mmu_ifu_pavld && !ifu_no_op_req;
 ```
 
-`mmu_ifu_pavld`（Physical Address Valid）来自 MMU，表示本拍的 VA→PA 翻译成功（TLB 命中，且没有页访问异常）。当 MMU 在做 TLB 重填（TLB refill）时，`pavld` 为低，IF 级通过 `!if_pc_vld` 进入 stall。
+`mmu_ifu_pavld`（Physical Address/result Valid）来自 MMU，表示本拍 VA 翻译已经形成 IFU 可消费的正常或异常结果。`ct_mmu_iutlb` 在 I-uTLB 命中、MMU 关闭/M 模式直通，以及访问故障、refill 页故障、VA 非法时均可令其有效。只有尚未形成结果且没有可旁路命中时，它才保持为低并使 IF 级 stall。
 
 ### 8.2 何时 MMU 会拒绝给 pavld
 
 | 情况 | 原因 | if 的反应 |
 |---|---|---|
 | TLB miss | MMU 正在做 page walk | `!if_pc_vld` → `if_self_stall` |
-| Page fault（pgflt） | 虚拟地址无效或权限不足 | `mmu_ifu_pgflt` 由 ifdp 传到 IP 级产生异常 |
+| Page fault（pgflt） | MMU 汇总出的取指页故障 | `pavld` 可同时为高，`mmu_ifu_pgflt` 由 IFDP 传到 IP 级 |
 | 访问错误（acc_err） | 物理地址范围错误 | `l1_refill_ifdp_acc_err` 在 ifdp 中处理 |
 
 注意：**MMU 的 abort 不是 ifctrl 发出的**。ifctrl 只是被动接收 `mmu_ifu_pavld` 信号来决定 IF 级是否有效。向 MMU 的 abort（取消当前翻译请求）由更上层逻辑控制，与 ifctrl 中的 cancel/stall 无直接关联。
@@ -475,15 +547,15 @@ assign ifu_no_op = l1_refill_ifctrl_idle &&
                    ipb_ifctrl_prefetch_idle;
 ```
 
-当 refill 空闲、prefetch buffer 也空闲时，IFU 进入 no_op 状态。此时 `ifu_no_op_flop` 触发，向全芯片广播 `ifu_yy_xx_no_op`，各模块可以据此关闭时钟以节省功耗。
+当 refill 空闲、没有新的 refill start 且 prefetch buffer 空闲时，组合条件 `ifu_no_op` 为高。该条件经 `ifu_no_op_flop` 保存，最终输出还会被 `!l1_refill_ifctrl_start_for_gateclk` 再次保护，避免新事务开始时继续报告 no-op。`ifu_yy_xx_no_op` 是供其他模块进行低功耗协调的状态提示，不能单凭它断言“全 IFU 已经关闭时钟”。
 
-同时 `ifu_no_op_req = cp0_ifu_no_op_req`，当 CP0 主动要求 IFU 停止取指时（如 wfi 指令），通过 `!ifu_no_op_req` 使 `if_pc_vld` 变为 0，间接停止 IF 流水。
+同时 `ifu_no_op_req` 直接等于 `cp0_ifu_no_op_req`。CP0 主动请求停止 IFU 正常取指时，它通过令 `if_pc_vld=0` 使 IF 流水停顿；IFCTRL 本身不译码具体是哪条架构指令或低功耗事件发起了该请求。
 
 ---
 
 ## 10. CP0 诊断读（READ_* 路径）
 
-这条路径支持软件通过 CP0 读取 I-Cache 内部 SRAM 的原始内容（用于调试或测试）：
+这条路径支持软件通过 CP0 读取 I-Cache data array，或按规定格式读取 tag array 的部分字段（用于调试或测试）：
 
 ```verilog
 // 行 1374-1381
@@ -491,14 +563,36 @@ assign ifu_cp0_icache_read_data_vld    = (icache_inv_cur_state == READ_ST);
 assign ifu_cp0_icache_read_data[127:0] =
     (icache_read_tag)
     ? (icache_read_way)
-      ? {96'b0, tag_data1_reg[19:0], 11'b0, tag_data1_reg[20]}
-      : {96'b0, tag_data0_reg[19:0], 11'b0, tag_data0_reg[20]}
+      ? {96'b0, icache_if_ifctrl_tag_data1_reg[19:0],
+                11'b0, icache_if_ifctrl_tag_data1_reg[20]}
+      : {96'b0, icache_if_ifctrl_tag_data0_reg[19:0],
+                11'b0, icache_if_ifctrl_tag_data0_reg[20]}
     : (icache_read_way)
       ? icache_if_ifctrl_inst_data1_reg[127:0]
       : icache_if_ifctrl_inst_data0_reg[127:0];
 ```
 
-流程：CP0 写入 `cp0_ifu_icache_read_req`+`read_index`+`read_tag`+`read_way`，SM 进入 `READ_REQ`→`READ_RD`（等 SRAM 出数）→`READ_ST`（将数据锁存并上报），然后回到 IDLE。
+流程：CP0 写入 `cp0_ifu_icache_read_req`、`read_index`、`read_tag` 和 `read_way`，SM 进入 `READ_REQ`→`READ_RD`（等 SRAM 出数并锁存）→`READ_ST`（上报有效），然后回到 IDLE。
+
+数据读会返回所选 way 的完整 128 位数组输出。tag 读并不是把内部 29 位 `{valid, ptag[27:0]}` 原样平铺到低位：RTL 只把寄存 tag 的 `[19:0]` 放到返回值 `[31:12]`，把 bit20 放到 bit0，其余位置补 0。分析诊断软件时必须按这一硬件打包格式解码，不能把返回值低 29 位直接当成 SRAM tag。
+
+### 10.1 本模块的门控时钟边界
+
+IFCTRL 不是由单一门控时钟驱动，而是按功能拆成多组局部时钟：
+
+| 时钟 | 主要寄存状态 | 本地使能 |
+|---|---|---|
+| `ifu_no_op_updt_clk` | no-op 状态 | 新旧 no-op 条件发生变化 |
+| `hpcp_clk` | frontend-stall 性能事件 | `hpcp_ifu_cnt_en` |
+| `if_vld_clk` | IP 级 valid、IF pcload | 当前/已有 valid |
+| `ifctrl_reissue_clk` | reissue 打拍 | 本地与全局使能均固定为 1 |
+| `icache_inv_clk` | invalidation/read 状态机和计数器 | 有请求或状态非 IDLE |
+| `cache_data_flop_clk` | 逐行 inv 的 tag 比较数据 | `INS_TAG_RD` |
+| `ins_inv_ptag_flop_clk` | 逐行 inv 的物理 tag | IDLE 接受 line-inv 请求 |
+| `btb_inv_flop_clk` / `bht_inv_flop_clk` / `ibp_inv_flop_clk` | inv/done 边沿检测 | 请求或 done 电平变化 |
+| `icache_read_clk` | CP0 诊断读返回寄存器 | `READ_RD` |
+
+所有这些实例仍要按通用 `gated_clk_cell` 解释：`module_en=cp0_ifu_icg_en` 可覆盖局部使能，扫描使能也可开钟；未启用工艺 ICG 宏时，RTL 模型直接透传输入时钟。因此表中的“本地使能”说明的是寄存器更新所需的门控协议，不等于任何仿真配置下都能观察到物理时钟停止，也不能直接量化功耗收益。
 
 ---
 
@@ -514,12 +608,12 @@ assign ifu_cp0_icache_read_data[127:0] =
 | `ifctrl_ipctrl_vld` | → ipctrl | 告知 IP 级本次取指是否有效 |
 | `ifctrl_l0_btb_stall` | → L0 BTB | L0 BTB 停止 |
 | `ifctrl_l0_btb_inv` | → L0 BTB | 清除 L0 BTB |
-| `ifctrl_btb_inv` | → BTB | 清除 L1 BTB（脉冲） |
+| `ifctrl_btb_inv` | → BTB | 清除常规 BTB（脉冲） |
 | `ifctrl_bht_inv` | → BHT | 清除 BHT（脉冲） |
 | `ifctrl_ind_btb_inv` | → Ind-BTB | 清除 Indirect BTB（脉冲） |
 | `icache_inv_cur_state` | 内部 | I-Cache Inv SM 当前状态 |
-| `icache_inv_cnt` | 内部 | 全量 inv 行计数器（13 位） |
+| `icache_inv_cnt` | 内部 | 全量 inv 的内部地址编码/节拍计数器（13 位） |
 | `addr_inv_count_reg` | 内部 | 精确 inv VIPT 别名遍历计数器（5 位） |
 | `ifctrl_icache_if_tag_wen[2:0]` | → ICache | Tag SRAM 写使能 |
 | `ifu_cp0_icache_inv_done` | → CP0 | I-Cache inv 完成脉冲 |
-| `ifu_lsu_icache_inv_done` | → LSU | fence.i inv 完成脉冲 |
+| `ifu_lsu_icache_inv_done` | → LSU | LSU/CTCQ 发起的 I-Cache inv 完成 |

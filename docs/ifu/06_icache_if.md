@@ -9,8 +9,8 @@
 ## 目录
 
 1. [模块概述](#1-模块概述)
-2. [SRAM 物理结构](#2-sram-物理结构)
-3. [Index 仲裁逻辑](#3-index-仲裁逻辑)
+2. [Array 逻辑组织与 SRAM 映射](#2-array-逻辑组织与-sram-映射)
+3. [Index 选择与互斥契约](#3-index-选择与互斥契约)
 4. [Tag Array 控制逻辑](#4-tag-array-控制逻辑)
 5. [Data Array 控制逻辑](#5-data-array-控制逻辑)
 6. [Predecode Array 控制逻辑](#6-predecode-array-控制逻辑)
@@ -31,10 +31,10 @@
   pcgen ───index──▶ │                                                   │
   ifctrl──index──▶ │   ┌─────────────┐   ┌────────────────────────┐   │
   ipb ─────index──▶ │   │  Tag Array  │   │  Data Array0 (Way0)    │   │──▶ ifdp
-  l1_refill──wr──▶  │   │  (59bit)    │   │  4 banks × 128bit      │   │──▶ ifctrl
+  l1_refill──wr──▶  │   │  (59bit)    │   │  4 banks × 32bit       │   │──▶ ifctrl
                     │   └─────────────┘   ├────────────────────────┤   │──▶ ipb
                     │                     │  Data Array1 (Way1)    │   │
-                    │                     │  4 banks × 128bit      │   │
+                    │                     │  4 banks × 32bit       │   │
                     │                     ├────────────────────────┤   │
                     │                     │  Predecode Array0/1    │   │
                     │                     │  32bit each            │   │
@@ -44,39 +44,69 @@
 
 ### 1.2 职责与边界
 
-`ct_ifu_icache_if` 是 IFU 流水线 **IF 级**中，CPU 软逻辑与物理 SRAM 之间的**唯一接口层**。它不做任何决策，只做两件事：
+`ct_ifu_icache_if` 是 IFU 控制/数据通路与五组 I-Cache array wrapper 之间的集中
+适配层。这里的“接口”不是纯连线：模块会形成共享 index、逐 array/逐 bank 的
+`cen_b`、写掩码、写数据和本地时钟使能，并把 SRAM 输出扇出给不同消费者。
+其主要职责是：
 
-1. **仲裁**：把来自多个来源（pcgen、ifctrl、l1_refill、ipb）的 SRAM 访问请求，按固定优先级排出唯一赢家，驱动 SRAM 的 index/cen_b/wen 引脚。
-2. **路由**：把 SRAM 读出的数据分发给下游的多个消费者（ifdp、ifctrl、ipb）。
+1. **选择共享地址**：pcgen 是默认地址来源；IFCTRL cache 管理、refill、IPB
+   预取检查和 CP0 cache-read 属于 higher-request 类。higher 类内部依赖上游
+   one-hot 互斥，不是一个能处理任意并发请求的优先级仲裁器。
+2. **生成 SRAM 操作条件**：区分 Tag、两路 Data、两路 Predecode，进一步对
+   Data Array 的四个 32-bit bank 独立生成 `cen_b` 和 clock-enable。
+3. **控制 refill 提交**：首 beat 先清替换 way 的 valid，末 beat 才写入物理
+   tag、置 valid 并翻转替换位。
+4. **路由读出结果**：正常取指结果送 IFDP，预取 tag 检查送 IPB，CP0 显式
+   cache-read 所需的 tag/data 送 IFCTRL。
 
-该模块**不存储流水级寄存器**，所有输出信号直接来自 SRAM 的异步读出端口（下一周期，SRAM 打一拍给出数据）。
+该模块本身不在 SRAM `Q` 与输出之间再插一组流水寄存器，输出直接连接 array
+wrapper 的 `Q`。但 wrapper 可映射到 TSMC SRAM 或 FPGA memory，具体宏的读
+时序由所选实现决定；IFU 控制按带时钟的单端口存储器协议安排请求和后续流水级。
+因此不能把它描述成“异步读端口”。
 
 ### 1.3 为什么需要这一层？
 
-如果各模块直接连 SRAM，就需要在 SRAM 端做复杂的仲裁逻辑，导致关键路径变长。将所有"谁要读/写 SRAM"的逻辑集中到 `icache_if` 中，有以下好处：
-- 各模块只需提出请求，由 `icache_if` 保证互斥和优先级；
-- SRAM 的 `cen_b`（Chip Enable，低有效）直接由此模块驱动，减少扇出；
-- 方便统一施加门控时钟（ICG）节能逻辑。
+如果各模块分别驱动 SRAM wrapper，就会在多个位置重复地址复用、片选、写掩码和
+时钟使能规则。集中到 `icache_if` 后：
+
+- 各来源遵守既定时序和互斥契约，接口层统一形成 SRAM 引脚；
+- `cen_b` 决定该次宏访问是否有效，`clk_en` 决定相应 wrapper 的本地时钟条件，
+  两者职责不同，不能只观察其中一根就判定发生了 SRAM 读写；
+- Data Array 可按 way 和 32-bit bank 控制活动范围，Tag/Predecode 则按各自的
+  物理组织控制。
+
+这里不能反向推出“接口层会自动解决所有请求冲突”。higher 类请求若错误地同时
+拉高，`icache_index_sel` 会落入 `default: 'x`，这正是在仿真中暴露违反 one-hot
+契约的方式。
 
 ---
 
-## 2. SRAM 物理结构
+## 2. Array 逻辑组织与 SRAM 映射
 
-### 2.1 五个 SRAM 实例一览
+### 2.1 五个 array wrapper 实例一览
 
-| 实例名 | 模块名 | 位宽 | 用途 |
+| `ct_ifu_icache_if` 中的实例 | Wrapper 模块 | 逻辑数据行 | 用途 |
 |---|---|---|---|
 | `x_ct_ifu_icache_tag_array` | `ct_ifu_icache_tag_array` | 59 位 | 存储两路的 valid+tag，以及 FIFO 替换位 |
-| `x_ct_ifu_icache_data_array0` | `ct_ifu_icache_data_array0` | 128 位×4 bank | Way0 的指令数据 |
-| `x_ct_ifu_icache_data_array1` | `ct_ifu_icache_data_array1` | 128 位×4 bank | Way1 的指令数据 |
-| `x_ct_ifu_icache_predecd_array0` | `ct_ifu_icache_predecd_array0` | 32 位 | Way0 的预解码结果 |
-| `x_ct_ifu_icache_predecd_array1` | `ct_ifu_icache_predecd_array1` | 32 位 | Way1 的预解码结果 |
+| `x_ct_ifu_icache_data_array0` | `ct_ifu_icache_data_array0` | 每个数据行由 4 个 32-bit bank 并行组成，共 128 bit | Way0 的指令数据 |
+| `x_ct_ifu_icache_data_array1` | `ct_ifu_icache_data_array1` | 每个数据行由 4 个 32-bit bank 并行组成，共 128 bit | Way1 的指令数据 |
+| `x_ct_ifu_icache_predecd_array0` | `ct_ifu_icache_predecd_array0` | 每个数据行 32 bit | Way0 的预解码结果 |
+| `x_ct_ifu_icache_predecd_array1` | `ct_ifu_icache_predecd_array1` | 每个数据行 32 bit | Way1 的预解码结果 |
 
 C910 的 I-Cache 是**2-way set-associative**，Way0 对应 array0，Way1 对应 array1。
 
+这里列出的是五个 wrapper，而不是五个底层 SRAM 宏。以非 ECC 的
+`ICACHE_64K` 分支为例，Tag wrapper 例化一个 512×59 宏；每个 Data wrapper
+例化四个 2048×32 bank 宏；每个 Predecode wrapper 例化一个逻辑上的
+2048×32 宏。因此从 RTL 存储组织看是 1 个 Tag、8 个 Data bank、2 个
+Predecode 存储体。具体库单元可能使用 `_split` 宏或在综合/FPGA 映射中进一步
+拆分，物理宏数量和面积必须以目标实现报告为准。
+
 ### 2.2 Tag Array 的 59 位格式
 
-Tag Array 每个 entry 存储**一个 cache set** 的全部元数据：
+Tag Array 的架构有效载荷是 59 bit，每个 entry 存储**一个 cache set** 的全部
+元数据。启用 `L1_CACHE_ECC` 时 wrapper 选择 61-bit 宏变体，但本文下列字段仍
+按 IFU 可见的 59-bit payload 解释：
 
 ```
   bit[58]       bit[57:29]              bit[28:0]
@@ -88,7 +118,10 @@ Tag Array 每个 entry 存储**一个 cache set** 的全部元数据：
 
 **为什么用一个 SRAM 同时存两路的 tag？**
 
-因为 tag compare 时需要同时拿到两路的 tag，一次 SRAM 读就能取回 59 位全部内容，避免两次读 SRAM 带来的时序问题和功耗浪费。
+因为正常 VIPT 查找需要并行比较两路 tag，一次 Tag Array 访问即可同时得到两路
+`valid+tag` 和替换位。相比把两路拆成两个独立宏，这种组织减少一个独立 array
+控制端口；实际面积、时序和功耗优劣仍取决于 SRAM 宏实现，不能仅凭 RTL 断言
+一定“更省功耗”。
 
 **28 位 tag 从哪来？**
 
@@ -102,11 +135,13 @@ C910 的架构物理字节地址是 `PA[39:0]`，但 `l1_refill` 内部的 `phys
 
 **FIFO bit 的作用：**
 
-C910 I-Cache 的替换策略为简单的 2-way FIFO/伪 LRU。FIFO bit 记录当前 set 中"下一次应该替换哪一路"：
+C910 I-Cache 的替换状态是每个 set 的 1-bit FIFO 位。RTL 没有维护访问顺序所需
+的 LRU/伪 LRU 树，因此应称为 FIFO 选择，而不是“FIFO/伪 LRU”：
 - `fifo_bit = 0`：下次替换 Way0（写入 array0）
 - `fifo_bit = 1`：下次替换 Way1（写入 array1）
 
-每次 refill 的最后一拍（`l1_refill_icache_if_last`），FIFO bit 翻转，指向另一路。
+每次正常四-beat refill 的末 beat（`l1_refill_icache_if_last`），Tag Array 把
+FIFO bit 写成此次锁存替换位的反值，使下一次同 set 替换选择另一路。
 
 ### 2.3 Data Array 的 4-bank 结构
 
@@ -121,12 +156,26 @@ bank0[31:0] + bank1[31:0] + bank2[31:0] + bank3[31:0]
 一条 64 字节 cache line 因此占用 4 个连续的数据行；Tag Array 按 64 字节行
 寻址，Data Array 则按 16 字节取指块寻址。
 
-- **顺序访问（sequential）**：激活全部 4 个 bank，一次得到完整 128 位取指块；
-- **换流（change flow）**：对 IP 级预测目标，可关闭目标位置之前的 32 位 bank，
-  只读取从目标所在 bank 到块末尾的有效后缀。
+这里的 128-bit 是 **Data Array 一行的读出宽度**。PCGEN 正常 `inc_pc` 对
+内部半字地址的 `[38:3]` 加 1，并把 `[2:0]` 清零；当当前 PC 位于块首时，
+内部数值增加 8 个半字单位，对应架构字节 PC 前进 16 byte。改流目标可以落在
+块内任一 half-word，第一次顺序推进则会对齐到下一个 16-byte block。IFDP/IPDP
+结合 PC 低位、指令边界和跨块信息使用这 128-bit 数据。阅读吞吐波形时仍需区分
+“SRAM 一行的读出宽度”“当前块内从哪个 half-word 开始有效”和“实际送往后端的
+指令条数”。
 
-这种组织既匹配 IP 级每次处理 8 个 half-word 的 128 位窗口，也允许改流时做
-更细粒度的 SRAM 使能控制。
+- **顺序访问（sequential）**：在被 `way_pred` 选中的 way 中激活全部 4 个
+  bank，一次得到完整 128-bit 取指块；
+- **换流（change flow）**：当改流来源是 IPCTRL 的预测 taken 且没有更高改流
+  覆盖时，可关闭目标位置之前的 32-bit bank，只读取从目标所在 bank 到块末尾
+  的有效后缀；对 IU/RTU/HAD/vector 等更高来源，PCGEN 将四个 bank 请求均置 1。
+
+具体 lane 对应关系是 `bank0=D[127:96]`、`bank1=D[95:64]`、
+`bank2=D[63:32]`、`bank3=D[31:0]`。结合 refill 模块把最低地址 half-word
+放在 128-bit 总线高端的布局，bank0 对应该块最低地址的 4 byte，bank3 对应
+最高地址的 4 byte。这种组织为 IP 级提供一个 8-half-word 的 array 数据块；
+它不表示这 8 个 half-word 每拍都会作为新指令全部送往后端。预测目标位于块中部
+时，还可关闭目标之前的 bank。
 
 ### 2.4 Predecode Array 的 32 位格式
 
@@ -140,25 +189,30 @@ bit[31:0]: {h1_pre_code[3:0], h2_pre_code[3:0], ..., h8_pre_code[3:0]}
 
 ---
 
-## 3. Index 仲裁逻辑
+## 3. Index 选择与互斥契约
 
 ### 3.1 整体设计思路
 
-SRAM 每个周期只能接受**一个** index，当多个模块同时发出请求时，必须仲裁。C910 采用**静态优先级**方案：
+五组 array wrapper 共用 `ifu_icache_index[15:0]`。地址选择分为两层：
 
+```text
+higher-request 类是否存在？
+├─ 否：使用 pcgen_icache_if_index
+└─ 是：higher 类必须恰好 one-hot
+       ├─ IFCTRL tag/invalidation 或 reset
+       ├─ L1 refill 写
+       ├─ IPB prefetch tag 检查
+       └─ IFCTRL/CP0 cache-read
 ```
-优先级（高 → 低）：
-  1. ifctrl 特殊操作（cache 无效化写/复位）
-  2. ifctrl 复位请求
-  3. l1_refill 写操作
-  4. ipb 读请求（prefetch）
-  5. ifctrl 读操作（data/tag 单独读）
-  6. pcgen 顺序/换流请求（最低）
-```
 
-**为什么 refill 优先级高于 pcgen？**
+因此源码中确实存在“higher 类覆盖 pcgen”的二级关系，但 higher 类内部**没有**
+按列表顺序逐项抢占的 priority encoder。`case` 只识别 `1000/0100/0010/0001`；
+两个 higher 请求同时为 1 时，不会选“更高优先级”的那个，而是输出 `16'hxxxx`。
+源码注释也明确写着四类条件不会同时置位。
 
-refill 的数据是处理 cache miss 的结果，尽快写入 SRAM 才能让流水线尽早恢复；而 pcgen 的请求在 refill 期间因 cache miss 已经停流水了，让出 SRAM 不影响性能。
+从体系结构上看，这种实现把请求冲突的避免责任放到 IFCTRL、L1-refill、IPB 和
+PCGEN 的状态机协同上。它减少接口层的选择逻辑，但验证时必须检查 one-hot
+不变量；“能在正常系统运行中互斥”与“本模块含硬件仲裁器”是两件不同的事。
 
 ### 3.2 两路选择器结构
 
@@ -177,15 +231,16 @@ assign icache_req_higher = ifctrl_icache_if_tag_req          ||
                            ifctrl_icache_if_read_req_tag;
 ```
 
-`icache_req_higher` 是"有任何高优先级请求"的汇总信号。只有当所有高优先级来源都无请求时，才把 pcgen 的 index 送到 SRAM。
+`icache_req_higher` 只回答“是否存在任一 higher 请求”。它不编码请求来源，也
+不解决 higher 请求之间的冲突。为 0 时选 pcgen；为 1 时选
+`icache_index_higher`。
 
-**为什么这样设计而不用普通多路选择器？**
+源码注释称该结构使用 AND/OR 逻辑节省时序。可以确定的 RTL 事实是：pcgen
+地址只经过最外层 2:1 选择，而 higher 地址先经过 one-hot `case` 组合。至于
+综合后是否减少门级深度、改善多少时序，需要综合网表和 STA 证明；文档不把
+源码设计意图当作已经量化的物理结论。
 
-这里用了一个巧妙优化：**先用 OR 树判断"是否有高优先级"，再用一个 2:1 MUX 选择 index**，而不是用 4:1 MUX 直接选四路 index。这样可以：
-1. 减少 MUX 级数，改善时序（pcgen 是关键路径上的信号）；
-2. 把 pcgen 路径单独拎出来，便于综合工具做时序优化。
-
-### 3.3 高优先级 index 的四路 case 选择
+### 3.3 higher-request index 的四路 case 选择
 
 ```verilog
 // 第 636-655 行
@@ -209,18 +264,43 @@ end
 
 | 来源 | 输入位宽 | 说明 |
 |---|---|---|
-| `ifctrl_icache_if_index` | 39 位 | 取低 16 位，用于 cache 无效化时精确寻址 |
-| `l1_refill_icache_if_index` | 39 位 | 取低 16 位，refill 的目标 cache set |
-| `ipb_icache_if_index` | 34 位 | 取低 11 位，左移 5 位（cache line 内 byte 偏移），剩余高 5 位为 0 |
-| `ifctrl_icache_if_read_req_index` | 39 位 | 取低 16 位，ifctrl 主动发起的读请求 |
+| `ifctrl_icache_if_index` | 39 位 | 内部半字地址，取低 16 位；用于 IFCTRL invalidation/tag 操作 |
+| `l1_refill_icache_if_index` | 39 位 | refill 当前 16-byte block 的内部半字地址，取低 16 位 |
+| `ipb_icache_if_index` | 34 位 | IPB 保存的“下一条 64B line”虚拟字节地址 `[39:6]`；取低 11 位 `[16:6]` 后拼 5 个 0，形成 line-base 的内部地址 `[15:0]` |
+| `ifctrl_icache_if_read_req_index` | 39 位 | CP0 cache-read 流程形成的内部半字地址，取低 16 位 |
 
-**ipb index 为什么要左移 5 位？**
+**IPB index 为什么拼接 5 个 0？**
 
-IPB 传来的 `ipb_icache_if_index[10:0]` 本质是 cache set 的编号（去掉了 byte 偏移部分）。SRAM 的 `ifu_icache_index` 是 16 位，包含了 PA[20:5]（其中 PA[10:5] 是 index bits，PA[20:11] 是高位地址用于 way prediction）。左移 5 位相当于把 set 编号放回到正确的地址位置。
+IPB 由 `l1_refill_ipb_vpc[39:6] + 1` 形成下一条 64B line 的虚拟 line number。
+`icache_if` 取其低 11 位，即架构虚拟字节地址 `[16:6]`，再拼 `5'b0`，得到
+内部半字地址 `[15:0]`，其架构含义为 `{VA[16:6], 6'b0}` 去掉最低恒为 0 的
+字节位。这里是虚拟 index，不是 PA，也不能把全部 11 位都称作 set index：
+在 `ICACHE_64K` 配置下 Tag SRAM 实际只消费内部 `[13:5]`，即架构
+`VA[14:6]` 的 9-bit、512-set index。
 
 **case default 为 `x`：**
 
-`icache_index_sel` 在 `icache_req_higher=1` 时保证是 one-hot（四个请求不同时有效），default 对应全 0（无高优先级请求），此时 `icache_index_higher` 的值无关紧要（因为 2:1 MUX 选了 pcgen 路），设为 x 帮助综合工具优化逻辑。
+当 `icache_index_sel=0000` 时，最外层 MUX 选择 pcgen，因此 higher 路的 `x`
+不影响正常输出。若选择向量出现多热编码，`icache_req_higher=1` 而 `case`
+进入 default，`x` 会传播到共享 index；它既可能给综合器 don't-care 优化空间，
+也能在 RTL 仿真中暴露上游互斥条件被破坏。是否“保证 one-hot”应由接口协议和
+断言验证，而不能由这段组合逻辑自身推出。
+
+### 3.4 不同 array 实际消费哪些 index 位
+
+`ifu_icache_index` 是去掉架构 PC bit0 的内部半字地址低 16 位。以当前
+`ICACHE_64K` 配置为例：
+
+| Array | SRAM 地址 | 架构虚拟字节地址含义 | 深度 |
+|---|---|---|---:|
+| Tag | `ifu_icache_index[13:5]` | `VA[14:6]`，64B line 的 set index | 512 |
+| Data Way0/1 | `ifu_icache_index[13:3]` | `VA[14:4]`，16B block index | 2048 |
+| Predecode Way0/1 | `ifu_icache_index[13:3]` | 与 Data 同一 16B block index | 2048 |
+
+因此 Tag 每个 set 对应一条 64B line 的两路元数据，而每路 Data/Predecode 用
+四个连续 block row 覆盖这一条 line。若改用 `ICACHE_32K/128K/256K`，wrapper
+参数 `WIDTH` 会改变 SRAM 消费的最高 index 位，不能把 64K 配置的位号外推到
+所有编译配置。
 
 ---
 
@@ -236,7 +316,7 @@ assign ifu_icache_tag_cen_b =
   !(l1_refill_icache_if_wr &&
     (l1_refill_icache_if_first || l1_refill_icache_if_last) &&
     cp0_ifu_icache_en
-   ) &&                              // 情况1: refill 写（first 或 last 拍）
+   ) &&                              // 情况1: refill 写（first 或 last beat）
   !(ifctrl_icache_if_tag_req
    ) &&                              // 情况2: ifctrl 的 tag 操作（无效化）
   !(pcgen_icache_if_chgflw &&
@@ -254,17 +334,24 @@ assign ifu_icache_tag_cen_b =
 
 **情况1 中为什么 refill 只在 first 和 last 激活 tag array？**
 
-这是一个关键设计决策。Refill 可能需要多个周期（一个 cache line 传输多拍），但 tag 只需要写一次（最后一拍写 valid=1）。`first` 拍写 tag 的目的是先把 valid 清 0，防止 refill 中间过程中该 cache line 被意外命中（详见 4.3 节）。
+一个 cacheable line refill 有四个返回 beat，但 Tag Array 只在首、末两个有效
+beat 访问：首 beat 清除所选 way 的旧 valid/tag，末 beat 写入新 tag/valid 和
+更新后的替换位。中间两个 beat 只写 Data/Predecode Array。
 
 **情况3 中 `way_pred != 2'b00` 的含义：**
 
-`pcgen_icache_if_way_pred[1:0]` 是 way prediction 信号：
-- `2'b00`：无预测（cache 关闭或无有效预测），无需读 tag（读 tag 也没意义）
-- `2'b01`：预测命中 Way0
-- `2'b10`：预测命中 Way1
-- `2'b11`：两路都激活（refill 时用）
+`pcgen_icache_if_way_pred[1:0]` 是该拍计划激活的 way 位图：
+- `2'b00`：当前没有可选 way。PCGEN/IFCTRL 另有 `way_pred_stall` 路径处理该
+  情形；I-Cache 是否关闭由独立的 `cp0_ifu_icache_en` 决定，不能把 `00`
+  直接等同于 cache disabled
+- `2'b01`：预测选择 Way0
+- `2'b10`：预测选择 Way1
+- `2'b11`：两路都读；例如 CP0 关闭 instruction-way-prediction
+  (`cp0_ifu_iwpe=0`) 时 PCGEN 明确使用 `11`
 
-当 way_pred 为 0 时，cache 根本没有用，跳过 tag array 读取节省功耗。
+换流读 Tag 还要求 `cp0_ifu_icache_en=1`。因此“不访问 Tag Array”可能来自
+cache 关闭、没有 way 被选中，或该拍根本没有 change-flow/tag 请求，必须联合
+`cp0_ifu_icache_en`、请求类型和 way 位图判断。
 
 ### 4.2 wen 编码（Write Enable）
 
@@ -285,15 +372,19 @@ begin
   if(ifctrl_icache_if_inv_on)
     ifu_icache_tag_wen[2] = ifctrl_icache_if_tag_wen[2];  // inv 时按 ifctrl 指示
   else if(l1_refill_icache_if_wr && l1_refill_icache_if_last)
-    ifu_icache_tag_wen[2] = 1'b0;  // refill last：不更新 FIFO bit（FIFO 在 din 中改变）
+    ifu_icache_tag_wen[2] = 1'b0;  // refill last：允许写 FIFO 字段
   else
-    ifu_icache_tag_wen[2] = 1'b1;  // 默认不写 FIFO bit（高有效的 wen 意味着不写）
+    ifu_icache_tag_wen[2] = 1'b1;  // 默认屏蔽 FIFO 字段写入
 end
 ```
 
-注意：这个 SRAM 的 wen 是**高有效（active-high）**写使能。`wen[2]=1` 表示**不写** FIFO bit，`wen[2]=0` 表示**写** FIFO bit。
+虽然顶层信号名是 `ifu_icache_tag_wen` 而没有 `_b` 后缀，其语义仍是**低有效
+bit-write mask**：wrapper 将三位展开成 59-bit `WEN`，并将三位与归约送
+`GWEN`。所以 `wen[x]=1` 表示该字段保持，`wen[x]=0` 表示允许该字段写入。
 
-refill last 时 `wen[2]=0`，允许更新 FIFO bit。refill first 时 `wen[2]=1`，保持 FIFO bit 不变（因为 first 拍只需清 valid，不需要翻 FIFO）。
+refill last 时 `wen[2]=0`，允许更新 FIFO bit。refill first 时 `wen[2]=1`，
+保持 FIFO bit 不变，因为首 beat 只需先隐藏被替换 way，不应提前改变下一次
+替换选择。
 
 **Way wen（bit[1:0]）的逻辑：**
 
@@ -317,42 +408,57 @@ end
 
 **为什么这样编码？**
 
-高有效 wen 中，`1` 表示不写，`0` 表示写。因此 `{!fifo_bit, fifo_bit}` 中恰好有一位为 0，指向应该被替换的那一路。FIFO bit 为 0 替换 way0，为 1 替换 way1，编码非常简洁。
+低有效写掩码中，`1` 表示不写，`0` 表示写。因此
+`{!fifo_bit, fifo_bit}` 中恰好一位为 0，指向本次替换 way。这里的位序是
+`wen[1]=Way1`、`wen[0]=Way0`：`fifo_bit=0` 得到 `2'b10` 并写 Way0，
+`fifo_bit=1` 得到 `2'b01` 并写 Way1。
 
 ### 4.3 Refill 写入时序：防止伪命中的设计
 
 这是一个精妙的设计，理解它需要考虑 refill 中途的场景：
 
 ```
-时序图：
-Cycle N:   refill first（cache line 第一拍数据到达）
+返回事件顺序：
+首 beat:  refill first（miss 地址对应的 critical 16B block 到达）
   → 写 tag：valid = 0，tag = 0（清零）
   → 写 data：第一个 128 位数据
 
-Cycle N+1~M-1: refill 中间拍（只写 data，不写 tag）
+中间 beat: 按 WRAP 顺序写另外两个 16B block，只写 data/predecode
 
-Cycle M:   refill last（最后一拍数据到达）
+末 beat:  refill last（WRAP 顺序的第 4 个有效 beat 到达）
   → 写 tag：valid = 1，tag = ptag（设置有效，写真实 tag）
   → 写 data：最后一个 128 位数据
-  → FIFO bit 翻转
+  → 把 FIFO bit 写成锁存替换位的反值
 ```
 
-**为什么 first 拍要先写 tag（valid=0）？**
+这些 beat 不要求在连续 CPU 周期到达；WFD 状态会停留等待 `data_vld`。
+此外首 beat 是 critical block，并不一定是 64B line 的最低地址 block，Data
+Array 的 row 地址由 L1-refill 按 mod-4 WRAP 顺序推进。
 
-如果不写，假设该 cache set 之前有旧数据（valid=1，旧 tag），在 refill 期间（N 到 M-1 之间），若有另一个 CPU 请求恰好访问这个 cache set 且 tag 匹配旧 tag，就会命中旧的（部分更新的）数据，导致读到脏数据！
+**为什么 first beat 要先写 tag（valid=0）？**
 
-通过在 first 拍把 valid 清 0，保证了：整个 refill 过程中，该 way 对外呈现为"invalid"，任何请求都不会命中它，直到 last 拍写完数据后才让它重新有效。
+如果不写，假设被替换 way 之前仍是 `valid=1`，那么 refill 期间本核 IFU
+若再次访问到旧 tag，就可能把已被部分 16B block 覆盖的数据误当成完整
+cache line。
+L1 I-Cache 是本核私有结构，这里的竞争者是本核后续取指、改流或预取请求，
+不是另一个 CPU 直接访问该 I-Cache。
+
+通过在 first beat 把 valid 清 0，正常情况下该 way 在其余三个 block 写入期间
+不会命中；直到 WFD4 的有效返回产生 `last`，末 block 与新 tag/valid 才在该次
+写操作中提交。若中途 `trans_err` 进入 INV_WFD，`last` 不会产生，替换 way
+保持无效。这里的完整性单位是 64B line，不是每个 16B block 各自有 valid。
 
 ```verilog
 // 第 350-357 行
 assign tag_fifo_din     = (ifctrl_icache_if_inv_on) ? ifctrl_icache_if_inv_fifo : !fifo_bit;
-assign tag_valid_din    = l1_refill_icache_if_last;  // 只有 last 拍，valid 才为 1
+assign tag_valid_din    = l1_refill_icache_if_last;  // 只有 last beat，valid 才为 1
 assign tag_pc_din[27:0] = (ifctrl_icache_if_inv_on || l1_refill_icache_if_first)
                           ? 28'b0          // inv 或 first：tag 清零
                           : l1_refill_icache_if_ptag[27:0];  // last：写真实 tag
 ```
 
-`tag_valid_din = l1_refill_icache_if_last`：这意味着当写入的是 first 拍时，`valid_din = 0`；只有 last 拍时，`valid_din = 1`。
+`tag_valid_din = l1_refill_icache_if_last`：first beat 写 Tag Array 时
+`valid_din=0`；只有第四个正常 data beat 产生 `last` 时，`valid_din=1`。
 
 ### 4.4 tag_din 格式组装
 
@@ -363,7 +469,10 @@ assign ifu_icache_tag_din[58:0] = {tag_fifo_din,
                                    tag_valid_din, tag_pc_din[27:0]};
 ```
 
-注意两路（Way0 和 Way1）写入**相同的 `tag_valid_din` 和 `tag_pc_din`**。这不是 bug——因为每次 refill 只有一路的 wen 为 0（有效），另一路的 wen 为 1（无效，写入被屏蔽）。所以 din 中同时准备好两路的数据，但 wen 保证只有目标路被实际写入。
+两路字段在 `ifu_icache_tag_din` 中承载相同的 `tag_valid_din/tag_pc_din`，
+但低有效 `wen[1:0]` 只开放替换 way 的 29-bit 字段，另一字段保持原值。因此
+“D 总线上两路字段相同”不等于“两路同时被写”；判断实际写入必须联合
+`CEN/GWEN/WEN`。
 
 ---
 
@@ -376,10 +485,14 @@ assign ifu_icache_tag_din[58:0] = {tag_fifo_din,
 assign icache_way_pred[1:0] = (l1_refill_icache_if_wr) ? 2'b11 : pcgen_icache_if_way_pred[1:0];
 ```
 
-- **refill 写**时：强制 `way_pred = 2'b11`（两路都要激活，因为要写入 data，但 wen 保证只写一路）——等等，看 cen_b 逻辑会发现，实际上只有目标 way 的 cen_b 会被激活。
-- **正常读**时：使用 pcgen 传来的预测值。
+- **refill 写**时：内部 `icache_way_pred` 强制为 `2'b11`，避免 way-prediction
+  屏蔽写路径；真正选择写 Way0 还是 Way1 的条件仍是锁存的 `fifo_bit`。
+- **pcgen 正常读**时：使用 `pcgen_icache_if_way_pred`，bit0/bit1 分别参与
+  Way0/Way1 的片选。
 
-实际上，`way_pred[0]` 控制 array0（Way0）的 cen_b，`way_pred[1]` 控制 array1（Way1）的 cen_b，两者独立控制。
+因此 `2'b11` 在 refill 路径上只是解除 way-pred gating，并不意味着两路 Data
+Array 都写。Way0 的请求项要求 `wr && !fifo_bit`，Way1 要求
+`wr && fifo_bit`，最终只有替换 way 的 `cen_b` 和 `wen_b` 同时进入写状态。
 
 ### 5.2 Bank 精确激活：节能设计
 
@@ -397,21 +510,34 @@ assign ifu_icache_data_array0_bank0_cen_b = (
    !icache_reset_inv;                   // 不是复位无效化
 ```
 
-注意括号优先级：前面大括号内是 `(A || B || C || !D)`，含义是：
+把低有效表达式还原成正逻辑后，Way0/bank0 被激活的条件是：
 
-- 若 `(A || B || C)` 为真（即有某个读/写需求），**且** `D`（即 `cp0_ifu_icache_en && way_pred[0]`）为真，则 `cen_b = 0`（激活）；
-- 若 `A || B || C` 都为假，或 D 为假，则 `cen_b = 1`（不激活）。
-- 最后还有两个强制激活条件（ifctrl 读请求、复位无效化）。
+```text
+ifctrl_read_way0
+OR reset_clear
+OR (
+     icache_en
+     AND selected_way0
+     AND (refill_write_way0 OR chgflw_needs_bank0 OR sequential_data_read)
+   )
+```
+
+其中 `selected_way0=icache_way_pred[0]`；refill 时该位被强制为 1，正常取指时
+来自 PCGEN。IFCTRL 的 CP0 cache-read 和 reset-clear 是维护路径，所以不依赖
+`cp0_ifu_icache_en` 或 PCGEN way prediction。
 
 **各 bank 激活条件的差异：**
 
 | 条件 | bank0 | bank1 | bank2 | bank3 |
 |---|---|---|---|---|
-| refill 写 | 全部激活（写当前 128 位 refill 数据拍） | 同左 | 同左 | 同左 |
+| refill 写 | 目标 way 的四个 bank 全部激活，写当前 128-bit beat | 同左 | 同左 | 同左 |
 | 换流（chgflw） | `chgflw_bank0` | `chgflw_bank1` | `chgflw_bank2` | `chgflw_bank3` |
 | 顺序读（seq） | 全部激活 | 同左 | 同左 | 同左 |
 
-`chgflw_bank0~3` 是 pcgen 提供的精确 bank 激活信号。当 PC 跳转到某个地址时，pcgen 知道新 PC 落在哪个 bank，只需激活该 bank 及后续 bank，其余 bank 保持关闭，显著节省功耗。
+`chgflw_bank0~3` 是 PCGEN 提供的 bank 请求位图。对 IPCTRL 预测 taken 路径，
+其模式随目标内部 PC `[2:1]` 依次为 `1111/0111/0011/0001`，即从目标 32-bit
+bank 一直打开到 bank3；对更高优先级改流，四位均为 1。该机制减少了部分改流
+访问中的宏活动范围；实际动态功耗收益需要门级/功耗分析量化。
 
 **为什么顺序读要激活全部 4 个 bank？**
 
@@ -427,7 +553,9 @@ array0（Way0）与 array1（Way1）的 cen_b 几乎相同，只有一处不同�
 - **array0**：way_pred 检查 `icache_way_pred[0]`
 - **array1**：way_pred 检查 `icache_way_pred[1]`
 
-这保证了 refill 只写入目标 way，预测读也只激活预测命中的 way。
+这使 refill 只写目标 way；正常读则只激活 way-prediction 位图选中的 way。
+“被预测选择”不等于最终 tag compare 一定命中，错误 way prediction 仍可能触发
+stall/recovery。
 
 ### 5.4 Write Enable（wen_b，低有效）
 
@@ -439,7 +567,9 @@ assign ifu_icache_data_array1_wen_b = !(l1_refill_icache_if_wr && fifo_bit) &&
                                       !icache_reset_inv;
 ```
 
-Data array 的 wen_b 是**单比特**（不像 tag 那样 per-way），整个 128 位要么全写要么不写。写使能条件：
+每路 Data Array 共用一个低有效 `wen_b`，wrapper 再把它复制到四个 bank 的
+32-bit `WEN`。因此一次选中写操作会把该 way 当前 row 的四个 bank、共 128 bit
+全部写入；它不是按 byte 或 bank 独立写掩码。写使能条件：
 1. **refill 写**：由 fifo_bit 决定写哪路；
 2. **复位无效化**：`icache_reset_inv = ifctrl_icache_if_reset_req`，两路都写（写入 0）。
 
@@ -459,14 +589,20 @@ assign ifu_icache_data_array1_din[127:0] = (icache_reset_inv) ? 128'b0 : l1_refi
 
 ### 6.1 与 Data Array 的对应关系
 
-Predecode Array 与 Data Array **严格并行操作**：
-- 读：和 Data Array 同时读（cen_b 逻辑相同，除了不分 bank）；
-- 写：随 Data Array refill 时同步写入（wen_b 直接复用 data array 的 wen_b）。
+在正常 pcgen 取指、refill 和 reset-clear 路径上，Predecode Array 与对应 way 的
+Data Array 使用相同的 block index 并协同访问：
+
+- 正常读：跟随 `chgflw` 或 `seq_data_req`，按 way prediction 选择，但
+  Predecode 不再细分四个 bank；
+- refill：与 128-bit 指令数据同拍写入对应的 32-bit precode；
+- reset-clear：两路 Predecode 与 Data 一样写 0；
+- CP0 显式 cache-data read：只强制打开指定 Data way，**不**读取 Predecode，
+  所以不能概括成所有情形下都“严格并行”。
 
 ```verilog
 // 第 804-810 行（predecd_array0 实例化）
 ct_ifu_icache_predecd_array0  x_ct_ifu_icache_predecd_array0 (
-  .ifu_icache_data_array0_wen_b (ifu_icache_data_array0_wen_b),  // 直接复用 data wen
+  .ifu_icache_data_array0_wen_b (ifu_icache_data_array0_wen_b),  // wrapper 的 GWEN
   .ifu_icache_predecd_array0_wen_b (ifu_icache_predecd_array0_wen_b),
   ...
 );
@@ -488,17 +624,54 @@ assign ifu_icache_predecd_array0_cen_b = (
 
 **为什么 Predecode Array 不需要 bank 精确激活？**
 
-Predecode Array 整个 entry 只有 32 位（远小于 data 的 4×128=512 位），即使全部激活功耗也很低，不值得为此引入 bank 拆分的复杂度。而 Data Array 的 4 个 bank 合计 512 位，bank 精确激活节省的功耗是可观的。
+Predecode Array 每个数据行合计 32 位，而 Data Array 的同一数据行是
+4×32=128 位。当前 RTL 没有再拆分 predecode bank；该选择减少了控制和宏数量，
+具体功耗收益需以实现后的功耗分析量化。
 
 ### 6.3 为什么在 IP 级前就做预解码？
 
-传统处理器在 ID（译码）级才解析指令类型，此时分支预测已经晚了一拍。C910 的解决方案是：
+若 I-Cache 每次 hit 后都从 128-bit raw instruction 窗口重新推导压缩指令边界、
+分支类型和跨块关系，这些组合逻辑会进入前端 hit 数据路径。C910 在 refill 时
+预先生成并缓存轻量元数据：
 
-1. **ct_ifu_precode** 在 refill 期间（或第一次取指时）对指令数据做轻量级预解码；
+1. **ct_ifu_precode** 对 L1-refill 返回的 128-bit 指令块生成 32-bit 预解码信息；
 2. 预解码结果和指令数据一同缓存在 Predecode Array 中；
-3. 在 IP 级（`ct_ifu_ipb`），预解码结果和指令数据**同时读出**，IP 级可以立即知道某条 half-word 是否为分支指令，无需等待完整的指令解码。
+3. 在 IFDP/IPDP 数据通路中，预解码结果和指令数据同时读出，IP 级可以直接使用
+   已缓存的类型/边界提示。`ct_ifu_ipb` 是预取缓冲，不是 IP 流水级。
 
-这相当于把"分支类型识别"的时序压力从 IP 级移到了 refill 路径（非关键路径），减少了流水线气泡。
+对于 cacheable refill，预解码结果与数据一起写入 array，后续 hit 可直接读出。
+`tsize=0` 的非缓存/Cache-disabled 返回不写 I-Cache，因此只通过 L1-refill 的
+组合旁路携带本次 precode，不会在本 array 中持久保存。该设计减少 hit 路径上
+重复识别分支边界/类型的逻辑；能否提高频率仍需结合综合时序判断。
+
+### 6.4 `cen_b` 与 `clk_en` 必须联合观察
+
+每个 wrapper 同时接收访问片选和本地时钟条件：
+
+- `cen_b=0` 表示该 SRAM 宏在相应边沿执行一次有效读/写操作；
+- `clk_en` 是送入 `gated_clk_cell.local_en` 的提前条件，保证潜在访问到来前
+  wrapper 时钟可用；
+- `wen/WEN/GWEN` 再区分这次有效访问是读、整行写还是字段写。
+
+三类 array 的 local-enable 范围并不相同：
+
+| Wrapper | `clk_en` 的主要来源 |
+|---|---|
+| Tag | IFCTRL tag/invalidation、CP0 tag-read，或 `icache_en && (refill_wr \|\| pcgen_gateclk_en \|\| ipb_req_for_gateclk)` |
+| Data Way0 | `icache_en && (refill_wr_way0 \|\| chgflw_short \|\| seq_data_req_short)`，以及 CP0 Way0 data-read、reset-clear |
+| Data Way1 | 与 Way0 对称，refill 条件改为 `refill_wr_way1` |
+| Predecode Way0/1 | 正常/refill/reset 与对应 Data way 类似，但不含 CP0 data-read |
+
+Data 每个 way 的四个 bank 虽然有独立 `cen_b`，却使用内容相同的
+per-bank `clk_en` 表达式。以 IPCTRL 预测 taken 只需后缀 bank 为例，四个
+wrapper clock 的 local-enable 可能都被 `chgflw_short` 打开，而不需要的前缀
+bank 仍由 `cen_b=1` 阻止宏访问。因此“bank 未访问”和“bank wrapper 时钟没有
+翻转”不是同一个判断。
+
+通用 ICG 的技术分支还允许 `cp0_ifu_icg_en` 覆盖 local-enable。开源非技术分支
+则直接把 `clk_in` 接到 `clk_out`。在 Verdi 中判断一次 I-Cache 行为时，建议
+同时观察共享 index、目标 array 的 `cen_b`、`wen_b/WEN`、对应 `clk_en` 和宏
+时钟；单看时钟波形无法确定宏是否完成了有效访问。
 
 ---
 
@@ -521,20 +694,24 @@ assign icache_if_ifctrl_tag_data1[28:0] = icache_ifu_tag_dout[57:29];   // Way1�
 
 ```
 bit[28]    : valid bit
-bit[27:0]  : tag（对应 PA[38:11]）
+bit[27:0]  : tag（内部物理半字地址 [38:11]，对应架构 PA[39:12]）
 ```
 
 ### 7.2 各下游模块接收的信号
 
 | 下游模块 | 接收的信号 | 用途 |
 |---|---|---|
-| **ifdp** | tag_data0/1、fifo、inst_data0/1、precode0/1 | IF 级数据通路，做 tag compare，缓存指令数据和预解码结果 |
-| **ifctrl** | tag_data0/1、inst_data0/1 | IF 级控制，tag compare 后决定是否 hit；数据用于 refill 后读回验证 |
-| **ipb** | tag_data0/1 | Prefetch buffer，比较 tag 判断 prefetch 是否命中 |
+| **ifdp** | tag_data0/1、fifo、inst_data0/1、precode0/1 | 正常 IF 数据通路；分段比较 MMU 物理 tag，形成 way hit，并把所选数据/预解码送后续级 |
+| **ifctrl** | tag_data0/1、inst_data0/1 | CP0 显式 I-Cache tag/data read 状态机的读回数据；不是正常取指 hit compare 的执行位置 |
+| **ipb** | tag_data0/1 | 比较“下一 line”预取候选的物理 tag，判断该 line 是否已在 I-Cache |
 
-**为什么 ifctrl 和 ifdp 接收相同的 tag 数据？**
+**为什么 IFCTRL 和 IFDP 都接收 Tag Array 输出？**
 
-`ifdp` 是数据通路，负责 tag 数据的流水传递；`ifctrl` 是控制逻辑，需要立即使用 tag 数据做判断（如命中/miss 判断）。两者各自有独立的输出线，避免控制逻辑和数据通路互相干扰时序。
+两者面对的是不同操作。IFDP 在正常取指路径中把两路 tag 与
+`mmu_ifu_pa` 分段比较；IFCTRL 只在 `READ_REQ -> READ_RD -> READ_ST` 的 CP0
+cache-read 流程中锁存 tag/data，再送 `ifu_cp0_icache_read_data`。`icache_if`
+没有为这两组输出复制存储体，只是对同一 SRAM `Q` 做组合扇出；真正由谁消费，
+取决于各自状态机和 valid。
 
 ### 7.3 precode 的输出
 
@@ -554,10 +731,14 @@ assign icache_if_ifdp_inst_data1[127:0] = icache_ifu_data_array1_dout[127:0];
 
 ### 8.1 计数器信号
 
-C910 内置硬件性能监测单元（HPCP，Hardware Performance Counter），`icache_if` 提供两个性能事件：
+C910 内置 HPCP 性能计数路径，`icache_if` 对外提供两个打拍后的单周期事件：
 
-- `ifu_hpcp_icache_access`：I-Cache 访问次数（每次 pcgen 发出 data req 或 chgflw）
-- `ifu_hpcp_icache_miss`：I-Cache miss 次数（由 `ifu_hpcp_icache_miss_pre` 在外部计算后传入）
+- `ifu_hpcp_icache_access`：上一拍出现 pcgen sequence-data request 或
+  change-flow request，且 I-Cache 使能
+- `ifu_hpcp_icache_miss`：上一拍 L1-refill 处于 WFD1 且收到首个 data/error
+  返回事件
+
+它们是事件脉冲，不是本模块内部累加的数值寄存器；最终累计由 HPCP 完成。
 
 ### 8.2 access 事件的定义
 
@@ -568,9 +749,30 @@ assign ifu_hpcp_icache_access_pre = (pcgen_icache_if_seq_data_req || pcgen_icach
 
 **为什么只统计 pcgen 的请求，不统计 refill 或 ifctrl 的请求？**
 
-性能计数的语义是"CPU 主动发起的取指次数"。refill 是 miss 处理的一部分，ifctrl 的读是 cache 管理操作，都不属于"正常取指"。统计 pcgen 的 seq_data_req 和 chgflw 能准确反映取指吞吐量。
+这个事件只覆盖 PCGEN 发起的正常 I-Cache data 访问类，不包含 refill 写、IPB
+tag 探测和 CP0 cache-read。`seq_data_req` 本身在 `!ifctrl_pcgen_stall` 时拉高，
+所以该计数更接近“前端发出的 I-Cache data 访问拍数”，不是退休指令数、取回
+字节数，也不是独立 cache line 数；change-flow 与 sequence 同拍时 OR 后仍只
+产生一个 event。
 
-### 8.3 寄存器采样与门控时钟
+### 8.3 miss 事件的精确定义
+
+`ifu_hpcp_icache_miss_pre` 不在 `icache_if` 内计算，而来自
+`ct_ifu_l1_refill`：
+
+```verilog
+assign ifu_hpcp_icache_miss_pre =
+    (refill_cur_state == WFD1) &&
+    (ipb_l1_refill_data_vld || ipb_l1_refill_trans_err);
+```
+
+所以它是在非取消的正常 WFD1 路径收到首个返回事件时记一次，而不是
+`ipctrl_l1_refill_miss_req` 发起时立即记。它包含首 beat transfer error，不包含
+REQ 阶段被 change-flow 撤销的请求，也不代表 refill 已成功提交完整 64B line。
+计算 miss ratio 时必须使用这里定义的 `access/miss` 事件口径，不能把它与其他
+层级的请求计数任意相除。
+
+### 8.4 寄存器采样与门控时钟
 
 ```verilog
 // 第 700-741 行
@@ -590,7 +792,16 @@ always @(posedge hpcp_clk or negedge cpurst_b) begin
 end
 ```
 
-PMU 寄存器使用独立的门控时钟 `hpcp_clk`，只有在 cache 使能且 PMU 计数使能（`hpcp_ifu_cnt_en`）时才工作，其他时间关闭时钟节省功耗。这是一个典型的"条件采样"模式：`_pre` 信号是组合逻辑，`_reg` 信号是打拍后送给 HPCP 的稳定值。
+`_pre` 是当前拍组合事件，`_reg` 是通过 `hpcp_clk` 打拍后送 HPCP 的事件。
+寄存器只在 `cp0_ifu_icache_en && hpcp_ifu_cnt_en` 时更新；否则保持旧值而不是
+由这段 RTL 自动清零。
+
+物理门控还必须结合通用 `gated_clk_cell` 理解：技术 ICG 分支下使能表达式是
+`cp0_yy_clk_en && (cp0_ifu_icg_en || hpcp_clk_en)`，所以 module-enable 可覆盖
+local-enable；未定义 `C910_USE_TSMC28_ICG` 时开源 wrapper 直接
+`assign clk_out=clk_in`。因此从 RTL 功能仿真看到时钟持续翻转，不表示寄存器
+每拍都更新，也不能仅凭 `hpcp_clk_en=0` 宣称物理时钟一定停止。实际节能需在
+目标工艺综合网表上验证。
 
 ---
 
@@ -601,36 +812,43 @@ PMU 寄存器使用独立的门控时钟 `hpcp_clk`，只有在 cache 使能且 
 | 信号名 | 位宽 | 来源 | 含义 |
 |---|---|---|---|
 | `cp0_ifu_icache_en` | 1 | CP0 | I-Cache 全局使能 |
+| `cp0_ifu_icg_en` | 1 | CP0 | IFU module clock-enable；在技术 ICG 分支中可覆盖各 wrapper 的 local enable，但仍受相应 global enable 约束 |
+| `cp0_yy_clk_en` | 1 | CP0 | Data/Predecode/HPCP ICG 的 global enable；Tag wrapper 的 ICG 将 global enable 固定为 1 |
 | `cpurst_b` | 1 | 复位 | 异步复位（低有效） |
 | `forever_cpuclk` | 1 | 时钟 | 主时钟 |
-| `pcgen_icache_if_index` | 16 | pcgen | 顺序/换流时的 cache index |
+| `hpcp_ifu_cnt_en` | 1 | HPCP | 允许本模块更新 I-Cache access/miss 事件寄存器 |
+| `pad_yy_icg_scan_en` | 1 | DFT | 技术 ICG 的 test-enable；开源直通时钟分支不使用它控制功能逻辑 |
+| `pcgen_icache_if_index` | 16 | pcgen | `pc_bus[15:0]`，即架构虚拟 PC `[16:1]` 的内部半字地址 |
 | `pcgen_icache_if_chgflw` | 1 | pcgen | 换流请求 |
-| `pcgen_icache_if_chgflw_bank0~3` | 1×4 | pcgen | 换流时各 bank 精确激活信号 |
-| `pcgen_icache_if_chgflw_short` | 1 | pcgen | 换流门控时钟使能（提前半周期） |
+| `pcgen_icache_if_chgflw_bank0~3` | 1×4 | pcgen | 换流时各 Data bank 的请求位图；IPCTRL taken 可形成目标 bank 到 bank3 的后缀，其他高改流通常四位全开 |
+| `pcgen_icache_if_chgflw_short` | 1 | pcgen | 供 array clock-enable 提前准备的换流条件；“short”表示控制时序版本，不应直接量化为固定半周期 |
+| `pcgen_icache_if_gateclk_en` | 1 | pcgen | Tag Array wrapper 的本地时钟提前使能条件 |
 | `pcgen_icache_if_seq_data_req` | 1 | pcgen | 顺序 data 读请求 |
-| `pcgen_icache_if_seq_data_req_short` | 1 | pcgen | 顺序 data 门控使能 |
-| `pcgen_icache_if_seq_tag_req` | 1 | pcgen | 顺序 tag 读请求 |
-| `pcgen_icache_if_way_pred` | 2 | pcgen | Way 预测（bit0=way0, bit1=way1） |
-| `ifctrl_icache_if_index` | 39 | ifctrl | ifctrl tag 操作的 index |
-| `ifctrl_icache_if_tag_req` | 1 | ifctrl | ifctrl tag 读写请求 |
-| `ifctrl_icache_if_tag_wen` | 3 | ifctrl | ifctrl 的 tag wen（inv 时使用） |
-| `ifctrl_icache_if_inv_on` | 1 | ifctrl | cache 无效化进行中 |
+| `pcgen_icache_if_seq_data_req_short` | 1 | pcgen | 顺序 Data/Predecode array 的本地时钟提前使能条件 |
+| `pcgen_icache_if_seq_tag_req` | 1 | pcgen | 顺序 Tag 读请求；PCGEN 只在 `pc_bus[4:3]==0` 时发出，以 64B line 内相应 block 边界刷新 tag |
+| `pcgen_icache_if_way_pred` | 2 | pcgen | Way 选择位图（bit0=Way0，bit1=Way1）；它是预测结果，不是最终 tag-hit |
+| `ifctrl_icache_if_index` | 39 | ifctrl | IFCTRL invalidation/tag 操作的内部半字地址 |
+| `ifctrl_icache_if_tag_req` | 1 | ifctrl | IFCTRL invalidation 状态机的 Tag Array 请求 |
+| `ifctrl_icache_if_tag_wen` | 3 | ifctrl | invalidation 路径提供的低有效 `{FIFO,Way1,Way0}` 字段写掩码 |
+| `ifctrl_icache_if_inv_on` | 1 | ifctrl | IFCTRL I-Cache maintenance 状态机非 IDLE；选择 maintenance 的 tag write-data/mask 来源 |
 | `ifctrl_icache_if_inv_fifo` | 1 | ifctrl | inv 时写入的 FIFO bit |
-| `ifctrl_icache_if_reset_req` | 1 | ifctrl | 复位无效化请求 |
-| `ifctrl_icache_if_read_req_data0` | 1 | ifctrl | 强制读 way0 data |
-| `ifctrl_icache_if_read_req_data1` | 1 | ifctrl | 强制读 way1 data |
-| `ifctrl_icache_if_read_req_tag` | 1 | ifctrl | 强制读 tag |
-| `ifctrl_icache_if_read_req_index` | 39 | ifctrl | 强制读的 index |
-| `l1_refill_icache_if_wr` | 1 | l1_refill | refill 写使能 |
-| `l1_refill_icache_if_first` | 1 | l1_refill | refill 第一拍 |
-| `l1_refill_icache_if_last` | 1 | l1_refill | refill 最后一拍 |
-| `l1_refill_icache_if_index` | 39 | l1_refill | refill 目标 index |
-| `l1_refill_icache_if_inst_data` | 128 | l1_refill | refill 的指令数据 |
-| `l1_refill_icache_if_pre_code` | 32 | l1_refill | refill 的预解码数据 |
-| `l1_refill_icache_if_ptag` | 28 | l1_refill | refill 的物理 tag |
-| `l1_refill_icache_if_fifo` | 1 | l1_refill | 本次 refill 写哪路（FIFO bit） |
-| `ipb_icache_if_req` | 1 | ipb | prefetch buffer 读 tag 请求 |
-| `ipb_icache_if_index` | 34 | ipb | prefetch 的 index |
+| `ifctrl_icache_if_reset_req` | 1 | ifctrl | reset-clear beat；强制两路 Data/Predecode 当前 row 写 0，并参与共享 index 选择 |
+| `ifctrl_icache_if_read_req_data0` | 1 | ifctrl | CP0 cache-read 请求读取 Way0 Data |
+| `ifctrl_icache_if_read_req_data1` | 1 | ifctrl | CP0 cache-read 请求读取 Way1 Data |
+| `ifctrl_icache_if_read_req_tag` | 1 | ifctrl | CP0 cache-read 请求读取 Tag Array |
+| `ifctrl_icache_if_read_req_index` | 39 | ifctrl | CP0 cache-read 的内部半字地址 |
+| `l1_refill_icache_if_wr` | 1 | l1_refill | 正常 WFDn、cacheable (`tsize=1`) 且当前 data beat 有效时的 array 写请求 |
+| `l1_refill_icache_if_first` | 1 | l1_refill | WFD1 的有效首 beat；触发替换 way 的旧 tag/valid 清除 |
+| `l1_refill_icache_if_last` | 1 | l1_refill | WFD4 的有效末 beat；触发新 tag/valid 提交和 FIFO 位更新 |
+| `l1_refill_icache_if_index` | 39 | l1_refill | 当前 refill 16B block 的虚拟内部半字地址 |
+| `l1_refill_icache_if_inst_data` | 128 | l1_refill | 当前返回 beat 经 half-word lane 重排后的指令数据 |
+| `l1_refill_icache_if_pre_code` | 32 | l1_refill | 与当前 128-bit beat 对应的八组 4-bit 预解码数据 |
+| `l1_refill_icache_if_ptag` | 28 | l1_refill | 架构物理地址 `PA[39:12]` |
+| `l1_refill_icache_if_fifo` | 1 | l1_refill | miss 时锁存的替换 way 选择：0=Way0，1=Way1 |
+| `ipb_icache_if_req` | 1 | ipb | 对下一条预取候选 line 发起 I-Cache Tag Array 检查 |
+| `ipb_icache_if_req_for_gateclk` | 1 | ipb | IPB tag 检查的本地时钟提前使能；未被 `pre_cancel` 组合屏蔽 |
+| `ipb_icache_if_index` | 34 | ipb | 下一条 64B line 的虚拟 line number，即 `VPC[39:6]` |
+| `ifu_hpcp_icache_miss_pre` | 1 | l1_refill | WFD1 收到首个 data/error 返回事件的组合 miss 事件 |
 
 ### 9.2 输出信号
 
@@ -643,14 +861,14 @@ PMU 寄存器使用独立的门控时钟 `hpcp_clk`，只有在 cache 使能且 
 | `icache_if_ifdp_inst_data1` | 128 | ifdp | Way1 指令数据读出 |
 | `icache_if_ifdp_precode0` | 32 | ifdp | Way0 预解码结果读出 |
 | `icache_if_ifdp_precode1` | 32 | ifdp | Way1 预解码结果读出 |
-| `icache_if_ifctrl_tag_data0` | 29 | ifctrl | Way0 tag（用于命中判断） |
-| `icache_if_ifctrl_tag_data1` | 29 | ifctrl | Way1 tag（用于命中判断） |
-| `icache_if_ifctrl_inst_data0` | 128 | ifctrl | Way0 指令数据（验证用） |
-| `icache_if_ifctrl_inst_data1` | 128 | ifctrl | Way1 指令数据（验证用） |
+| `icache_if_ifctrl_tag_data0` | 29 | ifctrl | Way0 `{valid,tag}`，供 CP0 cache-tag read 状态机锁存 |
+| `icache_if_ifctrl_tag_data1` | 29 | ifctrl | Way1 `{valid,tag}`，供 CP0 cache-tag read 状态机锁存 |
+| `icache_if_ifctrl_inst_data0` | 128 | ifctrl | Way0 Data Array `Q`，供 CP0 cache-data read |
+| `icache_if_ifctrl_inst_data1` | 128 | ifctrl | Way1 Data Array `Q`，供 CP0 cache-data read |
 | `icache_if_ipb_tag_data0` | 29 | ipb | Way0 tag（prefetch 命中检查） |
 | `icache_if_ipb_tag_data1` | 29 | ipb | Way1 tag（prefetch 命中检查） |
-| `ifu_hpcp_icache_access` | 1 | HPCP | cache 访问事件（打拍后） |
-| `ifu_hpcp_icache_miss` | 1 | HPCP | cache miss 事件（打拍后） |
+| `ifu_hpcp_icache_access` | 1 | HPCP | PCGEN sequence/change-flow I-Cache data 访问事件，打拍后输出 |
+| `ifu_hpcp_icache_miss` | 1 | HPCP | L1-refill WFD1 首返回事件，打拍后输出；包含 transfer error |
 
 ---
 
@@ -659,9 +877,9 @@ PMU 寄存器使用独立的门控时钟 `hpcp_clk`，只有在 cache 使能且 
 | 设计决策 | 原因 |
 |---|---|
 | Tag array 59 位存两路 | 一次读出完成 tag compare，避免两次 SRAM 读 |
-| Refill first 写 valid=0 | 防止 refill 中途被"伪命中"读到脏数据 |
+| Refill first 写 valid=0 | 在四个 16B block 尚未全部提交时隐藏替换 way，避免旧 tag 命中部分已覆盖的数据 |
 | FIFO 替换位编码为 `{!fifo, fifo}` | 直接 one-hot 驱动 way wen，无需额外译码 |
 | Data array 分 4 bank，精确激活 | 顺序取指时省去不需要的 bank 功耗 |
-| Predecode array 不分 bank | 32 位功耗极低，分 bank 增加复杂度得不偿失 |
-| 两路 MUX + OR 树的 index 选择结构 | pcgen 是关键路径，单独拉出来让综合工具优化 |
-| PMU 使用独立门控时钟 | 非 PMU 使用场景完全关闭该寄存器的时钟，省功耗 |
+| Predecode array 不分 bank | 当前 RTL 以单个 32-bit 数据行读取；面积/功耗取舍需综合结果量化 |
+| higher one-hot case + pcgen 外层 2:1 选择 | 让 pcgen 走独立外层选择；时序收益是源码意图，需 STA 验证 |
+| PMU 使用独立条件采样与 ICG wrapper | 计数关闭时寄存器保持；物理时钟是否停止取决于 module/global enable、技术 ICG 配置和实现 |

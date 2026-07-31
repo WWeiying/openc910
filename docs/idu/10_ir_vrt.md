@@ -1,799 +1,693 @@
-# C910 IDU 向量重命名表 ir_vrt 详解
+# C910 IDU IR-VRT 详解：当前 RTL 的常量占位边界
 
-**RTL 文件：** `ct_idu_ir_vrt.v`（518 行）  
-**子模块：** `ct_idu_dep_vreg_srcv2_entry.v`  
-**所在流水级：** IR（Issue-Rename，第二发射级）
+> RTL 源文件：`C910_RTL_FACTORY/gen_rtl/idu/rtl/ct_idu_ir_vrt.v`
+>
+> 本文只把**有效 Verilog**作为当前硬件事实。文件中以 `// &Instance`、
+> `// &CombBeg` 等形式保存的大段内容是被注释的代码生成器指令，不会进入综合。
 
----
+## 1. 结论先行
 
-## 目录
+在当前公开 RTL 中，`ct_idu_ir_vrt` 不是一个工作的向量重命名表。该模块：
 
-1. [模块概述](#1-模块概述)
-2. [RVV 向量寄存器背景](#2-rvv-向量寄存器背景)
-3. [端口说明](#3-端口说明)
-4. [重命名表结构：34 个依赖跟踪项](#4-重命名表结构34-个依赖跟踪项)
-5. [重命名表项子模块 dep_vreg_srcv2_entry 深解](#5-重命名表项子模块-dep_vreg_srcv2_entry-深解)
-6. [查表逻辑：源寄存器依赖信息读取](#6-查表逻辑源寄存器依赖信息读取)
-7. [写入逻辑：目的寄存器表项更新](#7-写入逻辑目的寄存器表项更新)
-8. [同周期前递（Intra-packet Forwarding）](#8-同周期前递intra-packet-forwarding)
-9. [srcv2 的特殊处理与跨指令匹配](#9-srcv2-的特殊处理与跨指令匹配)
-10. [输出数据格式：向 viq 提供的依赖信息](#10-输出数据格式向-viq-提供的依赖信息)
-11. [v0 掩码寄存器（srcvm）处理](#11-v0-掩码寄存器srcvm处理)
-12. [向量寄存器组（LMUL>1）对重命名的影响](#12-向量寄存器组lmul1对重命名的影响)
-13. [flush 恢复与复位](#13-flush-恢复与复位)
-14. [当前 RTL 状态：占位模块说明](#14-当前-rtl-状态占位模块说明)
-15. [上下游接口总结](#15-上下游接口总结)
+- 没有寄存器、状态机、时钟和有效的子模块实例；
+- 不读取任何输入来计算输出；
+- 把所有同包向量依赖匹配输出固定为 0；
+- 把四个指令槽的向量源状态和释放寄存器号固定为常量。
 
----
+所以，阅读当前 RTL 时不能把注释模板里的 34 个
+`ct_idu_dep_vreg_srcv2_entry` 当成已经存在的硬件，也不能从本文件推导
+“向量 RAT 如何更新、如何 wakeup、如何 flush 恢复”。这些机制在该文件的
+有效逻辑中并未实现。
 
-## 1. 模块概述
+## 2. 模块原本位于哪条数据通路
 
-### 1.1 ir_vrt 在 IDU 中的位置
+IR 阶段同时处理最多四个派遣槽。对整数源，`ct_idu_ir_rt` 查整数重命名表；
+对浮点源，`ct_idu_ir_frt` 查浮点/扩展寄存器表；对向量源，接口设计上由
+`ct_idu_ir_vrt` 提供相同类别的信息：
 
-C910 的 IDU（Issue/Dispatch Unit）在 IR 阶段（Issue-Rename 阶段）维护三张**寄存器重命名表（Register Rename Table）**：
-
-| 缩写  | 模块                  | 管理的寄存器              | 目的寄存器位宽 | 表项数 |
-|-------|-----------------------|--------------------------|----------------|--------|
-| `irt` | `ct_idu_ir_rt`        | 整数通用寄存器 x0~x31     | preg[6:0]      | 32     |
-| `frt` | `ct_idu_ir_frt`       | 浮点/向量标量寄存器 f0~f31 | freg[5:0]+ereg | 32+1   |
-| **`vrt`** | **`ct_idu_ir_vrt`** | **向量寄存器 v0~v31**    | **vreg[5:0]**  | **34** |
-
-三张表协同完成"**寄存器号 → 数据就绪状态**"的映射，使得发射队列（iq/viq）中的指令可以判断源操作数何时可以读取。
-
-### 1.2 ir_vrt 的核心职责
-
-ir_vrt 是**向量寄存器依赖跟踪表**，不是经典意义上的"物理寄存器重命名（RAT）"——C910 向量部分采用的是**in-order 顺序提交**策略，不分配物理寄存器编号（vpreg），而是直接跟踪每个架构向量寄存器（v0~v31）的**数据就绪状态**。
-
-具体地，ir_vrt 负责：
-
-1. **记录 vN 寄存器当前是否有未完成的写操作**（rdy 位、wb 位）
-2. **记录写该 vN 寄存器的指令的目的物理寄存器编号**（vreg[6:0]，用于向量流水线比对）
-3. **监听 VFPU 流水线各阶段的执行状态**，提前预测数据就绪时机
-4. **向下游 viq（向量发射队列）输出**每条指令的四个向量源操作数依赖信息：srcv0、srcv1、srcv2、srcvm
-
-### 1.3 与整数/浮点表的分工
-
-```
-整数 irt：管理 x0~x31，输出 src0/src1/src2 依赖信息 → iq（整数发射队列）
-浮点 frt：管理 f0~f31，输出 srcf0/srcf1/srcf2 依赖信息 → fiq（浮点发射队列）
-向量 vrt：管理 v0~v31，输出 srcv0/srcv1/srcv2/srcvm 依赖信息 → viq（向量发射队列）
+```text
+ID 译码出的逻辑向量寄存器号
+          |
+          v
+  ct_idu_ir_vrt（当前为常量占位）
+          |
+          +--> 源物理寄存器号、ready、writeback
+          +--> 目的寄存器的旧映射 rel_vreg
+          +--> 同一派遣包内的 srcv2 RAW 匹配
+          |
+          v
+  ct_idu_ir_dp 打包成 271 位 IS 数据
+          |
+          v
+  VIQ/LSIQ/SDIQ
 ```
 
-在 `ct_idu_ir_dp.v` 中，frt 和 vrt 的输出会被 MUX 合并为统一的 `ir_rt_instN_srcvX_data`，送入 IS 阶段数据通路，区分依据是 `IR_SRCV0_VLD`/`IR_SRCF0_VLD` 标志位（见第 15 节）。
+`ct_idu_ir_dp.v:1713~1833` 会在指令使用向量源时选择 VRT 输出；浮点源则选择
+FRT 输出。`ct_idu_ir_dp.v:1842~1847` 还会把 VRT 与 FRT 的同包匹配结果做
+OR。因此，即使本模块没有状态，它的常量仍会直接进入后续发射队列数据。
 
----
+### 2.1 为什么接口存在不等于功能已经实现
 
-## 2. RVV 向量寄存器背景
+大型处理器 RTL 经常为了保持顶层接口稳定，保留一个被裁剪功能的端口壳。这样做有
+三个工程原因：
 
-### 2.1 架构寄存器 v0~v31
+1. 上下游模块的端口列表不需要随产品配置反复修改；
+2. 同一套生成源可以面向不同配置展开不同实现；
+3. 被关闭的功能可以用常量传播在综合阶段消除。
 
-RVV（RISC-V Vector Extension）定义 32 个向量寄存器 v0~v31，每个宽度为 VLEN 位。C910 的 VLEN=256 位。
+因此，判断一个硬件机制是否存在，证据强度应按下面顺序排列：
 
-### 2.2 v0 的掩码寄存器特殊角色
-
-RVV 中 **v0 是唯一可充当掩码寄存器的架构向量寄存器**。带掩码的向量指令使用 `vm=0` 时，源操作数包含：
-
+```text
+端口名/注释             只能说明设计意图
+有效 assign/always      能说明组合或时序行为
+有效子模块实例          能说明结构确实被展开
+filelist + 宏配置        能说明仿真/综合实际选用了哪份实现
+波形/形式验证/测试      能说明运行时行为符合预期
 ```
-vs1/vs2/vd（普通向量源/目）+ v0.t（掩码，即 srcvm）
+
+当前 VRT 正好说明了这组证据层次的重要性：端口和 `// &Instance` 注释保留了
+接口意图，但有效 Verilog 中没有相应状态实例，filelist 和顶层配置也没有展开
+完整向量重命名链路。因此后文会保留这些接口的设计含义，同时把实际行为限定为
+当前常量输出，避免把生成器注释等同于已实现电路。
+
+### 2.2 IR 四槽与向量指令拆分
+
+IR/IS 内部有 inst0~inst3 四个槽，但这并不表示前端每拍取入四条架构向量指令。
+IFU/ID 原始输入最多三条，复杂指令拆分后可以形成最多四个内部槽。向量指令的
+LMUL、元素操作和访存微操作可能在拆分模块中产生多个内部操作；VRT 若完整实现，
+必须对这些内部操作携带的逻辑寄存器号建立一致依赖，而不能简单按“每条架构指令
+只写一个 vN”处理。
+
+## 3. 输入接口：当前均未被有效逻辑消费
+
+模块共有 41 个输入：四个指令槽各 10 个，加一条 192 位恢复总线。四槽接口如下：
+
+| 输入 | 位宽 | 接口意图 | 当前有效 RTL |
+|---|---:|---|---|
+| `dp_vrt_instN_dst_vreg` | 6 | RTU 分配的目的向量物理池局部索引；`ir_dp` 在统一编号中另加类别位 1 | 未使用 |
+| `dp_vrt_instN_dstv_reg` | 6 | IR 指令数据中的逻辑目的向量寄存器/内部拆分编码 | 未使用 |
+| `dp_vrt_instN_dstv_vld` | 1 | 目的向量寄存器有效 | 未使用 |
+| `dp_vrt_instN_srcv0_reg` | 6 | 第一条显式逻辑向量源编号，不是固定的架构 v0 | 未使用 |
+| `dp_vrt_instN_srcv0_vld` | 1 | srcv0 源字段有效 | 未使用 |
+| `dp_vrt_instN_srcv1_reg` | 6 | 第二条显式逻辑向量源编号，不是固定的架构 v1 | 未使用 |
+| `dp_vrt_instN_srcv1_vld` | 1 | srcv1 源字段有效 | 未使用 |
+| `dp_vrt_instN_srcv2_vld` | 1 | 目的兼源/累加源有效；接口没有独立 srcv2 编号 | 未使用 |
+| `dp_vrt_instN_srcvm_vld` | 1 | 向量 mask 源有效；接口没有独立 mask 编号 | 未使用 |
+| `dp_vrt_instN_vmla` | 1 | 向量乘加类标记 | 未使用 |
+| `rtu_idu_rt_recover_vreg` | 192 | 32×6 位的 RTU 向量退休态恢复映射接口 | 未使用 |
+
+判断“未使用”的依据不是信号名，而是有效 RTL：端口声明之后直到模块结尾，
+这些输入没有出现在任何有效 `assign`、`always` 或实例端口连接中。
+
+### 3.1 没有独立编号的 srcv2 与 srcvm 应怎样理解
+
+`srcv2_vld` 和 `srcvm_vld` 只有有效位，没有配套的 `srcv2_reg` 或 `srcvm_reg`。
+从 RVV 语义和接口形状可以得到两项**设计意图推断**：
+
+- 累加类指令的 srcv2 通常是旧目的 `vd`，因此预期复用
+  `dp_vrt_instN_dstv_reg` 查旧映射；
+- mask 源的架构名字固定为 v0，因此预期读取逻辑 v0 的当前映射。
+
+这两项推断与相邻 FRT/VIQ 接口一致，但当前 VRT 没有有效查表逻辑，不能把它们
+写成“本模块实际执行了 `srcv2=dstv`、`srcvm=v0`”。当前硬件事实仍是两路输出
+均为常量。
+
+### 3.2 输入接口缺少哪些活动 VRT 必需的信号
+
+比“输入没有被使用”更强的证据是：当前模块端口列表本身没有以下信号。
+
+| 缺少的接口类别 | 活动重命名表为什么需要 | 当前后果 |
+|---|---|---|
+| 时钟、复位 | 保存映射和 ready/wb 状态 | 本模块不可能产生时序状态 |
+| IR 槽有效、stall | 只在指令真正推进时更新目的映射 | 无法进行受控的正常写入 |
+| 全局/分级 flush | 清除推测依赖状态并触发恢复 | 192 位恢复总线没有触发条件 |
+| VFPU/LSU 就绪广播 | 按生产者物理号更新 ready/wb | 无法动态唤醒任何源 |
+| RTU 分配有效 | 区分“有编号”与“本拍真的分配” | `dst_vreg` 数值本身不能触发状态变化 |
+| ICG 控制 | 为状态表提供受控时钟 | 注释中的 `vrt_top_clk` 在有效 RTL 中不存在 |
+
+因此，不能通过简单取消 `// &Instance` 的注释来恢复功能。那些行是生成器指令，
+不是合法的完整 Verilog 实例；即使手工改成实例，也仍缺少上述端口和写使能、
+查表、恢复、旁路组合逻辑。
+
+### 3.3 输出接口：26 条输出全部由常量驱动
+
+模块共有 26 条输出：四槽各五条数据输出，再加四槽两两组合的六条 srcv2 匹配。
+
+| 输出 | 位宽 | 完整接口中的用途 | 当前驱动 |
+|---|---:|---|---|
+| `vrt_dp_instN_srcv0_data` | 9 | srcv0 的 `{统一物理号, wb, rdy}` | `9'b100000011` |
+| `vrt_dp_instN_srcv1_data` | 9 | srcv1 的 `{统一物理号, wb, rdy}` | `9'b100000011` |
+| `vrt_dp_instN_srcv2_data` | 10 | srcv2 的 `{rdy, 统一物理号, wb, mla_rdy}` | `10'b1000000111` |
+| `vrt_dp_instN_srcvm_data` | 9 | mask 源的 `{统一物理号, wb, rdy}` | `9'b100000011` |
+| `vrt_dp_instN_rel_vreg` | 7 | 目的逻辑寄存器被覆盖前的旧统一物理映射 | `7'b0` |
+| `vrt_dp_instXY_srcv2_match` | 1 | 较老槽 X 的目的与较新槽 Y 的 srcv2 同包相关 | `1'b0` |
+
+`src*_vld` 没有被 VRT 用来把无效源改写成中性 ready；相反，无论有效位是什么，
+本模块都输出同一组常量。下游仍单独携带各源的 valid 位，因此观察波形时应同时看
+`IS_SRCV*_VLD` 与 `IS_SRCV*_DATA`，不能看到 data 中 ready=1 就断言该源存在。
+
+### 3.4 上游值从哪里来，下游又如何消费
+
+当前有效连接链可以精确写成：
+
+```text
+RTU alloc_vregN[5:0]
+       |
+       v
+ct_idu_ir_dp: ir_instN_dst_vreg
+       |
+       +--> dp_vrt_instN_dst_vreg ----------> VRT（被忽略）
+       |
+       +--> 若 IR_DSTV_VLD：
+            ir_rt_instN_dst_vreg = {1'b1, ir_instN_dst_vreg}
+
+IR 指令数据中的 SRCV*/DSTV 字段
+       |
+       +--> dp_vrt_instN_* -----------------> VRT（被忽略）
+       |
+VRT 常量输出
+       v
+ct_idu_ir_dp 的 FRT/VRT MUX
+       v
+dp_ir_instN_data 的 IS_SRCV*/IS_DST_REL_VREG 字段
+       v
+VIQ/LSIQ/SDIQ 等后续消费者
 ```
 
-在 ir_vrt 中，`srcvm`（source vector mask）对应 v0 寄存器，其有效信号为 `dp_vrt_instN_srcvm_vld`，表示该指令使用 v0 作为掩码。由于 v0 被普通指令和掩码指令共用，v0 对应的表项（vreg entry 0）承受最高的读压力。
+`C910_asic_rtl.fl` 确实列入了这份 `ct_idu_ir_vrt.v`，`ct_idu_top.v` 也有效实例化
+了它。因此“占位”不是“模块未连接”，而是“模块被连接并参与编译，但自身输出
+为常量”。某个具体仿真若使用不同 filelist，仍应以实际 elaborated hierarchy 为准。
 
-### 2.3 LMUL 与寄存器组
+## 4. 唯一有效逻辑：26 条常量赋值
 
-当 `LMUL > 1` 时，RVV 指令操作的不是单个 vN，而是以 vN 为起始的寄存器组（group）。例如 `LMUL=2` 时 `vadd v0, v2, v4` 实际操作的是 `(v0,v1)`、`(v2,v3)`、`(v4,v5)` 共 6 个向量寄存器。
-
-C910 对 LMUL>1 的处理方式是**指令拆分（split）**：将一条多寄存器组向量指令拆分为多条单寄存器操作的子指令，每条子指令有独立的 `dstv_reg`（目的寄存器编号），分别在 ir_vrt 中跟踪。具体拆分由 FE 阶段的 `IR_SPLIT`/`IR_SPLIT_NUM`/`IR_SPLIT_LAST` 字段控制（见 `ct_idu_ir_dp.v` 中的 IS_SPLIT 相关参数）。
-
-**因此 ir_vrt 在任意时刻都只处理单个向量寄存器粒度的依赖**，LMUL 带来的多寄存器依赖通过多条子指令的串行处理体现。
-
----
-
-## 3. 端口说明
-
-### 3.1 来自 dp（ir_dp）的输入
-
-每条指令（inst0~inst3）携带以下输入，共 4 组，格式相同：
+`ct_idu_ir_vrt.v:487~512` 对四个槽重复以下常量：
 
 ```verilog
-// 以 inst0 为例（第 88~97 行）
-input [5:0] dp_vrt_inst0_dst_vreg;   // 目的物理向量寄存器号（RTU 分配）
-input [5:0] dp_vrt_inst0_dstv_reg;   // 目的架构向量寄存器号（v0~v31 的低 5 位）
-input       dp_vrt_inst0_dstv_vld;   // 是否有向量目的寄存器
-input [5:0] dp_vrt_inst0_srcv0_reg;  // 源操作数 vs1 的架构寄存器号
-input       dp_vrt_inst0_srcv0_vld;  // vs1 是否有效
-input [5:0] dp_vrt_inst0_srcv1_reg;  // 源操作数 vs2 的架构寄存器号
-input       dp_vrt_inst0_srcv1_vld;  // vs2 是否有效
-input       dp_vrt_inst0_srcv2_vld;  // 三源操作数 vd（accumulate）是否有效
-input       dp_vrt_inst0_srcvm_vld;  // 掩码源 v0 是否有效
-input       dp_vrt_inst0_vmla;       // 是否为向量乘加指令（vmla/vfmacc 等）
-```
-
-**字段解析：**
-
-| 字段 | 宽度 | 含义 |
-|------|------|------|
-| `dst_vreg[5:0]` | 6 位 | RTU 为该指令分配的向量物理寄存器（`rtu_idu_alloc_vregN`），用于存储 vreg[6:0] 中的低 6 位；bit6 区分向量（1）和浮点（0） |
-| `dstv_reg[5:0]` | 6 位 | 架构目的向量寄存器编号，即指令中的 `vd`（0~31），用于索引 34 个表项中的对应项 |
-| `dstv_vld` | 1 位 | 本指令是否有向量目的寄存器（写 vN），有则触发表项更新 |
-| `srcv0_reg[5:0]` | 6 位 | 架构源寄存器 vs1 的编号，用于查表 |
-| `srcv1_reg[5:0]` | 6 位 | 架构源寄存器 vs2 的编号，用于查表 |
-| `srcv2_vld` | 1 位 | 三源指令（乘加类）中，vd 同时作为源操作数，无寄存器编号字段（编号同 `dstv_reg`） |
-| `srcvm_vld` | 1 位 | 是否使用 v0 为掩码寄存器，无寄存器编号字段（固定为 v0，即表项 0） |
-| `vmla` | 1 位 | 向量乘加标志，影响 `mla_rdy` 路径计算 |
-
-> **注意：** `srcv2` 没有独立的 `srcv2_reg` 字段，因为对于三源向量指令（如 `vfmacc vd, vs1, vs2`），第三个源就是目的寄存器 `vd` 本身，其寄存器号就是 `dstv_reg`。类似地，`srcvm` 固定使用 v0（表项 0）。
-
-### 3.2 flush 输入
-
-```verilog
-// 第 128 行
-input [191:0] rtu_idu_rt_recover_vreg;  // RTU 提供的 flush 恢复向量
-```
-
-这是一个 192 位向量（32 个向量寄存器 × 6 位/个 = 192 位），携带 flush 后每个架构向量寄存器应映射到的 vreg 值（用于恢复到 ROB 检查点状态）。
-
-### 3.3 向 dp 的输出
-
-每条指令（inst0~inst3）输出四路源操作数依赖信息：
-
-```verilog
-// 以 inst0 为例（第 132~136 行）
-output [6:0] vrt_dp_inst0_rel_vreg;   // 释放的旧目的 vreg（供 RTU/ROB 回收）
-output [8:0] vrt_dp_inst0_srcv0_data; // vs1 依赖信息（9 位）
-output [8:0] vrt_dp_inst0_srcv1_data; // vs2 依赖信息（9 位）
-output [9:0] vrt_dp_inst0_srcv2_data; // vd-as-src3 依赖信息（10 位，含 mla_rdy）
-output [8:0] vrt_dp_inst0_srcvm_data; // v0 掩码依赖信息（9 位）
-```
-
-**srcv0/srcv1/srcvm 9 位格式（与 `x_read_data` 的低 9 位对应）：**
-
-| 位 | 含义 |
-|----|------|
-| [0]   | `rdy`：数据就绪（可以旁路或已在 PRF 中） |
-| [1]   | `wb`：已写回 PRF |
-| [8:2] | `vreg[6:0]`：生产者的物理向量寄存器编号 |
-
-**srcv2 10 位格式（多出 mla_rdy 位）：**
-
-| 位 | 含义 |
-|----|------|
-| [0]   | `rdy` |
-| [1]   | `wb` |
-| [8:2] | `vreg[6:0]` |
-| [9]   | `mla_rdy`：向量乘加专用就绪位，比普通 `rdy` 更早拉高 |
-
-### 3.4 同周期跨指令 srcv2 匹配信号
-
-```verilog
-// 第 129~131, 137~138, 144 行
-output vrt_dp_inst01_srcv2_match;  // inst0 的 dst 与 inst1 的 srcv2 相同
-output vrt_dp_inst02_srcv2_match;  // inst0 的 dst 与 inst2 的 srcv2 相同
-output vrt_dp_inst03_srcv2_match;  // inst0 的 dst 与 inst3 的 srcv2 相同
-output vrt_dp_inst12_srcv2_match;  // inst1 的 dst 与 inst2 的 srcv2 相同
-output vrt_dp_inst13_srcv2_match;  // inst1 的 dst 与 inst3 的 srcv2 相同
-output vrt_dp_inst23_srcv2_match;  // inst2 的 dst 与 inst3 的 srcv2 相同
-```
-
-这 6 个信号用于同一分发包内（intra-packet）的前递检测（详见第 8 节）。
-
----
-
-## 4. 重命名表结构：34 个依赖跟踪项
-
-### 4.1 为什么是 34 项而非 32 项
-
-ir_vrt 注释中可以看到实例化了 34 个 `ct_idu_dep_vreg_srcv2_entry`（reg_0 ~ reg_33）：
-
-```verilog
-// 第 196~296 行（注释中的 &Instance 宏展开）
-// reg_0  ~ reg_31：对应 v0~v31（32 个架构向量寄存器）
-// reg_32, reg_33：保留/扩展项（对应 vreg[5] bit 的 freg 空间复用）
-```
-
-对照 `ct_idu_ir_frt.v`，浮点表也是 33 项（reg_0~reg_32），向量表是 34 项。多出的 2 项（reg_32, reg_33）是为了支持 **6 位 vreg 编码**：`dstv_reg[5:0]` 的 bit5 有特殊含义（区分 vector/float 空间），因此通过 `ct_rtu_expand_32` 宏展开 5 位的低字段再处理高位，可以访问到索引 32、33 的项。
-
-### 4.2 表项索引方式
-
-写入（write port）使用 `ct_rtu_expand_32` 将 `dstv_reg[4:0]`（5 位，0~31）展开为 32 位独热码，再结合 `dstv_reg[5]` bit 选择是写普通向量项（reg_0~reg_31）还是扩展项（reg_32~reg_33）：
-
-```verilog
-// 参考 ct_idu_ir_frt.v 第 2856~2859 行的类似逻辑（vrt 同构）：
-assign reg_write0_en[31:0] = dstv_reg_lsb_expand[31:0]
-                             & {32{inst0_write_en && !dp_vrt_inst0_dstv_reg[5]}};
-assign reg_write0_en[32]   = dstv_reg_lsb_expand[0]
-                             && inst0_write_en && dp_vrt_inst0_dstv_reg[5];
-// reg_33 类似...
-```
-
-读取（read port）使用 case 语句以 `srcvX_reg[5:0]` 为索引从所有项中选择对应的 `read_data[12:0]`。
-
-### 4.3 整体结构图
-
-```
-     架构向量寄存器       重命名表项                  输出
-      v0 (v0-mask)  →  entry_vreg[0]  {rdy, wb, vreg, mla_rdy, lsu_match}
-      v1            →  entry_vreg[1]
-      v2            →  entry_vreg[2]
-      ...
-      v31           →  entry_vreg[31]
-      [ext32]       →  entry_vreg[32]  (vreg[5]=1 时的第0项)
-      [ext33]       →  entry_vreg[33]  (vreg[5]=1 时的第1项)
-
- 每个表项跟踪：
-   - rdy        : 数据就绪（可以旁路转发）
-   - mla_rdy    : 乘加专用提前就绪
-   - wb         : 已写回到向量寄存器堆
-   - vreg[6:0]  : 生产者的物理 vreg 编号
-   - lsu_match  : 是否有 vload 指令在流水线中匹配此寄存器
-```
-
----
-
-## 5. 重命名表项子模块 dep_vreg_srcv2_entry 深解
-
-`ct_idu_dep_vreg_srcv2_entry.v` 是 ir_vrt 中每个向量寄存器的状态机单元，同样被 ir_frt 复用。本节以此子模块为核心讲解所有依赖跟踪逻辑。
-
-### 5.1 创建（Create）数据格式
-
-表项通过 `x_create_data[10:0]` 写入，字段如下（第 263~267 行）：
-
-```verilog
-assign x_create_lsu_match = x_create_data[10];  // 初始 LSU 匹配状态
-assign x_create_mla_rdy   = x_create_data[9];   // 初始 mla_rdy
-assign x_create_vreg[6:0] = x_create_data[8:2]; // 生产者 vreg 编号（7 位）
-assign x_create_wb        = x_create_data[1];   // 初始写回状态
-assign x_create_rdy       = x_create_data[0];   // 初始就绪状态
-```
-
-当一条有 `dstv_vld` 的向量指令进入 IR 阶段时，`x_write_en` 拉高，将创建数据写入对应的 `dstv_reg` 表项。此时 `x_create_rdy=0`（指令刚发射，结果未就绪），`x_create_wb=0`，`x_create_vreg` 为 RTU 分配的新 vreg。
-
-### 5.2 读取（Read）数据格式
-
-表项通过 `x_read_data[12:0]` 输出（第 269~275 行）：
-
-```verilog
-assign x_read_data[12]    = x_read_lsu_match;      // LSU 匹配
-assign x_read_data[11]    = x_read_rdy_for_bypass;  // 可以旁路读取
-assign x_read_data[10]    = x_read_rdy_for_issue;   // 可以发射（含提前就绪路径）
-assign x_read_data[9]     = x_read_mla_rdy;         // mla 提前就绪
-assign x_read_data[8:2]   = x_read_vreg[6:0];       // 生产者 vreg 编号
-assign x_read_data[1]     = x_read_wb;              // 已写回 PRF
-assign x_read_data[0]     = x_read_rdy;             // 基础就绪位
-```
-
-### 5.3 rdy（就绪位）状态机
-
-rdy 位追踪"数据可以被旁路读取"的状态，更新逻辑如下（第 285~338 行）：
-
-**数据就绪来源：**
-
-```verilog
-// VFPU pipe6（整数或向量 FPU 管道 6）的各执行阶段
-assign vfpu0_ex3_data_ready = vfpu_idu_ex1_pipe6_data_vld_dupx
-                              && (vfpu_idu_ex1_pipe6_vreg_dupx == vreg);
-assign vfpu0_ex4_data_ready = vfpu_idu_ex2_pipe6_data_vld_dupx
-                              && (vfpu_idu_ex2_pipe6_vreg_dupx == vreg);
-assign vfpu0_ex5_data_ready = vfpu_idu_ex3_pipe6_data_vld_dupx
-                              && (vfpu_idu_ex3_pipe6_vreg_dupx == vreg);
-// VFPU pipe7 类似...
-// LSU（向量 load）
-assign load_data_ready = lsu_idu_dc_pipe3_vload_inst_vld_dupx
-                         && (lsu_idu_dc_pipe3_vreg_dupx == vreg);
-```
-
-**时序含义：**
-- `ex1_pipe6_data_vld` → 表示 EX2 阶段的结果将在下一周期（EX3）可旁路，即发出信号的周期之后 2 个周期数据就绪
-- 各阶段信号依次对应 EX3、EX4、EX5 可用（向量浮点流水线深度约 5 级）
-
-**综合就绪判断：**
-
-```verilog
-assign data_ready  = vfpu0_ex3_data_ready || vfpu0_ex4_data_ready || vfpu0_ex5_data_ready
-                  || vfpu1_ex3_data_ready || vfpu1_ex4_data_ready || vfpu1_ex5_data_ready
-                  || load_data_ready;
-assign wake_up     = wb;           // wb 已置位则肯定 ready
-assign rdy_clear   = x_rdy_clr;   // 外部强制清零（vrt 中 rdy_clr 固定为 0）
-
-assign rdy_update  = (rdy || data_ready || wake_up) && !rdy_clear;
-```
-
-**为什么这样设计：** 设置一旦 rdy=1 就保持（sticky）的逻辑，是因为 IR 阶段是推测性跟踪阶段——一旦某时刻知道数据将要就绪，就把该信息传给发射队列，让发射队列在数据真正到来时能及时发射，而无需反复轮询。
-
-**寄存器时序（第 328~338 行）：**
-
-```verilog
-always @(posedge dep_clk or negedge cpurst_b) begin
-  if(!cpurst_b)           rdy <= 1'b1;  // 复位：所有寄存器初始化为就绪
-  else if(rtu_idu_flush_fe || rtu_idu_flush_is)
-                          rdy <= 1'b1;  // flush：恢复到就绪（前端 flush）
-  else if(x_write_en)     rdy <= x_create_rdy;  // 新指令写入：使用创建值
-  else                    rdy <= rdy_update;     // 正常更新
-end
-```
-
-**为什么 flush 后设为 1：** flush 表示流水线清洗，此后所有未完成写操作对应的指令也已经被冲刷，所以对应的向量寄存器数据处于已知稳定状态（恢复到检查点），可以被读取，故 rdy=1。
-
-### 5.4 rdy_for_issue 与 rdy_for_bypass 的区别
-
-```verilog
-assign x_read_rdy_for_issue  = rdy || mla_rdy || load_issue_data_ready
-                                    || vfpu0_vdsp_fwd_data_ready
-                                    || vfpu1_vdsp_fwd_data_ready;
-assign x_read_rdy_for_bypass = rdy;
-```
-
-| 信号 | 含义 | 何时为 1 |
-|------|------|----------|
-| `rdy_for_bypass` | 数据可以旁路转发给执行单元 | 仅 `rdy=1` 时 |
-| `rdy_for_issue` | 指令可以从发射队列发射 | `rdy=1`，或 `mla_rdy=1`（乘加提前），或 load 前递，或 vdsp forward |
-
-这一区分的原因：**发射可以比实际旁路超前一拍**。某些情况下（如 mla 流水线）指令虽然数据还没到 bypass 网络，但计划在下一周期到达，此时可以先发射，数据将在执行开始前到位。`rdy_for_bypass` 则要求当周期就可以读取，不超前发射。
-
-### 5.5 mla_rdy（向量乘加就绪位）
-
-对于向量乘加指令（VMLA，如 `vfmacc.vv vd, vs1, vs2`），vd 同时是源操作数和目的操作数。mla_rdy 跟踪的是：**当该 vN 作为乘加指令的累加源（srcv2）时，其上一次结果何时就绪**。
-
-mla_rdy 比普通 rdy **更早置位**，原因是乘加流水线可以在 EX1/EX2 就实施内部"链路直通（chain）"，不必等到 EX5 写回：
-
-```verilog
-// 第 367~394 行
-assign vfpu0_fmla_data_ready = x_entry_vmla
-                               && vfpu_idu_ex2_pipe6_fmla_data_vld_dupx
-                               && (vfpu_idu_ex2_pipe6_vreg_dupx == vreg)
-                            || x_entry_vmla
-                               && vfpu_idu_ex1_pipe6_fmla_data_vld_dupx
-                               && (vfpu_idu_ex1_pipe6_vreg_dupx == vreg);
-// vmla_lch（latch）信号：在 RF 阶段锁存的乘加信号
-assign vfpu0_vmla_data_ready = x_entry_vmla
-                               && ctrl_xx_rf_pipe6_vmla_lch_vld_dupx
-                               && (dp_xx_rf_pipe6_dst_vreg_dupx == vreg);
-// vdsp（向量 DSP）旁路转发
-assign vfpu0_vdsp_fwd_data_ready = x_entry_vmla && vfpu0_vreg_fwd_vld;
-```
-
-**注意：** `x_entry_vmla` 由表项上游控制（在 ir_vrt 语境中来自 `dp_vrt_instN_vmla`），用于限定"只有当该表项对应的指令是 vmla 类型时，才考虑 fmla/vmla_lch 路径"。这样避免了非乘加指令错误地继承了乘加前递的就绪条件。
-
-在 ir_frt 中，所有浮点表项都固定 `reg_N_entry_vmla = 1'b1`（第 2702~2734 行），意味着浮点表每个 freg 都被视为 vmla 候选（因为浮点乘加 fmla 的特性与向量乘加类似）。
-
-### 5.6 wb（写回位）
-
-wb 跟踪"数据已写入向量 PRF（Physical Register File）"的状态：
-
-```verilog
-// 第 425~450 行
-assign pipe3_wb = lsu_idu_wb_pipe3_wb_vreg_vld_dupx
-                  && (lsu_idu_wb_pipe3_wb_vreg_dupx == vreg); // 向量 load 写回
-assign pipe6_wb = vfpu_idu_ex5_pipe6_wb_vreg_vld_dupx
-                  && (vfpu_idu_ex5_pipe6_wb_vreg_dupx == vreg); // VFPU pipe6 WB
-assign pipe7_wb = vfpu_idu_ex5_pipe7_wb_vreg_vld_dupx
-                  && (vfpu_idu_ex5_pipe7_wb_vreg_dupx == vreg); // VFPU pipe7 WB
-
-assign write_back = wb || pipe3_wb || pipe6_wb || pipe7_wb;
-assign wb_update  = wb || write_back; // sticky：一旦写回永远保持
-```
-
-wb=1 且 rdy=1 的意义：数据已实际存储在 PRF 中，后续依赖指令无需旁路，可以直接从 PRF 读取。
-
-### 5.7 vreg（生产者寄存器编号存储）
-
-```verilog
-// 第 456~464 行
-always @(posedge write_clk or negedge cpurst_b) begin
-  if(!cpurst_b)       vreg[6:0] <= 7'b0;
-  else if(x_write_en) vreg[6:0] <= x_create_vreg[6:0]; // 写入新生产者的 vreg
-  else                vreg[6:0] <= vreg[6:0];           // 保持
-end
-assign x_read_vreg[6:0] = vreg[6:0];
-```
-
-vreg 使用独立的 `write_clk`（由 `x_gateclk_idx_write_en` 门控），与 rdy/wb 使用的 `dep_clk` 分离，目的是**降低功耗**——vreg 字段只在有新指令写入时才需要翻转，而 rdy/wb 需要在每个周期检测旁路条件。
-
-### 5.8 lsu_match（向量 load 匹配位）
-
-```verilog
-// 第 343~358 行
-assign lsu_match_update = lsu_idu_ag_pipe3_vload_inst_vld
-                          && (lsu_idu_ag_pipe3_vreg_dupx == vreg);
-```
-
-lsu_match 在 LSU AG（地址生成）阶段拉高，表示"当前有 vload 指令在流水线中，且其目的寄存器就是此表项对应的 vreg"。用于 `load_issue_data_ready` 路径（见 5.4 节）。
-
----
-
-## 6. 查表逻辑：源寄存器依赖信息读取
-
-在 ir_frt 的实现中（ir_vrt 设计同构），查表逻辑如下（以 frt 中 srcf0 为例，vrt 的 srcv0 逻辑相同）：
-
-```verilog
-// 用架构源寄存器号作为 case 索引，从 34 个表项中取出 read_data
-always @(...) begin
-  case (dp_vrt_inst0_srcv0_reg[5:0])
-    6'd0   : inst0_srcv0_read_data[12:0] = reg_0_read_data[12:0];
-    6'd1   : inst0_srcv0_read_data[12:0] = reg_1_read_data[12:0];
-    ...
-    6'd31  : inst0_srcv0_read_data[12:0] = reg_31_read_data[12:0];
-    6'd32  : inst0_srcv0_read_data[12:0] = reg_32_read_data[12:0];
-    default: ...
-  endcase
-end
-
-// 提取各字段
-assign inst0_srcv0_read_rdy      = inst0_srcv0_read_data[0];
-assign inst0_srcv0_read_wb       = inst0_srcv0_read_data[1];
-assign inst0_srcv0_read_vreg[6:0]= inst0_srcv0_read_data[8:2];
-// ...
-
-// 组成输出（若源操作数无效则强制置 rdy=1, wb=1）
-assign vrt_dp_inst0_srcv0_data[0]   = inst0_srcv0_read_rdy   || !dp_vrt_inst0_srcv0_vld;
-assign vrt_dp_inst0_srcv0_data[1]   = inst0_srcv0_read_wb    || !dp_vrt_inst0_srcv0_vld;
-assign vrt_dp_inst0_srcv0_data[8:2] = {1'b0, inst0_srcv0_read_vreg[5:0]};
-```
-
-**无效源操作数强制置 rdy 的原因：** 发射队列的发射条件是"所有有效源操作数均就绪"。若某源操作数标记为无效（vld=0），则它不存在依赖，应视为"永久就绪"，否则发射队列无法判断何时可以发射。
-
-### 6.1 srcv0 和 srcv1 查表（9 位输出）
-
-使用 `dp_vrt_instN_srcv0_reg[5:0]` 作为索引，返回 `reg_X_read_data` 的低 9 位，格式见第 3.3 节。
-
-### 6.2 srcv2 查表（10 位输出，含 mla_rdy）
-
-srcv2 的寄存器号等于 `dstv_reg`（即指令的目的寄存器），同样以此为索引查表，但输出多出 `read_data[9]`（mla_rdy 位）：
-
-```verilog
-assign vrt_dp_inst0_srcv2_data[9]   = inst0_srcv2_read_mla_rdy || !dp_vrt_inst0_srcv2_vld;
-assign vrt_dp_inst0_srcv2_data[8:0] = ... // 同 srcv0 格式
-```
-
-mla_rdy 仅对 srcv2（累加源）有意义，因为向量乘加链路（fmla/vmla）的特殊优化只适用于第三源操作数（累加器）。
-
-### 6.3 srcvm 查表（固定读 v0 表项）
-
-srcvm（掩码源）固定使用 v0，因此直接读取 `reg_0_read_data`，不需要 case 索引：
-
-```verilog
-// 伪代码（实际 vrt 中 srcvm 逻辑等同于固定 srcv_reg=0 查表）
-assign inst0_srcvm_read_data[12:0] = reg_0_read_data[12:0]; // 固定 v0
-assign vrt_dp_inst0_srcvm_data[8:0] = {
-  1'b0,                              // bit8
-  inst0_srcvm_read_vreg[5:0],        // bits[7:2]
-  inst0_srcvm_read_wb  || !dp_vrt_inst0_srcvm_vld, // bit1
-  inst0_srcvm_read_rdy || !dp_vrt_inst0_srcvm_vld  // bit0
-};
-```
-
----
-
-## 7. 写入逻辑：目的寄存器表项更新
-
-### 7.1 写使能生成
-
-```verilog
-// 以 inst0 为例（参考 frt 对应逻辑）
-assign inst0_write_en = ctrl_rt_inst0_vld    // 指令槽有效
-                        && !ctrl_ir_stall    // 无 stall（stall 时不更新表）
-                        && !vrt_recover_updt_vld  // 无 flush 恢复
-                        && dp_vrt_inst0_dstv_vld; // 有向量目的寄存器
-
-// 用 expand_32 将 5 位寄存器号展开为 32 位独热码，再选择对应的表项写使能
-assign reg_write0_en[31:0] = dstv_reg_lsb_expand[31:0]
-                             & {32{inst0_write_en && !dp_vrt_inst0_dstv_reg[5]}};
-assign reg_write0_en[32]   = dstv_reg_lsb_expand[0]
-                             && inst0_write_en && dp_vrt_inst0_dstv_reg[5];
-// reg_write0_en[33] 类似
-```
-
-**Stall 时不写的原因：** IR 阶段的 stall 意味着当前周期的指令还不能进入 IS 阶段，因此不应该提前修改重命名表。这保证了重命名表的更新与指令实际进入 IS 阶段的时刻同步。
-
-### 7.2 写入内容（create_data）
-
-写入表项的数据需要确定：
-
-- **rdy 初始值：** 取决于 RTU 的 `alloc_vreg` 分配时是否同时确认目前还没有 pending 的写操作。如果上一条写 vN 的指令已经完成（wb=1），则新指令进表时 rdy 可以为 0（因为要等自己执行完），若无 pending 写，则初始 rdy=1。C910 的具体策略为**写入时初始 rdy=0**，由后续的旁路监听机制更新。
-- **wb 初始值：** 0（指令刚派遣，显然还未写回）
-- **vreg 初始值：** `dst_vreg[5:0]`（RTU 分配的新物理寄存器编号）
-- **mla_rdy 初始值：** 0 或由依赖分析确定
-
-### 7.3 四路指令的写优先级
-
-当同一周期的 4 条指令（inst0~inst3）写同一个 vN 时（WAW 依赖），需要保证最新（程序序最大）的一条的 dst_vreg 写入表项。优先级为 **inst3 > inst2 > inst1 > inst0 > flush 恢复**（与 frt 完全相同）：
-
-```verilog
-// 来自 ct_idu_ir_frt.v 第 3091~3113 行的典型模式（vrt 同构）
-always @(...) begin
-  if(reg_gateclk_write3_en[N])      reg_N_create_vreg = dp_vrt_inst3_dst_vreg;
-  else if(reg_gateclk_write2_en[N]) reg_N_create_vreg = dp_vrt_inst2_dst_vreg;
-  else if(reg_gateclk_write1_en[N]) reg_N_create_vreg = dp_vrt_inst1_dst_vreg;
-  else if(reg_gateclk_write0_en[N]) reg_N_create_vreg = dp_vrt_inst0_dst_vreg;
-  else                               reg_N_create_vreg = vrt_recover_updt_vreg[N*6+5:N*6];
-end
-```
-
----
-
-## 8. 同周期前递（Intra-packet Forwarding）
-
-### 8.1 问题背景
-
-C910 每周期最多发射 4 条指令（宽度 W=4）。当同一发射包中前面的指令写某个 vN，而后面的指令读同一个 vN 时，就产生了**同包 RAW 依赖**（intra-packet hazard）。
-
-例如：
-```
-inst0: vadd v2, v0, v1      # 写 v2
-inst1: vmul v4, v2, v3      # 读 v2（与 inst0 同包，v2 尚未进入重命名表）
-```
-
-此时 inst1 查重命名表得到的是 v2 的旧状态（来自更早的指令），而实际上 inst1 依赖的是 inst0 的结果。
-
-### 8.2 srcv2_match 信号的含义
-
-`vrt_dp_inst01_srcv2_match` 等信号专门处理 **srcv2 的同包前递情况**。以 inst01_srcv2_match 为例：
-
-这表示"inst0 的目的向量寄存器（dstv_reg）与 inst1 的 srcv2（累加寄存器）相同"。在发射队列中，inst1 的 srcv2 依赖信息需要**从 inst0 的目的寄存器状态前递**，而非使用重命名表中查到的旧值。
-
-在 `ct_idu_ir_dp.v` 中，这些 match 信号与 frt 的同名信号做 OR 合并（第 1842~1847 行）：
-
-```verilog
-assign dp_ir_inst01_src_match[3] = frt_dp_inst01_srcf2_match || vrt_dp_inst01_srcv2_match;
-```
-
-`dp_ir_instXY_src_match` 总线的 bit3 代表 srcv2/srcf2 的匹配，bits[2:0] 代表整数/浮点 src0/src1/src2 的匹配（来自 irt）。
-
-### 8.3 其他源操作数的同包前递
-
-srcv0 和 srcv1 的同包前递在 ir_vrt（或 ir_frt）内部通过 **MUX 链** 实现——在查表之后，用同包更晚指令的写入值覆盖查表结果。例如：
-- inst1 的 srcv0 查表后，若 inst0 的 dstv_reg == inst1 的 srcv0_reg，则用 inst0 的 dst_vreg 及其对应的初始状态替换查表结果
-
-这部分逻辑在完整展开的 ir_vrt 中通过 `always` comb 块实现（注释中的大量 `&CombBeg/@xxx .. &CombEnd/@xxx` 对），每个源操作数对每条指令各有一段 comb 逻辑。
-
----
-
-## 9. srcv2 的特殊处理与跨指令匹配
-
-### 9.1 为什么 srcv2 需要特殊对待
-
-普通二源向量指令（`vadd vd, vs1, vs2`）的源是 vs1（srcv0）和 vs2（srcv1）。但向量乘加指令（`vfmacc vd, vs1, vs2` = `vd = vd + vs1 * vs2`）中，vd 同时是目的和第三源（srcv2），这在指令格式上没有独立的 srcv2 寄存器字段——regs 字段只有 `vd`（同时充当目的和第三源）。
-
-因此 srcv2 的特殊之处在于：
-1. **无独立寄存器编号**：srcv2_reg 就是 dstv_reg
-2. **需要额外的 mla_rdy 位**：乘加链路可以更早就绪
-3. **同包前递需要单独信号**：因为对应的 srcv2 依赖检测需要考虑"前面的指令是否写了同一个 vd"
-
-### 9.2 6 个 match 信号的覆盖范围
-
-```
-inst0 → inst1: vrt_dp_inst01_srcv2_match
-inst0 → inst2: vrt_dp_inst02_srcv2_match
-inst0 → inst3: vrt_dp_inst03_srcv2_match
-inst1 → inst2: vrt_dp_inst12_srcv2_match
-inst1 → inst3: vrt_dp_inst13_srcv2_match
-inst2 → inst3: vrt_dp_inst23_srcv2_match
-```
-
-覆盖所有 C(4,2)=6 种组合，确保 4 宽度发射时的 srcv2 同包 WAR/RAW 都能正确处理。
-
----
-
-## 10. 输出数据格式：向 viq 提供的依赖信息
-
-在 `ct_idu_ir_dp.v` 中（第 1699~1832 行），vrt 与 frt 的输出通过 MUX 合并，最终封装进 IS 阶段数据总线（`dp_ir_instN_data`），送入向量发射队列 viq：
-
-```verilog
-// ir_dp.v 第 1713~1722 行
-assign ir_rt_inst0_srcv0_data[8:0] = ir_inst0_data[IR_SRCV0_VLD]
-                                     ? vrt_dp_inst0_srcv0_data[8:0]  // 向量指令查 vrt
-                                     : frt_dp_inst0_srcf0_data[8:0]; // 浮点指令查 frt
-
-assign ir_rt_inst0_srcv2_data[9:0] = ir_inst0_data[IR_SRCV2_VLD]
-                                     ? vrt_dp_inst0_srcv2_data[9:0]
-                                     : frt_dp_inst0_srcf2_data[9:0];
-
-assign ir_rt_inst0_srcvm_data[8:0] = vrt_dp_inst0_srcvm_data[8:0]; // srcvm 只来自 vrt
-```
-
-注意 `srcvm`（掩码寄存器依赖）**只来自 vrt**，没有 frt 对应路径，因为掩码功能是 RVV 专有的。
-
-最终 viq 发射队列收到的每个指令向量依赖信息：
-
-```
-IS 阶段 dp_ir_instN_data 中的向量依赖字段：
-  IS_SRCV0_DATA [8:0]  : srcv0 依赖（rdy, wb, vreg）
-  IS_SRCV1_DATA [8:0]  : srcv1 依赖
-  IS_SRCV2_DATA [9:0]  : srcv2 依赖（rdy, wb, vreg, mla_rdy）
-  IS_SRCVM_DATA [8:0]  : 掩码源依赖
-  IS_SRCV0_BP_RDY [1:0]: srcv0 旁路就绪 / 发射就绪（bypass rdy / issue rdy）
-  IS_SRCV1_BP_RDY [1:0]: 同上，srcv1
-  IS_SRCV2_BP_RDY [1:0]: 同上，srcv2
-  IS_SRCVM_BP_RDY [1:0]: 同上，掩码
-  ...（注：IR 阶段这些 bypass/issue rdy 字段初始设为 0，在 IS 中由 viq 动态更新）
-```
-
-IR 阶段这些 rdy 字段初始为 0 是因为发射队列有自己的唤醒逻辑，IR 阶段只需正确设置静态字段（vreg 编号）和进入发射队列时的初始就绪状态；发射队列之后会持续监听执行单元的广播来更新 rdy。
-
----
-
-## 11. v0 掩码寄存器（srcvm）处理
-
-### 11.1 srcvm 与普通 srcv0 的区别
-
-| 属性 | srcv0/srcv1 | srcvm |
-|------|------------|-------|
-| 寄存器号来源 | `srcv0_reg/srcv1_reg`（5 位字段） | 固定为 0（v0） |
-| 查表方式 | case 语句动态索引 | 直接读 entry[0] |
-| mla_rdy 位 | 无 | 无 |
-| 宽度 | 9 位 | 9 位 |
-| 是否参与同包前递 | 是 | 是（若同包指令写 v0，且后面的指令用 v0 为掩码） |
-
-### 11.2 v0 的读压力
-
-v0 是唯一的掩码寄存器，当程序大量使用带掩码的向量指令时，几乎每条向量指令都会读 v0（srcvm_vld=1）。虽然在查表逻辑上无需特殊处理（固定读 entry[0]），但 entry[0] 的 `dep_clk` 门控必须打开频率更高，功耗考量上 v0 是热点表项。
-
----
-
-## 12. 向量寄存器组（LMUL>1）对重命名的影响
-
-### 12.1 C910 的处理策略
-
-C910 在 FE（前端）阶段就通过 `IR_SPLIT`/`IR_SPLIT_NUM` 将 LMUL>1 的向量指令拆分为多条子指令，每条子指令操作单独的架构向量寄存器编号。因此：
-
-- `LMUL=2`，`vadd v0, v2, v4` 被拆为：
-  - 子指令 0：`vadd v0, v2, v4`（操作下标 0）
-  - 子指令 1：`vadd v1, v3, v5`（操作下标 1）
-  
-每条子指令有独立的 `dstv_reg`，分别占用 ir_vrt 中的不同表项。
-
-### 12.2 split 对依赖跟踪的影响
-
-由于拆分后的子指令串行通过 IR 阶段（一次一条或一次多条），ir_vrt 的查表/写入逻辑不需要特殊处理 LMUL——每次操作的都是单个架构寄存器编号，与普通 LMUL=1 的情况完全相同。
-
-LMUL 信息通过 `IR_VLMUL`/`IS_VLMUL` 字段保存在指令数据总线中，最终传递给 viq 和执行单元使用，但对 ir_vrt 的依赖跟踪逻辑本身透明。
-
----
-
-## 13. flush 恢复与复位
-
-### 13.1 flush 恢复的来源
-
-flush 分为两种（参考子模块第 332~333 行）：
-
-| 信号 | 来源 | 含义 |
-|------|------|------|
-| `rtu_idu_flush_fe` | RTU，前端 flush | 分支预测失败/异常等，整条 fetch-decode 流水线清洗 |
-| `rtu_idu_flush_is` | RTU，IS 级 flush | IS 阶段以后的 flush（指令已入发射队列后的异常/重定向） |
-
-两种 flush 都会将所有表项的 `rdy` 和 `wb` 恢复为 1，但不更新 `vreg` 字段。
-
-### 13.2 rtu_idu_rt_recover_vreg 的作用
-
-```verilog
-// ir_vrt.v 第 128 行
-input [191:0] rtu_idu_rt_recover_vreg;
-```
-
-这个 192 位信号（32 × 6 = 192 位）携带了 flush 后每个架构向量寄存器应使用的 vreg 映射（来自 ROB 检查点）。当 flush 发生时，ir_vrt 需要用这些值**重写**每个表项的 vreg 字段，恢复到 flush 对应的正确映射状态。
-
-这对应于 ir_frt 中的 `frt_recover_updt_freg` 逻辑（第 2951~2955 行）：
-```verilog
-assign frt_recover_updt_vld         = ifu_xx_sync_reset || rtu_yy_xx_flush;
-assign frt_recover_updt_freg[191:0] = (ifu_xx_sync_reset)
-                                      ? frt_reset_updt_freg[191:0]
-                                      : rtu_idu_rt_recover_freg[191:0];
-```
-
-同样地，ir_vrt 的 flush 恢复逻辑为：
-```verilog
-// ir_vrt 中对应逻辑（设计同构）
-assign vrt_recover_updt_vld         = ifu_xx_sync_reset || rtu_yy_xx_flush;
-assign vrt_recover_updt_vreg[191:0] = (ifu_xx_sync_reset)
-                                      ? {6'd31,...,6'd0}  // 复位：恒等映射
-                                      : rtu_idu_rt_recover_vreg[191:0]; // flush：ROB 检查点
-```
-
-### 13.3 复位时的恒等映射
-
-上电复位（`ifu_xx_sync_reset`）时，向量寄存器映射初始化为恒等映射：
-- v0 → vreg 0, v1 → vreg 1, ..., v31 → vreg 31
-
-这与浮点表的初始化（f0→fr0, ..., f31→fr31）一致，是寄存器堆上电后的初始状态。
-
-### 13.4 flush 优先级
-
-flush 恢复写操作的优先级**最高**，覆盖任何同周期的正常指令写操作（参考 frt 第 2961~2965 行的 `reg_write_en` 生成）。这确保了 flush 恢复的完整性和正确性。
-
----
-
-## 14. 当前 RTL 状态：占位模块说明
-
-**重要提示**：当前 `ct_idu_ir_vrt.v` 文件（518 行）是一个**占位（stub/placeholder）模块**。其中所有输出均被硬连线为常量：
-
-```verilog
-// ir_vrt.v 第 487~512 行
 assign vrt_dp_inst01_srcv2_match    = 1'b0;
-// ...
+assign vrt_dp_inst0_rel_vreg[6:0]   = 7'b0;
 assign vrt_dp_inst0_srcv0_data[8:0] = 9'b100000011;
 assign vrt_dp_inst0_srcv1_data[8:0] = 9'b100000011;
 assign vrt_dp_inst0_srcv2_data[9:0] = 10'b1000000111;
 assign vrt_dp_inst0_srcvm_data[8:0] = 9'b100000011;
-// （inst1~inst3 相同）
 ```
 
-**常量值分析：**
+### 4.1 普通向量源数据的位义与统一物理编号
 
-| 输出 | 常量值 | 位格式解析 |
-|------|--------|-----------|
-| `srcvX_data[8:0]` | `9'b100000011` | [0]=rdy=1, [1]=wb=1, [8:2]=vreg=7'b1000000=64 |
-| `srcv2_data[9:0]` | `10'b1000000111` | [0]=rdy=1, [1]=wb=1, [9]=mla_rdy=1, [8:2]=vreg=7'b1000001=65 |
-| `srcvXY_match` | `1'b0` | 无同包前递 |
-| `instN_rel_vreg` | `7'b0` | 无需释放旧 vreg |
+位格式可以用有效的 FRT 打包逻辑交叉确认：
 
-**常量含义：** 所有向量源操作数都被视为"就绪且已写回"（rdy=1, wb=1），这相当于禁用了向量相关性跟踪，发射队列中的向量指令将立即被视为可发射。这是一种**保守但功能正确的简化**：向量指令只要在发射队列中，就假设其源操作数已经就绪。
-
-在完整实现中（非占位），这些常量会被替换为上述各节描述的完整逻辑（34 个表项的查找、旁路检测、mla_rdy 跟踪等）。文件头部注释中的大量 `&Instance`、`&CombBeg/&CombEnd` 宏（第 196~420 行）是完整实现的模板标注，由代码生成工具（T-Head 内部的 RTL 生成框架）展开。
-
----
-
-## 15. 上下游接口总结
-
-### 15.1 上游（输入来源）
-
-| 信号类别 | 来源模块 | 说明 |
-|----------|----------|------|
-| `dp_vrt_instN_*` | `ct_idu_ir_dp` | IR 数据通路输出的指令解码信息 |
-| `rtu_idu_alloc_vregN` | RTU | 为各指令槽分配的物理向量寄存器号 |
-| `rtu_idu_rt_recover_vreg` | RTU | flush 恢复向量（ROB 检查点） |
-| `rtu_idu_flush_fe/is` | RTU | 流水线 flush 信号 |
-| `vfpu_idu_ex1/2/3_pipe6/7_*` | VFPU | 执行单元各级就绪/写回广播 |
-| `lsu_idu_ag/dc/wb_pipe3_*` | LSU | 向量 load 流水线状态广播 |
-| `ctrl_xx_rf_pipe6/7_vmla_lch_vld_dupx` | RF 控制 | 乘加锁存就绪信号 |
-| `dp_xx_rf_pipe6/7_dst_vreg_dupx` | RF 数据通路 | 乘加目的寄存器（用于 vmla_data_ready 比对） |
-
-### 15.2 下游（输出去向）
-
-| 信号类别 | 去向模块 | 说明 |
-|----------|----------|------|
-| `vrt_dp_instN_srcvX_data` | `ct_idu_ir_dp` | 源操作数依赖信息，经 MUX 后进入 IS 数据总线 |
-| `vrt_dp_instN_rel_vreg` | `ct_idu_ir_dp` | 旧目的 vreg 编号，用于 RTU 回收 |
-| `vrt_dp_instNM_srcv2_match` | `ct_idu_ir_dp` | 同包 srcv2 前递信号，合并进 `dp_ir_src_match` |
-
-### 15.3 数据流图
-
-```
-         FE 阶段（取指/预译码/分发）
-               ↓ IR_DATA（指令数据总线）
-         ir_dp（IR 数据通路）
-         ├── 整数: dp_rt_*  → irt → rt_dp_*
-         ├── 浮点: dp_frt_* → frt → frt_dp_*   ┐
-         └── 向量: dp_vrt_* → vrt → vrt_dp_*   ┘
-                              ↓ (frt/vrt 输出 MUX)
-                         ir_rt_instN_srcvX_data
-                              ↓
-                    dp_ir_instN_data（IS 总线）
-                              ↓
-                 viq0 / viq1（向量发射队列）
-                              ↓
-                     VFPU pipe6 / pipe7
+```text
+srcv0/srcv1/srcvm_data[8:0]
+  [8:2]  7 位物理寄存器编码
+  [1]    wb：数据已写回寄存器堆
+  [0]    rdy：可被发射唤醒逻辑使用
 ```
 
----
+因此 `9'b100000011` 的字段值是：
 
-## 附录：关键 IR 数据总线字段索引
+| 字段 | 常量 |
+|---|---:|
+| 统一物理寄存器编码 `[8:2]` | 64，即 `7'b1000000` |
+| `wb` | 1 |
+| `rdy` | 1 |
 
-来自 `ct_idu_ir_dp.v`（第 1100~1140 行），向量相关字段：
+这里的 64 不能解读成“超出 0–63 的向量物理池”。`ct_idu_ir_dp.v:1727~1729`
+给出了统一编号规则：
 
-| 参数名 | 位索引 | 含义 |
-|--------|--------|------|
-| `IR_VMLA` | 134 | 向量乘加标志 |
-| `IR_DSTV_REG` | 105:100 | 目的向量架构寄存器号（6 位，bit105 为高位） |
-| `IR_DSTV_VLD` | 99 | 有向量目的寄存器 |
-| `IR_SRCVM_VLD` | 98 | 使用 v0 掩码 |
-| `IR_SRCV2_VLD` | 97 | 第三向量源有效（乘加累加） |
-| `IR_SRCV1_REG` | 96:91 | vs2 寄存器号 |
-| `IR_SRCV1_VLD` | 90 | vs2 有效 |
-| `IR_SRCV0_REG` | 89:84 | vs1 寄存器号 |
-| `IR_SRCV0_VLD` | 83 | vs1 有效 |
-| `IR_VLMUL` | ~152:151 | 向量寄存器组因子 LMUL |
-| `IR_VSEW` | ~154:152 | 元素宽度 SEW |
-| `IR_SPLIT` | 116 | 指令拆分标志 |
-| `IR_SPLIT_LAST` | 135 | 最后一个拆分子指令 |
+```verilog
+{1'b1, ir_inst0_dst_vreg[5:0]}  // 向量目的
+{1'b0, ir_inst0_dst_freg[5:0]}  // 标量浮点目的
+```
 
-（具体位索引参见 ir_dp.v 中的完整 parameter 定义，此处仅列出向量相关部分。）
+所以统一 7 位编号中的 bit6 是向量/标量浮点类别位，低 6 位才是各自 64 项池内
+的局部索引。`7'b1000000` 应精确读成“向量类别、局部物理索引 0”。但普通
+srcv0/srcv1 不论输入的逻辑寄存器号为何都返回该值，仍然不是一张正常 RAT
+的查表结果。
+
+### 4.2 srcv2 的位义
+
+`srcv2_data` 多一个乘加就绪位：
+
+```text
+srcv2_data[9:0]
+  [9]    rdy
+  [8:2]  7 位物理寄存器编码
+  [1]    wb
+  [0]    mla_rdy
+```
+
+所以 `10'b1000000111` 解码为 `rdy=1`、统一物理编码 `7'b0000001`、
+`wb=1`、`mla_rdy=1`。其中 `[8:2]` 的七位值是 1，而不是把整个常量或错误位段
+解释成 65。按上述统一编号规则，这一常量的类别位为 0、局部索引为 1，并不是正常的
+“向量类别、索引 1”编码。RTL 没有解释这个选择，只能把它记录为当前占位值。
+
+### 4.3 其余常量
+
+| 输出组 | 常量 | 直接效果 |
+|---|---:|---|
+| `vrt_dp_inst01/02/03/12/13/23_srcv2_match` | 0 | 不报告四槽之间的向量 srcv2 RAW 匹配 |
+| `vrt_dp_instN_rel_vreg[6:0]` | 0 | 目的向量寄存器的旧统一物理映射固定为 0；该值的类别位也为 0 |
+| 普通向量源 `rdy/wb` | 1/1 | 进入 IR 数据包时被标成已经就绪且已写回 |
+| srcv2 `rdy/wb/mla_rdy` | 1/1/1 | srcv2 相关等待条件不会由本模块制造 |
+
+把源固定成 ready 是**乐观放行**，不是“保守等待”。仅根据本模块无法证明
+向量 RAW/WAW 相关仍由其他路径完整保证；需要结合具体构建配置、向量指令是否
+启用以及发射端的额外串行化约束验证。
+
+### 4.4 常量输出对四类源的具体影响
+
+| 源类型 | 完整实现应表达什么 | 当前常量的效果 |
+|---|---|---|
+| `srcv0` | 第一个显式向量源的最新物理映射及就绪状态 | 统一物理号固定为“向量类、索引 0”，立即 ready/wb |
+| `srcv1` | 第二个显式向量源的最新物理映射及就绪状态 | 统一物理号固定为“向量类、索引 0”，立即 ready/wb |
+| `srcv2` | 目的兼源，如累加器旧值，并携带 MLA 快速就绪 | 统一物理号固定为“标量浮点类、索引 1”形式的数值 1，ready/wb/mla_rdy 全为 1 |
+| `srcvm` | 架构 v0 当前物理映射及 mask 依赖状态 | 统一物理号固定为“向量类、索引 0”，立即 ready/wb |
+| `rel_vreg` | 新写者退休后需要释放的旧物理映射 | 固定 0 |
+| 包内 match | 较早槽新目的是否是较晚槽的 srcv2 | 全部固定 0 |
+
+这里尤其要注意 `srcvm`。RVV 规定 mask 的**架构名字**是 v0，但乱序重命名后，
+逻辑 v0 可以映射到任意有效向量物理项，不能把架构 v0 永久等同于局部物理 0。
+当前输出 64 正好编码“向量类、局部物理 0”，但它是无条件常量，仍不能证明
+逻辑 v0 的动态映射始终应为物理 0。
+
+### 4.5 为什么 `srcv2` 常量和普通源不同
+
+普通源常量的统一物理字段为 64，即向量类局部索引 0；`srcv2` 常量切片后是
+类别位为 0 的数值 1。RTL 没有注释解释为何选择这两个不同值，所以只能确认
+位值，不能擅自赋予“物理 v1 是固定累加器”之类的架构含义。安全的分析方式是：
+
+- 把 64 按统一命名空间精确解码成“向量类别、局部索引 0”；
+- 把 1 记录成“类别位 0、局部索引 1”的占位编码事实；
+- 检查下游是否在 `vld=0` 时屏蔽物理号比较；
+- 若向量指令实际启用，则用相关性测试确认该常量是否被其他串行化逻辑保护。
+
+## 5. 注释模板不等于当前电路
+
+文件中可以看到 34 组类似内容：
+
+```verilog
+// &Instance("ct_idu_dep_vreg_srcv2_entry",
+//           "x_ct_idu_ir_vrt_entry_vreg_0");
+```
+
+以及大量空的：
+
+```verilog
+// &CombBeg;
+// &CombEnd;
+```
+
+这些行全部以 `//` 开头。标准 Verilog 编译器会忽略它们；当前文件中也没有
+对应的实例展开结果。它们最多能说明原始生成源曾为 VRT 预留如下设计意图：
+
+1. 按逻辑向量寄存器号查询当前物理映射；
+2. 保存 ready/writeback/mla-ready 状态；
+3. 为同一派遣包中的后续指令做新映射旁路；
+4. 接受 RTU 恢复映射。
+
+这些是理解“完整 VRT 应该做什么”的体系结构背景，不是当前网表事实。
+
+### 5.1 不能从模板得出的结论
+
+旧版说明曾根据模板推导出“34 项活动表”“四写端口优先级”“flush 同拍整表恢复”
+和“LMUL 通过逐项 VRT 更新处理”。当前有效 Verilog 没有相应寄存器、组合选择或
+时钟逻辑，所以这些都不能作为本配置事实。模板数量也不能直接等同于逻辑向量
+寄存器数：32 个架构 v 寄存器、拆分伪槽、恢复辅助项可能采用不同组织，必须看到
+真正展开后的索引与写使能才可定论。
+
+### 5.2 可以从邻接活动 RTL 得到的线索
+
+虽然 VRT 自身是占位，其他模块仍保留完整接口骨架：
+
+- `ct_idu_ir_dp.v` 选择并打包 `vrt_dp_instN_srcv*data`；
+- `ct_idu_is_viq0/1_entry.v` 为 srcv0/srcv1/srcv2/srcvm 实例化依赖项；
+- `ct_rtu_pst_vreg.v` 有 64 项向量物理状态管理结构；
+- `ct_idu_rf_prf_vregfile.v` 保留向量读端口，但当前读数据全为 0；
+- `ct_vfpu_*` 保留 pipe6/pipe7 的 vreg 编号与多阶段广播接口。
+
+这些线索说明设计骨架考虑过向量重命名和调度，但不能填补 VRT 与向量 PRF 数据存储
+缺失的功能。教学上应把“骨架完整”与“可运行实现完整”分开评价。
+
+### 5.3 注释模板到底保留了多少结构信息
+
+逐项统计当前文件可以得到：
+
+| 模板标记 | 数量 | 能确认什么 | 不能确认什么 |
+|---|---:|---|---|
+| `ct_idu_dep_vreg_srcv2_entry` 的 `// &Instance` | 34 | 生成源曾为 reg0–reg33 预留叶子实例名 | 34 项的有效索引语义、写使能和连接 |
+| `ct_rtu_expand_32` 的 `// &Instance` | 4 | 曾考虑为四槽各展开一组 5 位编号 | 高位如何选择 reg32/reg33 |
+| `// &CombBeg`/`// &CombEnd` 空模板对 | 61 | 原生成源曾有多块组合逻辑位置 | 组合方程、优先级和旁路方向 |
+| 顶层 ICG 的注释模板 | 1 | 曾预留 `vrt_top_clk` 层次 | 当前模块的真实时钟行为 |
+| 有效 `assign` | 26 | 当前全部输出的真实驱动 | 任何动态重命名状态 |
+| 有效 `always` | 0 | 当前没有时序过程 | 不存在可随周期演进的本地状态 |
+
+注释末尾的 `@86`、`@537` 等数字是生成器源位置标记，不是当前 Verilog 的有效行号，
+也不代表对应逻辑仍保存在文件中。尤其是 61 对空 `CombBeg/CombEnd` 之间没有方程，
+不能依据块数量反推“有多少读端口”或“四写端口优先级”。
+
+### 5.4 共享叶子模块能做什么，但当前 VRT 没有实例化它
+
+`ct_idu_dep_vreg_srcv2_entry.v` 是一份有效 RTL，并由 FRT 的 33 个表项实际使用。
+如果另一个活动 VRT 复用它，每个叶子可以保存以下状态：
+
+| 状态 | 位宽 | 叶子中的含义 | 复位值 |
+|---|---:|---|---:|
+| `vreg` | 7 | 统一物理编号 | 0 |
+| `rdy` | 1 | 基础预测就绪状态 | 1 |
+| `mla_rdy` | 1 | 乘加专用预测就绪状态 | 1 |
+| `wb` | 1 | 结果已写回对应 PRF | 1 |
+| `lsu_match` | 1 | 上一拍 AG load 物理号匹配状态 | 0 |
+
+其 11 位创建总线和 13 位读出总线定义如下：
+
+```text
+x_create_data[10:0]
+  [10]   初始 lsu_match
+  [9]    初始 mla_rdy
+  [8:2]  统一物理编号
+  [1]    初始 wb
+  [0]    初始 rdy
+
+x_read_data[12:0]
+  [12]   当拍 AG load 匹配
+  [11]   rdy_for_bypass
+  [10]   rdy_for_issue
+  [9]    mla_rdy_update
+  [8:2]  保存的统一物理编号
+  [1]    wb_update
+  [0]    rdy_update
+```
+
+这里“读出”不全是触发器旧值。叶子有效方程明确规定：
+
+```verilog
+x_read_rdy            = rdy_update;
+x_read_mla_rdy        = mla_rdy_update;
+x_read_wb             = wb_update;
+x_read_lsu_match      = lsu_match_update;
+x_read_rdy_for_issue  = rdy || mla_rdy || load_issue_data_ready
+                        || vfpu0_vdsp_fwd_data_ready
+                        || vfpu1_vdsp_fwd_data_ready;
+x_read_rdy_for_bypass = rdy;
+```
+
+因此，当拍执行广播可以立即反映到 `x_read_rdy/x_read_wb/x_read_mla_rdy`，而
+`rdy_for_issue` 与 `rdy_for_bypass` 使用的是不同条件。不能把五者都简称为
+“ready 位”，也不能统一声称某一条路径固定提前一拍；实际提前量取决于生产者
+广播在哪一级出现以及消费者在哪个边沿采样。
+
+状态更新优先级也需要逐项区分：
+
+| 状态 | 高到低的时序优先级 |
+|---|---|
+| `rdy` | 异步低有效复位→1；`flush_fe/is`→1；`x_write_en` 装入 create 值；否则装入 `rdy_update` |
+| `mla_rdy` | 异步低有效复位→1；`flush_fe/is`→1；`x_write_en` 装入 create 值；否则装入 `mla_rdy_update` |
+| `wb` | 异步低有效复位→1；`flush_fe/is`→1；`x_write_en` 装入 create 值；否则保持/吸收 pipe3/6/7 写回 |
+| `lsu_match` | 异步低有效复位→0；`flush_fe/is`→0；`x_write_en` 装入 create 值；否则保存当拍 AG 匹配 |
+| `vreg` | 异步低有效复位→0；`x_write_en` 装入 create 编号；否则保持；叶子内部没有 flush 分支 |
+
+最后一行尤其重要：如果父级要在 flush 时恢复物理编号，父级必须在恢复周期生成
+`x_write_en/x_create_vreg`，不能只把 `flush_fe/is` 送进叶子。当前 VRT 既没有实例
+这些叶子，也没有恢复写控制，所以 192 位恢复输入不会产生任何状态变化。
+
+叶子内部还有两组本地时钟请求：
+
+```verilog
+dep_clk_en   = x_gateclk_write_en
+               || gateclk_entry_vld && (!rdy || !wb);
+write_clk_en = x_gateclk_idx_write_en;
+```
+
+前者服务依赖状态，后者只服务物理编号。即使未来 VRT 实例化这些叶子，
+`local_en=0` 也只表示没有本地时钟请求；公共 `gated_clk_cell` 的 `module_en`
+可以覆盖 local，请求扫描模式时技术单元还可由 test-enable 打开。未定义
+`C910_USE_TSMC28_ICG` 时，该公共 RTL 模型直接令 `clk_out=clk_in`。当前 VRT
+连这两组叶子时钟都不存在，所以不能在 VRT 波形中寻找 `dep_clk` 活动。
+
+### 5.5 一个完整 VRT 父级仍需补齐哪些逻辑
+
+共享叶子只解决“一个逻辑项如何保存依赖状态”，不负责构造整张表。一个可工作的
+父级至少还需实现：
+
+1. 根据逻辑 srcv0/srcv1、目的兼源 srcv2 和固定 mask 源选择表项；
+2. 根据四槽有效、stall、目的有效与恢复状态生成写使能；
+3. 同拍多槽写同一逻辑目的时，让程序序较新的映射成为拍后 RAT 状态；
+4. 同一拍较新槽读取较老槽新目的时，旁路新物理号并建立 RAW 依赖；
+5. 输出每个目的更新前的 `rel_vreg`，供退休后的旧物理项回收；
+6. flush 时从 RTU/PST 退休态映射重建推测 RAT；
+7. 把生产者执行/写回广播连接到所有相关叶子；
+8. 对 LMUL 拆分、mask、load replay 和乘加链路维护一致的 ready 撤销协议。
+
+可以用下面的概念伪代码理解四槽同拍重命名。它表达的是体系结构所需顺序，
+不是当前 VRT 的有效实现：
+
+```text
+view = RAT_before_edge
+
+for slot in [inst0, inst1, inst2, inst3] from old to young:
+    if slot.srcv0_valid: srcv0 = view[slot.srcv0_logical]
+    if slot.srcv1_valid: srcv1 = view[slot.srcv1_logical]
+    if slot.srcv2_valid: srcv2 = view[slot.dstv_logical]
+    if slot.mask_valid:  srcvm = view[logical_v0]
+
+    if slot.dstv_valid:
+        rel_vreg = view[slot.dstv_logical]
+        view[slot.dstv_logical] = slot.new_physical_vreg
+
+RAT_after_edge = view
+```
+
+按这个次序，较新槽自然看到较老槽本拍刚建立的新映射；同一逻辑目的的多个写者
+也自然由最年轻者留下最终映射。若硬件用并行比较器与 MUX 实现，功能上仍必须等价
+于这段顺序伪代码。当前文件的六个 `srcv2_match` 全为 0，srcv0/srcv1 的潜在内部
+MUX 方程也不存在，所以当前 VRT 不满足这套动态算法。
+
+## 6. 从体系结构角度应该如何理解 VRT
+
+完整乱序向量重命名若允许多个向量写者同时在飞，至少要保证：
+
+```text
+逻辑 vN --RAT--> 最新物理 vP
+新写者分配 vQ：RAT[vN] = vQ，并记录旧映射 vP
+消费者读取 RAT[vN]，等待 vQ 的 ready/wb
+新写者退休后，旧映射 vP 才能进入释放流程
+flush 时恢复到最后退休映射
+```
+
+向量寄存器很宽，错误地提前认为源 ready 会比标量路径更危险：消费者可能在
+生产者尚未写完所有 element 时读取旧值或部分新值。因此，一个真正工作的 VRT
+通常还要与向量指令拆分、LMUL 寄存器组占用、mask 依赖和长流水写回协议协同。
+当前 `ct_idu_ir_vrt.v` 没有实现这些状态。
+
+### 6.1 真相关与假相关分别如何处理
+
+考虑三条向量指令：
+
+```text
+I0: vadd.vv v4, v1, v2
+I1: vsub.vv v4, v5, v6
+I2: vxor.vv v7, v4, v3
+```
+
+若有完整物理重命名：
+
+```text
+I0: P40 = P(v1) + P(v2)       RAT[v4] <- P40
+I1: P41 = P(v5) - P(v6)       RAT[v4] <- P41
+I2: P42 = P41 xor P(v3)
+```
+
+- I0 与 I1 的 WAW 因 P40/P41 分离而消失；
+- I1 不必等待 I0 完成，只要执行资源允许即可并行；
+- I2 对 v4 的 RAW 必须精确依赖最新映射 P41；
+- P40 是 I1 覆盖的旧映射，不能在 I1 重命名或执行完成时提前释放；通常要等
+  I1 退休后由 PST/释放协议确认其不再承担精确恢复状态，才进入空闲池。
+
+若没有向量重命名而采用记分牌/串行化，I1 必须等待 I0 对架构 v4 的写完成，
+I2 再等待 I1，吞吐会下降但仍可保证正确。当前 VRT 常量本身既没有实现物理
+重命名，也没有实现这种保守等待；若配置允许执行上述指令，正确性必须来自别处。
+
+### 6.2 LMUL 使问题从“一个寄存器”扩展到“一个寄存器组”
+
+LMUL=2 时，一个逻辑操作数可能覆盖连续两个架构向量寄存器。例如目的从 v4 开始，
+实际写集合可能是 `{v4,v5}`。完整实现至少要保证：
+
+1. 起始寄存器满足 RVV 对齐与合法性规则；
+2. 组内每个成员的旧映射都被保存；
+3. 分配的物理资源不会与在飞版本重叠；
+4. 任一成员未就绪时，消费者不能读到部分更新的寄存器组；
+5. flush 后在允许新消费者继续执行前，整个组必须恢复成一致的精确状态。物理实现
+   可以并行恢复，也可以在阻塞流水线期间分多拍恢复；体系结构要求的是不可让消费者
+   观察到半新半旧的组状态，不是强制所有触发器必须同一拍写完。
+
+一种实现是对每个组成员独立重命名；另一种是按物理寄存器组整体分配。旧模板不足以
+证明 C910 采用哪一种，拆分信号只能说明复杂向量操作可能被分成内部微操作。
+
+### 6.3 mask 依赖为什么不能省略
+
+带掩码的向量指令会读取架构 v0：
+
+```text
+I0: 产生新的 v0 mask
+I1: vadd.vv v4, v1, v2, v0.t
+```
+
+I1 对 I0 有真实 RAW。即使 I1 的显式数据源 v1/v2 已就绪，mask 未就绪也不能
+发射，否则不同元素的写使能会错误。VIQ entry 确实把 srcvm 作为第四个依赖项，
+并要求四源 `rdy_for_issue` 同时成立；但 VRT 把 srcvm 初始标成 ready，因此当前
+配置是否安全取决于向量功能是否被禁用或上游是否另有保护。
+
+### 6.4 ready、writeback 与 forward 不能合并成一个概念
+
+完整依赖项通常区分：
+
+- `rdy`：调度器预计结果能按时进入旁路窗口；
+- `wb`：结果已经写入 PRF，之后不依赖旁路；
+- `rdy_for_issue`：综合已保存 ready 和当拍旁路条件后的发射判定；
+- `rdy_clear`：投机时机不成立时撤销 ready。
+
+这一区分允许消费者早于最终写回发射，同时又能在 load miss、launch fail 等情况下
+重放。把所有位常量置 1 相当于绕过这一整套时序契约，而不仅是“少做一次查表”。
+
+### 6.5 flush 恢复为什么需要退休态映射
+
+错误路径上的 RAT 更新必须撤销。当前接口提供
+`rtu_idu_rt_recover_vreg[191:0]`，宽度恰好是 32×6 位，说明接口意图是为 32 个
+架构向量寄存器返回恢复编号。但当前 VRT 没有消费它。完整实现通常应满足：
+
+```text
+正常派遣：RAT 更新为新物理号，旧映射进入 rel_vreg
+正常退休：PST 把新物理项变成精确版本，并推进旧项释放
+发生 flush：RAT 从最后退休映射恢复，错误路径物理项回收
+```
+
+C910 的整数/浮点路径由 PST 的 RETIRE 状态生成恢复映射，并非每个分支保存一份
+完整 RAT 检查点。向量接口若要同构工作，也应与 vreg PST 的 RETIRE 映射闭环；
+当前开源 VRT 没有这个闭环的接收逻辑。
+
+### 6.6 同一派遣包内为什么既要查 RAT 又要做旁路
+
+RAT 的触发器在时钟边沿后才保存新映射，但同一拍的较新槽必须看到较老槽刚分配的
+目的。以四槽中的两条为例：
+
+```text
+inst0: 写逻辑 v4，分配向量物理局部索引 12
+inst1: 读逻辑 v4
+```
+
+如果 inst1 只读拍前 RAT，它会取得 v4 的旧物理映射，形成错误 RAW 关系。正确做法
+是先比较 `inst0.dstv_reg == inst1.src_logical`，命中时让 inst1 使用 inst0 的
+新统一物理号 `{1'b1, 6'd12}`，并把初始 ready/wb 设成“等待 inst0 生产”。
+
+当前 VRT 对外只保留六条 srcv2 两两匹配：
+
+```text
+01, 02, 03, 12, 13, 23
+```
+
+它们覆盖四槽中“较老目的→较新 srcv2”的六种有序关系。`ct_idu_ir_dp` 把每条
+VRT match 与 FRT 的 srcf2 match 做 OR，送入 `dp_ir_instXY_src_match[3]`；
+`[2:0]` 则来自整数 RT 的三源匹配。当前 VRT 六位全为 0，所以 bit3 只可能由
+FRT 命中。从数据依赖方向看，这六个 match 比较的是较老指令的目的与较新指令
+的 srcv2，即生产者目的到消费者源的 RAW 关系；它们并不同时表达 WAR。
+
+srcv0/srcv1 若存在同包依赖，也必须获得正确新映射。注释模板中的大量空组合块
+可能曾为内部 MUX 预留位置，但当前没有有效方程，因此不能声称本版本通过“内部
+MUX 链”处理了 srcv0/srcv1。
+
+### 6.7 进入 IS 数据包后，ready 信息并不只有一份
+
+`ct_idu_ir_dp` 会把 VRT/FRT 的 9/10 位源数据写入 `IS_SRCV*_DATA`，同时把
+四组 `IS_SRCV*_BP_RDY[1:0]` 和 `IS_SRCV*_LSU_MATCH` 初始化为 0：
+
+```verilog
+IS_SRCV0_DATA      = ir_rt_inst0_srcv0_data;
+IS_SRCV0_BP_RDY    = 2'b0;
+IS_SRCV0_LSU_MATCH = 1'b0;
+// srcv1/srcv2/srcvm 同类
+```
+
+这三类字段作用不同：
+
+| 字段 | IR 创建时承载什么 | 后续用途 |
+|---|---|---|
+| `SRCV*_DATA` | 物理号、基础 ready/wb；srcv2 另含 mla_rdy | 创建 VIQ 依赖项的静态初值 |
+| `SRCV*_BP_RDY` | IR 先置 0 | VIQ 运行期间保存/更新 issue-ready 与 bypass-ready 类状态 |
+| `SRCV*_LSU_MATCH` | IR 先置 0 | load 前递时间匹配与撤销判断 |
+| `SRCV*_VLD` | 源在该指令中是否存在 | 屏蔽无效源，不应把无效源的数据字段当真 |
+
+因此，“VRT 把 DATA 中 ready 固定为 1”不等于“后续所有 VIQ ready 字段始终为 1”，
+但它确实让 VIQ 创建时丢失了由真实 VRT 查表产生的初始等待关系。后续广播能否补救
+取决于物理号是否正确；普通源都被写成向量局部索引 0 时，仅靠后续 wakeup 无法
+一般性重建任意逻辑源应依赖哪个生产者。
+
+目的侧同样要看 valid：当 `IR_DSTV_VLD=1` 时，`ir_dp` 把 RTU 分配的 6 位局部
+索引编码成 `{1'b1, alloc_vreg}` 作为新目的，却从 VRT 取得常量 0 作为
+`DST_REL_VREG`。是否发生错误释放还取决于后续 PST 的 `dstv_vld`、分配有效和
+dealloc 控制；本文件只能确认“旧映射信息没有由 VRT 动态提供”，不能仅凭常量 0
+证明整核一定执行了某次错误回收。
+
+## 7. 波形和验证建议
+
+观察层次：
+
+```text
+...x_ct_idu_top.x_ct_idu_ir_vrt
+```
+
+当前 RTL 下应看到：
+
+- 所有 `dp_vrt_instN_*` 输入可以随译码变化；
+- 所有 `vrt_dp_instN_srcv*data` 始终为上述常量；
+- 所有 `*_srcv2_match` 始终为 0；
+- 模块内没有可观察的状态随时钟演进。
+
+若这些输出在综合后波形中不是常量，说明实际仿真使用的 RTL 与本仓库这份
+`ct_idu_ir_vrt.v` 不同，应先核对 filelist、宏配置和生成目录，而不是继续按
+本文推导。
+
+### 7.1 最小结构验证
+
+不执行向量程序也可以先验证模块是否为占位：
+
+1. 在 Verdi 中打开 `x_ct_idu_ir_vrt`；
+2. 加入任一组 `dp_vrt_inst0_*` 输入和全部 `vrt_dp_inst0_*` 输出；
+3. 让输入随普通程序活动，或直接查 elaborated schematic；
+4. 确认输出没有时钟相关状态、始终等于常量；
+5. 在综合层次中确认没有 `ct_idu_dep_vreg_srcv2_entry` 子实例。
+
+### 7.2 若启用向量功能，必须做的相关性测试
+
+| 测试 | 指令关系 | 应验证的不变量 |
+|---|---|---|
+| 基本 RAW | 写 v4 后立即读 v4 | 消费者不得读旧值 |
+| WAW+RAW | 连续两次写 v4，再读 v4 | 读者必须依赖第二个写者 |
+| mask RAW | 写 v0 后立即执行 masked op | mask 源未就绪时不得错误发射 |
+| FMA 累加 | 连续以同一 vd 为 srcv2/dst | 累加链顺序和结果必须正确 |
+| LMUL=2/4/8 | 覆盖寄存器组边界 | 组内无部分更新或别名覆盖 |
+| load-use | 向量 load 后立即使用目标 | miss/replay 时 ready 可撤销 |
+| 分支 flush | 错路径写 vN，正确路径读 vN | 恢复后读最后退休版本 |
+| 异常 flush | 向量写者之前/之后触发异常 | 精确状态与释放列表一致 |
+
+这些测试不仅看最终数值，还应观察 VIQ 中四个源的物理号、ready、writeback、
+launch-fail 和 rdy-clear。若最终值偶然正确但依赖项提前发射，仍可能在更复杂
+时序下暴露错误。
+
+### 7.3 与性能分析的关系
+
+在确认向量功能完整之前，不应把 VIQ 空、向量 PRF 读 0 或 vreg ready=1 解读成
+“向量调度性能很好”。占位常量会人为制造零等待现象。性能研究必须先通过功能
+正确性门槛，再讨论 VIQ 水位、VFPU 利用率、依赖链间隔和前递收益。
+
+## 8. 审核边界
+
+本文能够确认的是“当前公开文件实现了常量占位”。它不能单独回答整核的向量
+功能是否可用；那需要继续核查：
+
+1. 仿真 filelist 是否确实编译此文件；
+2. 当前 case 是否启用向量指令；
+3. VIQ、VFPU、LSU 是否有额外串行化或依赖保护；
+4. RTU 的向量 PST 分配与回收是否在该配置下被消费；
+5. 真实向量依赖测试是否通过。
+
+这一区分很重要：模块接口展示的是设计意图，只有未被注释、实际参与编译的
+Verilog 逻辑才代表当前硬件。

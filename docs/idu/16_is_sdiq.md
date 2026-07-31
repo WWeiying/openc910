@@ -1,6 +1,6 @@
 # C910 IDU — Store Data 发射队列（SDIQ）深度教学文档
 
-> 本文档覆盖 `ct_idu_is_sdiq.v`（2637 行，顶层）与 `ct_idu_is_sdiq_entry.v`（734 行，队列项）。
+> 本文以 `ct_idu_is_sdiq.v` 顶层和 `ct_idu_is_sdiq_entry.v` 队列项为 RTL 主线。
 > 读完后应能透彻理解：为什么 store 要拆成地址与数据两部分、SDIQ 如何管理 12 项队列、
 > 唤醒与就绪判断的完整逻辑、发射到 pipe5 的流程、以及与 LSIQ/LSU 的协同机制。
 
@@ -19,7 +19,7 @@
 9. [冻结（Freeze）机制](#9-冻结freeze机制)
 10. [发射就绪与选择逻辑](#10-发射就绪与选择逻辑)
 11. [发射到 pipe5：store data 路径](#11-发射到-pipe5store-data-路径)
-12. [与 LSIQ/LSU 的协同：地址与数据在 LSU 汇合](#12-与-lsiulsu-的协同)
+12. [与 LSIQ/LSU 的协同：地址与数据在 LSU 汇合](#12-与-lsiqlsu-的协同地址与数据在-lsu-汇合)
 13. [向量 store 数据处理（vfpu/vreg）](#13-向量-store-数据处理)
 14. [物理寄存器 dealloc mask（寄存器释放）](#14-物理寄存器-dealloc-mask)
 15. [flush 处理](#15-flush-处理)
@@ -44,13 +44,13 @@ C910 的解决方案：**将 store 指令拆分成两条微操作（micro-op）*
 ```
 sd x1, 8(x2)
         │
-        ├── staddr 微操作 → LSIQ → pipe3/pipe4（计算地址 x2+8，写入 STQ）
+        ├── staddr 微操作 → LSIQ → pipe4（计算/提交 store 地址，写入 STQ）
         └── stdata 微操作 → SDIQ → pipe5（准备写数据 x1，等地址入 STQ 后执行）
 ```
 
 这种拆分的好处：
-1. **独立就绪**：地址部分（通常只需 rs1）和数据部分（只需 rs2）可以独立等待各自的源寄存器，哪个先就绪就先发射。
-2. **流水线解耦**：store 地址走 pipe3（AGU），store 数据走 pipe5，互不阻塞。
+1. **分开追踪依赖**：地址部分和数据部分可分别等待自己的源寄存器，避免把两类依赖合成一个队列项；但 stdata 的最终 ready 条件还要求匹配的 staddr ready，所以并不是“哪一边先 ready 就都可独立执行”。
+2. **流水线解耦**：store 地址走 pipe4，store 数据走 pipe5；两条路径使用不同发射队列和 RF/LSU 通路，但通过 `sdiq_entry` 与 staddr-ready 状态重新同步。
 3. **STQ（Store Queue）协同**：地址先进 STQ 占位，数据到达后 LSU 再合并提交，符合内存一致性要求。
 
 ### 1.2 SDIQ 的角色定位
@@ -61,15 +61,15 @@ sd x1, 8(x2)
 │                                                                   │
 │  ┌──────────────────────────────┐   ┌──────────────────────────┐  │
 │  │  LSIQ（Load/Store 地址队列）  │   │  SDIQ（Store 数据队列）  │  │
-│  │  深度：8 项                  │   │  深度：12 项（逻辑 8）   │  │
-│  │  → pipe3/pipe4（AGU）        │   │  → pipe5（stdata）       │  │
+│  │  深度：12 项                 │   │  深度：12 项              │  │
+│  │  load→pipe3，staddr→pipe4    │   │  → pipe5（stdata）       │  │
 │  └──────────────────────────────┘   └──────────────────────────┘  │
 │               │                                   │               │
 │         共享 entry 编号（sdiq_entry[11:0]），store 同时分配两个槽   │
 └───────────────────────────────────────────────────────────────────┘
                 │                                   │
                 ▼                                   ▼
-          LSU pipe3/4                           LSU pipe5
+      LSU pipe3（load）/pipe4（staddr）          LSU pipe5
           计算地址、写 STQ               提取数据，等 STQ 分配后写入
                 │                                   │
                 └──────────── LSU 内部汇合 ─────────┘
@@ -80,13 +80,15 @@ sd x1, 8(x2)
 - **SDIQ 不能 bypass**：与 ALU 发射队列不同，store data 指令必须等到源寄存器真正就绪，不能用 bypass 通路发射。注释中明确写道 `//SDIQ cannot bypass, create in frz is always 0`（`sdiq_entry.v:390`）。
 - **发射后必须等 staddr 进 STQ**：SDIQ 发射的 stdata 指令在 EX1 阶段仍需确认对应的 staddr 是否已进入 STQ（`staddr_rdy` 位），否则需要等待。
 
+> **当前配置边界**：SDIQ 保留 `dep_vreg_entry`、VR0/VR1、向量写回与 VREG dealloc 接口，但当前 `x_vec_inst=0`、`misa_vector=0`，有效 RVV store 不会由当前译码产生。`srcv0` 通道仍可承载标量浮点 store，不能因 RVV 关闭而把整条通道视为无效。
+
 ---
 
 ## 2. 队列结构
 
 ### 2.1 物理结构
 
-SDIQ 由 12 个完全独立的 `ct_idu_is_sdiq_entry` 实例构成（entry0 ~ entry11），在代码中实例化命名为 `x_ct_idu_is_sdiq_entry0` ~ `x_ct_idu_is_sdiq_entry11`。
+SDIQ 由 12 个结构相同的 `ct_idu_is_sdiq_entry` 实例构成（entry0～entry11），实例名为 `x_ct_idu_is_sdiq_entry0`～`x_ct_idu_is_sdiq_entry11`。每项有自己的 valid、freeze、年龄和依赖状态，但会通过 agevec、create/pop 位图和共享唤醒总线相互关联，并非功能上彼此完全独立。
 
 ```
 ct_idu_is_sdiq（顶层）
@@ -100,9 +102,9 @@ ct_idu_is_sdiq（顶层）
 └── dealloc mask 逻辑
 ```
 
-### 2.2 为什么是 12 项而不是 8 项？
+### 2.2 深度为何确定为 12 项？
 
-文档说明中提到 SDIQ"逻辑 8 项"，但物理上实现了 12 项（满容量判断 `sdiq_entry_cnt == 4'd12`，见 `sdiq.v:666`）。这是因为乱序机器在双发射场景下，每周期可同时向 SDIQ 创建两条 store data 指令，适当加深队列可以缓解背压，提高发射吞吐率。
+RTL 实例化 12 个 entry，计数器在 `sdiq_entry_cnt == 4'd12` 时置 full；因此当前实现的物理容量和控制逻辑容量都是 12，不存在“物理 12、逻辑 8”的证据。双创建接口说明更深队列有助于吸收 store-data 突发是合理的体系结构解释，但“为什么恰好选 12”还涉及面积、端口和性能权衡，不能仅凭 RTL 定量证明。
 
 ```verilog
 // sdiq.v:666
@@ -143,7 +145,7 @@ assign sdiq_ctrl_full = (sdiq_entry_cnt[3:0] == 4'd12);
 | 端口 | 宽度 | 含义 |
 |---|---|---|
 | `sdiq_xx_issue_en` | 1 | 本周期有 entry 就绪，可发射 |
-| `sdiq_xx_gateclk_issue_en` | 1 | 时序优化版 issue_en（基于 vld_with_frz） |
+| `sdiq_xx_gateclk_issue_en` | 1 | RF 局部时钟活动请求：任一 `vld && !frz` 项存在；不要求源 ready 和年龄仲裁成立 |
 | `sdiq_dp_issue_entry[11:0]` | 12 | one-hot，指示本周期发射哪个 entry |
 | `sdiq_dp_issue_read_data[26:0]` | 27 | 发射 entry 的数据字 |
 | `sdiq_dp_create0/1_entry[11:0]` | 12 | one-hot，本周期 create0/1 分配到哪个 entry |
@@ -235,7 +237,11 @@ begin
 end
 ```
 
-**为什么方向相反？** 同周期双发射时，如果两个 create 指针都从 entry0 开始扫，会产生冲突（都选中同一个空闲 entry）。从两端向中间扫描，保证 create0 和 create1 选中不同的 entry（只要队列不满到只剩 1 项）。
+**为什么方向相反？** 这里是同周期双 **create/dispatch**，不是 SDIQ 向 LSU
+双发射。create0 选最低编号空项，create1 选最高编号空项；当前至少有两个空项时
+两个指针必然不同。只剩一个空项时两者会指向同一项，仍需
+`1_left/full` 反馈让上游禁止有效双创建。双向扫描让两个优先编码器可并列求值，
+但实际时序是否优于其他编码方式需由综合和 STA 判断。
 
 ### 5.2 create 使能信号
 
@@ -246,7 +252,16 @@ assign sdiq_entry_create_en[11:0] =
      | {12{ctrl_sdiq_create1_en}} & sdiq_entry_create1_in[11:0];
 ```
 
-`ctrl_sdiq_create0_en` 和 `ctrl_sdiq_create1_en` 来自 IDU ctrl 模块，表示本周期分别是否需要向 SDIQ 写入第 0、第 1 条 store data 指令。
+`ctrl_sdiq_create0_en/create1_en` 来自 `ct_idu_is_ctrl`，准确方程是
+`is_dis_sdiq_createN_en && !ctrl_is_dis_stall`，表示功能上真正建立 SDIQ 有效项。
+同组还存在两个不同边界的信号：
+
+- `createN_dp_en = is_dis_sdiq_createN_en && !sdiq_ctrl_full`，允许数据字段预写；
+- `createN_gateclk_en = is_dis_sdiq_createN_en`，只提出本地时钟活动请求。
+
+因此 `dp_en=1` 不能单独解释为 entry 已创建，`gateclk_en=1` 也不能解释为功能
+状态一定更新。全局 dispatch stall 可能阻止 `create_en`，同时数据路径仍预写到
+当前空项；是否发生有效入队要看 `create_en`、指针和 entry `vld` 更新。
 
 ### 5.3 create_sel：数据路径选通
 
@@ -263,7 +278,10 @@ assign sdiq_entry_create_sel[5:0]  = ~({6{ctrl_sdiq_create0_dp_en}}
 - entry 0~5 使用 `~(create0_in & dp_en0)` 实现（低位，create0 优先）
 - entry 6~11 使用 `(create1_in & dp_en1)` 实现（高位，create1 优先）
 
-这种**分区**技巧减少了关键路径上的 mux 延迟（注释：`//entry 0~5 use ~sdiq_entry_create0_in for better timing`，见 `sdiq.v:885`）。
+生成源注释把这种低半区看 create0、高半区看 create1 的写法标为
+`for better timing`。RTL 可确认它把两半 entry 的选择锥写成不同形式，并依赖
+有效双创建时两个指针不重叠的协议；“减少了多少 MUX 延迟”是物理实现结论，需要
+综合网表与 STA 证明，不能仅凭注释定量。
 
 ### 5.4 entry 计数器
 
@@ -292,7 +310,7 @@ end
 
 ## 6. 年龄向量与优先级
 
-SDIQ 使用**年龄向量（Age Vector）**机制保证最老指令优先发射，避免饥饿，同时天然保序（按程序顺序发射 store data，符合内存模型）。
+SDIQ 使用**年龄向量（Age Vector）**在当前 ready 集合中选择最老项，从而减少老项饥饿。它不是严格程序序发射器：一个年轻但 ready 的项可以越过尚未 ready 的老项；完整 store 顺序仍由 staddr 绑定、STQ/LSU、内存顺序检查和退休机制共同保证。
 
 ### 6.1 年龄向量的含义
 
@@ -327,7 +345,7 @@ else if(lsu_idu_ex1_sdiq_pop_vld)
   agevec[10:0] <= agevec[10:0] & ~x_pop_other_entry[10:0];
 ```
 
-当某个 entry 被 pop（发射执行完毕），其他所有 entry 的年龄向量中**清除**已 pop entry 对应的位，相当于从"我比谁更老"的记录中删去已离开队列的竞争者。
+当某个 entry 在 LSU EX1 接口上被 pop 后，其他 entry 从年龄向量中**清除**该项，等价于从“哪些 entry 比我更老”的集合中删除已离队竞争者。这里的 pop 是 SDIQ entry 生命周期结束事件，不等价于体系结构 store 已经退休或写入最终可见内存。
 
 ### 6.4 年龄 beat 的循环映射
 
@@ -348,7 +366,7 @@ assign {sdiq_entry1_pop_other_entry[10:1],
 
 ### 7.1 整体架构
 
-每个 SDIQ entry 通过内置的 `ct_idu_dep_reg_entry`（整数）和 `ct_idu_dep_vreg_entry`（向量）子模块追踪数据源就绪状态。这两个子模块监听**全处理器所有写回总线**，一旦匹配到本 entry 等待的物理寄存器，立即将就绪位置 1。
+每个 SDIQ entry 通过内置的 `ct_idu_dep_reg_entry`（整数）和 `ct_idu_dep_vreg_entry`（FREG/VREG 通道）追踪数据源。它们比较模块端口中明确接入的 IU、LSU、VFPU 和 RF-latch 等唤醒/写回事件，并非自动监听“全处理器所有总线”。匹配事件会参与依赖状态的组合 next-state 计算，ready 寄存状态在对应门控时钟有效沿更新；不能写成无时序边界的“立即置 1”。
 
 ### 7.2 store data 的源寄存器：只有 1 个
 
@@ -363,7 +381,7 @@ else if(x_create_dp_en) begin
 end
 ```
 
-向量 store 使用 `srcv0`（向量寄存器）。二者不会同时有效：普通 store 只有 `src0_vld=1`，向量 store 只有 `srcv0_vld=1`。
+整数 store 使用 `src0`；标量浮点 store 和保留的向量 store 使用 `srcv0`，再由寄存器类别位区分 FREG/VREG。正常译码预计只选择所需源类型，但“二者绝不同时有效”还应由上游编码约束或断言证明，不能仅凭这里两个独立 valid 寄存器断言。
 
 ### 7.3 dep_reg_entry 连接（整数源）
 
@@ -429,7 +447,7 @@ reg stdata1_vld;   // 当前 entry 是非对齐 store 的第 2 个 stdata
 reg unalign;       // 非对齐 store
 ```
 
-对于普通 store，只有 staddr0。对于**非对齐 store**（跨 8 字节边界），地址和数据都被拆成两条，形成 staddr0+staddr1 和 stdata0+stdata1 四条微操作。`stdata1_vld` 标记当前 entry 是第 2 个数据微操作。
+对于普通 store，使用 staddr0。实现将需要两次处理的非对齐 store 组织成 staddr0/staddr1 与 stdata0/stdata1，`stdata1_vld` 标记当前数据项对应第二部分。具体触发边界取决于访问大小、地址低位和 LSU 非对齐判定，不能统一概括为“跨 8 字节边界”。
 
 ### 8.2 staddr_rdy 的置位
 
@@ -457,7 +475,7 @@ assign sdiq_entry_staddr_rdy_set[11:0] = {12{ctrl_sdiq_rf_staddr_rdy_set}}
                                          & dp_sdiq_rf_sdiq_entry[11:0];
 ```
 
-当 staddr 微操作在 **RF 阶段（pipe4）** 通过时（`ctrl_sdiq_rf_staddr_rdy_set = 1`），由 `dp_sdiq_rf_sdiq_entry`（12 位 one-hot）指定哪个 SDIQ entry 的地址就绪了。这是通过 staddr 和 stdata 共享同一个 `sdiq_entry` 编号实现的跨队列通信。
+当 pipe4 的 staddr 在 RF 阶段满足 `inst_vld && !lch_fail && staddr` 时，`ctrl_sdiq_rf_staddr_rdy_set` 为 1；`dp_sdiq_rf_sdiq_entry` 用 one-hot 指定关联 SDIQ entry。该事件说明 staddr 已通过 RF launch 检查，并不等于地址已经写入 STQ；后者还由 DC 级 `lsu_idu_dc_staddr_vld` 单独记录。
 
 ### 8.3 staddr_stq_create：DC 阶段进一步确认
 
@@ -516,7 +534,7 @@ end
 
 - 当 entry 被选中发射时，设置 `frz = 1`，阻止该 entry 参与下一轮发射仲裁（`x_vld_with_frz = vld && !frz`）。
 - 如果 RF 阶段读寄存器失败（launch fail），`x_rf_frz_clr = 1`，解冻并清除就绪状态，让 entry 重新等待并再次参与发射。
-- 如果 pipe5 EX1 阶段成功（`x_ex1_frz_clr = 1`），解冻——但并不立即 pop，实际 pop 由 `lsu_idu_ex1_sdiq_pop_vld` 控制。
+- 如果 pipe5 EX1 返回 `x_ex1_frz_clr = 1`，在 entry 时钟沿解冻；valid 是否清除仍由独立的 `lsu_idu_ex1_sdiq_pop_vld` 与 one-hot entry 命中决定。`frz_clr` 是重试资格控制，pop 才是 entry 释放。
 
 **为什么 create 时 frz = 0 且注释说 SDIQ 不 bypass？** 其他发射队列（如 ALU 队列）支持 bypass：指令在入队前如果数据已就绪可以直接"旁路"发射。但 SDIQ 不支持，因为 store data 还需要等待 staddr 进入 STQ，无法在入队时就确定是否可以发射。
 
@@ -553,7 +571,7 @@ assign x_rdy = vld
 
 `load` 标志的特殊处理：存在少量情况下 SDIQ 项实际上是 load 语义（具体场景需参考 IDU ctrl 的 dp 逻辑），此时绕过 staddr_rdy 检查。
 
-### 10.2 older entry 仲裁（保序发射）
+### 10.2 older-ready 仲裁（ready 集合中年龄优先）
 
 ```verilog
 // sdiq.v:1224-1262
@@ -569,7 +587,7 @@ assign sdiq_entry_issue_en[11:0] = sdiq_entry_ready[11:0]
 
 **关键思路**：entry i 的年龄向量 `agevec[10:0]` 中，置 1 的 bit 代表"比 i 更老的 entry"。`sdiq_older_entry_ready[i]` = 这些更老 entry 中有没有就绪的。如果没有，entry i 就可以发射（`issue_en[i] = 1`）。
 
-由于年龄向量维护了严格的程序顺序关系，这保证了 SDIQ 始终选择就绪指令中**最老**的那条发射，维持 store 的程序顺序。
+年龄向量维护 entry 间的相对先后关系，仲裁从**当前 ready 集合**中选择最老者。若更老 entry 尚未 ready，它不会出现在 `older_entry_ready` 的位与结果中，年轻 ready entry 可以先发射。因此该逻辑提供年龄公平性和 oldest-ready 选择，不单独承担 store 程序序保证。
 
 ### 10.3 发射数据读出
 
@@ -590,7 +608,10 @@ assign sdiq_dp_issue_read_data[SDIQ_WIDTH-1:0] =
          sdiq_entry_read_data[SDIQ_WIDTH-1:0];
 ```
 
-`issue_en` 是 one-hot（最多只有 1 个 entry 被选中），因此 case 语句的每个分支互斥，实现了 12:1 的数据选择器。
+`sdiq_entry_issue_en[11:0]` 是 entry 选择向量；在 age vector 关系和控制协议正确时应为 one-hot 或全零，
+因此 case 的有效分支对应一个 entry。标量 `sdiq_xx_issue_en` 只是该向量的归约或，不是 one-hot 信号。
+若选择向量违反协议而出现多位有效，`case` 不会按优先级选择其中一项，而会落入 `default` 并输出 `X`，
+这有助于在四态仿真中暴露协议错误。
 
 ### 10.4 全局发射使能
 
@@ -598,14 +619,17 @@ assign sdiq_dp_issue_read_data[SDIQ_WIDTH-1:0] =
 // sdiq.v:1280-1293
 assign sdiq_xx_issue_en = |sdiq_entry_ready[11:0];  // 只要有 entry 就绪就置 1
 
-// 时序优化版：基于 vld_with_frz（不等 src rdy），提前一拍给 gated clock 使用
+// 较宽松的活动请求：基于 vld_with_frz，不依赖源 ready 和年龄仲裁
 assign sdiq_xx_gateclk_issue_en = sdiq_entry0_vld_with_frz
                                   || sdiq_entry1_vld_with_frz
                                   || ...
                                   || sdiq_entry11_vld_with_frz;
 ```
 
-`sdiq_xx_issue_en` 输出给 IDU RF 阶段的 ctrl 模块，决定是否在本周期从 SDIQ 发射一条指令。`gateclk_issue_en` 是时序优化版本，仅判断是否有非冻结的有效 entry，用于提前开启 RF 阶段的时钟门控。
+`sdiq_xx_issue_en` 输出给 IDU RF 控制，表示当前存在最终选中的 ready entry。
+`gateclk_issue_en` 只判断是否存在非冻结有效 entry，因而可能在“队列有项但源未就绪”的多个周期持续为 1，
+也可能与 `issue_en` 同周期为 1。RTL 没有定义它固定提前一拍；准确说法是它绕开了源 ready 和 oldest-ready
+仲裁，作为更宽松的局部时钟活动请求。
 
 ---
 
@@ -617,8 +641,8 @@ C910 的 LSU 有三条 pipe：
 
 | Pipe | 用途 | 来源队列 |
 |---|---|---|
-| pipe3 | load/store 地址计算（AGU）、load 数据 | LSIQ |
-| pipe4 | store 地址提交（DC/STQ） | LSIQ（经 pipe3 流入） |
+| pipe3 | load 地址/数据流水 | LSIQ load issue |
+| pipe4 | store 地址流水 | LSIQ store/bar issue |
 | pipe5 | store 数据写入（stdata） | SDIQ |
 
 SDIQ 发射到 pipe5，pipe5 的主要任务是：
@@ -660,7 +684,7 @@ SDIQ 发射时输出：
   ┌─────────────────────────────────────────────────────────────────────┐
   │                                                                     │
   │  IR 重命名：同时分配                                                  │
-  │   ├── lsiq entry N   ────── 发射 ──► pipe3 RF ──► pipe3 AGU        │
+  │   ├── lsiq entry N   ────── 发射 ──► pipe4 RF ──► store AG/DC      │
   │   └── sdiq entry M   ─────────────────────────────┐                │
   │            │                                       │ AGU 计算地址    │
   │            │  (等待 staddr 就绪)                    │                │
@@ -672,7 +696,9 @@ SDIQ 发射时输出：
   │            └── 发射 ──────────────────────────────► pipe5 RF       │
   │                                                    读 rs2 数据      │
   │                                                    写入 STQ[entry] │
-  │                                                    store commit ──►│
+  │                                                    数据进入 STQ   │
+  │                                                    后续按序提交由 │
+  │                                                    LSU/RTU 控制   │
   └─────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -700,9 +726,9 @@ LSIQ（staddr）和 SDIQ（stdata）中的对应项通过**共享 sdiq_entry 编
 
 ## 13. 向量 Store 数据处理
 
-### 13.1 向量 store 的数据源
+### 13.1 保留向量 store 的数据源
 
-对于向量 store（如 `vs1, 8(x2)` 类型指令），数据来自向量寄存器而非整数寄存器，因此使用 `srcv0`（`dep_vreg_entry`）而非 `src0`（`dep_reg_entry`）。
+保留的向量 store 数据来自向量寄存器，因此使用 `srcv0`（`dep_vreg_entry`）而非整数 `src0`。当前 RVV 总译码关闭；此段用于理解参数化/保留接口，实际标量浮点 store 也借用 `srcv0`，但 VREG 类别位为 0。
 
 ```verilog
 // sdiq_entry.v:1（字段）
@@ -719,10 +745,10 @@ parameter SDIQ_SRC0_VLD   = 0;  // bit[0] = 0：无整数源
 | LSU pipe3 AG | `lsu_idu_ag_pipe3_vload_inst_vld` + `vreg_dupx` | 向量 load AGU |
 | LSU pipe3 DC | `lsu_idu_dc_pipe3_vload_*` | 向量 load DC |
 | LSU pipe3 WB | `lsu_idu_wb_pipe3_wb_vreg_*` | 向量 load WB |
-| VFPU pipe6/7 EX1~EX3 | `vfpu_idu_ex1/2/3_pipe6/7_data_vld_dupx` + `vreg` | VFPU 各执行阶段 |
+| VFPU pipe6/7 EX1~EX3 接口 | `vfpu_idu_ex1/2/3_pipe6/7_data_vld_dupx` + `vreg` | 保留的向量中间级唤醒接口；当前 RVV 关闭 |
 | VFPU pipe6/7 EX5 WB | `vfpu_idu_ex5_pipe6/7_wb_vreg_*` | VFPU 最终写回 |
 
-向量流水线延迟更长（最多到 EX5），因此监听点比整数多。
+依赖模块接口覆盖 EX1～EX3 中间级事件和 EX5 写回事件，说明保留向量结果可能在不同阶段变为可前递或最终写回；不能据此断言所有向量操作固定“延迟到 EX5”。当前有效标量浮点与向量路径还应分别看 VREG/FREG 类别和 VFPU 实际连接。
 
 ### 13.3 srcv0 的读数据解析
 
@@ -847,7 +873,7 @@ flush 后 STQ 中的 staddr 项也会随之无效化，因此 SDIQ 的 staddr_rd
 
 ## 16. 时钟门控（ICG）
 
-SDIQ 中共有三类时钟门控单元，节省功耗：
+SDIQ 中按用途组织了三类局部时钟请求：
 
 ### 16.1 计数器时钟（cnt_clk）
 
@@ -858,7 +884,7 @@ assign cnt_clk_en = (sdiq_entry_cnt[3:0] != 4'b0)
                     || ctrl_sdiq_create1_gateclk_en;
 ```
 
-只要队列非空或有新指令要创建，计数器时钟才开启。
+队列非空或有 create gateclk 请求时，`cnt_clk_en` 提出计数器局部时钟请求。
 
 ### 16.2 各 entry 时钟（entry_clk）
 
@@ -867,7 +893,8 @@ assign cnt_clk_en = (sdiq_entry_cnt[3:0] != 4'b0)
 assign entry_clk_en = x_create_gateclk_en || vld;
 ```
 
-每个 entry 有独立的时钟门控：只要 entry 有效（`vld`）或本周期要创建到该 entry，该 entry 的时钟才开启。空闲 entry 全程关闭时钟。
+每个 entry 有独立的 `entry_clk_en`：entry 有效或本周期创建到该 entry 时提出本地请求。空闲 entry
+不提出该请求，但这不等于其门控输出在所有构建方式下都物理停止。
 
 ### 16.3 源寄存器 mask 时钟（src_mask_clk）
 
@@ -877,7 +904,14 @@ assign src_mask_clk_en = sdiq_src_reg_mask_update_vld
                          || sdiq_src_reg_mask_update_vld_ff;
 ```
 
-只在队列内容变化时（create/pop/flush）才更新 dealloc mask，两周期窗口（update_vld 当周期 + 打一拍的 ff 周期）。
+`src_mask_clk_en` 是 `update_vld || update_vld_ff`，因此局部请求覆盖当前更新条件及其寄存后状态为 1
+的下一周期。`update_vld` 的具体组成应按 RTL 中 create/pop/flush 方程读取；这里的两周期窗口是请求覆盖，
+不是说 mask 必然连续改变两次。
+
+上述局部请求统一进入公共 `gated_clk_cell`。该单元的功能使能为
+`global_en && (module_en || local_en)`，扫描使能还可打开工艺 ICG；未定义
+`C910_USE_TSMC28_ICG` 时，当前 RTL 模型直接透传时钟。因此实际门控与功耗收益需要由采用的 ICG 宏、
+综合网表和功耗分析确认。
 
 ---
 
@@ -900,12 +934,12 @@ assign src_mask_clk_en = sdiq_src_reg_mask_update_vld
                           dep_reg_entry 开始追踪 preg_B 的写回
   T3~Tk  IS 等待           每周期广播比较：是否有写回总线输出 preg_B 的值
                           同时等待 staddr（进 LSIQ entry K）发射、执行
-  T?     pipe3 RF          staddr 指令读寄存器（preg_A），即将发射
+  T?     pipe4 RF          staddr 指令读寄存器（preg_A），通过 launch 检查
                           ctrl_sdiq_rf_staddr_rdy_set=1,
                           dp_sdiq_rf_sdiq_entry=12'b000001000 (entry 3)
                           → entry3: staddr0_rdy<=1
-  T?+1   pipe3 AGU         staddr 执行：计算 x2+8
-  T?+2   pipe4 DC          staddr 写入 STQ
+  T?+1   store AG          staddr 执行：计算 x2+8
+  T?+2   store DC          staddr 写入 STQ
                           lsu_idu_dc_staddr_vld=1,
                           lsu_idu_dc_sdiq_entry[3]=1
                           → entry3: staddr0_in_stq<=1, unalign<=0
@@ -922,10 +956,10 @@ assign src_mask_clk_en = sdiq_src_reg_mask_update_vld
   Tr+1   RF 阶段           读 preg_B → 得到 x1 的值
                           假设读取成功：
                           lsu_idu_ex1_sdiq_frz_clr 在 EX1 解冻
-  Tr+2   pipe5 EX1         store data 执行：
+  Tr+2   pipe5 EX1         store data 被 LSU 接收并释放 SDIQ entry：
                           lsu_idu_ex1_sdiq_pop_vld=1,
                           lsu_idu_ex1_sdiq_entry[3]=1
-                          → entry3: vld<=0（出队）
+                          → entry3: vld<=0（SDIQ 出队；并非体系结构退休）
                           sdiq_entry_cnt 减 1
   Tr+3   STQ              store 数据写入 STQ[对应地址项]，等待提交
 ```

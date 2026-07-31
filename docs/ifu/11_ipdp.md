@@ -2,17 +2,23 @@
 
 ## 1. 模块概述
 
-`ct_ifu_ipdp`（IP Stage Data Path）是 C910 处理器 IFU 中**代码量最大的模块**（6872 行），是 IP 流水级的数据通路核心。其主要职责是：
+`ct_ifu_ipdp`（IP Stage Data Path）是 C910 IFU 中规模最大的组合/流水数据通路之一，是 IP 流水级的数据核心。其主要职责是：
 
 1. **接收 IF 级取回的 cache 数据**（H1~H8，每个 half-word 16 位）并缓存残留的 H0
 2. **实例化两套预解码器**（ct_ifu_ipdecode × 2），分别针对 Way0 和 Way1 并行解码
-3. **提取每条指令的分支属性**（con_br、jal、jalr、call/return 等）
-4. **确定第一条分支指令及其 offset**，并计算目标 PC 范围信息
+3. **为窗口内各个可能的指令起点提取属性**（con_br、jal、jalr、call/return 等）
+4. **确定预测控制流涉及的第一条分支及其 offset**，整理目标 PC 和 BTB 元数据
 5. **融合 BHT、L0 BTB、BTB、RAS** 的预测信息
-6. **维护 vtype（vlmul/vsew/vl）寄存器**，支持 RVV 扩展的向量长度预测
-7. **向 IB 级（ibdp）打包每个 Hn 的完整解码信息**
+6. **保留 vtype（vlmul/vsew/vl）预测和向量指令拆分数据通路**
+7. **向 IB 级（ibdp）打包指令半字、预解码属性、异常和预测元数据**
 
 模块与 `ct_ifu_ipctrl` 紧密耦合：ipctrl 生成控制信号，ipdp 执行数据操作并反馈诊断信号（ipdp_ipctrl_* 系列）给 ipctrl 做决策。
+
+这里必须区分“RTL 中存在一条功能通路”和“当前生成配置对软件公开该 ISA 能力”。`ct_ifu_ipdp.v`
+保留了 `vsetvli`、`vl/vsew/vlmul` 和 split 相关逻辑；但当前仓库生成配置中
+`ct_cp0_regs.v` 将 `misa_vector` 固定为 `1'b0`，`ct_idu_id_decd.v` 也将
+`x_vec_inst` 固定为 `1'b0`。因此本文会解释这条保留通路的硬件行为，但不把它表述为
+当前配置已经可由软件使用的完整 RVV 能力。
 
 ---
 
@@ -20,7 +26,13 @@
 
 ### 2.1 H0~H8 的含义
 
-C910 每个周期从 I-Cache 读取一个 128 位、16 字节取指块，共 8 个 16-bit half-word，在 ipdp 中命名为 **H1~H8**（bit[7:0] 各对应一个 half-word，bit[7] = H1，bit[0] = H8）。一个 64 字节 cache line 包含 4 个这样的取指块。
+C910 的这条 IF→IP 数据通路一次提供一个 128 位、16 字节取指窗口，共 8 个
+16-bit half-word，在 ipdp 中命名为 **H1~H8**（8 位属性向量中 bit[7] 对应 H1，
+bit[0] 对应 H8）。一个 64 字节 I-Cache line 包含 4 个这样的窗口。
+
+H1~H8 是**物理半字位置**，不是固定的 8 条指令。若全部为 16 位压缩指令，一个窗口
+最多包含 8 条指令；若包含 32 位指令，相邻两个半字共同组成一条指令，窗口中的指令数
+会相应减少。
 
 另外，**H0** 是一个特殊的缓存寄存器：
 
@@ -30,7 +42,15 @@ h0_cur_pc[35:0] <= ip_vpc[PC_WIDTH-2:3]; // H0 所属的 16 字节取指块号
 h0_data[15:0]   <= h8_data[15:0];        // H0 的数据就是上一次取指的 H8
 ```
 
-H0 产生的场景：当前 16 字节取指块的最后一个 half-word（H8）是一条 32-bit 指令的低半字。此时 H8 存入 H0，下一取指块到来后再与新的 H1 拼成完整的 32-bit 指令。
+H0 产生的场景：当前 16 字节窗口的最后一个 half-word（H8）是一条 32-bit 指令在
+低地址处的低 16 位，而该指令的高 16 位位于下一窗口的 H1。IPDP 保存 H8 的数据、
+PC 块号和一组预解码属性；下一窗口到来时，`ct_ifu_ipdecode` 同时看到 H0 与新的 H1，
+从而恢复这条跨窗口指令。H0 不是第九个新取指槽，而是上一窗口留下的拼接状态。
+
+本文中的 39 位 `ip_vpc[38:0]`、`base_pc_*[38:0]` 等均是**内部半字地址**：
+架构字节地址 bit 0 恒为 0，因此 RTL 省略该位。恢复为软件可见地址时应理解为
+`arch_pc = {internal_pc, 1'b0}`。所以内部 PC 加 1 表示前进 2 字节，加 8 表示前进
+16 字节。
 
 ### 2.2 数据流
 
@@ -38,9 +58,9 @@ H0 产生的场景：当前 16 字节取指块的最后一个 half-word（H8）�
                     ┌─────────────────────────────────────────────┐
                     │              ct_ifu_ipdp                     │
                     │                                              │
-ifdp → H1~H8 data  │→  两套 ipdecode（Way0 / Way1）              │
-       BTB 数据     │→  分支信息提取（br, con_br, ab_br, etc.）   │
-       L0 BTB 数据  │→  分支 offset 计算                          │
+ifdp → H1~H8 data  │→  两套 ipdecode（I-Cache Way0 / Way1）     │
+       BTB 数据     │→  指令属性提取（con_br、jal、jalr 等）      │
+       L0 BTB 数据  │→  分支位置、基址和 offset 选择              │
                     │→  第一分支定位（casez on branch[7:0]）       │
                     │→  BHT 数据读取（bht_pre_result）             │
                     │→  vtype 寄存器维护                           │
@@ -63,21 +83,27 @@ ipdp 的输入/输出极其丰富（约 200 个端口）。以下按功能分组
 每个 half-word（H1~H8）对应：
 - `ifdp_ipdp_h1_inst_high_way0[13:0]`：16-bit 指令的高 14 位（来自 Way0）
 - `ifdp_ipdp_h1_inst_low_way0[1:0]`：16-bit 指令的低 2 位
-- `ifdp_ipdp_h1_precode_way0[3:0]`：4-bit 预解码结果（bit[2]=br, bit[3]=ab_br）
+- `ifdp_ipdp_h1_precode_way0[3:0]`：4-bit 预解码结果
 
-> 指令被拆分为 high(14) + low(2) 传输，是因为 cache SRAM 的物理排布（低位与高位可能来自不同的 way 存储单元），合并后得到完整的 `h1_data[15:0] = {h1_high_way0[13:0], h1_low_way0[1:0]}`。
+RTL 在接口上把每个半字拆为 high(14) 与 low(2)，随后组合成
+`h1_data[15:0] = {h1_high_way0[13:0], h1_low_way0[1:0]}`。这种结构使最关键的
+RISC-V 指令长度判定低两位可以被直接使用；仅凭功能 RTL 不能进一步断言其物理 SRAM
+排布或关键路径收益，后者需要综合网表、布局和 STA 结果证明。
 
 ### 3.2 来自 BTB 的信息
 
 ```verilog
-input [1:0]  ifdp_ipdp_btb_way0_pred;   // Way0 命中时该分支的 way 预测
-input [9:0]  ifdp_ipdp_btb_way0_tag;    // BTB Way0 标记（用于验证命中）
-input [19:0] ifdp_ipdp_btb_way0_target; // BTB Way0 存储的目标 PC 低 20 位
-input        ifdp_ipdp_btb_way0_vld;    // BTB Way0 条目有效
-// Way1~Way3 类似
+input [1:0]  ifdp_ipdp_btb_way0_pred;   // 位置槽 0 保存的目标 I-Cache way 预测
+input [9:0]  ifdp_ipdp_btb_way0_tag;    // 位置槽 0 的分支 PC 标签
+input [19:0] ifdp_ipdp_btb_way0_target; // 位置槽 0 的内部目标 PC 低 20 位
+input        ifdp_ipdp_btb_way0_vld;    // 位置槽 0 有效
+// 位置槽 1~3 类似
 ```
 
-BTB 是 4-way 组相联结构，每 way 对应取指窗口中不同位置的分支。
+这里的 `btb_way0`~`btb_way3` 容易被误认为 4 路组相联。按选择逻辑，它们是一个
+取指窗口内按位置固定分组的 4 个 BTB 槽：slot0 对应 H1/H2，slot1 对应 H3/H4，
+slot2 对应 H5/H6，slot3 对应 H7/H8。`pred[1:0]` 预测的是目标 PC 所在的
+I-Cache way，也不是条件分支方向计数器。
 
 ### 3.3 来自 L0 BTB 的信息
 
@@ -126,20 +152,27 @@ ct_ifu_ipdecode  x_ct_ifu_ipdecode1 (
 );
 ```
 
-**为什么需要两路同时解码？** 在 IP 级进入时，还不知道哪个 way 命中（tag 比较结果在本周期才稳定），因此必须对 Way0 和 Way1 同时解码，等 `way0_hit` 信号稳定后再 mux 选择正确的结果。
+两套实例分别对 I-Cache Way0/Way1 候选数据并行生成完整解码结果，随后由
+`ipctrl_ipdp_icache_way0_hit` 选择一路。RTL 结构避免了“先选数据、再启动同一个
+解码器”的串行依赖；是否因此满足某一周期或获得多少时序收益，仍需以综合网表和
+STA 为准。
 
 ### 4.2 预解码结果的含义
 
-precode[3:0] 的每一位：
+`ct_ifu_precode.v` 明确将每个半字的 4 位编码组织为
+`{ab_br, br, bry1, bry0}`：
 
 | 位 | 含义 |
 |----|------|
-| bit[0] | 32-bit 指令（low[1:0]==2'b11） |
-| bit[1] | 未使用（原始 bry 信息） |
-| bit[2] | **br**：是分支指令（con_br 或 ab_br 或 preturn） |
-| bit[3] | **ab_br**：是无条件分支（absolute branch） |
+| bit[0] | `bry0`：假设 H1 不是指令起点时，该半字是否为指令起点 |
+| bit[1] | `bry1`：假设 H1 是指令起点时，该半字是否为指令起点 |
+| bit[2] | `br`：直接控制流候选，包括条件分支、JAL 和 C.J |
+| bit[3] | `ab_br`：直接无条件控制流子集，即 JAL 和 C.J |
 
-precode 在 IF 级（ifdp）预先计算并存入 I-Cache，IP 级直接读取，无需重新解析指令 opcode。
+`bry0/bry1` 是两种起点假设下的边界链，不是指令宽度位。指令是否为 32 位仍由
+半字自身的 `data[1:0] == 2'b11` 判断。`br/ab_br` 也只是早期直接控制流标记；
+JALR、return、call、load/store、异常相关属性等仍由两套 `ct_ifu_ipdecode`
+读取指令内容产生。因此不能说 IP 级完全不再解析 opcode。
 
 ### 4.3 inst[1:0] 决定指令宽度
 
@@ -150,7 +183,10 @@ assign h1_32_way0 = (h1_low_way0[1:0] == 2'b11);
 assign way0_32[7:0] = {h1_32_way0, h2_32_way0, ..., h8_32_way0};
 ```
 
-RISC-V C 扩展规定：若指令的低 2 位 ≠ 2'b11，则是 16-bit 压缩指令；等于 2'b11 则是 32-bit 指令。此处通过每个 half-word 的 low 2 bits 一次性判断所有 8 个 half-word 是否是 32-bit 指令的起始位，生成 `way0_32[7:0]` 位图。
+在本设计支持的 16/32 位指令集合中，低 2 位不等于 `2'b11` 表示 16 位压缩指令，
+等于 `2'b11` 表示 32 位指令的低半字。这里先对 8 个物理半字并行形成
+`way0_32[7:0]`/`way1_32[7:0]` 候选；最终还必须结合 BRY 边界链，才能区分“真正
+的 32 位指令起点”和“恰好位于某条 32 位指令高半字位置的数据”。
 
 ---
 
@@ -167,7 +203,11 @@ assign jal[7:0]     = jal_pre[7:0]    & bry_data[7:0];
 // ...
 ```
 
-`bry_data[7:0]` 来自 ipctrl（`ipctrl_ipdp_bry_data`），它标记了当前取指窗口中哪些 half-word 是**合法的指令起始位置**。所有解码属性都要与 bry_data 做 AND，确保只有位于指令边界处的 half-word 产生有效信号。
+`bry_data[7:0]` 来自 ipctrl（`ipctrl_ipdp_bry_data`），它根据当前 H1 边界状态在
+`bry0/bry1` 两条候选链中选出本窗口的指令起点位图。各类“按指令起点解释”的属性
+再与它相与，避免把 32 位指令的高半字误识别成另一条指令。这里的 `br` 还会把
+`preturn` 纳入早期重定向候选，而 `ab_br` 只表示 JAL/C.J 子集；完整类型以
+`con_br/jal/jalr/pcall/preturn` 等独立位图为准。
 
 ### 5.2 32-bit 指令的特殊处理
 
@@ -178,9 +218,13 @@ assign inst_32[0] = (inst_32_pre[0]);
 assign inst_32[6:1] = inst_32_pre[6:1];
 ```
 
-当 `h0_vld=1` 时，H1（bit[7]）被 H0 的高半字占用，H1 本身是 32-bit 指令的**高半字**，不是新指令的起始，所以强制将 inst_32[7] 清零（表示 H1 不是一条 32-bit 新指令的起始）。
+当 `h0_vld=1` 时，H0 是跨窗口指令的低 16 位，当前 H1 是其高 16 位。H1 仍然作为
+数据半字传给后续级，但不能再被解释为一条新 32 位指令的低半字，所以
+`inst_32[7]` 清零。跨窗口指令自身的属性由保存的 H0 解码状态与当前 H1 共同处理。
 
-H8（bit[0]）始终按照 cache 中的实际值处理：如果 H8 的 `low[1:0]==2'b11`，说明 H8 是下一条 32-bit 指令的低半字，该指令跨到下一个 16 字节取指块，此时 `h0_vld_pre` 置 1，H8 内容存入 H0。
+H8（bit[0]）先按 cache 数据的 `low[1:0]` 判断 32 位候选；只有它同时位于 BRY
+确认的指令边界，并满足下一节的控制流条件时，`h0_vld_pre` 才置 1，H8 才成为
+下一窗口可用的 H0。
 
 ### 5.3 h0_vld_pre：判断 H0 是否应该有效
 
@@ -192,7 +236,9 @@ assign h0_vld_pre = (inst_32[0] && bry_data[0]) &&  // H8 是 32-bit 指令
                     !ipctrl_ipdp_br_more_than_one_stall; // 没有多分支 stall
 ```
 
-只有 H8 是 32-bit 指令**且**本次取指未发生跳转时，才将 H8 存为 H0。若发生跳转，顺序取指被中断，H0 无意义。
+只有 H8 在 BRY 链上确实是 32 位指令起点，并且 H1~H7 没有已经选中的
+`chgflw`、IP 没有发出 `pcload`、当前不是多条件分支重发状态，`h0_vld_pre`
+才成立。直观上说，只有控制流仍会顺序到达下一窗口时，保存 H8 才有意义。
 
 ### 5.4 H0 数据更新时机
 
@@ -209,13 +255,24 @@ begin
 end
 ```
 
-H0 的数据在 `h0_updt_clk`（门控时钟）上沿采样，该时钟的使能条件是 `ipctrl_ipdp_h0_updt_gateclk_en`，从而在不需要更新 H0 时关闭时钟，降低功耗。
+`h0_vld/h0_vld_dup` 直接使用 `forever_cpuclk`，并在 cancel、stall、访问拒绝和
+`h0_update_vld` 条件下更新；H0 payload 则在 `h0_updt_clk` 上、满足
+`h0_update_vld && !pipe_stall` 时更新。payload 不只有 16 位数据，还包括窗口块号、
+分支种类、目的寄存器有效、断点、no-spec、vtype 预测等跨窗口所需属性。
+
+`h0_updt_clk` 来自通用 `gated_clk_cell`，其 local enable 为
+`ipctrl_ipdp_h0_updt_gateclk_en`。不能仅由 local enable 为 0 就断言时钟必停：
+`cp0_ifu_icg_en` 可通过 module enable 覆盖；若未定义 `C910_USE_TSMC28_ICG`，
+通用单元的 RTL 仿真实现还会把 `clk_out` 直接连到 `clk_in`。门控带来的实际功耗
+收益必须在目标工艺实现中评估。
 
 ---
 
 ## 6. H0 对 H1 解码信息的覆盖
 
-H0 有效时，H1 实际上是 H0（上条指令的高半字），不是新指令起始。此时 H1 处（bit[7]）的所有解码信息应当来自 H0 的解码结果：
+H0 有效时，H0 与当前 H1 共同组成跨窗口 32 位指令：H0 保存低半字，H1 提供高半字。
+输出中 H0 payload 和 H1 data 仍是分开的，但 bit[7] 这一“第一条逻辑指令位置”的
+分支等属性需要采用保存的 H0 解码状态：
 
 ```verilog
 // 行 2522-2530（Way0，bit[7] 位的处理）
@@ -236,7 +293,9 @@ assign way0_br_pre[0]      = (inst_32_pre[0]) ? 1'b0
 assign way0_ab_br_pre[0]   = (inst_32_pre[0]) ? 1'b0 : way0_ab_br[0];
 ```
 
-H2~H7（bit[6:1]）无特殊情况，直接使用预解码结果。
+H2~H7（bit[6:1]）按当前窗口的解码结果处理。H0 还独立通过
+`ipdp_ibdp_h0_data/ipdp_ibdp_h0_vld` 送入 IBDP；不能把该机制理解成物理地用 H0
+替换了 `h1_data`。
 
 ---
 
@@ -251,7 +310,10 @@ assign inst_32_pre[7:0]= (way0_hit) ? way0_32[7:0]         : way1_32[7:0];
 // ...
 ```
 
-`way0_hit` 来自 ipctrl（`ipctrl_ipdp_icache_way0_hit`）。当 Way0 命中时使用 Way0 的解码结果；否则使用 Way1。两套解码器并行运行，命中确定后一路 mux 完成。
+`way0_hit` 来自 ipctrl（`ipctrl_ipdp_icache_way0_hit`）。当 Way0 命中时选择
+Way0 候选，否则选择 Way1 候选。正常有效取指依赖 IFCTRL/IPCTRL 已完成命中与异常
+归一化；在异常路径中 IPCTRL 会强制选择 Way0，以给组合选择一个确定通路，此时
+指令数据本身不应再被当作正常可执行内容。
 
 ---
 
@@ -266,7 +328,10 @@ assign pre_array_data[31:0] = (bht_sel_result[1])
                             : bht_ipdp_pre_array_data_ntake[31:0];
 ```
 
-BHT 维护两个并行数组：taken 表和 ntaken 表。`bht_sel_result[1]` 决定选哪个，这是 2-level 自适应预测的实现之一。
+BHT 向 IPDP 同时提供 `taken` 与 `ntake` 两组各 16 个 2-bit 项，
+`bht_sel_result[1]` 选择其中一组，IPDP 再按 one-hot 索引选一个计数器。该组织可从
+RTL 直接确认；把整个 BHT 归类为哪一种经典两级预测器，还需要结合
+`ct_ifu_bht.v` 中索引、历史选择和更新路径一起判断，不能仅由这个 mux 得出。
 
 ### 8.2 用 pre_offset_onehot 定位当前分支
 
@@ -308,7 +373,11 @@ assign ipdp_bht_vpc[PC_WIDTH-2:0]   = ip_vpc[PC_WIDTH-2:0];
 assign ipdp_bht_h0_con_br            = h0_vld_pre && h0_con_br_pre && ipctrl_ipdp_bht_vld;
 ```
 
-ipdp 将当前 VPC 和是否有条件分支（`ipdp_bht_h0_con_br`）发给 BHT 模块，BHT 在每个周期根据预测方向将一位追加到 GHR（Global History Register）中，实现投机更新。
+IPDP 本身不写 VGHR。它把当前内部 VPC 送给 BHT；IPCTRL 另外提供当前窗口的
+`con_br_vld/taken`，BHT 据此进行正常的投机历史推进。这里单独的
+`ipdp_bht_h0_con_br` 表示本窗口 H8 将成为下一窗口 H0，且它是条件分支并处于
+BHT 有效路径，用来覆盖跨窗口条件分支这一特殊情况。恢复和非投机修正仍由 BJU/RTU
+相关接口完成。
 
 ---
 
@@ -321,7 +390,9 @@ ipdp 将当前 VPC 和是否有条件分支（`ipdp_bht_h0_con_br`）发给 BHT 
 assign branch[7:0] = ipctrl_ipdp_branch[7:0];
 ```
 
-`branch` 是经过 ipctrl 综合 BHT 方向后产生的"本周期实际跳转的分支位图"：BHT 预测 taken 时取 `ip_chgflw_taken[7:0]`，预测 not taken 时取 `ip_chgflw_ntake[7:0]`。
+`branch` 是 IPCTRL 根据预解码、BHT 方向、直接/间接控制流和当前重发状态选出的
+**预测重定向候选位图**。它描述前端本周期按预测认为应改变控制流的那条指令，
+不代表指令已经执行，也不是架构意义上的“实际跳转结果”。
 
 ### 9.2 base_pc_branch：分支基地址计算
 
@@ -342,11 +413,21 @@ casez(branch[7:0])
   // ...
 ```
 
-这是整个模块最核心的数据选择逻辑之一：根据 `branch[7:0]` 的最高有效位（第一条分支的位置），选择该分支对应的：
-- **base_pc**：该分支指令自身的 PC（VPC 高位 + half-word 偏移）
+这是整个模块最核心的数据选择逻辑之一：根据 `branch[7:0]` 的最高有效位，选择该
+预测控制流指令对应的：
+- **base_pc**：该分支指令自身的内部 PC（VPC 块号 + half-word 偏移）
 - **offset**：分支指令中编码的相对偏移量（由 ipdecode 提取的 21-bit 符号扩展值）
 
-> 分支目标 PC = base_pc + sign_extend(offset)，这一加法在 ibdp（IB 级数据通路）中完成。
+由于内部 PC 省略架构 bit 0，后续 `ct_ifu_addrgen` 使用的是
+`sign_extend(offset[20:1])`：
+
+```text
+calculated_internal_target = base_internal_pc + sign_extend(encoded_offset[20:1])
+```
+
+这个加法不在 IPDP 或 IBDP 内完成，而在 IBDP 将 base/offset 转交给
+`ct_ifu_addrgen` 后完成。ADDRGEN 再将计算目标与前端预测目标比较，产生 BTB
+mispredict 信息。
 
 ### 9.3 BTB 目标 PC 的选择优先级
 
@@ -362,7 +443,9 @@ else                  // H7~H8 处有分支
   使用 Way3 的 BTB 数据
 ```
 
-4 路 BTB 的存储槽位对应取指窗口中不同位置的分支，按位置高低（H1 最高优先级）分配到 Way0~Way3。若某路 BTB valid 且 tag 匹配，则命中。
+这 4 个信号组是按位置固定的槽，不是四路替换候选。IPDP 先根据分支位置选择唯一
+槽，再检查该槽的 valid 和 tag。槽内 `target[19:0]` 是预测目标内部 PC 的低
+20 位，`pred[1:0]` 是目标 I-Cache way 预测。
 
 ```verilog
 // 行 5550-5552
@@ -371,13 +454,17 @@ assign btb_branch_miss = !btb_branch_way_vld ||
                          !cp0_ifu_btb_en;
 ```
 
-`btb_branch_miss` 为 1 时，BTB 中没有该分支的记录，需要通过计算值（base + offset）作为目标 PC，并在 IB 级将此信息写入 BTB（通过 `ipdp_ibdp_branch_btb_miss` 信号通知 ibdp）。
+`btb_branch_miss` 的精确定义是：所选位置槽无效、标签不匹配，或 CP0 关闭 BTB。
+IPDP 将 miss、base、offset、预测结果和索引一起流水送出。IBDP 只负责继续打包和
+仲裁；真正的直接目标加法与预测目标比较在 ADDRGEN 中完成，BTB 写请求还要经过
+`ib_data_vld`、无异常、无 IB self-stall 等条件过滤。
 
 ---
 
 ## 10. 条件分支 con_br 的特殊处理
 
-条件分支（beq、bne、blt 等）与无条件分支（jal）不同，其目标 PC 在预测阶段可能不确定，需要额外的信息传递到 IB 级。
+条件分支（beq、bne、blt 等）需要同时保存“方向预测”和“直接目标计算”两类信息。
+IPDP 因而独立定位窗口中第一条条件分支，即使窗口里还存在其他直接或间接控制流属性。
 
 ### 10.1 con_br 的位置定位
 
@@ -396,7 +483,7 @@ casez(con_br[7:0])
 - 其 PC（base_pc_con_br）
 - 其 offset（offset_con_br）
 - 是否是 32-bit 指令（inst_32_con_br）
-- 在 8 个 half-word 中的掩码（con_br_vmask，用于 vtype 更新边界）
+- 在 8 个物理半字位置中的掩码（`con_br_vmask`，用于多分支处理和状态选择）
 
 ### 10.2 传递给 ibdp
 
@@ -409,13 +496,18 @@ ipdp_ibdp_con_br_num        // 条件分支的 half-word 编号（用于 IB 计�
 ipdp_ibdp_con_br_num_vld    // 有效标志
 ```
 
-IB 级（ibdp）在执行阶段（EX）会用这些信息重新计算跳转目标并与 IFU 的预测结果比较。
+IBDP 仍属于前端 Instruction Buffer 数据通路，不是执行级。它把这些字段送给
+ADDRGEN；ADDRGEN 计算直接目标、与 `branch_result` 比较，并在下一拍形成前端
+纠正信息。条件是否真正成立以及退休后的精确恢复，则属于更后面的 BJU/RTU 路径。
 
 ---
 
 ## 11. "after_head" 机制：相对 VPC 的偏移重排
 
-C910 中，IB 级接收的是每个 H 相对于 VPC 对齐基地址的偏移编号。ipdp 将所有 8 个 half-word 的属性信息"重排"，使得 H1 始终对应 VPC 起始位置处的第一个有效 half-word。
+C910 允许当前 VPC 从一个 16 字节窗口内任意半字位置开始。IPDP 先按
+`vpc_onehot` 去掉 VPC 之前的物理半字，并把 VPC 指向的半字移到逻辑 H1
+（bit[7]）位置，这就是 `*_after_head`。它处理的是“窗口从哪里开始有效”，不是
+分支后的尾部截断。
 
 ### 11.1 原理
 
@@ -437,23 +529,36 @@ case(vpc_onehot[7:0])
 
 ### 11.2 为什么要重排？
 
-IB 级（ibdp）接收来自 ipdp 的信息并维护一个环形指令缓冲。IB 级期望总是从"位置 0"（H1）开始填充，因此 ipdp 必须将起始偏移折叠掉，确保 IB 级总能从相同的基准位置读取指令。
+IBDP/IBUF 接口采用固定的 H1~H8 逻辑位置。提前折叠窗口头部后，下游无需为
+8 种 VPC 起点分别实现一套索引控制。这里可以理解为一个并行“左对齐器”；是否采用
+环形存储属于 IBUF 自身实现，不能从 IPDP 的移位逻辑直接推出。
 
 ### 11.3 hn_vld_after_head：每个 H 的有效性
 
 ```verilog
-// hn_vld_after_head 由 ipdecode 的 bry_data 和 inst_32 共同决定
-// 规则：bry_data[n]=1 且 inst_32[n]=0 → Hn 单独占一个槽（16-bit）
-//       bry_data[n]=1 且 inst_32[n]=1 → Hn 和 Hn+1 一起（32-bit），Hn+1 不单独占槽
+// 伪代码：先按 vpc_onehot 左对齐物理半字可用位图
+hn_vld_after_head = left_align(physical_halfword_valid, vpc_onehot);
 ```
 
-该信号标记了哪些 half-word 是独立指令起始，IB 级据此分配指令 entry。
+`hn_vld_after_head` 表示左对齐后哪些**物理半字槽**可以送入下游，并不等同于
+“独立指令起点位图”。32 位指令的两个半字都需要有效，但只有低地址半字对应的
+`bry_data`/`hn_32_start` 表示指令起点。窗口末尾若只有一条跨窗 32 位指令的低半字，
+RTL 会避免把不完整指令当作完整数据包送出，并由 H0 机制接续。
 
 ---
 
 ## 12. "after_tail" 机制：分支截断
 
-当条件分支 taken 时（`tail_vld = con_br_first_branch && bht_result`），分支后面的指令不该进入 IB 级（它们是错误路径）。ipdp 用 `chgflw_after_head[7:0]` 作为截断标记，将分支之后的所有属性位清零：
+`tail_vld` 有两个来源：
+
+```verilog
+tail_vld = (con_br_first_branch && bht_result)
+         || ipctrl_ipdp_br_more_than_one_stall;
+```
+
+第一种是窗口内按程序顺序遇到的第一条控制流是条件分支，且 BHT 预测 taken；
+第二种是同一窗口出现多个条件分支，IPCTRL 通过 stall/reissue 分段处理。此时当前
+数据包只能保留到第一条条件分支为止，后面的半字留给后续片段重新处理。
 
 ```verilog
 // 行 4270-4463
@@ -467,7 +572,9 @@ casez(con_br_after_head[7:0])
   // ...
 ```
 
-同时，`chgflw_mask[7:0]` 用于标记哪些 half-word 在分支后、应该被 mask：
+`mask_*` 系列以第一条 `con_br_after_head` 为截断点，并在该条件分支是 32 位时保留
+它的第二个半字。另一个 `chgflw_mask` 则以选中的 `chgflw_after_head` 为界，描述
+本数据包允许覆盖到哪个半字：
 
 ```verilog
 // 行 4475-4498
@@ -478,13 +585,24 @@ casez(chgflw_after_head[7:0])
   // ...
 ```
 
-`chgflw_mask` 输出给 ibdp，ibdp 据此知道在第几个 half-word 之后停止加载（即"有效 half-word 数"）。
+`chgflw_mask` 中的 1 表示从逻辑头部到重定向指令末尾仍属于当前包的范围；没有
+`chgflw` 时为 `8'hff`。最终应同时观察 `ip_hn_vld`、`ip_bry_data` 和
+`chgflw_mask`：前者说明半字是否存在，BRY 说明指令从哪里开始，mask 说明控制流
+边界在哪里。三者语义不同。
+
+并非每一种辅助属性都单独复制一套 tail mask。RTL 明确让
+`inst_ldst/no_spec/vl_pred/vsetvli` 只做 `after_head`，而最终有效范围由
+`ip_hn_vld` 和后续数据包 valid 共同约束。读波形时若看到 tail 之后某个辅助位仍为
+1，不能直接认定错误路径指令已进入 IBUF，必须同时检查对应半字的 `hn_vld`。
 
 ---
 
-## 13. vtype 维护（RVV 向量扩展支持）
+## 13. vtype 维护（当前配置未启用的保留通路）
 
-C910 支持 RISC-V V 扩展（RVV），指令解码时需要知道当前的向量长度（vl）、向量元素宽度（vsew）、向量寄存器分组（vlmul）。这三个值由 `vsetvli` 指令设置，ipdp 中维护这些寄存器并做周期内的传播。
+IPDP RTL 保留向量长度 `vl`、元素宽度 `vsew`、寄存器分组 `vlmul` 及
+`vsetvli` 预测传播逻辑。该逻辑反映了一个重要的前端问题：若一条指令的拆分方式依赖
+前序 `vsetvli`，同一宽窗口内必须按程序顺序传播状态。当前生成配置关闭 `misa.V`
+和 IDU 向量指令识别，因此本节是对保留微结构的说明，不代表当前 ELF 可以使用 RVV。
 
 ### 13.1 vl/vsew/vlmul 寄存器
 
@@ -510,11 +628,13 @@ else if(rtu_ifu_xx_expt_vld)   异常，从 CSR 恢复
 else if(iu_ifu_chgflw_vld)     执行单元（IU）提交的 vsetvli 结果
 else if(addrgen_xx_pcload)     向量地址生成单元的 chgflw
 else if(ibctrl_ipdp_pcload)    IB 级 chgflw
-else if(lbuf_ipdp_vtype_updt_vld) load buffer 更新
+else if(lbuf_ipdp_vtype_updt_vld) loop buffer（LBUF）回送更新
 else                           IP 级 vsetvli 指令（推测性更新）
 ```
 
-> **为什么 IP 级就更新 vtype？** 与 GHR 投机更新类似，在 vsetvli 指令解码时就推测性更新 vtype，让后续指令（vector 指令）能立刻使用新的 vl/vsew/vlmul。若 vsetvli 最终预测错误（目标寄存器实际值不同），RTU 会通过 `rtu_ifu_chgflw_vld` 纠正。
+IP 级更新让同一窗口和紧随其后的指令可以使用预测状态；控制流恢复、异常或 flush
+时，优先从 CP0 或上游恢复接口重建状态。这里不能简化为“RTU 只在 vsetvli 预测错时
+纠正”：RTL 的恢复条件覆盖更广的控制流和异常场景。
 
 ### 13.3 周期内传播（形成正确的 Hn vtype）
 
@@ -530,7 +650,9 @@ assign h3_vlmul = (vsetvli[5]) ? h3_vlmul_pre : h2_vlmul;
 // ... h4~h8 类似
 ```
 
-每个 H 首先查看自己是否是 vsetvli（若是则用新值），否则继承前一个 H 的值。这保证了 H_n 的 vtype 反映的是**在 H_n 之前最近一条 vsetvli 指令执行后**的状态。
+链式表达式使当前位置若识别到 `vsetvli`，该位置以及后续位置可以取得新的预测值；
+否则继承前一位置状态。它是组合级的前端预测传播，不等价于该 `vsetvli` 已执行或
+退休；错误路径上的状态最终必须由前述恢复源覆盖。
 
 ---
 
@@ -538,7 +660,8 @@ assign h3_vlmul = (vsetvli[5]) ? h3_vlmul_pre : h2_vlmul;
 
 ### 14.1 RAS Push PC 计算
 
-当检测到 call 指令（pcall）时，ipdp 在 IP 级就计算好返回地址（call 的下一条指令的 PC）并推入 RAS：
+当窗口内检测到 `pcall` 时，IPDP 在 IP 级计算顺序返回地址，并通过
+`ipdp_l0_btb_ras_pc/ipdp_l0_btb_ras_push` 请求 RAS 更新：
 
 ```verilog
 // 行 5557-5616
@@ -550,7 +673,9 @@ assign ipdp_h1_next_pc = (h0_vld)
 // ... 类似生成 h2~h8 的 next_pc
 ```
 
-根据 pcall 在取指窗口中的位置（`pcall_vpc_mask[7:0]`），选择对应的 next_pc 作为返回地址：
+`pcall_vpc_mask = pcall & ipctrl_ipdp_vpc_mask` 先排除 VPC 之前的 call，再按最靠前
+的位置选择返回地址。所有值都是省略架构 bit 0 的内部 PC；32 位 call 前进两个内部
+单位，16 位 call 前进一个内部单位，H7/H8 跨窗口时内部 `+8` 即字节地址 `+16`。
 
 ```verilog
 // 行 5604-5616
@@ -560,6 +685,9 @@ casez(pcall_vpc_mask[7:0])
   // ...
 ```
 
+真正的 push valid 还要求 `!pipe_cancel && ip_data_vld && |pcall_vpc_mask`，因此仅有
+组合解码命中不会更新 RAS。
+
 ### 14.2 RAS 命中验证
 
 ```verilog
@@ -567,13 +695,16 @@ casez(pcall_vpc_mask[7:0])
 assign l0_btb_ras_pc_hit = (ras_target_pc == ifdp_ipdp_l0_btb_target);
 ```
 
-若 RAS 栈顶 PC 与 L0 BTB 记录的目标 PC 一致，则 `l0_btb_ras_pc_hit=1`，说明 L0 BTB 和 RAS 对该 return 的预测是一致的，无需纠正。
+若 RAS 提供有效数据则 `ras_target_pc` 取 RAS 栈顶，否则退化为当前默认 VPC。
+`l0_btb_ras_pc_hit` 只表示这个候选目标与 L0 BTB 目标逐位相等；是否需要纠正还要由
+IBCTRL/IBDP 结合 L0 命中、RAS 标志、有效性和当前 stall 判断，不能单凭该比较信号
+断言“无需纠正”。
 
 ---
 
 ## 15. L0 BTB 更新逻辑
 
-### 15.1 L0 BTB 命中判定
+### 15.1 L0 结果与常规 BTB 的一致性验证
 
 ```verilog
 // 行 5782-5797
@@ -586,23 +717,29 @@ assign ipdp_ipctrl_l0_btb_hit_way[3:0] = {l0_btb_way3_hit, l0_btb_way2_hit,
                                            l0_btb_way1_hit, l0_btb_way0_hit};
 ```
 
-L0 BTB 命中要求：
-1. BTB 条目有效（`btb_wayX_vld`）
-2. PC 的高位匹配（`l0_btb_wayX_high_hit`）
-3. PC 的低位匹配（`l0_btb_wayX_low_hit`）
-4. way 预测字段一致（确保是同一条分支）
+`ifdp_ipdp_l0_btb_hit` 才是来自 L0 BTB 的原始命中。这里生成的
+`l0_btb_wayX_hit` 不是再次查 L0 表，而是验证 L0 给出的目标/way 预测是否与对应的
+常规 BTB 位置槽一致，条件包括：
+
+1. 对应常规 BTB 位置槽有效；
+2. L0 目标与该槽目标的高段比较命中；
+3. L0 目标与该槽目标的低段比较命中；
+4. L0 保存的目标 I-Cache way 预测与该槽的 `pred[1:0]` 相等。
+
+`ipdp_ipctrl_l0_btb_hit_way[3:0]` 把四个位置槽的一致性结果送回 IPCTRL。它回答的是
+“L0 的快速预测能否被较完整的常规 BTB 信息确认”，而不是“哪一个四路组相联 way
+命中”。
 
 ### 15.2 L0 BTB 更新条件
 
 ```verilog
 // 行 5850-5875
 assign l0_btb_not_saturate = ip_if_pcload && l0_btb_hit_l1_btb && ip_pcload
-                          && !l0_btb_ras && con_br && (bht_result == 2'b10);
-// BHT 弱 taken 时，L0 BTB 计数器可能还未饱和，需要 +1
+                          && !l0_btb_ras && con_br
+                          && (bht_pre_result == 2'b10);
 
 assign l0_btb_counter_zero = l0_btb_hit && !l0_btb_counter && ip_pcload
-                          && con_br && (bht_result == 2'b11);
-// L0 BTB 计数器为 0（新写入），但 BHT 强 taken，需要设置计数器
+                          && con_br && (bht_pre_result == 2'b11);
 
 assign l0_btb_mistaken = ipctrl_ipdp_ip_mistaken;
 // IF 级跳转但 IP 级判断不需要跳转
@@ -610,7 +747,18 @@ assign l0_btb_mistaken = ipctrl_ipdp_ip_mistaken;
 assign l0_btb_update_vld = ip_data_vld && (not_saturate || mistaken || counter_zero);
 ```
 
-L0 BTB 的更新是保守的：只在 BHT 高度可信（saturated taken）或预测出错时才更新，避免频繁写入不稳定的分支。
+注意比较对象是 2 位 `bht_pre_result`，不是 1 位 `bht_result`。三类局部维护条件为：
+
+- `l0_btb_not_saturate`：IF 与 IP 都发生 pcload、L0 被常规 BTB 确认、不是 RAS，
+  当前是条件分支且 BHT 为弱 taken（`10`）；
+- `l0_btb_counter_zero`：L0 原始命中但其一位 counter 为 0，同时满足一致性、
+  非 RAS、IP pcload、条件分支和强 taken（`11`）；
+- `l0_btb_mistaken`：IPCTRL 判定 IF 级 L0 重定向是 mistaken。
+
+`l0_btb_wen[3:0]` 在后续 IBDP 中解释为 `{valid, counter, ras, data}` 写使能：
+前两类分别控制 valid/counter 位，mistaken 也参与 valid 位维护。完整的 miss、
+mispredict、RAS miss/mispredict 更新还在 IBDP 中汇合。因此这段只是 L0 更新协议的
+一部分，不能概括为“只在饱和 taken 时更新整个 L0 条目”。
 
 ---
 
@@ -618,7 +766,9 @@ L0 BTB 的更新是保守的：只在 BHT 高度可信（saturated taken）或�
 
 ### 16.1 流水寄存器结构
 
-所有发往 ibdp 的信号都先构建 `pipe_*` 形式（组合选择），然后在 IP→IB 的流水寄存器中采样，输出为 `ipdp_ibdp_*`：
+主要输出先构建 `pipe_*` 组合值，再由 IP→IB 流水寄存器采样为
+`ipdp_ibdp_*`。公共元数据和 H1~H8 payload 使用 `ip_ib_pipe_clk`；H0 payload
+另有 `ip_ib_pipe_h0_clk`，只在 `pipe_h0_vld && !pipe_stall` 时需要写入：
 
 ```verilog
 // 示例（H1 数据，行 5931）
@@ -626,16 +776,26 @@ assign pipe_h1_data[15:0] = (rtu_yy_xx_dbgon) ? had_ifu_ir[15:0] : ip_h1_data[15
 // debug 模式下 H1 来自 HAD（调试端口）
 ```
 
-在 debug 模式（`rtu_yy_xx_dbgon`）下，所有 H1/H2 的数据被替换为 HAD 注入的指令，用于单步调试。
+`ip_ib_pipe_clk` 的 local enable 是
+`pipe_vld_for_gateclk && !pipe_stall || had_ifu_ir_vld`。与 H0 门控相同，实际时钟是否
+停以及功耗收益取决于 module/global enable、宏配置和物理实现，不能仅由 local
+enable 推断。
+
+debug 模式下，H1/H2 数据分别由 `had_ifu_ir[15:0]` 和 `[31:16]` 替换，配套的
+valid、控制流、load/store、split、vtype 等位图也切换到 HAD 解码结果。H3~H8 的
+data 组合线上仍接正常值，但 `ip_had_vld` 和 `chgflw_mask=8'hc0` 使其不作为调试
+指令有效载荷；H0 valid 同时被压低。
 
 ### 16.2 每个 Hn 的完整信息
 
 发往 ibdp 的每个 H 包括：
 - `ipdp_ibdp_hN_data[15:0]`：指令原始数据
 - `ipdp_ibdp_hN_base[2:0]`：该 H 在 16 字节取指块中的半字偏移编号
-- `ipdp_ibdp_hN_split0_type[2:0]`：向量指令拆分类型（short）
-- `ipdp_ibdp_hN_split1_type[2:0]`：向量指令拆分类型（long）
-- `ipdp_ibdp_hN_vlmul[1:0]`、`hN_vsew[2:0]`、`hN_vl[7:0]`：此 H 对应的 vtype
+- `ipdp_ibdp_hN_split0_type[2:0]`、`split1_type[2:0]`：保留 split 类型
+- `ipdp_ibdp_hN_vlmul[1:0]`、`hN_vsew[2:0]`、`hN_vl[7:0]`：保留 vtype 状态
+
+H0 另有 data、块号、split、fence、断点、load/store、no-spec、异常和 vtype 字段，
+以便 IBDP 恢复跨窗口 32 位指令的完整上下文。
 
 ### 16.3 全局（8-bit 位图）输出
 
@@ -649,24 +809,50 @@ ipdp_ibdp_hn_pcall[7:0]    // Call 位图
 ipdp_ibdp_hn_preturn[7:0]  // Return 位图
 ipdp_ibdp_hn_fence[7:0]    // Fence 位图
 ipdp_ibdp_hn_ldst[7:0]     // Load/Store 位图
-ipdp_ibdp_hn_split0[7:0]   // 需要 split（向量拆分）位图
-ipdp_ibdp_hn_chgflw[7:0]   // change flow 位图
+ipdp_ibdp_hn_split0[7:0]   // 保留的 split0 位图
+ipdp_ibdp_hn_split1[7:0]   // 保留的 split1 位图
 ipdp_ibdp_chgflw_mask[7:0] // 分支截断掩码
 ```
 
-这些位图使 IB 级（ibdp）能够一次性处理 8 条潜在指令的信息，并根据位图快速定位指令 entry 边界。
+此外还有 `hn_32_start`、`hn_pc_oper`、`hn_dst_vld`、`hn_no_spec`、`hn_vl_pred`、
+breakpoint、访问错误、MMU access deny 和 page fault 等字段。它们描述最多 8 个
+**半字槽**，不是固定 8 条指令；IBDP/IBUF 结合 `hn_vld`、`hn_32_start` 和 H0
+状态组装实际指令。
 
 ### 16.4 分支专属信息
 
 ```verilog
 ipdp_ibdp_branch_base[38:0]    // 第一条分支的 PC
 ipdp_ibdp_branch_offset[20:0]  // 第一条分支的 offset（21-bit 符号扩展）
-ipdp_ibdp_branch_result[38:0]  // 跳转目标 PC（来自 BTB 或计算值）
-ipdp_ibdp_branch_btb_miss      // BTB 是否 miss（需要 ibdp 写入 BTB）
-ipdp_ibdp_branch_way_pred[1:0] // 命中分支的 way 预测
+ipdp_ibdp_branch_result[38:0]  // IPCTRL 已选择的预测重定向内部 PC
+ipdp_ibdp_branch_btb_miss      // 所选常规 BTB 位置槽是否 miss
+ipdp_ibdp_branch_way_pred[1:0] // 目标 I-Cache way 预测
 ```
 
-`branch_result` 是当 BTB 命中时的目标 PC；若 `branch_btb_miss=1`，则 IB 级需要将实际跳转目标写回 BTB。
+`branch_result` 直接来自 `ipctrl_ipdp_chgflw_pc`，可能由 BTB、L0/RAS 或其他前端
+选择路径形成，不能限定为“BTB 命中目标”。ADDRGEN 用
+`branch_base + sign_extend(branch_offset[20:1])` 得到直接目标，与
+`branch_result` 比较；满足有效性与仲裁条件后，IBDP/BTB 才产生相应更新。
+
+### 16.5 异常、断点与 SFP 属性
+
+IPDP 不只传“普通指令数据”，还必须保证特殊语义与同一条指令对齐：
+
+- `ip_acc_err`、`ip_mmu_pgflt` 和 `ip_mmu_acc_deny` 分别来自 I-Cache/总线和
+  MMU 路径，三者合成内部 `ip_expt`。其中 `ip_mmu_acc_deny` 在 pipe/self/multi-branch
+  stall 时由寄存器保留，避免 MMU 的当前拍输出变化后丢失原请求的异常状态。
+- `bkpta/bkptb` 来自 IFDP 的逐半字断点匹配结果，和普通属性一起做 `after_head`
+  与条件分支 tail mask；H0 也保存跨窗口指令对应的断点位。
+- SFP（speculation-failure predictor）给出命中 PC 低位和 4 类命中类型。IPDP
+  将 PC 低 3 位译成 H1~H8 one-hot；`sf` 类型与 store 相交、`bar` 类型与 load
+  相交后形成 `inst_no_spec`，使曾经表现出投机风险的访存可以携带 no-spec 属性。
+- SFP 的 `vl/vl_raw` 类型只与 `vsetvli` 相交，形成保留向量通路的 `vl_pred`
+  属性。当前配置未启用 RVV，但这部分逻辑仍存在。
+
+这些字段说明前端预解码的价值不只是“早点看见分支”：它还把异常、调试和历史学习
+得到的投机约束精确附着到正确的指令边界上。波形分析时应把
+`hn_vld/hn_32_start` 与这些属性位图同时观察，单看 `*_vld` 汇总位无法定位是哪一个
+半字槽触发。
 
 ---
 
@@ -680,13 +866,17 @@ assign had_br = (had_data[6:0] == 7'b1101111) ||  // jal
                 ({had_data[15:14], had_data[1:0]} == 4'b1101);  // c.beqz/c.bnez
 ```
 
-当 HAD（Hardware-Assisted Debugging）注入指令时，ipdp 对 HAD 指令做独立的分支检测，并通过 `ip_had_*` 系列信号替换正常的流水信号，确保调试注入的指令能够被正确处理。
+当 HAD（Hardware-Assisted Debugging）注入指令时，IPDP 对 32 位注入字独立识别
+分支、JAL/JALR、load/store、fence、split 等属性。注入字低/高半字分别占逻辑
+H1/H2；`ip_had_vld` 根据 16/32 位长度决定 `8'h80` 或 `8'hc0`。这条旁路替换
+流水 payload 与属性，并清除正常取指异常字段，但不意味着 H3~H8 数据线物理清零。
 
 ---
 
 ## 18. Half-Word 编号计算
 
-IB 级需要知道"本次取指共有多少个有效的 half-word"，以便正确分配指令 entry。ipdp 计算了几个关键的 half-word 数量：
+IB 级需要知道当前数据包覆盖多少个半字、第一条条件分支或 change-flow 位于何处。
+IPDP 因而计算几个不同语义的数量：
 
 ```verilog
 // 行 5332-5476
@@ -696,7 +886,10 @@ IB 级需要知道"本次取指共有多少个有效的 half-word"，以便正�
 // half_num_no_chgflw：无 chgflw 时，总有效 half-word 数
 ```
 
-这些计数值（4-bit，最大 9）通过 casez 分别根据 `con_br_after_head[7:0]` 或 `chgflw_after_head[7:0]` 的位置计算，并将 H0 的影响（+1）考虑在内。
+这些 4-bit 值通过 `casez` 对最靠前的置位位置编码，并把跨窗口 H0 可能额外占用的
+半字计入。`con_br_num_vld` 只在“第一条控制流为预测 taken 条件分支”或多分支重发
+且无取指异常时成立；`chgflw_num_vld` 则取决于 `chgflw_after_head`。分析波形时不能
+只看数值而忽略对应的 `*_vld`。
 
 ---
 
@@ -704,14 +897,14 @@ IB 级需要知道"本次取指共有多少个有效的 half-word"，以便正�
 
 | 寄存器名 | 位宽 | 更新时机 | 含义 |
 |---------|------|---------|------|
-| `h0_vld` | 1 | 每周期（pipe vld 时） | H0 缓存是否有效 |
-| `h0_data[15:0]` | 16 | h0_updt_clk | H0 的指令数据（上一取指块的 H8） |
-| `h0_cur_pc[35:0]` | 36 | h0_updt_clk | H0 所在的 16 字节取指块号（内部半字地址 `[38:3]`） |
+| `h0_vld/h0_vld_dup` | 1+1 | `forever_cpuclk`；cancel/stall/update 条件控制 | H0 有效位及送 IPCTRL 的复制 |
+| `h0_data[15:0]` | 16 | `h0_updt_clk` 且 update、非 stall | 上一窗口 H8 的低 16 位 |
+| `h0_cur_pc[35:0]` | 36 | `h0_updt_clk` 且 update、非 stall | H0 所在 16 字节窗口号，即内部 PC `[38:3]` |
 | `h0_con_br` | 1 | h0_updt_clk | H0 是否是条件分支 |
-| `vlmul_reg[1:0]` | 2 | vtype_updt_vld | 当前向量寄存器分组 |
-| `vsew_reg[2:0]` | 3 | vtype_updt_vld | 当前向量元素宽度 |
-| `vl_reg[7:0]` | 8 | vtype_updt_vld | 当前向量长度 |
-| `ipdp_ibdp_*` | 各 | pipe_vld（非 stall） | 所有向 IB 级输出的流水寄存器 |
+| `vlmul_reg[1:0]` | 2 | `forever_cpuclk`、`vtype_updt_vld` | 保留通路的向量寄存器分组状态 |
+| `vsew_reg[2:0]` | 3 | `forever_cpuclk`、`vtype_updt_vld` | 保留通路的向量元素宽度状态 |
+| `vl_reg[7:0]` | 8 | `forever_cpuclk`、`vtype_updt_vld` | 保留通路的向量长度状态 |
+| `ipdp_ibdp_*` | 各 | 主要由 `ip_ib_pipe_clk` 在 pipe valid、非 stall 时采样 | 向 IB 级输出的流水数据包 |
 | `bht_pre_result[1:0]` | 2 | 组合逻辑（BHT 读取） | 当前条件分支的 2-bit 计数器值 |
 
 ---
@@ -720,25 +913,35 @@ IB 级需要知道"本次取指共有多少个有效的 half-word"，以便正�
 
 ### 20.1 并行预解码 + 运行时选择
 
-两路 ipdecode 并行运行，等 tag 比较结果稳定后一路 mux。这是牺牲面积换取时序的经典做法，因为等待 tag 比较结果再启动解码会浪费一个周期。
+两路 `ipdecode` 对两个 I-Cache way 候选并行解码，再由命中结果选择。体系结构上，
+这是一种用重复组合逻辑缩短“缓存选择→预解码”串行依赖的结构；面积代价和实际
+关键路径收益必须由综合与 STA 定量确认，功能 RTL 本身不能证明“恰好节省一周期”。
 
 ### 20.2 投机性操作
 
-- **GHR 投机更新**：IP 级根据 BHT 预测方向更新 GHR，使后续分支得到更准确的历史
-- **vtype 投机更新**：vsetvli 在 IP 级解码时就更新 vtype，使紧接着的 vector 指令能使用新 vtype
+- **GHR 投机接口**：IPDP/IPCTRL 向 BHT 提供 VPC、条件分支有效和预测方向，BHT
+  维护历史；BJU/RTU 路径负责恢复
+- **vtype 预测传播**：保留通路在 IP 级传播 `vsetvli` 预测状态，并由控制流、异常
+  和上游状态接口恢复；当前生成配置未公开 RVV
 - **H0 提前缓存**：本周期就决定是否需要保存 H8 作为 H0，为下一周期做准备
 
 ### 20.3 位图操作的高效性
 
-所有 8 个 half-word 的属性用 8-bit 位图表示，`casez` 结合 one-hot 位图做优先级选择，既清晰又高效，关键路径上只有一级 mux。
+8 个 half-word 的同类属性用 8-bit 位图表示，`casez` 从高位向低位找最靠前事件。
+这既适合并行窗口，也便于统一做 head 对齐和 tail 截断。综合后究竟形成多少级 mux、
+是否处于关键路径，应查看综合网表和 STA，不能由一段 `casez` 源码直接断言。
 
 ### 20.4 after_head / after_tail 的两次变换
 
 - **after_head**：按 vpc_onehot 做左移，将起始偏移折叠
-- **after_tail**：按 con_br 位置做截断，将分支后的无效 half-word 清零
+- **after_tail**：在预测 taken 的首个条件分支或多分支分段状态下，按首个条件分支
+  截断；另行生成按 change-flow 位置计算的 `chgflw_mask`
 
 两次变换后，IB 级总是从固定的逻辑位置（H1=bit[7]）开始读取，且已经做好了分支截断，大幅简化了 IB 级的控制逻辑。
 
 ### 20.5 完整的流水线数据包
 
-ipdp 的输出是真正的"完整数据包"，每个 half-word 携带所有 IB 级、EX 级所需信息（decode 类型、split 类型、vtype、PC 基地址等），后续流水级无需重新解析指令内容，大幅降低了后级的时序压力。
+IPDP 输出的是面向 IBDP/IBUF 的**前端预解码数据包**：原始半字、边界、分支、
+load/store、目的寄存器有效、no-spec、异常、预测历史和保留的 split/vtype 信息
+同步前推。它显著减少下游重做边界和早期控制流工作的需要，但不是完整 ISA 解码；
+IDU 仍会对组装后的指令执行完整译码、寄存器依赖分析和发射分类。

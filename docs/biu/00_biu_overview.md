@@ -2,8 +2,8 @@
 
 > 本文档基于 OpenC910 RTL 源码（`C910_RTL_FACTORY/gen_rtl/biu/rtl/`），
 > 覆盖 BIU 全部 8 个文件，自底向上讲清 BIU 的职责、结构、协议与设计取舍。
-> 学完本文档，应能回答：BIU 是什么、核里的访存请求如何一路出到 DDR、
-> ACE 一致性怎么落地、为什么用 AXI ID 跟踪乱序事务。
+> 学完本文档，应能回答：BIU 是什么、核里的访存请求如何进入 CIU、
+> ACE 一致性通道如何在核侧落地，以及 RTL 实际怎样使用 AXI ID 分类返回数据。
 
 ---
 
@@ -12,14 +12,14 @@
 1. [模块概述](#1-模块概述)
 2. [端口说明](#2-端口说明)
 3. [参数与关键寄存器](#3-参数与关键寄存器)
-4. [完整外出路径：核 → BIU → CIU → L2 → DDR](#4-完整外出路径核--biu--ciu--l2--ddr)
+4. [典型读缺失路径：核 → BIU → CIU → L2/下级存储](#4-典型读缺失路径核--biu--ciu--l2下级存储)
 5. [BIU 与 CIU 的分工](#5-biu-与-ciu-的分工)
-6. [ACE 协议与五通道](#6-ace-协议与五通道)
-7. [通用思想①：AXI ID = 乱序事务的名牌](#7-通用思想axi-id--乱序事务的名牌)
+6. [ACE 的五个读写通道与三个一致性通道](#6-ace-的五个读写通道与三个一致性通道)
+7. [通用思想①：AXI ID 是响应分类标签](#7-通用思想axi-id-是响应分类标签)
 8. [通用思想②：ACE 让一个端口演主+从两角](#8-通用思想ace-让一个端口演主从两角)
 9. [BIU 子模块串讲](#9-biu-子模块串讲)
 10. [关键设计决策汇总](#10-关键设计决策汇总)
-11. [设计取舍小结](#设计取舍小结)
+11. [本章小结](#本章小结)
 
 ---
 
@@ -27,21 +27,25 @@
 
 ### 1.1 BIU 是什么
 
-BIU（Bus Interface Unit，总线接口单元）是 **每个 C910 核对外的唯一 ACE 主端口**。
+BIU（Bus Interface Unit，总线接口单元）是每个 C910 核面向 CIU 的**一致性总线端点**。
 核内部所有"出核"的访存动作——取指缺失、数据缺失填充（linefill）、
 非缓存读写、设备访问、cache line 回写（victim/store）、原子/独占访问——
 最终都要经过 BIU 打成 ACE 总线事务，送往核外的 CIU（Coherent Interface Unit，
-一致性互联），再由 CIU 经 L2 Cache 访问 DDR。
+一致性互联）。CIU 后续可把事务送往 L2、系统总线或其它目标；是否最终访问 DDR
+取决于地址、缓存命中和 SoC 集成，不能仅由 BIU RTL 推断。
 
 反方向，外部对本核 cache 的一致性侦听请求（snoop），也由 BIU 的 snoop 通道接进来，
 转交核内的 LSU 处理。
 
 一句话定位：
 
-> **BIU = 核与片上总线之间的"协议转换+缓冲+仲裁+跨时钟域同步"层。**
+> **BIU = 核内 IFU/LSU 请求与 CIU 侧一致性总线通道之间的字段整理、浅缓冲、
+> 仲裁、返回分类和局部时钟门控层。**
 
-它本身不做缓存、不做地址翻译、不判断一致性状态；它只是忠实地把核内五花八门的请求
-"翻译"成标准 ACE 事务，把事务的 outstanding 状态用少量缓冲管起来，并把响应分发回正确的请求源。
+它本身不实现 cache 阵列或地址翻译，也不维护 D-Cache 一致性状态。它会执行少量
+协议相关分类，例如给 IFU 读拼接 ID、按 `awsnoop/awdomain/awbar` 选择写握手类别，
+但 cache tag 查询、脏状态判断和一致性状态转换仍在 LSU/CIU。BIU 的缓冲记录的是
+尚未穿过某个本地接口边界的数据，不是覆盖全部 outstanding 事务的完整事务表。
 
 ```
         ┌────────────────────────────────────────────┐
@@ -57,31 +61,49 @@ BIU（Bus Interface Unit，总线接口单元）是 **每个 C910 核对外的�
         │   │  lowpower  other_io_sync            │     │
         │   └───────────────┬────────────────────┘     │
         └───────────────────┼──────────────────────────┘
-                            ▼  ACE (pad 接口)
+                            ▼  ACE 风格 `pad_*` 接口
               ┌──────────────────────────────┐
               │   CIU（片上一致性互联）       │
               └───────────────┬──────────────┘
                               ▼
-                       ┌────────────┐      ┌────────┐
-                       │  L2 Cache  │─────▶│  DDR   │
-                       └────────────┘      └────────┘
+                       ┌────────────┐      ┌────────────┐
+                       │  L2 Cache  │      │ 系统总线/内存 │
+                       └────────────┘      └────────────┘
 ```
 
 ### 1.2 为什么需要 BIU
 
 核内的总线和片上互联是两个世界：
 
-- **时序域不同**：核跑 `coreclk`，总线/CIU 可能跑别的频率。跨域信号必须同步，
-  否则会出亚稳态。BIU 的 `other_io_sync`（中断/调试）和各通道的门控时钟就在处理这件事。
 - **接口风格不同**：核内 LSU/IFU 用的是私有握手信号（如 `lsu_biu_ar_dp_req`、
-  `ifu_biu_rd_req`），片外要求标准 ACE 五通道（AR/R/AW/W/B + AC/CR/CD）。
+  `ifu_biu_rd_req`），CIU 侧使用 AXI/ACE 风格的 AR/R/AW/W/B 与 AC/CR/CD 通道。
   BIU 负责把私有信号映射成 ACE 信号，并补齐 ACE ID/snoop/domain 等字段。
 - **多请求源要仲裁**：读有 LSU 和 IFU 两个源，写有 store 和 victim 两路，
-  CSR 有 CP0 和 HPCP 两个源。同一时刻总线只能发一个，必须仲裁。
-- **outstanding 要管理**：ACE 允许多个事务在途、乱序返回。BIU 用 AXI ID 给每个
-  在途事务挂名牌，靠 ID 把乱序回来的数据送回正确的请求源。
+  CSR 有 CP0 和 HPCP 两个源。共享输出位置每拍只能选择一组字段，必须仲裁或选路。
+- **通道需要解耦**：请求方和接收方可能在不同周期就绪。BIU 用 1～2 项局部缓冲和
+  写来源队列保持 `valid` 及其 payload，直到相应边界完成握手。
+- **返回需要分类**：读返回携带 AXI ID。BIU 识别两个固定 IFU ID，其余 ID 送 LSU；
+  它不维护“每个 ID 对应一个唯一在途请求”的查找表。
+- **少量异步输入需要同步**：当前 `ct_biu_top` 没有实例化
+  `ct_biu_bus_io_async`，ACE 数据通道寄存器使用 `coreclk` 或
+  `forever_coreclk` 的门控派生时钟。明确的双触发器同步只出现在外部中断和调试请求上；
+  门控时钟本身不是 CDC。
 
-如果没有 BIU，上述四件事会散落进 IFU/LSU/CP0，既重复又难维护。BIU 把它们集中成一个"边界层"。
+如果没有 BIU，上述职责会散落进 IFU/LSU/CP0。BIU 把它们集中成一个边界层。
+
+### 1.3 阅读握手信号时必须区分的四件事
+
+后文统一使用以下含义，避免把“请求”“允许”和“完成”混为一谈：
+
+| 层次 | 判定 | 精确含义 |
+|------|------|----------|
+| 请求意图 | `valid=1` 或模块私有 `req=1` | 源当前提供一笔请求；单独看到它不表示对端已接收 |
+| 接收能力 | `ready=1`、某些名为 `grnt` 的容量信号 | 目的端当前有空位；若没有同时检查源 `valid/req`，它不是一次授权事件 |
+| 边界接受 | `valid && ready` | 当前时钟边沿前满足握手，边沿后双方才可推进相应状态 |
+| 事务完成 | R/B/CR/CD 等响应的有效握手，或模块专用 `cmplt` | 事务越过后续系统路径后的结果；通常晚于地址请求被接受 |
+
+`*_dp_req`/`*_valid_gate` 主要用于提前打开数据寄存器时钟或选择 payload。
+它们可以在真正 `valid` 之前出现，不能单独统计成已发请求。
 
 ---
 
@@ -113,9 +135,12 @@ BIU 顶层 `ct_biu_top.v` 端口极多（输入约 130、输出约 100），按"
 | `biu_lsu_ar_ready` / `biu_lsu_aw_vb_grnt` / `biu_lsu_aw_wmb_grnt` / `biu_lsu_w_*_grnt` | BIU→LSU | 各通道授权 |
 | `lsu_biu_cr_*` / `lsu_biu_cd_*` / `lsu_biu_ac_*` / `biu_lsu_ac_*` | 双向 | 侦听响应/侦听数据/侦听地址（见 [02_biu_snoop.md](02_biu_snoop.md)） |
 
-### 2.3 与 pad（片外 ACE 总线）的接口
+### 2.3 与 `pad_*` 一致性总线边界的接口
 
-| 通道 | 输出（biu_pad_*） | 输入（pad_biu_*） |
+这里的 `pad` 是 RTL 端口命名，表示 BIU 的模块/集成边界。在 OpenC910 顶层中它通常连接
+CIU，并不自动表示封装引脚、片外总线或 DDR 控制器。
+
+| 通道 | 输出（`biu_pad_*`） | 输入（`pad_biu_*`） |
 |------|------|------|
 | AR 读地址 | `araddr/arid/arlen/arsize/arburst/arsnoop/ardomain/arvalid/...` | `arready` |
 | R 读数据 | `rready/rack` | `rdata/rid/rlast/rresp/rvalid` |
@@ -141,10 +166,10 @@ BIU 顶层 `ct_biu_top.v` 端口极多（输入约 130、输出约 100），按"
 
 | 信号 | 含义 |
 |------|------|
-| `coreclk` / `forever_coreclk` | 核时钟 / 不被门控的核时钟（`top.v:114,121`） |
+| `coreclk` / `forever_coreclk` | 两路顶层时钟输入；`forever_coreclk` 供 AC/唤醒相关状态使用，但其系统级门控/电源性质需看上层 |
 | `cpurst_b` | 复位（低有效） |
-| `cp0_biu_icg_en` | 时钟门控总开关 |
-| `biu_yy_xx_no_op` | BIU 全空闲，可进低功耗（`top.v:113`） |
+| `cp0_biu_icg_en` | 接到 `gated_clk_cell.module_en`；工艺 ICG 分支中为 1 会使时钟不依赖 `local_en` 而开启 |
+| `biu_yy_xx_no_op` | `!read_busy && !write_busy` 的本地空闲观察；不覆盖 snoop，也不是全系统 outstanding=0 的证明 |
 | `pad_yy_icg_scan_en` | 扫描时旁路门控 |
 
 ---
@@ -161,20 +186,21 @@ BIU 的"硬规格"散落在各子模块，汇总如下（均带 file:line，绝�
 | **AXI ID 宽度** | **5 bit**（`[4:0]`） | `top.v:418`（`arid[4:0]`）、`req_arbiter.v:230` |
 | 读地址缓冲深度 | **2 项**（buf0/buf1 ping-pong） | `read_channel.v:133-158` |
 | 读数据缓冲深度 | **2 项** | `read_channel.v:173-184` |
-| **写 FIFO 深度** | **12 项** | `write_channel.v:651`（`parameter W_FIFO_ENTRY = 12`）、`:215`（`reg [11:0] bus_arb_w_fifo`） |
+| **写来源队列可表示项数** | **12 项** | `write_channel.v:651`（`parameter W_FIFO_ENTRY = 12`）、`:215`（`reg [11:0] bus_arb_w_fifo`）；RTL 无显式 full 反压 |
 | 写地址缓冲 | store 1 项 + victim 1 项 | `write_channel.v:233-260` |
 | 写数据缓冲 | store/victim/round 各 1 项（3 buffer） | `write_channel.v:261-281`（pop_sel 3 位 one-hot，`:750`） |
-| 写响应缓冲 | 1 项 + rack/back pending 1 位 | `write_channel.v:217-219` |
+| 写响应缓冲 | 1 项；另有 `back_valid/back_pending` 确认状态 | `write_channel.v:213-219` |
 | 侦听 AC/CR/CD 缓冲 | 各 **2 项** ping-pong | `snoop_channel.v:92-120` |
 | 门控时钟单元数 | 12 个 `gated_clk_cell`（lowpower）+ 2 个（other_io_sync 的 l2reg in/out；apbif 版本被注释掉） | `lowpower.v`、`other_io_sync.v` |
 | 中断同步级数 | 2 级触发器（ff1→ff2） | `other_io_sync.v:323-353` |
 
-> 注意：BIU 几乎没有"大状态机"，关键寄存器都是这些小缓冲的 valid/select 位。
-> 这是 BIU 与 IFU（大量 SRAM + 状态机）最显著的风格差异——BIU 是**轻量边界层**。
+> 注意：BIU 没有集中编码的大型 FSM，但 valid、创建/弹出选择位、写来源位移队列以及
+> RACK/BACK 的 valid/pending 共同构成了分布式协议状态。“没有大 FSM”不等于
+> “没有状态”或“无需协议不变量”。
 
 ---
 
-## 4. 完整外出路径：核 → BIU → CIU → L2 → DDR
+## 4. 典型读缺失路径：核 → BIU → CIU → L2/下级存储
 
 以一次 **D-Cache 读缺失填充（linefill）** 为例，走完全程：
 
@@ -186,35 +212,38 @@ BIU 的"硬规格"散落在各子模块，汇总如下（均带 file:line，绝�
    选中 LSU，生成统一 ar 总线（araddr/arid/arsnoop/ardomain...）
    req_arbiter.v:434-498
                       │
-③ BIU read_channel 把 ar 装入 cur_raddr_buf（2 项之一）
-   通过 biu_pad_ar* 握手发到 pad（片外）
+③ BIU read_channel 在 arvalid && arready 时把请求装入两个地址槽之一
+   随后在 biu_pad_arvalid && pad_biu_arready 时交给 CIU 侧
    read_channel.v:291-303
                       │
 ④ CIU 接收 ar，按 ACE 域/snoop 类型决定：
    - 若可一致：向其它核发 snoop，向 L2 查询
    - 选路到 L2 Cache
                       │
-⑤ L2 命中则返回；未命中则 L2 向 DDR 控制器发请求
+⑤ L2 命中则可返回；未命中时由 CIU/L2/系统接口继续访问下级存储
                       │
-⑥ DDR 返回 line，经 L2 → CIU → pad → BIU
+⑥ 下级数据经系统路径 → CIU → BIU
    pad_biu_rvalid/rdata[127:0]/rid/rlast
                       │
-⑦ BIU read_channel 把数据装入 cur_rdata_buf（2 项之一）
-   按 rid 判断去向：rid[4:3]==2'b00 → linefill → 送 LSU
+⑦ pad_biu_rvalid && biu_pad_rready 时，BIU 把当前 beat 装入两个 R 槽之一
+   精确路由规则：rid==10000/10001 → IFU；其它 → LSU；
+   rid[4:3]==00 只用于识别需要观察 LSU linefill-ready 的 LSU 返回
    read_channel.v:535-536, 708-712
                       │
-⑧ 末拍数据后 BIU 自发 RACK（read acknowledge）给总线
+⑧ 末拍被目的端消费后，BIU 生成 RACK（read acknowledge）
    read_channel.v:542-570
                       │
-⑨ LSU 收到 line，写入 D-Cache，唤醒等待的 load
+⑨ LSU 后续完成 linefill、cache 更新和等待 load 的唤醒；这些动作不在 BIU RTL 内
 ```
 
-写回（victim/store）路径对称：LSU → req_arbiter（写只有 LSU 一源，但分 store/victim 两路）
-→ write_channel 的 AW/W FIFO → pad → CIU → L2 → DDR；完成后 B 通道返回，BIU 自发 BACK。
+写路径并非读路径的简单镜像：LSU → `req_arbiter`（写只有 LSU 一类上游，但分
+store/victim 两路）→ `write_channel` 的独立 AW 缓冲、W 数据缓冲和 12 项来源队列
+→ CIU；B 通道返回后 BIU 生成 BACK。EVICT 地址事务没有 W 数据，因此不会进入写来源队列。
 
 **关键观察**：BIU 在每个通道只放 1～2 项（写 FIFO 12 项是例外，因为写要排序），
-说明 BIU 自身不是"深缓冲蓄水池"——真正的 MSHR/缺失队列在 LSU 里，
-真正的乱序排队在 CIU/L2 里。BIU 只保证"不丢拍、能背靠背、能跨域"。
+说明 BIU 自身不是完整的缺失跟踪器。浅缓冲能吸收有限的 ready 波动，但“能否长期
+不丢事务”还依赖上游保持 valid/payload、写来源队列不溢出以及 CIU 侧协议约束，
+不能只由缓冲深度推导。
 
 ---
 
@@ -227,18 +256,19 @@ BIU 的"硬规格"散落在各子模块，汇总如下（均带 file:line，绝�
 | 维度 | BIU（核内） | CIU（核外，片上互联） |
 |------|------------|----------------------|
 | 数量 | 每个核 1 个 | 全芯片 1 个（多核共享） |
-| 职责 | 协议转换、缓冲、本核请求仲裁、跨时钟域同步 | 多核一致性裁决、广播 snoop、选路到 L2/外设 |
-| 一致性决策 | **不做**，只转发 snoop 给 LSU | **做**，决定谁该被 snoop、谁有最新数据 |
+| 职责 | 字段整理、浅缓冲、本核读仲裁、返回分类、转发 snoop | 多请求者选路、一致性事务组织、snoop 分发、访问 L2/系统接口 |
+| 一致性决策 | 不维护 cache 一致性状态；执行少量字段分类并转发 AC/CR/CD | 根据请求类型和系统状态组织一致性动作 |
 | 看到的范围 | 只看本核 | 看到所有核 + L2 + 总线 |
 | 类比 | 一个国家的"驻外大使馆" | "联合国总部" |
 
-BIU 对 ACE 域信号（`ardomain`/`arsnoop`/`awsnoop`/`awunique`）只是**透传或补齐**，
-真正解读这些字段、决定一致性动作的是 CIU。例如 victim 回写用 `WriteBack`/`Evict`，
-store 用 `WriteUnique`/`WriteLineUnique`——这些 snoop 编码由 LSU 给出、BIU 转发，CIU 执行。
+BIU 大多透传 LSU/IFU 给出的 `domain/snoop/bar/unique` 字段，但并非完全不读这些字段：
+`write_channel` 用 `awsnoop`、`awdomain` 和 `awbar[0]` 生成 `aw_ws`，从两组
+`awready` 中选择一组；它还识别 EVICT 并阻止该事务进入 W 来源队列。真正的 cache
+状态查询、snoop 目标选择和状态转换不在 BIU 中。
 
 ---
 
-## 6. ACE 协议与五通道
+## 6. ACE 的五个读写通道与三个一致性通道
 
 ACE（AXI Coherency Extensions）= AXI4 + 一致性扩展。它在 AXI 的 5 个读写通道之外，
 增加了 3 个一致性通道，总共 **8 个通道**：
@@ -262,8 +292,10 @@ ACE（AXI Coherency Extensions）= AXI4 + 一致性扩展。它在 AXI 的 5 个
 
 C910 BIU 的 ACE 具体规格：
 
-- **数据宽度 128 bit**（`top.v:317` 等），一个 64B cache line 需 4 拍 burst。
-- **AXI ID 5 bit**（`top.v:418`），最高位区分请求源（见第 7 节）。
+- **数据宽度 128 bit**（`top.v:317` 等）。若某个事务确实传输完整 64B line，
+  数据量对应 4 个 128-bit beat；并非每个 R/W/CD 事务都固定为 4 拍。
+- **AXI ID 5 bit**（`top.v:418`）。BIU 只对两个固定 IFU ID 做精确匹配，
+  不能简化成“最高位统一区分所有请求源”。
 - **读响应 rresp**：见 `read_channel.v:702-707` 注释——
   `[3]=IsShared`（其它核也有该行，仅 LSU 关心）、`[2]=PassDirty`（不支持）、
   `[1]=Error`、`[1:0]=00 OKAY / 01 EXOKAY`（独占访问成功）。
@@ -273,19 +305,22 @@ C910 BIU 的 ACE 具体规格：
 
 ---
 
-## 7. 通用思想①：AXI ID = 乱序事务的名牌
+## 7. 通用思想①：AXI ID 是响应分类标签
 
-这是贯穿 BIU 的第一个核心思想，也是和 CPU 其它部件（ROB、MSHR）**完全同一套方法论**。
+这是贯穿 BIU 的第一个核心思想。它与 ROB IID、MSHR 标签都属于“携带标识再关联结果”
+这一类方法，但编码唯一性、生命周期和排序规则并不相同，不能视为完全同一种硬件结构。
 
 ### 7.1 问题
 
 ACE/AXI 允许多个事务**同时在途**，而且响应可以**乱序返回**——
 你先发 A 读再发 B 读，B 的数据可能先回来。那么数据回来时，怎么知道它属于哪个请求、该送给谁？
 
-### 7.2 解法：给每个在途事务挂一个唯一"名牌"——AXI ID
+### 7.2 本 RTL 的做法：用 ID 分类返回源和返回类型
 
-发请求时带上 ID，响应回来时总线把同一个 ID 原样带回。BIU 拿 ID 一查，就知道：
-①这是哪个请求；②该送回哪个源（IFU 还是 LSU）；③是不是 linefill。
+发请求时带上 ID，响应带回相同 ID。这里的 ID 不一定对每一笔 outstanding 事务都唯一：
+AXI 允许多个事务复用同一 ID，同时要求同 ID 事务遵守协议规定的顺序。BIU 没有
+ID→请求项查找表，而是做固定组合分类：精确匹配 `10000/10001` 送 IFU，其余送 LSU；
+对 LSU 返回再用 `[4:3]==00` 识别 linefill 流控类别。
 
 C910 的 5 位 ID 编码（**真实出处**）：
 
@@ -293,7 +328,7 @@ C910 的 5 位 ID 编码（**真实出处**）：
 |------|------|------|
 | `5'b10000` | IFU refill（取指缺失填充） | `req_arbiter.v:465` 拼 `{4'b1000, ifu_biu_rd_id}`；`read_channel.v:529` |
 | `5'b10001` | IFU prefetch（预取） | 同上，`ifu_biu_rd_id=1` |
-| `5'b0xxxx` | LSU 各类事务（linefill / 非缓存 / 独占 …） | `req_arbiter.v:480` 透传 `lsu_biu_ar_id` |
+| 除 `10000/10001` 外 | 在此模块中都按 LSU 返回处理；实际合法编码由 LSU/系统协议约束 | `req_arbiter.v:480` 透传 LSU ID；`read_channel.v:531-536` |
 | `rid[4:3]==2'b00` | linefill 类（LSU 关心 ready） | `read_channel.v:535-536` |
 
 read_channel 拿到返回数据后，纯靠 ID 判定去向（`read_channel.v:528-536`）：
@@ -308,12 +343,12 @@ cur_rdata_is_linefill = rvalid && (rid[4:3]==2'b00);            // linefill 需�
 
 | 部件 | "名牌"叫什么 | 作用 |
 |------|------------|------|
-| BIU/ACE | **AXI ID** | 把乱序返回的总线数据对回请求源 |
+| BIU/ACE | **AXI ID** | 本 RTL 主要用固定编码分类 IFU/LSU 与 LSU linefill；排序还受总线协议约束 |
 | ROB | **IID（指令 ID）** | 把乱序完成的执行结果对回指令、按序退休 |
 | LSU MSHR | **MSHR entry id** | 把乱序回来的 cache line 对回等待的 load |
 
-记住这一条，BIU 的读/写/侦听三通道就都不神秘了：它们本质都是
-"发请求挂名牌 → 等响应认名牌 → 按名牌分发"的小状态机。
+需要特别注意：只有 R/B 通道携带读写 ID；AC/CR/CD 侦听路径在该模块中不使用
+同样的 ID 查找。因而“发请求挂名牌”不能概括全部三个通道。
 
 ---
 
@@ -326,7 +361,7 @@ cur_rdata_is_linefill = rvalid && (rid[4:3]==2'b00);            // linefill 需�
   "我要读/写这块内存" → AR/AW/W/R/B 五通道
   对应 read_channel + write_channel
 
-角色 B：Slave（从） —— 本核被动响应侦听
+角色 B：被侦听端 —— 本核被动响应一致性请求
   "别的核问我有没有某行" → AC/CR/CD 三通道
   对应 snoop_channel
 ```
@@ -345,8 +380,14 @@ BIU 把这两个角色干净地拆到两组通道、两组缓冲里：
 - **主角色** 的状态在 `read_channel`/`write_channel`，请求源是核内（IFU/LSU）。
 - **从角色** 的状态在 `snoop_channel`，请求源是核外（CIU 经 AC 通道）。
 
-`biu_xx_snoop_vld`（`snoop_channel.v:549`）就是"本核当前正被侦听"的标志位，
-供核内 ICG（时钟门控）判断"虽然核空闲，但因为在响应侦听，不能熄火"。
+`biu_xx_snoop_vld`（`snoop_channel.v:549`）是一个粗粒度 snoop 活动锁存：
+AC 被 BIU 接受时置位，在 `lsu_biu_ac_empty && CR缓冲空 && CD缓冲空` 时清零。
+清零条件虽没有直接写 BIU AC valid，但 LSU 的 `lsu_biu_ac_empty` 不是简单的
+“SNQ entry 为空”：它等于
+`!(biu_lsu_ac_req || lsu_snq_not_empty || lsu_sdb_not_empty ||
+lsu_ctcq_not_empty)`。所以尚在 BIU 缓冲的 AC 会通过 `biu_lsu_ac_req` 阻止清零，
+进入 LSU 后再由各非空状态接续保持。这个跨模块链解释了活动标志为何不会在正常
+AC 交接缝隙提前撤销；它仍不能被解释成所有系统 snoop 的精确 outstanding 计数。
 
 ---
 
@@ -356,12 +397,12 @@ BIU 把这两个角色干净地拆到两组通道、两组缓冲里：
 |------|------|------|------|
 | `ct_biu_top.v` | 1254 | 顶层，例化全部子模块 + 连线 | 本文 |
 | `ct_biu_req_arbiter.v` | 567 | 读/写请求仲裁（读 LSU>IFU；写分 store/victim） | [03](03_biu_arbiters_lp.md) |
-| `ct_biu_read_channel.v` | 740 | AR+R 通道，按 ID 跟踪 outstanding、IFU/LSU 路由 | [01](01_biu_read_write.md) |
+| `ct_biu_read_channel.v` | 740 | AR+R 浅缓冲，按固定 ID 编码做 IFU/LSU 路由 | [01](01_biu_read_write.md) |
 | `ct_biu_write_channel.v` | 1078 | AW+W+B 通道，12 项写 FIFO、store/victim 排序 | [01](01_biu_read_write.md) |
 | `ct_biu_snoop_channel.v` | 563 | AC+CR+CD 通道，转发侦听给 LSU SNQ | [02](02_biu_snoop.md) |
 | `ct_biu_csr_req_arbiter.v` | 101 | CSR 仲裁（CP0>HPCP），访问 L2 CSR | [03](03_biu_arbiters_lp.md) |
 | `ct_biu_lowpower.v` | 360 | 每通道门控时钟 + `no_op` 生成 | [03](03_biu_arbiters_lp.md) |
-| `ct_biu_other_io_sync.v` | 445 | 中断/调试/计时器跨时钟域同步、L2 CSR 寄存 | [03](03_biu_arbiters_lp.md) |
+| `ct_biu_other_io_sync.v` | 445 | 中断/调试双触发器同步、配置寄存和 L2 CSR 边界寄存 | [03](03_biu_arbiters_lp.md) |
 
 数据流（顶层连线，`top.v`）：
 
@@ -383,7 +424,8 @@ CP0 ──┐
 HPCP ─┘
 
 所有通道的 *_clk_en ──▶ lowpower ──▶ 各 *cpuclk（门控时钟）
-中断/调试/time ──▶ other_io_sync（2 级同步）──▶ CP0/HAD
+中断/调试 ──▶ other_io_sync（2 级同步）
+time/RVBA/APB base/计数控制 ──▶ 单级寄存或直连（不能笼统称为 2 级同步）
 ```
 
 ---
@@ -392,33 +434,21 @@ HPCP ─┘
 
 | 决策 | C910 的选择 | 为什么 | 出处 |
 |------|------------|--------|------|
-| 每通道缓冲深度 | 读/侦听各 2 项 ping-pong | 够背靠背即可，深缓冲交给 LSU/CIU | `read_channel.v:133-184`, `snoop_channel.v:92-120` |
-| 写为何用 12 项 FIFO | 写要保序（store 与 victim 顺序敏感） | AW 与 W 必须按发出顺序配对，需排队记录每拍属于 store 还是 victim | `write_channel.v:651-695` |
-| AXI ID 5 位 | 高位标源、低位标类型 | 一个名牌同时编码"谁的+什么"，省查找表 | `req_arbiter.v:465` |
-| 读优先级 | LSU > IFU | 数据访问在关键路径上，比取指更迫切 | `req_arbiter.v:433-435` |
-| 写优先级 | victim > store | 回写释放 cache 行，避免占用阻塞填充 | `write_channel.v:482` |
-| CSR 优先级 | CP0 > HPCP | 架构寄存器访问优先于性能计数器 | `csr_req_arbiter.v:78` |
-| RACK/BACK 自发 | BIU 自己生成 | 异步 biu/piu 下总线不回 ack，BIU 须自补 | `read_channel.v:541`, `write_channel.v:1006` |
-| 跨时钟域 | 中断/调试用 2 级 FF 同步 | 防亚稳态，标准 CDC 手法 | `other_io_sync.v:323-353` |
-| 低功耗 | 每通道独立门控 + 全局 no_op | 空闲通道单独熄火，粒度细省功耗 | `lowpower.v` |
+| 每通道缓冲深度 | 读/侦听各 2 项 ping-pong | RTL 事实是可容纳两项并解耦局部握手；“一定足够”需由系统流控证明 | `read_channel.v:133-184`, `snoop_channel.v:92-120` |
+| 12 项写来源队列 | 每个有数据的 AW 接受事件压入 store/victim 来源位，末个 W beat 接受时弹出 | 队列保持 AW 接受顺序与 W 数据源顺序；无显式 full 反压，依赖 outstanding 上界不超过 12 | `write_channel.v:651-695` |
+| AXI ID 5 位 | IFU 使用 `10000/10001`，LSU ID 透传 | 固定组合分类，不是逐事务唯一分配器 | `req_arbiter.v:465-480` |
+| 读选择 | `lsu_biu_ar_dp_req=1` 时屏蔽 IFU | 这是 RTL 优先关系；“哪类请求更迫切”属于可能的设计动机 | `req_arbiter.v:433-435` |
+| 写选择 | victim AW valid 时输出 victim 字段 | 这是固定选择关系；资源释放动机是架构推断 | `write_channel.v:450-513` |
+| victim 域约束 | victim AW/W 本地清除固定观察 WNS ready | LSU 必须保证 victim 始终属于 WNS；严格 victim 优先也可能阻塞已等待的 store | `write_channel.v:523,685,832` |
+| CSR 选择 | `cp0_biu_sel=1` 时输出 CP0，否则输出 HPCP | 组合优先关系；响应源没有内部 owner 锁存 | `csr_req_arbiter.v:78-96` |
+| RACK/BACK 生成 | BIU 内部产生 valid/pending 状态 | 当前顶层把两个 ready 恒置 1；pending/backpressure 路径在此集成中不会形成满状态 | `top.v:1187-1188` |
+| 异步单比特输入 | 中断/调试用 2 级 FF 同步 | 降低亚稳态传播概率，不等于消除风险 | `other_io_sync.v:323-382` |
+| 局部时钟门控 | 例化 14 个 `gated_clk_cell`（lowpower 12 个、CSR 2 个） | 未定义 `C910_USE_TSMC28_ICG` 时 `clk_out=clk_in`；DC flist 定义该宏后使用工艺 ICG | `clk/rtl/gated_clk_cell.v:37-57`, `backend/flist/ct_top_dc.f:6` |
 
 ---
 
-## 设计取舍小结
+## 本章小结
 
-1. **BIU 是"薄"的边界层，不是"厚"的蓄水池。** 它每通道只放 1~2 项缓冲
-   （写 FIFO 12 项是因为保序刚需）。真正的缺失队列在 LSU，乱序排队在 CIU/L2。
-   这让 BIU 时序好、面积小、易验证。
+BIU 位于 IFU/LSU 与外部 ACE 接口之间，核心职责是把核内请求转换为 AR/AW/W 事务，把 R/B 返回重新分类给原始请求方，并通过 AC/CR/CD 通道承接外部一致性探测。它采用的是浅边界缓冲，而不是集中保存所有未完成事务的完整 outstanding 表：读和 snoop 通道只保存少量完整 payload，12 项写队列也只记录 store/victim 数据来源，事务身份、顺序和完成条件仍分布在 IFU、LSU、CIU 以及总线协议约束中。读返回通过 AXI ID 分类，外部 snoop 则沿 AC 请求与 CR/CD 响应方向流动，这两套机制共同服务一致性，但不共享同一种重排模型。
 
-2. **两个通用思想撑起整个 BIU**：AXI ID 当名牌解决乱序分发（与 ROB/MSHR 同源），
-   ACE 主+从双角解决一致性对称性。理解这两点，三大通道一通百通。
-
-3. **仲裁优先级反映"谁在关键路径上"**：读 LSU>IFU、写 victim>store、CSR CP0>HPCP，
-   每一条都对应一个"谁更迫切/更基础"的工程判断。
-
-4. **协议转换的复杂度集中在写通道**：ACE 的 ws/wns 域区分、store/victim 保序、
-   AW-W 配对，使 write_channel 成为 BIU 最复杂的文件（1078 行）。
-
----
-
-*文档覆盖 ct_biu_top.v 全部 1254 行逻辑，并综述全部 8 个 BIU 子模块。*
+写通道是 BIU 中状态组合最密集的部分，因为它必须同时区分 ACE 的 write-shareable 与 write-non-shareable 域、保持 store 与 victim 各自顺序，并保证 AW 地址和 W 数据来源正确配对。RTL 还能直接证明 LSU 请求对 IFU 请求、victim 对 store 等固定选择关系，但“哪类请求更迫切”“是否为了尽早释放 cache 行”等设计动机，不能仅凭多路选择器优先级反推。类似地，缓冲深度和代码规模也不能直接证明面积、频率或验证难度，这些结论需要综合、时序和运行测量结果支持。阅读后续章节时，应沿“请求创建、边界缓冲、总线握手、返回分类、源端释放”这一完整生命周期追踪，而不是把 BIU 当成独立完成全局事务管理的单一控制器。

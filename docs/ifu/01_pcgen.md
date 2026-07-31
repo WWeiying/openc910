@@ -17,8 +17,9 @@
 9. [Cancel 信号层次设计](#9-cancel-信号层次设计)
 10. [MMU 接口](#10-mmu-接口)
 11. [RTU 接口](#11-rtu-接口)
-12. [调试接口](#12-调试接口)
-13. [门控时钟设计](#13-门控时钟设计)
+12. [预测器与 I-Cache 接口](#12-预测器与-i-cache-接口)
+13. [调试接口](#13-调试接口)
+14. [门控时钟设计](#14-门控时钟设计)
 
 ---
 
@@ -26,14 +27,19 @@
 
 ### 1.1 职责
 
-`ct_ifu_pcgen` 是 C910 处理器取指单元（IFU）的**程序计数器生成模块**，也是整个取指流水线的起点与总控中枢。它的核心职责是：
+`ct_ifu_pcgen` 是 C910 处理器取指单元（IFU）的**程序计数器生成与前端改流控制模块**。它不只保存和推进 PC，还把一次控制流决定转换成预测器、I-Cache、MMU 以及各级流水寄存器所需的索引、请求、cancel 和 flush。它的核心职责是：
 
-1. **每周期决定下一个取指地址**：从 10 个可能来源中，按优先级选出正确的 PC，驱动 ICache 发起取指请求。
+1. **每周期决定取指地址**：在 9 类改流地址来源与顺序推进之间仲裁，按优先级选出正确的 PC。
 2. **维护 `if_pc` 寄存器**：保存当前 IF 流水级正在取指的 PC，在顺序执行、stall、控制流变化三种情况下分别处理。
-3. **处理控制流变化（chgflw）**：检测所有可能导致控制流改变的事件（分支预测失误、异常、调试、重取等），产生 cancel 信号，冲刷流水线中已经在飞的指令。
-4. **Way Predict（路预测）**：在访问 ICache 前，预测指令在 cache 哪条 way，避免串行标签比较，降低取指延迟。
-5. **生成 MMU 翻译请求**：投机性地将虚地址发给 MMU，同步进行地址翻译和 cache 访问（两者并行）。
-6. **向 BTB、BHT、L0 BTB 提供控制信号**：使分支预测结构在每个周期都能进行索引读取和更新。
+3. **处理控制流变化（chgflw）**：汇聚分支纠错、异常、调试、重取等改流请求，
+   选择目标并产生送往 IFU 各级的局部 cancel/flush 控制。它不负责一拍清除全核
+   所有在途指令；IU、IDU、RTU 和 LSU 仍按各自的 cancel/flush 协议清理状态。
+4. **生成时序提前量**：通过独立的 16 位 `pc_bus`、`_short` 信号和 bank 使能，提前驱动关键 SRAM 路径。
+5. **Way Predict（路预测）**：为 2 路 I-Cache 选择要激活的 way；`2'b00` 触发 IF self-stall，单路选错则由 IP 级触发 reissue。
+6. **生成 MMU 翻译请求**：重建完整虚地址，将地址翻译与 I-Cache 访问并行启动。
+7. **协调 BTB、L0 BTB、BHT、I-Cache、SFP、refill 和 IPB**：提供索引、读请求、改流通知及优先级屏蔽信号。
+
+从体系结构边界看，PCGEN **不负责**计算分支方向、分支目标或判断 I-Cache 命中；这些工作分别由 BHT/BTB/IP/IU 和 I-Cache 完成。PCGEN 的工作是选择“本拍采用哪个地址与控制事件”，并让所有前端结构对这个选择保持一致。
 
 ### 1.2 在 IFU 流水线中的位置
 
@@ -45,7 +51,7 @@ C910 IFU 流水线分为三级：
  PC生成    ICache访问     分支解析              指令分发
 ```
 
-`pcgen` 位于流水线**最前端**，无论 ICache 是否命中、无论分支是否预测，它每周期都必须给出一个 PC，驱动后续流水级工作。它接收来自 IF、IP、IB 各级以及处理器核（IU/RTU）、调试器（HAD）的控制流变更请求，产生正确的下一拍 PC，同时产生各级的 cancel/flush 信号冲刷错误的指令。
+`pcgen` 位于流水线**最前端**。它接收来自 IF、IP、IB 各级以及 IU、RTU、异常向量和 HAD 的改流请求，产生正确的下一拍 PC；与此同时，它为预测器和 I-Cache 提供提前索引，并产生各级 cancel/flush。这里的关键不是“始终向前加一个固定值”，而是让**地址选择、预测状态、Cache 请求和流水线有效位**在同一控制流事件下保持一致。
 
 ---
 
@@ -64,7 +70,7 @@ C910 IFU 流水线分为三级：
 | `pad_yy_icg_scan_en` | input | 1 | DFT 扫描模式下强制打开门控时钟 |
 | `cp0_ifu_iwpe` | input | 1 | Way Predict 使能，来自 CP0 配置寄存器 |
 
-这些信号是模块正常工作的基础。`cp0_ifu_iwpe` 尤其值得注意——当它为 0 时，Way Predict 被全部禁用（输出恒为 `2'b11`，表示 miss/bypass），这是软件可配置的特性。
+这些信号是模块正常工作的基础。`cp0_ifu_iwpe` 尤其值得注意：当它为 0 时，Way Predict 被禁用，输出恒为 `2'b11`，即同时使能 way 0 和 way 1。它是保证功能正确的非预测模式，不是 way-predict miss；真正的 miss 编码是 `2'b00`。
 
 ### 2.2 来自核心各模块的 PC 加载端口（chgflw 来源）
 
@@ -79,8 +85,8 @@ C910 IFU 流水线分为三级：
 | `rtu_ifu_chgflw_vld` | input | 1 | RTU | 精确异常控制流变更有效 |
 | `iu_ifu_chgflw_pc[62:0]` | input | 63 | IU（整数执行单元） | 分支预测失误恢复地址，保存架构 VA `[63:1]` |
 | `iu_ifu_chgflw_vld` | input | 1 | IU | IU 控制流变更有效 |
-| `addrgen_pcgen_pc[38:0]` | input | 39 | addrgen（地址生成） | L1 ICache refill 完成后重取 PC |
-| `addrgen_pcgen_pcload` | input | 1 | addrgen | addrgen PC 加载使能 |
+| `addrgen_pcgen_pc[38:0]` | input | 39 | addrgen（地址生成） | 直接控制流 PC-relative 目标复算后的纠错 PC |
+| `addrgen_pcgen_pcload` | input | 1 | addrgen | 复算目标与 IP 级记录目标不一致时的 PC 加载使能 |
 | `ibctrl_pcgen_pc[38:0]` | input | 39 | IB 控制（指令缓冲控制） | IB 级控制流变更 PC（如 RAS 预测） |
 | `ibctrl_pcgen_pcload` | input | 1 | IB 控制 | IB 级 PC 加载有效 |
 | `ibctrl_pcgen_pcload_vld` | input | 1 | IB 控制 | IB 级 pcload 有效（用于 L0 BTB） |
@@ -100,11 +106,12 @@ C910 IFU 流水线分为三级：
 | 端口名 | 方向 | 说明 |
 |--------|------|------|
 | `ifctrl_pcgen_stall` | input | IF 级 stall，阻止 PC 推进 |
-| `ifctrl_pcgen_stall_short` | input | IF 级 stall 的快速版本（提前半拍） |
+| `ifctrl_pcgen_stall_short` | input | IF 级 stall 的快速时序版本 |
+| `ifctrl_pcgen_ins_icache_inv_done` | input | 指令 I-Cache invalidate 完成；在 Loop Buffer 非活跃时触发其 flush |
 | `ipctrl_pcgen_if_stall` | input | IP 级引发的 IF stall |
 | `ibctrl_pcgen_ip_stall` | input | IB 级引发的 IP stall |
-| `lbuf_pcgen_active` | input | L0 BTB 缓冲活跃中（影响 flush） |
-| `lbuf_pcgen_vld_mask` | input | L0 BTB 有效遮蔽信号 |
+| `lbuf_pcgen_active` | input | Loop Buffer 活跃标志；影响 I-Cache invalidate 后是否立即 flush Loop Buffer |
+| `lbuf_pcgen_vld_mask` | input | Loop Buffer 对流水线有效位的屏蔽；参与 IF/IP pipe cancel |
 
 ### 2.4 Way Predict 相关输入
 
@@ -114,10 +121,10 @@ C910 IFU 流水线分为三级：
 | `ipctrl_pcgen_chgflw_way_pred[1:0]` | input | IP 级 chgflw 的 way predict |
 | `ipctrl_pcgen_reissue_way_pred[1:0]` | input | IP 级重发的 way predict |
 | `ibctrl_pcgen_way_pred[1:0]` | input | IB 级的 way predict |
-| `ipctrl_pcgen_inner_way_pred[1:0]` | input | IP 级顺序取指的 way predict（来自 BTB 查询结果） |
-| `ipctrl_pcgen_inner_way0` | input | IP 级顺序取指 way0 命中标志 |
-| `ipctrl_pcgen_inner_way1` | input | IP 级顺序取指 way1 命中标志 |
-| `ipctrl_pcgen_h0_vld` | input | 存在跨越相邻 16 字节取指块的 H0 残留半字（影响 BHT index 计算） |
+| `ipctrl_pcgen_inner_way_pred[1:0]` | input | IP 级返回的本 I-Cache line 实际 way 命中向量 |
+| `ipctrl_pcgen_inner_way0` | input | IP 级 way 命中历史计数器饱和偏向 way 0 |
+| `ipctrl_pcgen_inner_way1` | input | IP 级 way 命中历史计数器饱和偏向 way 1 |
+| `ipctrl_pcgen_h0_vld` | input | IP 级 H0 有效；reissue 时指示 BHT 低位关联到前一个 16 字节块 |
 
 ### 2.5 分支信息输入
 
@@ -146,15 +153,25 @@ C910 IFU 流水线分为三级：
 | `ifu_mmu_va[62:0]` | output | 63 | 发给 MMU 的虚地址 |
 | `ifu_mmu_va_vld` | output | 1 | 虚地址有效（恒为 1） |
 | `ifu_mmu_abort` | output | 1 | 取消当前 MMU 翻译请求 |
-| `ifu_rtu_cur_pc[38:0]` | output | 39 | 当前 PC，上报给 RTU |
-| `ifu_rtu_cur_pc_load` | output | 1 | cur_pc 有效 |
+| `ifu_rtu_cur_pc[38:0]` | output | 39 | HAD/异常向量强制加载的 PC 基准，送 RTU 重置其 `rob_cur_pc` |
+| `ifu_rtu_cur_pc_load` | output | 1 | 上述 PC 基准加载有效信号 |
 | `pcgen_ifctrl_cancel` | output | 1 | 冲刷 IF 级 |
+| `pcgen_ifctrl_pipe_cancel` | output | 1 | 清除 IF→IP 流水寄存器有效位 |
+| `pcgen_ifctrl_reissue` | output | 1 | HAD/向量/RTU 改流引起 IF 级重取 |
+| `pcgen_ifctrl_way_pred[1:0]` | output | 2 | way predict 打拍后送 IF 控制 |
+| `pcgen_ifctrl_way_pred_stall` | output | 1 | way predict 为 `2'b00` 的打拍 stall |
 | `pcgen_ipctrl_cancel` | output | 1 | 冲刷 IP 级 |
+| `pcgen_ipctrl_pipe_cancel` | output | 1 | 清除 IP→IB 流水寄存器有效位 |
 | `pcgen_ibctrl_cancel` | output | 1 | 冲刷 IB 级 |
+| `pcgen_ibctrl_ibuf_flush` | output | 1 | flush Instruction Buffer |
+| `pcgen_ibctrl_lbuf_flush` | output | 1 | flush Loop Buffer |
+| `pcgen_ibctrl_bju_chgflw` | output | 1 | 将 IU/BJU 改流单独通知 IB 控制 |
 | `pcgen_addrgen_cancel` | output | 1 | 冲刷 addrgen 模块 |
 | `pcgen_btb_index[9:0]` | output | 10 | BTB 索引（来自 pc_bus[12:3]） |
 | `pcgen_bht_pcindex[9:0]` | output | 10 | BHT 索引（来自 pc_bus[12:3]） |
-| `pcgen_sfp_pc[16:0]` | output | 17 | 送 SFP（Store Filter Predictor）的 PC 片段 |
+| `pcgen_sfp_pc[16:0]` | output | 17 | 送 SFP（Speculation Fail Predictor，推测失败预测器）的 PC 片段 |
+
+BTB、L0 BTB、BHT 和 I-Cache 的其余专用输出较多，统一在第 12 节按目标模块和使用方式说明。
 
 ---
 
@@ -167,28 +184,28 @@ C910 IFU 流水线分为三级：
 parameter PC_WIDTH = 40;
 ```
 
-`PC_WIDTH = 40` 表示架构物理字节地址宽度为 40 位。由于 RISC-V C 扩展下指令至少按 2 字节对齐，架构 `PC[0]` 恒为 0，RTL 只保存 `PC[39:1]`，因此 `if_pc` 的信号位宽是 39 位 `[38:0]`。
+`PC_WIDTH = 40` 表示 PCGEN 的普通 PC 路径覆盖架构字节地址低 40 位。由于 RISC-V C 扩展下指令至少按 2 字节对齐，架构 `PC[0]` 恒为 0，RTL 只保存 `PC[39:1]`，因此 `if_pc` 的信号位宽是 39 位 `[38:0]`。
 
-这 39 个存储位加上隐含的架构 `PC[0]=0`，仍覆盖完整的 `2^40` 字节，即 1 TiB 物理地址空间。要特别注意：RTL 的 `if_pc[0]` 对应架构 `PC[1]`，它并不恒为 0。
+这不能简单解释成“IFU 只有 40 位物理地址”：`if_pc` 首先是送 MMU 翻译的虚拟 PC 低位，MMU 地址高位通常由 `if_pc[38]` 符号扩展，IU 改流时还可由 `if_pc_high_spe` 临时补齐架构 VA `[63:40]`。要特别注意：RTL 的 `if_pc[0]` 对应架构 `PC[1]`，它并不恒为 0。
 
 ### 3.2 关键寄存器一览
 
 | 寄存器 | 宽度 | 作用 |
 |--------|------|------|
 | `if_pc[38:0]` | 39 位 | IF 级当前 PC，是 pcgen 的核心状态寄存器 |
-| `if_pc_high_spe[23:0]` | 24 位 | 虚地址高位补充寄存器（bit[62:39]），仅在 IU chgflw 后有效 |
+| `if_pc_high_spe[23:0]` | 24 位 | 保存 IU 总线 `[62:39]`，对应架构 VA `[63:40]`，仅在 IU chgflw 后有效 |
 | `if_pc_high_spe_vld` | 1 位 | `if_pc_high_spe` 是否有效的标志位 |
-| `if_bht_pc[6:0]` | 7 位 | 专为 BHT 查询保存的 PC 低 7 位，与 `if_pc` 更新逻辑相同但 index 计算略有差异 |
+| `if_bht_pc[6:0]` | 7 位 | BHT 结果选择使用的 PC 低 7 位，IP reissue + H0 时可回退一个 16B 块 |
 | `way_predict[1:0]` | 2 位 | 组合逻辑输出的当前拍 way predict |
 | `way_pred_flop[1:0]` | 2 位 | way_predict 打一拍的寄存器版本，送下游使用 |
 | `chgflw_way_pred[1:0]` | 2 位 | 控制流变更时的 way predict，组合逻辑 |
-| `chgflw_way_pred_flop[1:0]` | 2 位 | chgflw_way_pred 的寄存器版本（stall 后恢复用） |
+| `chgflw_way_pred_flop[1:0]` | 2 位 | 保存改流目标的 way 信息，供改流后同一 cache line 的后续块复用 |
 | `pcgen_chgflw_flop` | 1 位 | pcgen_chgflw 打一拍，用于 way predict 逻辑 |
-| `inner_way_pred[1:0]` | 2 位 | 顺序推进时的 way predict（来自 BTB 预测结果） |
+| `inner_way_pred[1:0]` | 2 位 | 顺序推进时的 I-Cache way 选择，来自实际命中路或近期命中路偏好 |
 | `ifctrl_pcgen_stall_flop` | 1 位 | stall 打一拍，用于 way predict 的连续 stall 检测 |
 | `dbg_dly_reg` | 1 位 | 调试模式进入信号的打拍，用于生成单次 dbg_cancel 脉冲 |
-| `ifu_rtu_cur_pc[38:0]` | 39 位 | 上报给 RTU 的当前 PC（打拍版本） |
-| `ifu_rtu_cur_pc_load` | 1 位 | cur_pc 有效标志（打拍版本） |
+| `ifu_rtu_cur_pc[38:0]` | 39 位 | HAD/向量强制加载的 PC 基准（打拍后送 RTU） |
+| `ifu_rtu_cur_pc_load` | 1 位 | 上述 PC 基准的加载有效信号 |
 | `pc_bus[15:0]` | 16 位 | 专为 BTB/BHT/ICache 索引计算的 PC 组合输出，优先级与主 MUX 略有不同 |
 
 ---
@@ -205,7 +222,7 @@ CPU 在任何一拍都可能有多个"希望改变 PC"的请求同时到来。�
 
 ### 4.2 主 MUX（ifpc_chgflw_pre）
 
-这是更新 `if_pc` 寄存器时使用的 MUX，覆盖完整的 39 位内部半字地址，即架构字节地址 `[39:1]`：
+这是 `pcgen_chgflw=1` 时更新 `if_pc` 所使用的改流地址 MUX，覆盖完整的 39 位内部半字地址，即架构字节地址 `[39:1]`。无改流时该 MUX 的输出不会被寄存器采用，顺序更新由独立的 `inc_pc` 路径完成：
 
 ```verilog
 // 第 406-428 行
@@ -231,7 +248,7 @@ else // ifctrl_pcgen_reissue_pcload
   ifpc_chgflw_pre = if_pc;  // 保持当前 PC（顺序执行用 inc_pc）
 ```
 
-### 4.3 十个来源逐一解析
+### 4.3 十类改流事件逐一解析
 
 | 优先级 | 来源信号 | 触发场景 | 为何是此优先级 |
 |--------|----------|----------|----------------|
@@ -239,12 +256,20 @@ else // ifctrl_pcgen_reissue_pcload
 | 2 | `vector_pcgen_pcload` | 发生异常或中断，跳转到异常向量（如 `mtvec` 指向的地址） | 异常处理仅次于调试，必须立即跳转，不能被分支预测结果覆盖 |
 | 3 | `rtu_ifu_chgflw_vld` | RTU（退休单元）在指令精确退休时检测到需要恢复的 PC（如 trap 返回 `mret`、精确异常重启） | RTU 掌握"已提交"的精确状态，其给出的 PC 是最准确的恢复点，级别高于执行中的预测 |
 | 4 | `iu_ifu_chgflw_vld` | IU 执行单元检测到分支预测失误，给出正确的跳转目标 | 执行单元已计算出真实目标地址，需要取消流水线中基于错误预测的所有取指 |
-| 5 | `addrgen_pcgen_pcload` | L1 ICache miss 触发 refill，refill 完成后 addrgen 通知 pcgen 重新取指 | Cache miss 处理是特殊的流水线重启，需要高于 IFU 内部预测的优先级 |
-| 6 | `ibctrl_pcgen_pcload` | IB 级（指令缓冲控制）触发控制流变更，典型场景是 RAS（Return Address Stack）预测的返回地址 | IB 级是最接近指令"派发"的一级，其控制流决策比 IP 级更靠近执行，优先级更高 |
-| 7 | `ipctrl_pcgen_reissue_pcload` | IP 级（预译码/分支预测级）检测到需要重发（re-issue）的情况，例如 BTB 访问后发现预测有误需要重新取 | 重发（reissue）是已发现当前取指不合适，必须纠正，但优先级低于 IB 级的更"确定"的控制流变更 |
+| 5 | `addrgen_pcgen_pcload` | ADDRGEN 在 IB 后一级复算预测 taken 条件分支或 JAL/C.J 的 PC-relative 目标；若复算目标与 IP 级记录的预测改流目标不一致，则改流到复算目标 | 这是较后一级对直接控制流目标的确定性校验，必须覆盖仍属投机性质的 IB/IP/IF 级预测 |
+| 6 | `ibctrl_pcgen_pcload` | IB 级因 RAS 返回预测、间接 BTB、LBUF 循环回绕或 L0-BTB/RAS 纠错而改流 | 这些判断使用了比 IP/IF 更完整的指令边界和类型信息，因此覆盖更早阶段的预测 |
+| 7 | `ipctrl_pcgen_reissue_pcload` | IP 级发现 I-Cache way prediction 不匹配，或在 refill 单元空闲时接受一次 miss/check-error refill 请求，于原 IP 级 VPC 重发 | 当前 IP 级数据不能直接沿用，重发优先于该级新产生的普通预测改流；它不是“refill 完成”事件 |
 | 8 | `ipctrl_pcgen_chgflw_pcload` | IP 级 BTB 命中预测到分支跳转，提前改变控制流（投机跳转） | 纯粹的预测跳转，优先级低于重发，因为重发代表检测到错误，而预测跳转只是"可能正确" |
 | 9 | `ifctrl_pcgen_chgflw_no_stall_mask` | IF 级 L0 BTB 命中，触发小范围的控制流变更（且当前没有 stall 遮蔽） | 最低层的预测机制，仅在没有任何更高优先级事件时才生效 |
-| 10（最低）| 默认（使用 `inc_pc`） | 顺序执行，PC 推进到下一个 16 字节边界 | 无任何控制流变更事件时的默认行为 |
+| 10（最低）| `ifctrl_pcgen_reissue_pcload` | L1 refill 完成、I-Cache invalidate/read 完成，或 HAD/vector/RTU 高优先级改流经 IFCTRL 延迟一拍后，重发当前 IF PC | 该事件令 `pcgen_chgflw=1`，但不提供新地址；MUX 的最终 `else` 选择当前 `if_pc`。它承担真正的 refill 完成后重取 |
+
+顺序推进不属于上述改流 MUX。只有当这 10 类 `pcgen_chgflw` 事件全为 0 且 IF 不 stall 时，`if_pc` 寄存器才从另一条数据路径加载 `inc_pc`。因此：
+
+```text
+有改流事件：if_pc_next = ifpc_chgflw_pre
+无改流且可推进：if_pc_next = inc_pc
+无改流且 stall：if_pc_next = if_pc
+```
 
 ### 4.4 pc_bus MUX（用于索引 BTB/BHT/ICache）
 
@@ -262,8 +287,8 @@ else                                  pc_bus = inc_pc[15:0];
 ```
 
 注意与主 MUX 的几个关键差异：
-1. `pc_bus` 不包含 `had_ifu_pcload` 和 `vector_pcgen_pcload`，因为调试跳转和异常向量跳转会同时触发各级 cancel，BTB/BHT 不需要提前索引新目标。
-2. `pc_bus` 不包含 `rtu_ifu_chgflw_vld`，理由同上。
+1. `pc_bus` 不包含 `had_ifu_pcload`、`vector_pcgen_pcload` 和 `rtu_ifu_chgflw_vld`。这三类高优先级事件另行产生 `pcgen_ifctrl_reissue`；当前拍先取消旧前端事务，随后由 IF reissue 流程基于已加载的 `if_pc` 重取，而不是把这三条宽地址路径接入快速 `pc_bus` MUX。
+2. 因此，HAD/vector/RTU 改流发生的当拍，不能把 `pc_bus` 当成其目标 PC；观察这类事件应看 `ifpc_chgflw_pre`，并在下一拍看 `if_pc`。
 3. 没有高优先级事件时，`pc_bus` 使用 `inc_pc` 而非 `if_pc`，因为需要提前一拍给出下一周期的 cache 访问索引。
 
 这种"双 MUX"设计的体系结构原因：主 MUX 追求正确性（覆盖所有来源），`pc_bus` 追求时序（只保留时序路径上关键的来源），两者配合使高频时序得以满足。
@@ -293,7 +318,7 @@ end
 
 **复位（Reset）**：PC 清零（0x0），系统启动后由向量模块（`vector_pcgen_pcload`）重新加载正确的复位向量（如 MROM 入口地址）。
 
-**控制流变更（pcgen_chgflw）**：这是最高优先级的更新路径。`pcgen_chgflw` 是所有 10 个 PC 来源的 OR：
+**控制流变更（pcgen_chgflw）**：这是最高优先级的更新路径。`pcgen_chgflw` 是 10 类改流事件的 OR；其中 IF reissue 不提供新目标地址，而是让主 MUX 保持 `if_pc`：
 
 ```verilog
 // 第 599-608 行
@@ -321,11 +346,47 @@ assign pcgen_chgflw = had_ifu_pcload ||
 
 | 信号 | 包含来源 | 用途 |
 |------|----------|------|
-| `pcgen_chgflw` | 全部 10 个来源（含 L0 BTB） | 更新 `if_pc` 寄存器 |
-| `pcgen_chgflw_without_l0_btb` | 前 9 个来源（不含 `ifctrl_pcgen_chgflw_vld`） | 用于 IF cancel 逻辑（L0 BTB 的 chgflw 不需要触发 IF cancel） |
-| `pcgen_chgflw_short` | `pcgen_chgflw_without_l0_btb` + `ifctrl_pcgen_chgflw_no_stall_mask` | 用于 BTB/BHT/ICache 的"短路径"控制 |
+| `pcgen_chgflw` | 全部 10 类改流事件（含 IF reissue 和 L0 BTB） | 更新 `if_pc`，并通知 BTB/BHT/I-Cache/refill/IPB |
+| `pcgen_chgflw_without_l0_btb` | 除 `ifctrl_pcgen_chgflw_vld` 外的 9 类事件 | 用于 IF cancel；L0 BTB 改流由 IF 级自身衔接，不取消同级 |
+| `pcgen_chgflw_short` | `pcgen_chgflw_without_l0_btb` + `ifctrl_pcgen_chgflw_no_stall_mask` | 用于 BTB/BHT/I-Cache 的“短路径”控制 |
 
-`_short` 后缀的信号是 C910 时序优化的常见手法：在关键路径上使用"稍微不那么完整但时序更好"的版本，比完整版本早半拍到达需要它的模块，换取更高的工作频率。
+`ifctrl_pcgen_chgflw_vld` 是 IF 控制形成的完整改流有效信号，`ifctrl_pcgen_chgflw_no_stall_mask` 是去掉 stall 相关遮蔽后的快速条件。因而 `_short` 并不是功能上随意删减的近似值，而是给 SRAM 门控等关键路径使用的**时序版本**；最终状态更新仍以完整 `pcgen_chgflw` 为准。
+
+### 5.3 为什么还要单独维护 `if_bht_pc`
+
+BHT 不仅要知道取指块索引，还要用 PC 低位选择一个取指块内对应的预测结果。多数情况下，`if_bht_pc[6:0]` 与 `if_pc[6:0]` 同步更新；两者唯一关键差别出现在 IP reissue 且 `ipctrl_pcgen_h0_vld=1` 时：
+
+```verilog
+if (ipctrl_pcgen_reissue_pcload && ipctrl_pcgen_h0_vld)
+  ifpc_bht_chgflw_pre[6:0] = {
+      ipctrl_pcgen_reissue_pc[6:3] - 4'b1,
+      ipctrl_pcgen_reissue_pc[2:0]
+  };
+else if (ipctrl_pcgen_reissue_pcload)
+  ifpc_bht_chgflw_pre[6:0] = ipctrl_pcgen_reissue_pc[6:0];
+```
+
+这里的 `[6:3]` 是内部半字地址中的 16 字节块号低位。当 H0 有效时，H0 对应的信息来自前一个取指块，因此 BHT 用于结果选择的块号减 1；块内半字偏移 `[2:0]` 保持不变。主 `if_pc` 仍加载真实 reissue PC，只有 BHT 的低位关联信息做这个修正。
+
+可以把两条路径理解为：
+
+```text
+if_pc     = 实际要重新取指的地址
+if_bht_pc = 这批预测结果在 BHT 中应关联的取指块
+```
+
+如果观察波形时只看 `if_pc` 而忽略 `if_bht_pc`，就可能把跨 16 字节边界后的 BHT 结果误判为“错位一块”。
+
+### 5.4 `pcgen_ifctrl_reissue`
+
+```verilog
+assign pcgen_ifctrl_reissue =
+       had_ifu_pcload
+    || vector_pcgen_pcload
+    || rtu_ifu_chgflw_vld;
+```
+
+这不是主 PC MUX 的完整改流汇总，而是专门送给 IF 控制器的高优先级重取请求。IF 控制器把它与 refill 完成、I-Cache invalidate/read 完成等条件合并，形成 I-Cache reissue 流程。IU、IB、IP 的改流由各自的前端控制路径处理，因此不在这个三项汇总中。
 
 ---
 
@@ -412,7 +473,7 @@ begin
     if_pc_high_spe_vld <= 1'b0;
   end
   else if (ifctrl_pcgen_reissue_pcload || !ifctrl_pcgen_stall) begin
-    // PC 正常推进：清零（Inc PC 不会改变 bit[62:39] 的需求）
+    // IF reissue 或 PC 正常推进：特殊高位失效
     if_pc_high_spe <= 24'b0;
     if_pc_high_spe_vld <= 1'b0;
   end
@@ -426,12 +487,12 @@ end
 
 ### 7.3 何时清零（失效）
 
-以下事件会将 `if_pc_high_spe_vld` 清零，恢复"符号扩展"模式：
-- `had_ifu_pcload`、`vector_pcgen_pcload`、`rtu_ifu_chgflw_vld`：更高优先级来源接管，新 PC 同样是 39 位（符号扩展有效）
-- 任何流水线内部 chgflw（addrgen/ibctrl/ipctrl/ifctrl）：这些来源的 PC 也是 39 位，高位可以符号扩展
-- PC 正常推进（`!ifctrl_pcgen_stall`）：`inc_pc` 仅操作低 39 位，结果同样是符号扩展有效的
+以下事件会将 `if_pc_high_spe_vld` 清零，恢复“符号扩展”模式：
+- `had_ifu_pcload`、`vector_pcgen_pcload`、`rtu_ifu_chgflw_vld`：更高优先级的 39 位 PC 来源接管。
+- addrgen、IB、IP、IF 的改流或 reissue：这些接口只携带低 39 位内部 PC。
+- IF reissue 或正常推进（`ifctrl_pcgen_reissue_pcload || !ifctrl_pcgen_stall`）：RTL 明确结束特殊高位状态。
 
-只有 **stall** 时才保持 `if_pc_high_spe` 不变，因为 stall 期间 PC 不推进，`if_pc` 保持 IU 给出的那个地址不变，高 24 位依然需要保留。
+只有 **stall** 时才保持 `if_pc_high_spe`，因为此时 IU 给出的目标仍停留在 IF 级，MMU 还需要看到完整高位。这个寄存器不是一条持续进行 64 位顺序加法的 PC 路径，而是 IU 改流目标进入 IF 时的临时高位补丁；一旦前端继续推进，地址重新按 `if_pc[38]` 符号扩展。该行为也使 MMU 能看到 IU 提供的完整异常高位目标，不能把 `if_pc` 单独当成完整 64 位 VA。
 
 ### 7.4 如何重建 MMU 地址与完整字节地址
 
@@ -453,9 +514,9 @@ assign ifu_mmu_va[62:0] = {ifu_mmu_va_high[23:0], if_pc[38:0]};
 
 ### 8.1 为什么需要 Way Predict
 
-C910 的 ICache 是组相联结构（通常是 4-way 或 8-way）。在每次取指时，如果不做预测，ICache 需要同时读取所有 way 的数据，然后根据 tag 比较结果选择命中的 way，这会消耗大量功耗（无效读取）并增加延迟。
+C910 的 L1 I-Cache 是 **64KB、2 路组相联、64 字节 cache line**。其两个 data way 分别由 `ct_ifu_icache_data_array0/1` 实现。若每次取指都读两个 data way，功能正确但动态功耗较高；若能提前知道目标位于哪一路，就只需激活对应的数据阵列。
 
-Way Predict 预先猜测指令在哪个 way，只激活那个 way 的读操作。如果预测正确，节省功耗；如果预测错误（way predict miss），触发重发。
+Way Predict 的实质是生成一个 2 位 way 使能向量。预测正确时只读一个 data way；无法可靠选择时可令两位均为 1，同时读取两路；若形成 `2'b00`，则当前没有 data way 可读，IF 级进入 self-stall。若输出 `01/10` 但 IP 级标签比较发现真正命中的是另一 way，IP 级产生 `way_mispred_reissue`，携带正确命中路重新取指。标签命中判断仍由 I-Cache/IP 侧完成，PCGEN 只选择 data way 的激活方式。
 
 ### 8.2 Way Predict 编码
 
@@ -466,9 +527,9 @@ Way Predict 预先猜测指令在哪个 way，只激活那个 way 的读操作�
 | `2'b00` | Way Predict **miss**（预测失效，无法确定在哪个 way，触发 stall） |
 | `2'b01` | 预测在 **way 0** |
 | `2'b10` | 预测在 **way 1** |
-| `2'b11` | **Bypass**（跳过 Way Predict，读取全部 way）|
+| `2'b11` | 同时使能 **way 0 和 way 1**，即非预测/全路读取模式 |
 
-注意 `2'b11` 是"绕过"模式，不是 miss，表示主动选择全 way 读取（功耗高但无延迟）。`2'b00` 才是真正的 miss，会触发 `pcgen_ifctrl_way_pred_stall`。
+注意 `2'b11` 不是 miss，而是两路 data array 都可读的功能保底模式；`2'b00` 才会在下一拍置位 `pcgen_ifctrl_way_pred_stall`。
 
 ### 8.3 Way Predict 的 5 个优先级来源
 
@@ -488,13 +549,13 @@ else                        // 4. 正常顺序推进
 
 **级别 0（最高优先）：禁用时全 bypass**。`cp0_ifu_iwpe = 0` 时 way predict 无效，直接 bypass，保证功能正确性牺牲功耗。
 
-**级别 1：控制流变更时用 chgflw_way_pred**。chgflw 说明 PC 将跳到新地址，当前预测来自新目标地址对应的 BTB/cache 信息。
+**级别 1：控制流变更时用 chgflw_way_pred**。chgflw 说明 PC 将跳到新地址；若发起改流的级已经携带目标地址的 way 信息，则沿改流一起使用，否则两路均打开。
 
 **级别 2：stall 时保持**。stall 说明 IF 级没有在推进，下一拍还是同一个地址，way predict 也应保持。注意这里还检查了 `ifctrl_pcgen_stall_flop`（stall 打拍），这是因为 stall 解除后的第一拍，IF 可能仍在处理同一地址。
 
 **级别 3：chgflw 后第一拍（chgflw_flop）且处于 cache line 内部**。内部 `inc_pc[4:3]` 对应架构字节地址 `[5:4]`。如果目标不在新 64 字节 cache line 的首个 16 字节块（`inc_pc[4:3] != 2'b00`），way predict 应来自 chgflw 时保存的 `chgflw_way_pred_flop`。
 
-**级别 4（最低）：正常顺序取指用 inner_way_pred**。这来自 BTB 对下一个 cache 块的 way 预测结果。
+**级别 4（最低）：正常顺序取指用 inner_way_pred**。它来自 IP 级反馈的 I-Cache 实际命中路或近期命中路偏好，不是 BTB 的分支目标预测结果。
 
 ### 8.4 chgflw_way_pred 来源的 5 个优先级
 
@@ -530,7 +591,12 @@ assign inner_way_pred_default = (ipctrl_pcgen_inner_way1 || ipctrl_pcgen_inner_w
                               : 2'b11;  // 两路都没有命中 → bypass
 ```
 
-`inc_pc[4:3]` 表示即将处理的 16 字节取指块在 64 字节 cache line 中的位置（0~3），对应架构字节地址 `[5:4]`。当处于后两个块时，使用来自 IP 级的 `inner_way_pred`；否则使用基于当前 cache line 标签命中的默认预测。
+`inc_pc[4:3]` 表示即将处理的 16 字节取指块在 64 字节 cache line 中的位置（0~3），对应架构字节地址 `[5:4]`：
+
+- 即将访问第 2、3 块时，当前 line 的标签比较已经完成，直接使用 `{icache_way1_hit, icache_way0_hit}`，同一 line 后续块无需重新猜测。
+- 即将访问第 0、1 块时，尚缺少新 line 的精确命中路，使用 IP 级维护的 3 位饱和 `hit_cnt`。计数器饱和到 `000` 时偏向 way 0，饱和到 `111` 时偏向 way 1，中间状态则输出 `2'b11`，同时读两路。
+
+因此，这里结合了“**同一 cache line 的已知命中路**”和“**跨 line 时的近期路偏好**”。它主要优化 I-Cache data array 功耗；预测错误造成的代价由 IP reissue 路径恢复。
 
 ### 8.6 Way Predict Stall 的触发
 
@@ -568,8 +634,7 @@ assign pcgen_ifctrl_cancel = pcgen_chgflw_without_l0_btb ||
 ```
 
 IF Cancel 包含：
-- `pcgen_chgflw_without_l0_btb`：除 L0 BTB 以外的所有 chgflw；L0 BTB 是最早的
-  IF 级预测路径，其改流由 IF 级自身衔接，不在这里触发同级 cancel
+- `pcgen_chgflw_without_l0_btb`：HAD、vector、RTU、IU、addrgen、IB、IP chgflw、IP reissue 和 IF reissue。L0 BTB 的 `ifctrl_pcgen_chgflw_vld` 是最早的 IF 级预测改流，由 IF 级自身衔接，不在这里触发同级 cancel。
 - `rtu_ifu_xx_expt_vld`：RTU 检测到异常，必须立即 cancel IF 级正在取的指令
 - `dbg_cancel`：进入调试模式时的单次脉冲 cancel
 
@@ -585,7 +650,7 @@ assign pcgen_ifctrl_pipe_cancel = pcgen_ipctrl_cancel ||
                                   ipctrl_pcgen_chgflw_pcload && !ipctrl_pcgen_if_stall;
 ```
 
-这个信号用于控制 IF→IP 流水线寄存器是否置无效（kill），优先级高于 `ip_if_stall`，专门处理 IP 级发生 chgflw 但 IP 级自身已经 stall 的边界情况。
+这个信号直接控制 IF→IP 流水寄存器有效位，优先级高于下游 stall。除 `pcgen_ipctrl_cancel` 外，它还覆盖 Loop Buffer 有效屏蔽、IP check-error reissue，以及“IP 发出 chgflw 且当前没有要求 IF stall”的情况。也就是说，`cancel` 面向本级正在处理的事务，`pipe_cancel` 面向级间寄存器中的有效位，两者不能混为一个信号。
 
 ### 9.3 IP Cancel（pcgen_ipctrl_cancel）
 
@@ -601,7 +666,7 @@ assign pcgen_ipctrl_cancel = had_ifu_pcload ||
                              dbg_cancel;
 ```
 
-IP Cancel 比 IF Cancel **多了 IB 级来源**（`ibctrl_pcgen_pcload`），因为 IB 级 chgflw 需要同时冲刷 IP 级和 IF 级，而 IP 级本身发生的 chgflw 不需要 cancel 自己。
+IP Cancel 只接受**高于 IP 级**的改流来源：HAD、vector、RTU、IU、addrgen 和 IB，再加 RTU 异常与调试进入。相比 IF Cancel，它不包含 IP 自己发出的 reissue/chgflw，也不包含 IF reissue。
 
 **注意**：`ipctrl_pcgen_chgflw_pcload` 和 `ipctrl_pcgen_reissue_pcload` 都**不**在 IP cancel 列表中，因为这些是 IP 级自己发出的控制流变更，IP 级自行处理，无需外部 cancel。
 
@@ -619,7 +684,7 @@ assign pcgen_ibctrl_cancel = had_ifu_pcload ||
 
 IB Cancel 比 IP Cancel **少了 `ibctrl_pcgen_pcload` 和 `addrgen_pcgen_pcload`**：
 - `ibctrl_pcgen_pcload`：IB 级自己发出的，无需 cancel 自己
-- `addrgen_pcgen_pcload`：L1 refill 完成的重取，IB 级中可能有正确路径上已经填充的指令（cache miss 期间 IB 可能已经有了部分数据），不应盲目冲刷
+- `addrgen_pcgen_pcload`：RTL 仅让它取消 IF/IP 和 addrgen，不扩展到 IB。其功能边界是保留 IB 已有状态，不能仅凭本模块进一步断言这些状态一定属于何种指令。
 
 ### 9.5 Cancel 信号汇总对比
 
@@ -631,9 +696,10 @@ IB Cancel 比 IP Cancel **少了 `ibctrl_pcgen_pcload` 和 `addrgen_pcgen_pcload
 | IU chgflw | ✓ | ✓ | ✓ |
 | addrgen pcload | ✓ | ✓ | - |
 | IB pcload | ✓ | ✓ | - |
-| IP reissue | - | - | - |
-| IP chgflw | - | - | - |
-| IF chgflw | - | - | - |
+| IP reissue | ✓ | - | - |
+| IP chgflw | ✓ | - | - |
+| IF reissue | ✓ | - | - |
+| IF L0 BTB chgflw | - | - | - |
 | rtu_expt_vld | ✓ | ✓ | ✓ |
 | dbg_cancel | ✓ | ✓ | ✓ |
 
@@ -646,7 +712,10 @@ assign pcgen_addrgen_cancel = had_ifu_pcload || vector_pcgen_pcload ||
                               addrgen_pcgen_pcload;
 ```
 
-addrgen 自身完成时也 cancel 自己，防止重复 refill。
+`pcgen_addrgen_cancel` 的边界到 ADDRGEN 为止：HAD、vector、RTU、IU 的更高优先级
+改流会丢弃当前地址生成事务；`addrgen_pcgen_pcload` 自身也被并入 cancel，使已经
+发出的 ADDRGEN 纠错成为一次性事务，下一拍不会对同一记录重复改流。这里与
+I-Cache refill 完成无关。
 
 ```verilog
 // 第 836-847 行（ibuf/lbuf flush）
@@ -657,7 +726,30 @@ assign pcgen_ibctrl_ibuf_flush = had_ifu_pcload || vector_pcgen_pcload ||
     rtu_ifu_chgflw_vld || iu_ifu_chgflw_vld || rtu_ifu_xx_expt_vld || dbg_cancel;
 ```
 
-`lbuf` (Loop Buffer) 的 flush 还额外包含 `ifctrl_pcgen_ins_icache_inv_done && !lbuf_pcgen_active`，这是 ICache invalidation（多核一致性操作）完成后需要清空 loop buffer 的场景。注意 `iu_ifu_chgflw_vld` 不在 lbuf_flush 中但在 ibuf_flush 中——这是因为注释说明 "IDU will deal with the condition of iu_chgflw"，loop buffer 有更细粒度的处理。
+`lbuf`（Loop Buffer）的 flush 还包含 `ifctrl_pcgen_ins_icache_inv_done && !lbuf_pcgen_active`，即 I-Cache 指令无效化完成且 Loop Buffer 当前不活跃时清空其旧内容。`iu_ifu_chgflw_vld` 不在 `lbuf_flush` 中，却在 `ibuf_flush` 中；这是 RTL 明确划定的不同恢复边界，不能把 IBUF 的 flush 条件直接套给 LBUF。
+
+```verilog
+assign pcgen_ibctrl_bju_chgflw = iu_ifu_chgflw_vld;
+```
+
+该信号把 IU/BJU 已确认的执行级改流单独通知 IB 控制器；在 `ct_ifu_ibctrl.v` 中它直接成为 `ibctrl_lbuf_bju_mispred`，专门告知 Loop Buffer 发生了执行级分支误预测。它与通用 `pcgen_ibctrl_cancel` 的用途不同。
+
+此外，`pcgen_ipctrl_pipe_cancel` 用来清除 IP→IB 的级间有效位：
+
+```verilog
+assign pcgen_ipctrl_pipe_cancel =
+       had_ifu_pcload
+    || vector_pcgen_pcload
+    || rtu_ifu_chgflw_vld
+    || iu_ifu_chgflw_vld
+    || addrgen_pcgen_pcload
+    || rtu_ifu_xx_expt_vld
+    || dbg_cancel
+    || lbuf_pcgen_vld_mask
+    || (ibctrl_pcgen_pcload && !ibctrl_pcgen_ip_stall);
+```
+
+最后一项体现了与 IF→IP 相同的原则：下游 IB 改流时，若 IP→IB 没有因 IB stall 而保持，就要显式清除正在写入的流水有效位。分析波形时应同时观察 `*_cancel`、`*_pipe_cancel`、对应 stall 和级间 valid；只看 cancel 容易漏掉“本级不取消、但级间 valid 被 kill”的情况。
 
 ---
 
@@ -696,22 +788,21 @@ assign ifu_mmu_va_vld = 1'b1;
 **`ifu_mmu_abort`**：通知 MMU 当前这次翻译不需要结果（取消），触发条件：
 - `pcgen_ifctrl_cancel`：IF 级被 cancel，当前取指作废，翻译结果无意义
 - `!cp0_yy_clk_en`：全局时钟禁用（低功耗模式），MMU 也不工作
-- `vector_pcgen_reset_on`：复位处理中，不进行正常翻译（复位向量通常直接走物理地址）
+- `vector_pcgen_reset_on`：向量/复位控制正在处理 reset，取消当前普通翻译事务
 
 ### 10.3 体系结构意义
 
-注意 `ifu_mmu_abort` 不包含 `iu_ifu_chgflw_vld` 等 chgflw 信号——即使发生了控制流变更，当前这拍的翻译请求仍然有效（because `pcgen_ifctrl_cancel` 已经覆盖了大多数需要 abort 的场景）。这避免了不必要的 abort，让 MMU 有更多机会更新 TLB 状态。
+`ifu_mmu_abort` 虽未逐项写出 IU、RTU、IB、IP reissue 等改流信号，但这些事件已经通过 `pcgen_ifctrl_cancel` **间接包含**。唯一有意排除的是 IF 级 L0 BTB 自身的改流：它不产生 IF cancel，因此也不由这条路径 abort MMU。读组合逻辑时要继续展开中间信号，不能因顶层表达式没有出现某个名字，就断言该事件不参与。
 
 ---
 
 ## 11. RTU 接口
 
-### 11.1 cur_pc 的用途
+### 11.1 这不是持续的“当前取指 PC”
 
-`ifu_rtu_cur_pc` 上报 IFU 当前 PC 给 RTU（Retire Unit，退休单元）。RTU 使用这个 PC 用于：
-- 性能计数器（取指 PC 追踪）
-- 调试状态同步
-- 某些异常恢复场景
+信号名 `ifu_rtu_cur_pc` 容易让人误以为 PCGEN 每拍把 `if_pc` 送给 RTU。实际并非如此：它只在 HAD 强制加载 PC 或异常向量加载 PC 时产生一次基准 PC 更新。普通顺序取指、BTB 改流、分支预测失误和 refill 重取都不会直接加载该寄存器。
+
+在 RTU 的 `ct_rtu_rob_rt.v` 中，`ifu_rtu_cur_pc_load` 会把该值写入 `rob_cur_pc_addend0` 并清零增量项。此后 ROB 随退休指令自身维护当前 PC。因此，这个接口的准确作用是：**当调试或向量入口从前端外部重置执行起点时，同步重置 RTU/ROB 的 PC 基准**。
 
 ### 11.2 实现细节
 
@@ -721,23 +812,222 @@ assign rtu_cur_pc_load = had_ifu_pcload || vector_pcgen_pcload;
 assign rtu_cur_pc = had_ifu_pcload ? had_ifu_pc : vector_pcgen_pc;
 ```
 
-**关键设计点**：`rtu_cur_pc_load` 仅在 `had_ifu_pcload` 或 `vector_pcgen_pcload` 时有效，即**只有调试器注入和异常向量跳转**才上报给 RTU。这两种情况是"外部强制改变 PC"，RTU 需要知道才能正确维护精确异常状态。其他控制流变更（如分支预测失误）由 IU 直接处理，不需要 IFU 重复上报。
+**关键设计点**：HAD 的优先级高于 vector；两者同时有效时选择 `had_ifu_pc`。输出保存的仍是省略架构 `PC[0]` 的内部半字地址 `[39:1]`。
 
 `ifu_rtu_cur_pc` 和 `ifu_rtu_cur_pc_load` 都使用专用门控时钟 `rtu_pcload_clk` 打拍，避免时序违规，同时减少 RTU 侧的翻转功耗：
 
 ```verilog
 // 第 918-939 行
 assign rtu_pcload_clk_en = rtu_cur_pc_load || ifu_rtu_cur_pc_load;
-// 时钟使能 = 当前拍要更新 OR 上一拍已更新（维持一拍有效）
 ```
 
-这种"使能条件 = 当前 OR 上一拍"的门控时钟模式是数字电路中的经典写法，确保在数据有效的那一拍以及保持拍都有时钟翻转（满足寄存器建立和保持时间要求）。
+`rtu_cur_pc_load` 让门控时钟打开并把输出 valid 置 1；若下一拍没有新加载，旧的 `ifu_rtu_cur_pc_load=1` 仍让时钟再开一拍，从而把输出 valid 清回 0。这里的“当前 OR 上一拍”是为了保证**事件结束后 valid 能够撤销**，不是为了满足普通寄存器保持时间；若上游连续保持 pcload，valid 也会连续保持。PC 数据在无新加载时保持不变。
 
 ---
 
-## 12. 调试接口
+## 12. 预测器与 I-Cache 接口
 
-### 12.1 dbg_cancel 生成
+这一部分是 PCGEN 除“保存 PC”外最容易被忽略的功能。BTB、L0 BTB、BHT 和 I-Cache 都需要在 SRAM 访问开始前拿到地址与控制条件；若等 `if_pc` 在时钟沿更新后再逐级计算，关键路径会过长。因此 PCGEN 同时提供：
+
+- **状态地址**：`if_pc`，表示当前 IF 级实际采用的内部半字 PC。
+- **提前地址**：`pc_bus`，组合地产生下一次查询所需的低 16 位地址。
+- **完整控制**：`pcgen_chgflw`、`ifctrl_pcgen_stall`，用于功能状态更新。
+- **快速控制**：`pcgen_chgflw_short`、`ifctrl_pcgen_stall_short`，用于门控时钟和 SRAM 使能关键路径。
+- **优先级限定**：`*_higher_than_*`、`*_mask`，防止低优先级预测事务覆盖高优先级改流。
+
+PCGEN 只生成这些结构的**查询与控制输入**。BTB 是否命中、BHT 预测 taken/not-taken、L0 BTB 条目内容以及 I-Cache tag/data 命中，均在对应下游模块中完成。
+
+### 12.1 BTB 接口
+
+```verilog
+assign pcgen_btb_index[9:0]   = pc_bus[12:3];
+assign pcgen_btb_stall        = ifctrl_pcgen_stall;
+assign pcgen_btb_stall_short  = ifctrl_pcgen_stall_short;
+assign pcgen_btb_chgflw       = pcgen_chgflw;
+assign pcgen_btb_chgflw_short = pcgen_chgflw_short;
+```
+
+`pcgen_btb_index=pc_bus[12:3]`。由于内部 PC 省略架构 `PC[0]`，它对应字节地址 `PC[13:4]`，即以 16 字节取指块为粒度形成 10 位 BTB 查询索引。`pc_bus` 默认取 `inc_pc`，所以正常顺序执行时 BTB 查询的是即将进入 IF 级的下一个取指块，而不是已经保存在 `if_pc` 中的块。
+
+BTB 还接收三个“更高优先级改流”限定信号：
+
+| 信号 | RTL 中包含的来源 | 含义 |
+|------|------------------|------|
+| `pcgen_btb_chgflw_higher_than_if` | HAD、vector、RTU、IU、addrgen、IB、IP chgflw、IP reissue、IF reissue | 当前存在比 IF L0 BTB 改流更高优先级的事件 |
+| `pcgen_btb_chgflw_higher_than_ip` | HAD、vector、RTU、IU、addrgen、IB | 当前存在比 IP 级 BTB 结果更高优先级的事件 |
+| `pcgen_btb_chgflw_higher_than_addrgen` | HAD、vector、RTU、IU | 当前存在比 addrgen 操作更高优先级的事件 |
+
+这些信号不是新的预测结果，而是 BTB 内部更新、错误修正和流水状态机的**所有权屏蔽条件**。例如，IP 正在报告 way-predict error 时若同拍出现 IU 分支失误改流，BTB 应以 IU 恢复为准，不应让较低优先级的 IP 事务改变状态。观察波形时应把 `pcgen_btb_chgflw` 与相应 `higher_than_*` 一起看；只看到 `chgflw=1` 不能判断 BTB 最终采用了哪一级事务。
+
+### 12.2 L0 BTB 接口
+
+L0 BTB 是 IF 级的低延迟目标缓存。PCGEN 为它分别产生“发起查询”“屏蔽查询”和“查询地址”：
+
+```verilog
+assign pcgen_l0_btb_chgflw_vld =
+       ifctrl_pcgen_chgflw_vld
+    || ipctrl_pcgen_branch_taken
+    || ibctrl_pcgen_pcload_vld
+    || iu_ifu_chgflw_vld;
+
+assign pcgen_l0_btb_chgflw_mask =
+       had_ifu_pcload
+    || vector_pcgen_pcload
+    || rtu_ifu_chgflw_vld
+    || addrgen_pcgen_pcload
+    || iu_ifu_chgflw_vld
+    || ipctrl_pcgen_branch_mistaken
+    || ipctrl_pcgen_reissue_pcload
+    || ifctrl_pcgen_reissue_pcload;
+```
+
+RTL 注释写“6 types”，但当前实际表达式有上述 **8 个信号**，分析应以综合的表达式为准。`chgflw_vld` 表示有一种值得对目标地址继续做快速 L0 BTB 查询的改流；`chgflw_mask` 表示同拍存在会让该查询失效或不应采用的恢复/重发条件。两者可能同时为 1，最终是否读表由 L0 BTB 内部结合判断。
+
+低 15 位查询地址的优先级为：
+
+```text
+IB pcload
+  > IP branch-taken target
+  > IF no-stall chgflw target
+  > inc_pc
+```
+
+对应 RTL 为：
+
+```verilog
+assign pcgen_l0_btb_chgflw_pc[14:0] =
+    ibctrl_pcgen_pcload        ? ibctrl_pcgen_pc[14:0] :
+    ipctrl_pcgen_branch_taken  ? ipctrl_pcgen_taken_pc[14:0] :
+    ifctrl_pcgen_chgflw_no_stall_mask
+                               ? ifctrl_pcgen_pcload_pc[14:0] :
+                                 inc_pc[14:0];
+```
+
+`pcgen_l0_btb_chgflw_pc[14:0]` 对应架构字节地址 `[15:1]`；`pcgen_l0_btb_if_pc=if_pc` 则提供完整的当前 IF PC。前者是快速查询所需的低位，后者用于与当前取指上下文关联。这里再次体现“窄而快的提前路径”和“完整状态路径”并存。
+
+### 12.3 BHT 接口
+
+```verilog
+assign pcgen_bht_pcindex[9:0] = pc_bus[12:3];
+assign pcgen_bht_chgflw       = pcgen_chgflw;
+assign pcgen_bht_chgflw_short = pcgen_chgflw_short;
+assign pcgen_bht_seq_read     = if_pc[6] ^ inc_pc[6];
+assign pcgen_bht_ifpc[6:0]    = if_bht_pc[6:0];
+```
+
+各信号承担不同角色：
+
+| 信号 | 用途 |
+|------|------|
+| `pcgen_bht_pcindex` | BHT SRAM 查询索引；对应架构字节 PC `[13:4]` |
+| `pcgen_bht_chgflw` | 改流时发起 BHT 相关读取 |
+| `pcgen_bht_chgflw_short` | 为 BHT memory gate clock 提供快速使能 |
+| `pcgen_bht_seq_read` | 顺序执行跨越 BHT Select Array 地址边界时发起下一行读取 |
+| `pcgen_bht_ifpc` | 当前预测结果选择所需的 PC 低位，包含 H0 reissue 修正 |
+
+`if_pc[6]` 对应架构字节地址 `PC[7]`。顺序推进时，`if_pc[6] ^ inc_pc[6]` 在跨越 128 字节边界时为 1。下游 `ct_ifu_bht` 的 Select Array 以 `pcgen_bht_pcindex[9:3]` 读行，因此这个脉冲用于在顺序执行跨到下一 Select Array 行时启动读取，而不是表示“发生了一条顺序分支”。
+
+理解 BHT 波形时要分清两种 PC：
+
+```text
+pcgen_bht_pcindex <- pc_bus      ：决定读哪一组/哪一行
+pcgen_bht_ifpc    <- if_bht_pc   ：决定如何从已读预测信息中选择结果
+```
+
+前者面向下一次 SRAM 查询，后者面向当前预测上下文；它们处在不同的时序角色，不要求每拍数值完全相同。
+
+### 12.4 I-Cache 请求与索引
+
+| 输出 | RTL 逻辑 | 作用 |
+|------|----------|------|
+| `pcgen_icache_if_index[15:0]` | `pc_bus[15:0]` | 提前提供 I-Cache 虚索引低位 |
+| `pcgen_icache_if_way_pred[1:0]` | `way_predict[1:0]` | 选择读取 way 0、way 1、两路或暂不读 |
+| `pcgen_icache_if_chgflw` | `pcgen_chgflw` | 改流访问请求 |
+| `pcgen_icache_if_chgflw_short` | `pcgen_chgflw_short` | 改流请求的快速门控版本 |
+| `pcgen_icache_if_seq_data_req` | `!ifctrl_pcgen_stall` | 非 stall 时进行顺序 data array 读取 |
+| `pcgen_icache_if_seq_data_req_short` | `!ifctrl_pcgen_stall_short` | 顺序 data 请求的快速版本 |
+| `pcgen_icache_if_seq_tag_req` | `!stall && pc_bus[4:3]==0` | 顺序进入 64B line 首个 16B 块时读 tag |
+| `pcgen_icache_if_gateclk_en` | `chgflw_short \|\| !stall_short` | 改流或可顺序推进时打开 I-Cache 相关门控时钟 |
+
+`pc_bus[4:3]` 对应架构字节地址 `[5:4]`，它在一个 64 字节 cache line 内依次取 `00/01/10/11`。因此顺序路径每个 16 字节块都可能请求 data，但只有进入 line 的第一个块时重新请求 tag。后续三个块复用已经得到的 tag/way 上下文，减少 tag array 动态功耗。
+
+这组信号不是独立握手协议。I-Cache 内部还会将它们与 invalidate、refill、IPB 请求、CP0 I-Cache 使能和 way predict 等条件组合，最终形成各 SRAM 的低有效 `CEN`。例如 `seq_data_req=1` 只表示 PCGEN 允许顺序数据读取，不代表两个 data way、四个 bank 都一定实际打开。
+
+### 12.5 I-Cache 四个 32 位 bank 的精确门控
+
+每个 I-Cache data way 的 128 位取指数据由 4 个 32 位 bank 组成。IP 级预测分支落在一个 16 字节块中间时，目标之前的 bank 不包含有效目标路径指令，可以不读取：
+
+| `ipctrl_pcgen_taken_pc[2:1]` | 架构字节块内位置 | 置位的 bank 改流请求 |
+|-------------------------------|------------------|----------------------|
+| `00` | `+0` 或 `+2` 字节所在 bank | bank 0、1、2、3 |
+| `01` | `+4` 或 `+6` 字节所在 bank | bank 1、2、3 |
+| `10` | `+8` 或 `+10` 字节所在 bank | bank 2、3 |
+| `11` | `+12` 或 `+14` 字节所在 bank | bank 3 |
+
+这里内部 `[2:1]` 对应架构字节地址 `[3:2]`；架构 `PC[1]` 允许压缩指令落在一个 32 位 bank 的前后半字，但不改变 bank 编号。
+
+该裁剪路径只在 `ipctrl_pcgen_branch_taken && !chgflw_higher_than_btb` 时使用，其中当前 RTL 的：
+
+```verilog
+chgflw_higher_than_btb =
+       iu_ifu_chgflw_vld
+    || addrgen_pcgen_pcload
+    || ibctrl_pcgen_pcload;
+```
+
+四个输出的实际判定可简化为：
+
+```text
+pcgen_icache_if_chgflw_bank0 = IP branch 特殊路径 ? (target_bank == 0) : pcgen_chgflw
+pcgen_icache_if_chgflw_bank1 = IP branch 特殊路径 ? (target_bank <= 1) : pcgen_chgflw
+pcgen_icache_if_chgflw_bank2 = IP branch 特殊路径 ? (target_bank <= 2) : pcgen_chgflw
+pcgen_icache_if_chgflw_bank3 =                                      pcgen_chgflw
+
+其中 IP branch 特殊路径 = ipctrl_pcgen_branch_taken && !chgflw_higher_than_btb
+     target_bank           = ipctrl_pcgen_taken_pc[2:1]
+```
+
+否则四个 bank 都跟随完整 `pcgen_chgflw`。要注意，这个名字看似泛指“所有高于 BTB 的来源”，但表达式实际只有 IU、addrgen 和 IB 三项；不能仅凭信号名把 HAD、vector 或 RTU 自行补入解释。此处的同拍互斥关系还依赖上游控制协议，波形判断应以实际表达式和输入是否并发为准。
+
+这类 bank gating 的主要收益是降低分支跳转时的 I-Cache 动态功耗，不会改变架构可见行为。若门控错误，典型波形表现是目标 PC 正确、tag/way 也正确，但目标所在的 32 位 bank 未使能，随后出现取指无效或 reissue。
+
+### 12.6 SFP、refill 与 IPB
+
+```verilog
+assign pcgen_sfp_pc[16:0]     = if_pc[19:3];
+assign pcgen_l1_refill_chgflw = pcgen_chgflw;
+assign pcgen_ipb_chgflw       = pcgen_chgflw;
+```
+
+`pcgen_sfp_pc` 送往 SFP。根据 `ct_ifu_sfp.v` 中的 RTL 注释及其 no-spec hit/miss/mispred 更新接口，SFP 应理解为 **Speculation Fail Predictor（推测失败预测器）**；该模块还复用 PC 索引条目承载 barrier/no-spec 和 `vsetvli`/VL 预测信息，不应解释为 Store Filter Predictor。
+
+`if_pc[19:3]` 对应架构字节 PC `[20:4]`，即舍弃 16 字节块内偏移后的 17 位 PC 特征。PCGEN 只提供索引片段，SFP 的命中比较、条目更新和预测语义都在 `ct_ifu_sfp.v` 中实现。
+
+`pcgen_l1_refill_chgflw` 和 `pcgen_ipb_chgflw` 则把完整改流事件广播给 I-Cache refill 与 Instruction Prefetch Buffer，使旧路径上的在途 refill/prefetch 状态能够按各自规则取消、重定向或重新关联。PCGEN 不在这里直接清空它们，只通知“控制流已变”。
+
+### 12.7 一次改流如何同时作用于前端
+
+以 IU 发现分支预测失误为例，同一输入 `iu_ifu_chgflw_vld` 会在 PCGEN 中并行产生：
+
+```text
+主 PC MUX       -> 选择 iu_ifu_chgflw_pc
+if_pc           -> 下一拍加载正确目标
+pc_bus          -> 立即给出目标低位，提前索引 BTB/BHT/I-Cache
+way_predict     -> 两路均使能，避免未知目标的 way 预测阻塞
+IF/IP/IB cancel -> 清除错误路径前端状态
+MMU abort       -> 经 IF cancel 取消旧地址翻译
+BTB/BHT/I-Cache -> 收到 chgflw 与优先级限定
+L0 BTB          -> chgflw_vld 与 mask 同时反映该恢复事件
+refill/IPB      -> 收到改流广播
+```
+
+这正是 PCGEN 的体系结构定位：它不是分支执行单元，也不是缓存本体，而是把一个“正确 PC 已经确定”的事件，原子地翻译成整个取指前端一致的恢复动作。
+
+---
+
+## 13. 调试接口
+
+### 13.1 dbg_cancel 生成
 
 ```verilog
 // 第 867-876 行
@@ -758,7 +1048,7 @@ assign dbg_cancel = !dbg_dly_reg && rtu_ifu_xx_dbgon;
 
 `dbg_cancel` 的逻辑是：`dbgon && !dbg_dly_reg`，即"当前 dbgon 有效，但上一拍还没有"，这就是标准的**上升沿检测**电路（edge detector）。`dbg_dly_reg` 是 `dbgon` 的 D 触发器，用专用门控时钟 `dbg_dly_clk` 驱动（使能条件 = `dbgon || dbg_dly_reg`，同样是"当前或上一拍有效"的模式）。
 
-### 12.2 调试 PC 总线
+### 13.2 调试 PC 总线
 
 ```verilog
 // 第 1069-1071 行
@@ -766,17 +1056,17 @@ assign pcgen_debug_chgflw      = pcgen_chgflw;
 assign pcgen_debug_pcbus[13:0] = pc_bus[13:0];
 ```
 
-这两个信号送往调试接口模块，提供 PC 总线的可观测性（observability）。调试工具可以通过这些信号监控 IFU 的取指流程。
+`pcgen_debug_pcbus` 取自提前路径 `pc_bus`，不是当前状态寄存器 `if_pc`。它保存内部半字地址低 14 位，对应架构字节 PC `[14:1]`；恢复可见的低位字节地址时要写成 `{pcgen_debug_pcbus, 1'b0}`。因此它适合观察“前端下一次正在索引哪里”，而不能单独当作完整当前 PC。`pcgen_debug_chgflw` 则说明该拍是否存在任一完整改流事件。
 
 ---
 
-## 13. 门控时钟设计
+## 14. 门控时钟设计
 
-### 13.1 门控时钟的目的
+### 14.1 门控时钟的目的
 
 C910 是高性能处理器，在不需要翻转的触发器上关闭时钟可以显著降低动态功耗。`gated_clk_cell` 是平台提供的标准门控时钟单元。
 
-### 13.2 pcgen 中的两个门控时钟
+### 14.2 pcgen 中的两个门控时钟
 
 **调试延迟时钟（dbg_dly_clk）**：
 
@@ -812,7 +1102,7 @@ gated_clk_cell x_rtu_pcload_clk (
 
 仅在向 RTU 上报 PC（调试/异常向量跳转）时打开。绝大多数正常执行期间 `rtu_cur_pc_load = 0`，`rtu_pcload_clk` 关闭，`ifu_rtu_cur_pc` 和 `ifu_rtu_cur_pc_load` 这两个寄存器完全不翻转。
 
-### 13.3 门控时钟的通用结构
+### 14.3 门控时钟的通用结构
 
 ```
         ┌──────────────────────────┐
@@ -826,7 +1116,7 @@ clk_in ─┤                          ├─ clk_out
 ```
 
 - `global_en`（`cp0_yy_clk_en`）：全芯片级时钟使能，低功耗模式或 WFI 时关闭
-- `module_en`（`cp0_ifu_icg_en`）：IFU 模块级时钟使能，软件可通过 CSR 控制
+- `module_en`（`cp0_ifu_icg_en`）：IFU 模块级时钟门控配置使能；本文件只使用该输入，是否以及如何由软件配置需以 CP0 寄存器实现为准
 - `local_en`：具体时钟域的局部使能条件（各模块自定义）
 - `pad_yy_icg_scan_en`：DFT 扫描使能，测试模式下强制打开所有门控时钟（确保扫描链完整）
 
@@ -834,33 +1124,51 @@ clk_in ─┤                          ├─ clk_out
 
 ## 附录：关键信号数据流总结
 
-```
-外部输入（HAD/RTU/IU/向量）
-      ↓ 高优先级 chgflw
-                                 ┌──────────────────────────┐
-流水线内部（IB/IP/IF）           │                          │
-      ↓ 低优先级 chgflw          │     ifpc_chgflw_pre      │
-                                 │     (10路优先级 MUX)      │
-      顺序推进 inc_pc ───────────┤                          │
-                                 └────────────┬─────────────┘
-                                              │ pcgen_chgflw
-                                              ▼
-                              ┌───────────────────────────────┐
-                              │    if_pc 寄存器（39 bit）      │
-                              │   chgflw → ifpc_chgflw_pre    │
-                              │   !stall → inc_pc             │
-                              │   stall  → if_pc              │
-                              └───────────┬───────────────────┘
-                                          │
-              ┌───────────────────────────┼───────────────────────┐
-              │                           │                       │
-              ▼                           ▼                       ▼
-     ifu_mmu_va（重建 63 位      pcgen_ifctrl_pc         pcgen_ifdp_pc
-      结合 if_pc_high_spe）     pcgen_icache_if_index   pcgen_ifdp_inc_pc
-                                pcgen_btb_index          pcgen_sfp_pc
-                                pcgen_bht_pcindex
+```text
+HAD/vector/RTU/IU/addrgen/IB/IP/IF 改流地址
+                   |
+                   v
+         ifpc_chgflw_pre（完整 39 位改流 MUX）
+                   |
+                   | pcgen_chgflw=1
+                   v
+              +----------+
+inc_pc ------>|  if_pc   |<------ stall 时保持
+无改流且推进  | 39 bit   |
+              +----+-----+
+                   |
+          +--------+-------------------+
+          |        |                   |
+          v        v                   v
+   IF ctrl/data   MMU VA 重建      SFP PC 特征
+                   |
+                   +--> if_pc_high_spe 仅补 IU 改流高位
+
+IU/addrgen/IB/IP/IF 低位改流 + inc_pc
+                   |
+                   v
+             pc_bus（快速 16 位 MUX）
+                   |
+          +--------+---------+----------------+
+          |                  |                |
+          v                  v                v
+      BTB/BHT index     I-Cache index     debug pcbus
+
+pcgen_chgflw / short / higher_than / mask
+                   |
+          +--------+---------+----------------+-------------+
+          v                  v                v             v
+      各级 cancel       BTB/L0 BTB/BHT     I-Cache      refill/IPB
+      与 pipe kill       查询及屏蔽          请求/bank      改流通知
 ```
 
----
+最后再次强调 PC 位号换算：
 
-*文档覆盖 `ct_ifu_pcgen.v` 全部 1076 行逻辑，编写于 2026 年 6 月。*
+| RTL 信号位 | 对应架构字节地址位 | 典型用途 |
+|------------|--------------------|----------|
+| `if_pc[0]` | `PC[1]` | 16/32 位指令半字位置；并非恒为 0 |
+| `if_pc[2:0]` | `PC[3:1]` | 16 字节取指块内半字偏移 |
+| `if_pc[4:3]` | `PC[5:4]` | 64 字节 cache line 内的 4 个取指块 |
+| `if_pc[6]` | `PC[7]` | BHT Select Array 顺序跨行检测 |
+| `pc_bus[12:3]` | `PC[13:4]` | BTB/BHT 的 10 位提前索引 |
+| `if_pc[19:3]` | `PC[20:4]` | SFP 的 17 位、16 字节粒度 PC 特征 |

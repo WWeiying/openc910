@@ -24,20 +24,27 @@
 
 ## 1. 模块概述
 
-### 1.1 RAS 解决的问题：函数调用/返回的精确预测
+### 1.1 RAS 解决的问题：函数返回目标的上下文相关预测
 
-程序执行中，`call`（过程调用）和 `ret`（过程返回）是最常见的控制流转移。它们具有明显的后进先出（LIFO）特性：最近一次调用的函数，一定最先返回。这使得用专用硬件栈进行预测成为可能，且理论上可以做到 100% 精确（在栈深度范围内）。
+正常、配对的 `call`/`ret` 具有后进先出（LIFO）特性：最近一次调用通常最先
+返回。这使得专用硬件栈能显著提高返回目标预测率。但即使调用深度未溢出，
+非标准链接寄存器用法、协程/长跳转、异常控制流以及投机状态恢复错误仍可能使命中
+失败，因此不能从容量直接推出 100% 精度。
 
 **为什么不用 BTB？**
 
 | 特性 | BTB（Branch Target Buffer） | RAS |
 |------|----------------------------|-----|
 | 预测原理 | 记录历史跳转目标，期望同一条指令下次仍跳同一目标 | 基于 LIFO 栈，显式维护返回地址 |
-| call 指令 | 目标固定，BTB 可以做到，但需要占用一条 BTB 表项 | push 返回地址（PC+4），无需额外条目 |
-| ret 指令 | **目标随上下文变化**，同一条 ret 可能返回到不同调用点，BTB 只能记录最后一次的目标，准确率很低 | pop 栈顶，始终正确（不超深度时） |
-| 精度上限 | 受调用上下文影响，ret 预测率通常 < 50% | 理论 100%（深度内） |
+| call 指令 | JAL 目标由 PC+立即数确定；JALR call 的目标仍可能随寄存器变化 | 不负责 call 目标预测，而是 push 链接地址：32 位指令为 PC+4，16 位 C.JALR 为 PC+2 |
+| ret 指令 | **目标随上下文变化**，同一条 ret 可能返回到不同调用点，单目标 BTB 只能保留最近目标 | pop 当前投机栈顶 |
+| 主要限制 | 上下文别名 | 深度溢出、非标准 call/ret、错误路径恢复 |
 
-ret 指令的返回目标完全取决于是谁调用了它，而不取决于 ret 本身的 PC。这是 BTB 的根本缺陷。RAS 通过在 call 时把返回地址（PC+4）压栈、ret 时弹栈来完美解决这一问题。
+同一条共享函数尾部的 ret 可以由多个调用点到达，因此单目标 BTB 只记住“最近观察
+目标”时容易丢失调用上下文。RAS 利用规范 call/return 的 LIFO 关系，在 call 时
+压入 PC+4 或 PC+2，在 return 时读取栈顶，从而为这一类上下文相关目标提供更合适
+的预测。它并非完美方案：超过 12 层的活动调用、非标准链接寄存器协议、非 LIFO
+控制流、特权级切换和投机恢复边界都可能使 RAS 不可用或预测错误。
 
 ### 1.2 RISC-V 中的 call/ret 编码
 
@@ -77,7 +84,7 @@ input  rtu_ifu_flush;                   // 流水线冲刷
 
 // 输出：返回地址预测结果
 output ras_ipdp_data_vld;              // 预测结果有效
-output [38:0] ras_ipdp_pc;            // 预测的返回地址（或 call 目标）
+output [38:0] ras_ipdp_pc;            // ret 的预测目标；call 时为本条 call 的链接地址
 
 // 输出：给 L0 BTB 的接口
 output ras_l0_btb_ras_push;
@@ -93,7 +100,7 @@ input  [1:0] cp0_yy_priv_mode;        // 当前特权级
 
 ## 2. 物理结构
 
-### 2.1 总体布局：18 项分两层
+### 2.1 总体布局：12 项投机栈加 6 项退休侧恢复副本
 
 ```
 ┌─────────────────────────────────────┐
@@ -102,14 +109,14 @@ input  [1:0] cp0_yy_priv_mode;        // 当前特权级
 │  每项：pc[38:0] + priv_mode[1:0]    │
 │        + filled                      │
 │  由 ibctrl 侧 push/pop 直接维护      │
-│  top_ptr 指向栈顶                    │
+│  top_ptr 指向逻辑栈顶边界/下一写位    │
 ├─────────────────────────────────────┤
-│           RTU 侧（6 项）              │
+│       RTU 侧（6 个物理恢复副本）       │
 │  rtu_entry0  ~ rtu_entry5            │
 │  每项：pc[38:0] + priv_mode[1:0]    │
 │        + filled                      │
 │  仅在 call 退休时写入                │
-│  rtu_ptr 指向栈顶                    │
+│  rtu_ptr 记录退休历史的逻辑栈顶边界   │
 └─────────────────────────────────────┘
 ```
 
@@ -118,10 +125,16 @@ input  [1:0] cp0_yy_priv_mode;        // 当前特权级
 C910 是乱序超标量处理器，IFU 看到的 call/ret 是**投机性**的——指令还未退休，预测就已经做了。这意味着：
 
 - IFU 侧 12 项用于**投机状态**：根据预译码立即更新，为后续取指提供最新预测。
-- RTU 侧 6 项用于**已提交状态**：只在 call 正式退休时写入，存放已知正确的返回地址。
-- 当预测出错、流水线被冲刷时，RTU 侧保存的 6 项可以帮助 IFU 侧快速恢复到正确状态（详见第 7 节）。
+- RTU 侧 6 个物理副本用于**恢复退休历史**：`rtu_ptr` 同时跟随 retire0 的
+  call/return 前后移动，而副本本身只在 call 退休时写入其链接地址。
+- 当预测出错或流水线被冲刷时，RTU 侧副本用于修复 IFU 侧循环栈中的一个有限
+  窗口（详见第 7 节），而不是提供另一份完整的 12 项已提交栈。
 
-6 项是一个工程折中：理论上 RTU 窗口内 in-flight 的 call 数量不会超过 6 个（退休窗口 + 执行深度约束），保存最近 6 个已确认的返回地址足够覆盖恢复需求。
+这 6 项不是额外接在 12 项之后的栈深度。它们按 `rtu_ptr` 的低位复用，保存
+退休侧最近窗口的正确返回地址；flush/mispred 时，12 个投机项中符合
+`rtu_entry*_copy` 条件的部分由这些副本修复。为什么选择 6 项属于实现取舍，
+当前 RTL 能证明其复制映射和恢复行为，但不能证明“所有在途 call 一定不超过
+6 个”。
 
 ### 2.2 每项的三个字段
 
@@ -129,18 +142,17 @@ C910 是乱序超标量处理器，IFU 看到的 call/ret 是**投机性**的—
 |------|------|------|
 | `pc[38:0]` | 39 位 | 返回地址的半字地址形式，保存架构字节 PC `[39:1]` |
 | `priv_mode[1:0]` | 2 位 | push 时的特权级（M/S/U） |
-| `filled` | 1 位 | 该项是否存放了有效地址 |
+| `filled` | 1 位 | 该物理项是否曾由有效 push 写入，或在恢复时从有效 RTU 副本复制 |
 
 RAS 省略的是架构地址中恒为 0 的 `PC[0]`，不是最高位或“奇偶位”。因此波形中的 RAS PC 若要与反汇编地址比较，应使用 `{pc[38:0],1'b0}`。
 
 **为什么存储 priv_mode（特权级）？**
 
-操作系统在不同特权级之间切换（U-mode 用户程序调用 S-mode 内核，S-mode 调用 M-mode 固件）。如果在 M-mode 的调用返回地址被留在栈中，然后在 U-mode 中被弹出使用，那么：
-
-1. **地址无效**：不同特权级的地址空间映射不同，地址本身就可能是错误的。
-2. **安全风险**：用户程序可能利用特权级间的地址跳转执行权限提升攻击。
-
-因此，pop 时必须检查当前特权级与栈顶存储的特权级是否一致，不一致则预测结果无效：
+当前 RTL 在 push 时记录 `cp0_yy_priv_mode`，使用栈顶返回地址时要求当前特权级与
+记录值相等。这样可以避免把另一特权级上下文留下的 RAS 内容直接作为本级预测
+目标。需要区分预测安全与架构权限：即使 RAS 目标错误，后续地址翻译、权限检查和
+精确异常仍负责架构正确性；privilege match 主要缩小跨特权级错误投机和陈旧上下文
+复用，而不能单独证明消除了所有投机侧信道或“否则一定权限提升”。
 
 ```verilog
 // ct_ifu_ras.v 第 1911~1915 行
@@ -151,11 +163,18 @@ assign ras_ipdp_data_vld = (!ras_empty
                          && cp0_ifu_ras_en;
 ```
 
-只有当 `cp0_yy_priv_mode == ras_priv_mode`（即当前特权级与栈顶记录的特权级相同）时，弹出的地址才被认为有效。
+对于 return 栈顶路径，只有 `!ras_empty`、`ras_filled` 和 privilege match 同时
+成立，栈顶地址才使 `ras_ipdp_data_vld` 有效；call push 另有 `ras_push` 旁路，不
+要求读取旧栈顶。
 
 **filled 字段的作用：**
 
-RAS 复位后所有项都未曾被写入。`filled=0` 表示该项不含有效数据。即使 `top_ptr` 指向某项，如果 `filled=0`，说明这是一个"假空"场景（溢出后覆盖写），该弹出结果也不可信。
+复位把全部 `filled` 清零；有效 push 将目标物理项置 1，恢复复制时则继承对应
+RTU entry 的 `filled`。pop **不会清除**物理项的 `filled`，因为逻辑栈占用由
+`top_ptr/status_ptr` 决定，弹出后留下的旧数据可以继续保存在寄存器中。因此
+`filled` 不是每项独立的当前栈有效位，更接近“该槽内容是否初始化可信”的保护位：
+先由 `ras_empty` 判断逻辑栈非空，再检查当前 `top_ptr-1` 对应物理项是否有可信
+内容。
 
 ---
 
@@ -168,16 +187,17 @@ RAS 复位后所有项都未曾被写入。`filled=0` 表示该项不含有效�
 | 指针 | 位宽 | 维护方 | 触发更新的事件 |
 |------|------|--------|----------------|
 | `top_ptr[4:0]` | 5 位 | IFU | 投机 push、投机 pop、RTU 恢复 |
-| `status_ptr[4:0]` | 5 位 | IFU | 溢出（overflow）时推进，RTU 恢复时重置 |
+| `status_ptr[4:0]` | 5 位 | IFU | 满栈 push、满栈 pop、RTU 恢复 |
 | `rtu_ptr[4:0]` | 5 位 | RTU | call 退休（加一）、ret 退休（减一） |
 
 ### 3.2 为什么用 5 位指针，而不是 4 位？
 
 IFU 侧有 12 项，如果用 4 位（0~11）来表示位置，当 `top_ptr == status_ptr` 时，**无法区分"空"还是"满"**——两种情况下两个指针都指向同一位置。
 
-**经典解决方案：额外 1 位作为"环绕标志位"（wrap bit）**
+**实现方法：额外 1 位记录环绕代际（wrap/generation bit）**
 
-用 5 位指针，其中 `bit[4]` 是符号/环绕位，`bit[3:0]` 是位置（0~11）：
+用 5 位指针，其中 `bit[4]` 是环绕代际位而不是有符号数的符号位，
+`bit[3:0]` 编码位置 0~11：
 
 - **空**：`top_ptr[4:0] == status_ptr[4:0]`（完全相等，包括 bit[4]）
 - **满**：`top_ptr[4:0] == {~status_ptr[4], status_ptr[3:0]}`（bit[4] 相反，低 4 位相同）
@@ -188,7 +208,9 @@ assign ras_empty = (top_ptr[4:0] == status_ptr[4:0]);
 assign ras_full  = (top_ptr[4:0] == {~status_ptr[4], status_ptr[3:0]});
 ```
 
-这种设计被广泛用于循环 FIFO：通过扩展 1 位来编码"绕了几圈"的信息，从而区分空满两种状态。
+这借用了循环 FIFO 常见的扩展指针思想：低位相同而代际位不同可表示相隔一整圈。
+但 C910 RAS 的 `status_ptr` 还承担溢出窗口边界和恢复更新，不能把整套状态机
+直接等同于普通 FIFO 的读写指针。
 
 ### 3.3 12 项模 12 环绕的实现
 
@@ -238,19 +260,32 @@ end
 
 优先级顺序：**RTU 恢复 > push+pop 同时 > 单独 push > 单独 pop > 保持**。
 
-RTU 恢复具有最高优先级，确保一旦检测到预测出错，立刻将 `top_ptr` 拉回到经过验证的正确值。
+恢复条件具有最高优先级，因此同一更新边沿不会再叠加当拍的投机 push/pop；
+`top_ptr_pre` 直接采用已纳入 retire0 call/return 动作的 `rtu_ptr_pre`。这说明
+恢复边界以 RTU 维护状态为准，但“当拍立刻完成全部恢复”还取决于各 entry 复制
+门控与下游重新取指时序。
 
 ### 3.5 status_ptr 的含义与 overflow 计数
 
-`status_ptr` 本质上是 RAS 的**底部指针**，指向栈底（最老的有效项的下方）。正常情况下，`status_ptr` 不动；只有在溢出时才推进，用于跟踪"有多少个最老的返回地址已被覆盖"。
+`status_ptr` 与 `top_ptr` 共同编码当前可用窗口：二者相等表示 empty，
+`top_ptr == {~status_ptr[4], status_ptr[3:0]}` 表示 full。可以把它直观理解为
+可信窗口的底部边界，但不能把 5-bit 数值直接当成普通线性“溢出次数”；它与
+`top_ptr` 一样采用低 4 位 mod-12、bit4 区分环绕代际。
 
 具体逻辑（见第 400~423 行）：
 
-- **RTU 恢复时**：根据 `rtu_ptr_pre` 与 `top_ptr` 的 bit[4] 关系来重置 `status_ptr`。若两者 bit[4] 不同（跨越了环绕点），说明 RTU 恢复点在当前 top 之后（绕了半圈），此时清零 `status_ptr`；否则保留 bit[4]，低位设为 `rtu_ptr_pre[3:0]`。
+- **RTU 恢复时**：若 `rtu_ptr_pre[4] ^ top_ptr[4]` 为 1，RTL 把
+  `status_ptr` 写为 0；否则保留旧 `status_ptr[4]`，只把低 4 位改为
+  `rtu_ptr_pre[3:0]`。这是精确方程；它不是无条件把 status 对齐到 top。
 - **满时 push（overflow）**：`status_ptr` 加 1，表示最老的一项被覆盖，"可信底部"向前推进一格。
-- **满时 pop（underflow 方向）**：`status_ptr` 减 1（若非零），表示恢复一个可信项。
+- **满时 pop**：若 `status_ptr[3:0]==0` 则写 0，否则对完整 5-bit
+  `status_ptr` 减 1。该分支只在进入周期 `ras_full` 时发生，不能泛化成所有 pop
+  都移动底部边界。
 
-注释（第 393~396 行）给出了一个例子：连续 13 次 call，栈中只保留最后 12 次的返回地址；返回时最后 12 次可以正确预测，最老的那次返回会从 x1 寄存器值中得到答案（由 IU 提供）。
+RTL 注释给出设计意图示例：连续 13 次 call 时覆盖最老地址，最近 12 次 return
+仍可由 RAS 提供，最老一次退回通用寄存器形成的 JALR 实际目标。这里“最近 12 次
+正确”成立还要求 call/return 配对、没有干扰恢复且 privilege/filled 检查通过；
+RAS 无效时，执行单元依然根据 `rs1+imm` 计算架构目标。
 
 ---
 
@@ -299,7 +334,9 @@ else if(cp0_ifu_ras_en && ras_full && ras_push)
     status_ptr[4:0] <= status_ptr_pre[4:0];  // 底部指针前进，记录溢出
 ```
 
-这是一种"最新优先"（LRU 的对立面）策略：最近的调用占据栈顶，最老的被丢弃。因为编程中深度嵌套最终还是需要最近的返回，老的调用如果栈溢出，ret 时再通过寄存器 x1 提供答案。
+这是固定深度循环栈的“保留最近 12 个调用上下文”策略，不宜称为 LRU：这里没有
+按访问新近性选择牺牲项，覆盖对象由严格栈顺序决定。被覆盖的更老 return 仍由
+JALR 执行语义从链接寄存器计算实际目标，只是前端可能缺少对应 RAS 预测。
 
 ---
 
@@ -336,7 +373,9 @@ endcase
 
 ### 5.3 pop 后的 top_ptr 更新
 
-pop 后 `top_ptr` 减 1（mod 12）。若检测到 underflow（`ras_empty == 1`），则不更新 `top_ptr`，避免指针越界。
+pop 后 `top_ptr` 减 1（mod 12）。若进入周期 `ras_empty==1`，则不更新
+`top_ptr`；这属于空栈 pop 抑制，而不是产生架构异常。即使 RAS 不提供目标，
+JALR/return 指令仍会在执行阶段按寄存器和立即数计算实际跳转地址。
 
 ```verilog
 // ct_ifu_ras.v 第 342~346 行
@@ -357,7 +396,9 @@ pop 读出的地址通过 `ras_pc_out` 输出，最终到达 `ras_ipdp_pc`。ipd
 
 ### 6.1 RTU FIFO 的写入逻辑
 
-RTU 侧的 6 项（`rtu_entry0` ~ `rtu_entry5`）**只在 call 指令退休时写入**，写入内容是 `rtu_ifu_retire0_inc_pc`（退休 call 的 PC+4）和当时的特权级：
+RTU 侧的 6 项（`rtu_entry0` ~ `rtu_entry5`）**只在 retire0 pcall 有效时写入**，
+写入 `rtu_ifu_retire0_inc_pc` 和当时的特权级。`inc_pc` 是该已退休 call 的链接
+地址：32 位 call 对应架构 PC+4，16 位 C.JALR 对应 PC+2；不能统一写成 PC+4。
 
 ```verilog
 // ct_ifu_ras.v 第 461~464 行（rtu_entry0 为例）
@@ -373,7 +414,11 @@ assign rtu_entry0_push = (rtu_ptr[3:0] == 4'b0000) ||
                          (rtu_ptr[3:0] == 4'b0110);
 ```
 
-注意这里有**两个条件**：`4'b0000` 和 `4'b0110`。这是因为 RTU 侧只有 6 项但按照 12 取模计数，所以 `rtu_ptr` 每绕一圈（12 格）会回到同一物理 entry 两次（0 和 6 对应 entry0，1 和 7 对应 entry1，以此类推）。RTU 侧 6 项实际上是 12 个逻辑位置中每两个共享一个物理存储。
+注意这里有**两个条件**：`4'b0000` 和 `4'b0110`。RTU 指针按 12 个逻辑位置
+移动，而 6 个物理副本按位置 mod-6 复用：0/6 对应 entry0，1/7 对应
+entry1，依此类推。一个物理副本只保存这两个位置中**最近一次被已退休 call
+写入的值**，不能同时保存两份数据；恢复选择逻辑因此只复制围绕最近 call 的
+六位置滚动窗口。
 
 ### 6.2 rtu_ptr 的更新逻辑
 
@@ -391,7 +436,9 @@ else if(rtu_ifu_retire0_preturn && !rtu_ras_empty)
 
 ### 6.3 rtu_fifo_ptr 的作用
 
-`rtu_fifo_ptr[3:0]` 是一个专用寄存器，记录**最后一次 call 退休时 rtu_ptr 的低 4 位值**：
+`rtu_fifo_ptr[3:0]` 在 retire0 pcall 时记录写入发生前的
+`rtu_ptr[3:0]`，也就是该 call 被放入的 12 位置编号；没有 pcall 时保持。它可
+近似理解为“最近一次已退休 call 的逻辑槽位”，但不是普通 FIFO 的读写指针。
 
 ```verilog
 // ct_ifu_ras.v 第 808~810 行
@@ -437,7 +484,10 @@ if(top_entry_rtu_updt)
     top_ptr_pre[4:0] = rtu_ptr_pre[4:0];
 ```
 
-将 `top_ptr` 直接设为 `rtu_ptr_pre`（RTU 侧退休后的指针值）。这样 IFU 侧的栈顶位置立即回到 RTU 侧最后一次 call 退休后的正确位置。
+`top_ptr_pre` 直接选择 `rtu_ptr_pre`，并在门控时钟的有效上升沿写入
+`top_ptr`。`rtu_ptr_pre` 已计入当前 retire0 的 call/return 组合，因此恢复的是
+退休侧维护的**逻辑栈顶边界**；不能把它缩写成“最后一次 call 的位置”，也不能
+仅由该指针赋值推出 12 个 IFU entry 的内容已全部恢复。
 
 **第二步：IFU entry 内容恢复（从 RTU 复制）**
 
@@ -453,7 +503,10 @@ assign rtu_entry0_copy = (rtu_fifo_ptr_pre[3:0] == 4'b0101) ||
                          (rtu_fifo_ptr_pre[3:0] == 4'b0000);
 ```
 
-这段逻辑的含义：当 `rtu_fifo_ptr`（最后一次 call 退休时的指针位置）落在 0~5 的范围内时，`rtu_entry0` 需要复制给对应的 IFU entry。
+以 `ras_entry0` 为例，copy 条件在 `rtu_fifo_ptr_pre` 位于 0~5 时为真。把 12
+个 entry 的条件放在一起看，它们形成一个长度为 6 的循环窗口：窗口以最近一次
+已退休 call 的槽位为末端，覆盖该槽位及其之前 5 个 mod-12 位置。每个被选中的
+IFU 位置从对应的 mod-6 RTU 物理副本复制。
 
 **IFU entry6 的特殊处理（体现 RTU 与 IFU entry 的循环对应关系）：**
 
@@ -473,7 +526,8 @@ if(rtu_entry6_copy)
 - ...
 - `ras_entry11` ↔ `rtu_entry5`（循环）
 
-RTU 以 6 为周期循环，IFU 以 12 为周期循环，两者共享 RTU 侧的物理存储。
+RTU 物理副本按 6 复用，IFU 投机栈按 12 个位置循环；二者不是同一组寄存器，而是
+通过上述 copy 多路关系建立恢复映射。
 
 ### 7.4 恢复时 status_ptr 的更新
 
@@ -488,7 +542,18 @@ begin
 end
 ```
 
-这里的逻辑：恢复后，`status_ptr` 应当与 `top_ptr`（即 `rtu_ptr_pre`）匹配，使得恢复后的 RAS 满足 `ras_empty = (top_ptr == status_ptr)`，即初始状态为空（从 RTU 视角看没有未退休的 call）。
+这段逻辑**不保证**恢复后 `status_ptr == top_ptr`，因此也不保证 RAS 变空。这样
+才符合仍有未返回的已退休 call 的情况：恢复应撤销错误路径的投机操作，同时保留
+可恢复的已退休调用上下文。准确行为是：
+
+- `top_ptr` 采用 `rtu_ptr_pre`；
+- `status_ptr` 按 bit4 关系选择清零或只对齐低 4 位；
+- 位于 `rtu_fifo_ptr_pre` 所定义最近六位置窗口中的 IFU entries 从 RTU 副本修复；
+- 其余 IFU entries 保持原值，但能否被当作当前栈顶还受新指针、empty/full 和
+  `filled` 约束。
+
+因此恢复是“指针回退 + 有限已退休窗口内容修复”，不是把 12 项全部重建，也不是
+简单清空。
 
 ---
 
@@ -516,16 +581,18 @@ assign ras_ipdp_pc = (ibctrl_ras_inst_pcall)
 | 条件 | 含义 |
 |------|------|
 | `!ras_empty` | 栈不为空，有内容可弹 |
-| `ras_filled` | 栈顶项已被正式写入（非未初始化状态） |
+| `ras_filled` | `top_ptr-1` 所选物理项曾被有效写入或从有效 RTU 副本恢复 |
 | `priv_mode 匹配` | 当前特权级与栈顶存储的特权级相同 |
-| `|| ras_push` | 或者当前正在 push（call 指令），此时也有效（用于预测 call 目标） |
+| `\|\| ras_push` | 或当前正在执行有效 push；此时输出的是 call 链接地址旁路，不是 call 跳转目标 |
 | `&& cp0_ifu_ras_en` | 全局 RAS 功能使能 |
 
 ### 8.3 call 时 ras_ipdp_pc 的特殊行为
 
 当 `ibctrl_ras_inst_pcall == 1`（即当前指令是 call，但不一定推入到 RAS，因为 `ibctrl_ras_inst_pcall` 不含 stall 条件），`ras_ipdp_pc` 输出的是 `ibdp_ras_push_pc`（call 的返回地址 PC+4/PC+2），而不是栈内容。
 
-这意味着对于 call 指令：ipdp 接收到的 RAS PC 实际上是 call 的**链接地址**，ipdp 可以据此在 pcfifo（预测 PC FIFO）中登记下一条指令的 PC，保证取指连续性。
+这意味着对有效 call push，RAS 输出 PC 是该 call 的**链接地址**，不是 call 的
+跳转目标。该信息可随预测控制流记录进入 PCFIFO 等恢复元数据通路；它帮助后续
+return/RAS 状态关联，但不能单独“保证取指连续性”。
 
 ### 8.4 与 L0 BTB 的接口
 
@@ -536,7 +603,12 @@ assign ras_l0_btb_push_pc[PC_WIDTH-2:0] = ibdp_ras_push_pc;  // call 的链接�
 assign ras_l0_btb_pc[PC_WIDTH-2:0]      = ras_pc_out;         // ret 的预测目标
 ```
 
-L0 BTB 是一个更小更快的一级分支目标缓冲器。RAS 在 push 时通知 L0 BTB，让 L0 BTB 也缓存这次 call 对应的返回地址，以便在某些场景下 L0 BTB 能够更快命中。
+`ct_ifu_l0_btb` 在 `ras_l0_btb_ras_push` 为 1 时优先选择
+`ras_l0_btb_push_pc`，否则还可选择 IPDP 提供的 call 链接地址或当前
+`ras_l0_btb_pc`；选中值在 L0-BTB 读相关条件下写入其共享 `ras_pc` 寄存器。
+命中的 L0-BTB entry 若带 `entry_ras` 标记，目标多路器使用该共享 `ras_pc`
+而不是 entry 自身的 20-bit target。因而这里是 L0-BTB 与 RAS 顶部地址通路的
+对齐/旁路，不是“每个 call 在 L0-BTB 中额外缓存一份独立返回地址”。
 
 ---
 
@@ -556,7 +628,10 @@ ct_ifu_decd_normal.v
 
 ### 9.2 RISC-V call/ret 识别规则（`ct_ifu_decd_normal.v`）
 
-RISC-V 规范（Volume I，2.5 节）给出了推荐的 RAS 行为表，C910 完整实现了这张表：
+RISC-V ISA 对 JAL/JALR 的链接寄存器提示可概括为下表。C910 的
+`x_pcall/x_preturn` 大体遵循 x1/x5 的 push/pop 组合，但当前实现还增加了具体
+指令形式限制，尤其普通 JALR 只有 `imm==0` 才生成 `preturn`，所以不能笼统称为
+“无条件完整实现表中所有编码组合”：
 
 ```
 +-------+-------+--------+--------------+
@@ -615,9 +690,12 @@ assign x_preturn = (
 );
 ```
 
-**特别说明：jalr 的 ret 条件包含 `imm == 0`**
+**特别说明：当前 RTL 的 jalr preturn 条件包含 `imm == 0`**
 
-标准 ret 是 `jalr x0, ra, 0`，偏移量为 0。若使用 `jalr x0, ra, 4`（带非零偏移），则不被识别为 ret，原因是这类带偏移的间接跳转并不遵循 LIFO 的调用/返回语义。
+标准 `ret` 伪指令是 `jalr x0, x1, 0`。当前 RTL 将普通 JALR 的非零立即数排除
+在 `x_preturn` 之外，即使其 `rs1` 是 x1/x5 且 `rd!=rs1`；这是实现采用的较窄
+识别条件。不能进一步断言所有带偏移 JALR 都“不遵循 LIFO”，因为软件可能构造
+特殊 ABI/控制流；准确结论只是 C910 不对这类编码执行 RAS pop 提示。
 
 ### 9.3 ibctrl 中的最终控制
 
@@ -644,7 +722,9 @@ assign ibctrl_ras_preturn_vld = (|hn_preturn) && ib_data_vld && !ib_expt_vld
 
 ### 10.1 门控时钟的必要性
 
-RAS 模块有大量寄存器（18 项 × 3 字段 + 3 个指针），如果每个周期都有时钟边沿，功耗极高。门控时钟（gated clock）只在需要更新时打开，大幅降低动态功耗。
+RAS 模块包含 12 个投机项、6 个退休恢复项及多组指针。RTL 为不同状态划分门控
+时钟，只在相应 push/pop/恢复条件下更新，减少无操作周期的寄存器翻转；实际功耗
+收益需要门级活动率和功耗分析量化。
 
 ### 10.2 门控时钟实例化模式
 
@@ -655,16 +735,24 @@ RAS 模块有大量寄存器（18 项 × 3 字段 + 3 个指针），如果每�
 gated_clk_cell x_rtu_ptr_upd_clk (
     .clk_in             (forever_cpuclk),      // 主时钟输入
     .clk_out            (rtu_ptr_upd_clk),     // 门控后的时钟
-    .external_en        (1'b0),                 // 外部使能（扫描测试用）
+    .external_en        (1'b0),                 // 本实例未使用额外外部开钟请求
     .global_en          (cp0_yy_clk_en),        // 全局使能
     .local_en           (rtu_ptr_upd_clk_en),   // 本地使能条件
-    .module_en          (cp0_ifu_icg_en),        // 模块级 ICG 使能
-    .pad_yy_icg_scan_en (pad_yy_icg_scan_en)    // 扫描模式旁路
+    .module_en          (cp0_ifu_icg_en),        // 模块级开钟覆盖条件
+    .pad_yy_icg_scan_en (pad_yy_icg_scan_en)    // 工艺 ICG 分支的测试使能 TE
 );
 
 assign rtu_ptr_upd_clk_en = cp0_ifu_ras_en && 
                             (rtu_ifu_retire0_pcall || rtu_ifu_retire0_preturn);
 ```
+
+在 `gated_clk_cell.v` 中，工艺 ICG 分支的功能使能为
+`global_en && (module_en || local_en) || external_en`，扫描输入另接 ICG 的
+`TE`。因此 `local_en=0` 并不单独证明时钟停止：`module_en=1` 仍会开钟。
+此外，只有定义 `C910_USE_TSMC28_ICG` 时开源 RTL 才实例化该工艺门控单元；未
+定义时 `clk_out` 直接连接 `clk_in`。下表描述的是各状态的本地更新条件和设计
+门控意图，实际综合网表中的时钟门控、翻转率与功耗必须结合所用宏定义、综合映射
+和功耗分析判断。
 
 各寄存器的门控条件汇总：
 
@@ -727,15 +815,16 @@ ipdp 用 ras_ipdp_pc 作为下一条取指 PC
     v
 top_entry_rtu_updt = 1
     |
-    +--> top_ptr 立即 = rtu_ptr_pre（RTU 侧当前正确值）
+    +--> 下一有效时钟边沿：top_ptr = rtu_ptr_pre（退休侧逻辑栈顶边界）
     |
-    +--> status_ptr 重置（与 rtu_ptr_pre 对齐）
+    +--> status_ptr 按 bit4 关系清零，或保留旧 bit4 并更新低 4 位
     |
-    +--> 12 个 IFU entry 中：属于"最近 6 个已退休 call"范围内的项
-    |    从 RTU entry 重新复制（rtu_entryN_copy 信号激活）
+    +--> 12 个 IFU entry 中：属于 rtu_fifo_ptr_pre 定义的六位置循环窗口的项
+    |    从 6 个 RTU 物理副本复制（rtu_entryN_copy 信号激活）
     |
     v
-IFU 侧 RAS 恢复到最后一次 RTU 确认的正确状态
+IFU 撤销投机指针偏移，并修复 RTU 能覆盖的退休历史窗口；
+这不是完整重建全部 12 个 entry
 ```
 
 ### 11.3 关键信号依赖关系图
@@ -769,10 +858,10 @@ cp0_yy_priv_mode ────────────────────> r
 | `rtu_ifu_flush` | 输入 | 流水线冲刷，触发恢复 |
 | `ras_ipdp_data_vld` | 输出 | RAS 预测结果有效 |
 | `ras_ipdp_pc` | 输出 | RAS 预测地址（ret 的目标，或 call 的链接地址） |
-| `top_ptr[4:0]` | 内部 | IFU 侧栈顶指针（5 位，mod 12 环绕） |
-| `status_ptr[4:0]` | 内部 | 溢出/满空检测辅助指针（5 位，mod 12） |
-| `rtu_ptr[4:0]` | 内部 | RTU 侧已提交状态的栈顶指针（5 位，mod 12） |
-| `rtu_fifo_ptr[3:0]` | 内部 | 最后一次 call 退休时 rtu_ptr 的低 4 位，用于恢复时的 entry 映射 |
+| `top_ptr[4:0]` | 内部 | IFU 投机栈的逻辑栈顶边界/下一 push 位置，按 mod-12 环绕并用 bit4 记录代际 |
+| `status_ptr[4:0]` | 内部 | 与 `top_ptr` 共同编码 empty/full 及溢出后可信窗口底部的辅助指针 |
+| `rtu_ptr[4:0]` | 内部 | 随 retire0 call/return 更新的退休历史逻辑栈顶边界，按 mod-12 环绕 |
+| `rtu_fifo_ptr[3:0]` | 内部 | 最近一次 retire0 call 写入前的 `rtu_ptr[3:0]`，用于选择恢复复制窗口 |
 | `top_entry_rtu_updt` | 内部 | 触发 IFU 侧状态从 RTU 侧恢复 |
 | `ras_empty` | 内部 | top_ptr == status_ptr |
 | `ras_full` | 内部 | top_ptr == {~status_ptr[4], status_ptr[3:0]} |

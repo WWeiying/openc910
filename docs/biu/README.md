@@ -7,10 +7,10 @@
 
 | 文件 | 内容 | 对应 RTL（行数） | 适合阶段 |
 |------|------|------------------|----------|
-| [00_biu_overview.md](00_biu_overview.md) | BIU 是每核 ACE 主端口；完整外出路径 核→BIU→CIU→L2→DDR；BIU 与 CIU 分工；ACE/128bit/AXI ID；两大通用思想；关键设计决策汇总 | `ct_biu_top.v`(1254) + 全模块综述 | 先读，建立全局观 |
-| [01_biu_read_write.md](01_biu_read_write.md) | read_channel（2 项 ping-pong、按 AXI ID 路由 IFU/LSU、RACK 自发）+ write_channel（12 项保序写 FIFO、store/victim 两路、victim 优先、三缓冲、BACK 自发） | `ct_biu_read_channel.v`(740) + `ct_biu_write_channel.v`(1078) | 第一个精读 |
-| [02_biu_snoop.md](02_biu_snoop.md) | snoop_channel：AC/CR/CD 三通道、转发给 LSU SNQ、snoop_vld 防熄火、ACE 一致性全景 | `ct_biu_snoop_channel.v`(563) | 一致性核心 |
-| [03_biu_arbiters_lp.md](03_biu_arbiters_lp.md) | req_arbiter（读 LSU>IFU、ID 拼装、写两路直通）+ csr_req_arbiter（CP0>HPCP）+ lowpower（12 门控时钟 + no_op）+ other_io_sync（中断/调试 2 级同步、L2 CSR 寄存） | `ct_biu_req_arbiter.v`(567) + `ct_biu_csr_req_arbiter.v`(101) + `ct_biu_lowpower.v`(360) + `ct_biu_other_io_sync.v`(445) | 配套机制 |
+| [00_biu_overview.md](00_biu_overview.md) | 每核 BIU 与 CIU 的边界；请求/接受/完成的区别；ACE 通道、固定 ID 分类及局部缓冲边界 | `ct_biu_top.v`(1254) + 全模块综述 | 先读，建立全局观 |
+| [01_biu_read_write.md](01_biu_read_write.md) | read_channel（2 项 AR/R 槽、固定 ID 分类、RACK）+ write_channel（12 项写来源队列、store/victim、三数据槽、BACK） | `ct_biu_read_channel.v`(740) + `ct_biu_write_channel.v`(1078) | 第一个精读 |
+| [02_biu_snoop.md](02_biu_snoop.md) | AC/CR/CD 三通道、两项缓冲、LSU 转发边界、粗粒度 snoop 活动锁存 | `ct_biu_snoop_channel.v`(563) | 一致性核侧接口 |
+| [03_biu_arbiters_lp.md](03_biu_arbiters_lp.md) | 读/CSR 固定选择、ready 与接受的区别、12 个局部门控、`no_op` 边界、中断/调试同步与其它单级寄存 | `ct_biu_req_arbiter.v`(567) + `ct_biu_csr_req_arbiter.v`(101) + `ct_biu_lowpower.v`(360) + `ct_biu_other_io_sync.v`(445) | 配套机制 |
 
 合计覆盖 8 个 RTL 文件、5108 行逻辑。
 
@@ -18,19 +18,19 @@
 
 | 思想 | 一句话 | 在哪落地 |
 |------|--------|----------|
-| ① **AXI ID = 乱序事务的名牌** | 发请求挂 ID，响应回来认 ID 分发；与 ROB-IID、LSU-MSHR 同一方法论 | req_arbiter 盖名牌(`:465`) → read_channel 认名牌(`:528-536`) |
-| ② **ACE 让一个端口演主+从两角** | 同一 BIU 端口既主动访存(read/write 通道=主)，又被动响应侦听(snoop 通道=从)，一致性是对称的 | read/write_channel(主) + snoop_channel(从) + snoop_vld 防熄火 |
+| ① **AXI ID 用于固定分类** | IFU 读拼 `10000/10001`，返回精确匹配这两个值；其余返回送 LSU | req_arbiter 拼 ID(`:465`) → read_channel 分类(`:528-536`) |
+| ② **一个端点同时发起访存并响应 snoop** | read/write 处理主动事务，AC/CR/CD 处理被侦听事务；两组通道方向不同 | read/write_channel + snoop_channel |
 
 ## 推荐学习路径
 
 ```
 第一轮（建立全局观）
   └── 00_biu_overview.md
-        重点：核→BIU→CIU→L2→DDR 全程、BIU vs CIU、AXI ID、ACE 主+从
+        重点：核→BIU→CIU 边界、BIU vs CIU、ID 固定分类、ACE 双向通道
 
 第二轮（主角色：主动访存）
   └── 01_biu_read_write.md
-        重点：2 项 ping-pong 怎么背靠背、rid 怎么路由、12 项 FIFO 怎么保序、victim 为何优先
+        重点：两项缓冲如何握手、rid 精确匹配、12 项来源队列及无 full 约束
 
 第三轮（从角色：响应侦听）
   └── 02_biu_snoop.md
@@ -38,13 +38,15 @@
 
 第四轮（配套机制）
   └── 03_biu_arbiters_lp.md
-        重点：三处优先级哲学、门控粒度、CDC 2 级同步
+        重点：三处固定选择、门控实际使能、只有中断/调试使用双触发器同步
 ```
 
 ## 学习提示
 
-- BIU 是"薄边界层"，不是大缓冲：每通道只放 1~2 项，写 FIFO 12 项是保序刚需。
-  真正的缺失队列在 LSU，乱序排队在 CIU/L2。
+- BIU 是浅边界缓冲，不是完整 outstanding 表。12 项结构只记录有数据写事务的
+  store/victim 来源，且没有显式 full 反压。
+- `ready/grnt` 多数表示本地容量；必须与对应 `valid/req` 同时成立才是接受事件。
+- `no_op` 只观察本地 read/write 状态，不等价于系统无在途事务。
 - 看到 `for timing` / `to cut timing` 注释要留意：BIU 大量结构（三写缓冲、位移 FIFO、
   选源前瞻、valid/data 拆分门控）都是为时序和背靠背服务。
 - 抓住两个通用思想，三大通道一通百通。

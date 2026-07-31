@@ -13,8 +13,8 @@
    - [pipe3_decd — LSU load / 地址生成](#54-pipe3_decd--lsu-load--地址生成)
    - [pipe4_decd — LSU store 地址](#55-pipe4_decd--lsu-store-地址)
    - [pipe5 数据通路（无 pipe5_decd）](#56-pipe5-数据通路无-pipe5_decd)
-   - [pipe6_decd — VFPU0（向量/浮点）](#57-pipe6_decd--vfpu0向量浮点)
-   - [pipe7_decd — VFPU1（向量/浮点）](#58-pipe7_decd--vfpu1向量浮点)
+   - [pipe6_decd — VFPU pipe6（当前标量浮点，向量译码保留）](#57-pipe6_decd--vfpu-pipe6当前标量浮点向量译码保留)
+   - [pipe7_decd — VFPU pipe7（当前标量浮点，向量控制保留）](#58-pipe7_decd--vfpu-pipe7当前标量浮点向量控制保留)
 6. [立即数与操作数最终组装](#6-立即数与操作数最终组装)
 7. [送往各执行单元的接口](#7-送往各执行单元的接口)
 8. [特殊共享寄存器端口设计](#8-特殊共享寄存器端口设计)
@@ -26,6 +26,8 @@
 **文件路径**：`C910_RTL_FACTORY/gen_rtl/idu/rtl/ct_idu_rf_dp.v`（4379 行）
 
 `ct_idu_rf_dp`（RF Data Path）是 IDU（指令分发单元）流水线中 **RF（Register File Read）阶段**的核心数据通路模块。它在 IS 阶段（发射队列发射）和 EX 阶段（各执行单元执行）之间扮演数据汇聚与最终分发的角色。
+
+> **当前有效配置边界**：本文件内部保留 `_vr0/_vr1`、VREG、VMLA、VDIV 等向量数据和控制网络，但当前 `ct_idu_id_decd.v` 的 `x_vec_inst=0`，`ct_cp0_regs.v` 的 `misa_vector=0`。更关键的是，`ct_idu_rf_dp` 模块端口表对 VFPU 只导出 pipe6/7 的标量 `_fr` 操作数，内部 `idu_vfpu_rf_pipe*_srcv*_vr0/vr1` 只是 wire，没有作为该模块 output 进入当前 `ct_idu_top`→VFPU 接口。因此，当前活跃路径是标量 F/D 浮点；下文 VR0/VR1、向量 mask 和向量功能码段落用于解释保留 RTL，不能描述成当前实例已经工作的 128 位 RVV 数据通路。
 
 ### 在流水线中的位置
 
@@ -65,8 +67,9 @@
 
 每个发射队列（IQ）在发射时提供两类信息：
 
-- **`xiq_xx_issue_en`**：本周期是否发射（使能信号，打开门控时钟并锁存数据）
-- **`xiq_xx_gateclk_issue_en`**：门控时钟使能（比 issue_en 提前一个半周期）
+- **`xiq_xx_issue_en`**：本周期存在最终选中的发射项；在对应 RF 时钟沿锁存功能数据
+- **`xiq_xx_gateclk_issue_en`**：RF 局部时钟活动请求，通常由比最终 issue 更宽松的
+  “存在非冻结有效项/bypass gateclk”条件生成；RTL 没有定义它固定提前一个半周期
 - **`xiq_dp_issue_entry`**：发射队列条目编号
 - **`xiq_dp_issue_read_data`**：发射队列中该条目存储的全部信息（操作数就绪位、物理寄存器号、即时写回位、IID、操作码等）
 
@@ -84,7 +87,7 @@
 
 ### 2.2 输入：来自 PRF（物理寄存器堆）
 
-PRF 在上一周期（IS 阶段末）完成寄存器读取，将结果传入 rf_dp。整数管线使用 64 位 `prf_dp_rf_pipeX_srcY_data`；向量管线分为 `_fr`（浮点标量）、`_vr0`（向量下半）、`_vr1`（向量上半）三路，每路 64 位，合计 128 位向量寄存器。
+PRF 读数据通过 `prf_*_rf_*` 接口进入 `rf_dp`。整数源为 64 位；pipe6/7 内部兼容网络分为 `_fr`、`_vr0`、`_vr1` 三类 64 位数据，其中 VR0/VR1 可组成保留的 128 位向量数据。当前顶层只把 `_fr` 操作数导出给 VFPU，所以不能把内部三类 wire 都视作当前有效执行接口。
 
 ```
 // 示例：pipe0 整数读出
@@ -124,7 +127,7 @@ output [6:0] dp_fwd_rf_pipe0_src0_preg;   // 向前递网络发出比较地址
 output [6:0] dp_xx_rf_pipe0_dst_preg_dup0;  // dup0..dup4 五个副本
 ```
 
-为什么需要多副本？物理寄存器比较网络在面积/时序约束下无法用单一驱动覆盖所有下游，通过 5 路寄存器复制（dup）减少扇出，降低时序压力。
+多副本把同一逻辑值分配给不同扇出网络，是常见的物理实现友好写法，可为综合/布局布线提供分散驱动负载的机会。RTL 能证明存在 5 份寄存副本；“单一驱动一定无法实现”或“已经满足目标时序”仍需网表、布局和 STA 结果支持。
 
 ### 2.6 输出：送执行单元
 
@@ -138,8 +141,8 @@ output [6:0] dp_xx_rf_pipe0_dst_preg_dup0;  // dup0..dup4 五个副本
 | `idu_lsu_rf_pipe3_` | LSU（load） | `src0/src1`, `offset`, `inst_type/size` |
 | `idu_lsu_rf_pipe4_` | LSU（store addr） | `src0/src1`, `fence_mode`, `sync_fence` 等 |
 | `idu_lsu_rf_pipe5_` | LSU（store data） | `src0`, `srcv0_fr/vr0/vr1` |
-| `idu_vfpu_rf_pipe6_` | VFPU0 | `srcv0..srcvm` (fr/vr0/vr1), `eu_sel[11:0]`, `func[19:0]` |
-| `idu_vfpu_rf_pipe7_` | VFPU1 | 同 pipe6 |
+| `idu_vfpu_rf_pipe6_` | VFPU pipe6 | 当前模块 output 包含标量 `srcv0/1/2_fr` 及控制；VR0/VR1 是内部保留 wire |
+| `idu_vfpu_rf_pipe7_` | VFPU pipe7 | 同样以标量 `_fr` 输出为当前有效数据接口 |
 
 ---
 
@@ -236,8 +239,8 @@ assign dp_ctrl_rf_pipe0_src_no_rdy = rf_pipe0_src0_no_rdy
 | `x_ct_idu_rf_pipe3_decd` | `ct_idu_rf_pipe3_decd` | 2949 | LSIQ | LSU load/AGU | 750 |
 | `x_ct_idu_rf_pipe4_decd` | `ct_idu_rf_pipe4_decd` | 3176 | LSIQ | LSU store 地址 | 1507 |
 | —（无 pipe5_decd）        | —                      | —    | SDIQ | LSU store 数据 | — |
-| `x_ct_idu_rf_pipe6_decd` | `ct_idu_rf_pipe6_decd` | 3806 | VIQ0 | VFPU0 | 1971 |
-| `x_ct_idu_rf_pipe7_decd` | `ct_idu_rf_pipe7_decd` | 4213 | VIQ1 | VFPU1 | 2036 |
+| `x_ct_idu_rf_pipe6_decd` | `ct_idu_rf_pipe6_decd` | 3806 | VIQ0 | VFPU pipe6 | 1971 |
+| `x_ct_idu_rf_pipe7_decd` | `ct_idu_rf_pipe7_decd` | 4213 | VIQ1 | VFPU pipe7 | 2036 |
 
 ### 4.2 为什么没有 pipe5_decd？
 
@@ -263,7 +266,7 @@ SDIQ 存储的唯一任务是**把 store 数据（整数或向量）送到 LSU �
 
 ### 4.3 共享门控时钟
 
-rf_dp 为每条管线单独设置门控时钟，只有在对应发射队列有发射时才打开：
+rf_dp 使用多组局部门控时钟；相应 issue/gateclk 条件作为 `local_en` 请求寄存器更新：
 
 ```verilog
 // pipe0 独立时钟
@@ -278,7 +281,12 @@ assign rf_pipe15_clk_en = sdiq_xx_gateclk_issue_en
                           || aiq1_xx_gateclk_issue_en;
 ```
 
-这种共享时钟设计（`rf_pipe03_clk`、`rf_pipe15_clk`、`rf_pipe36_clk`、`rf_pipe47_clk`）体现了 C910 跨管线寄存器端口复用的优化思想：**整数三操作数指令（mla/sc.w等）的第三源操作数寄存器编号，通过与 store 数据/访存管线共享物理寄存器读端口来节省面积**。
+这些共享时钟域配合后文的地址寄存器复用，使不同管线在互斥/有优先级的条件下共用 PRF 读地址资源。例如 pipe0 src2 与 pipe3 src1、pipe1 src2 与 pipe5 src0 共用对应地址寄存路径。它提供减少独立读端口需求的结构基础；实际面积节省和门控行为还受 PRF 实现、全局/模块/扫描使能影响。
+
+精确地说，上述 `*_clk_en` 都只是 `gated_clk_cell.local_en`。公共门控模型的功能使能为
+`global_en && (module_en || local_en)`，扫描使能还可打开工艺 ICG；未定义
+`C910_USE_TSMC28_ICG` 时当前 RTL 模型直接透传输入时钟。因此不能从某个
+`*_gateclk_issue_en=0` 单独推出物理时钟已停止，也不能把该信号与 `issue_en` 解释为固定相差若干周期。
 
 ---
 
@@ -288,7 +296,7 @@ assign rf_pipe15_clk_en = sdiq_xx_gateclk_issue_en
 
 **功能单元**：ALU0（加减/移位/逻辑）、DIV（除法）、SPECIAL（AUIPC/ECALL/EBREAK/VSETVL 等）、CP0（CSR 操作）
 
-#### 译码器端口
+#### pipe0 译码器端口
 
 ```verilog
 // 输入（行 2201-2209）
@@ -330,7 +338,7 @@ parameter MISC_MV     = 21'h008000;  // 寄存器移动
 ...
 ```
 
-这个 21 位 one-hot 编码让 ALU 的输出选择电路变为简单的多路选择器，可以在设计时最小化关键路径延迟。
+这个 21 位 one-hot 结果选择编码允许下游用按位资格信号组织候选结果选择，避免在执行端再次做紧凑编码译码。它通常有利于并行选择，但位宽、布线和扇出也会产生代价；是否缩短关键路径必须以综合和 STA 为准。
 
 #### 特殊情况：异常优先
 
@@ -357,7 +365,7 @@ parameter SPECIAL_VSETVLI      = 5'b00110;  // 向量配置（立即数 vl）
 parameter SPECIAL_VSETVL       = 5'b00111;  // 向量配置（寄存器 vl）
 ```
 
-注意 VSETVL/VSETVLI 走 pipe0（SPECIAL 路径），因为它修改 vl/vtype 等向量 CSR，与普通 CSR 写路径统一处理。
+译码表保留 VSETVL/VSETVLI 对应的 pipe0 SPECIAL 功能码；若向量功能启用，这类指令会更新 VL/VTYPE 状态。当前 `x_vec_inst=0`、`misa_vector=0`，不能把该保留功能码描述成当前配置可执行的有效 VSETVL 路径。
 
 #### src2（第三操作数）：跨管线借用
 
@@ -374,7 +382,7 @@ assign rf_pipe0_src2_no_rdy = rf_pipe0_data[AIQ0_SRC2_VLD]
                                && fwd_dp_rf_pipe3_src1_no_fwd;
 ```
 
-这里使用 `rf_pipe03_clk` 共享时钟（行 2906-2928），保证 src2 的物理寄存器编号在 pipe0 或 pipe3 发射时都能正确更新。
+这里使用 `rf_pipe03_clk` 驱动共享地址寄存器。更新 always 块对 pipe0 src2 和 pipe3 src1 请求有显式优先级，RF 控制还会在同时争用时让低优先级路径 launch fail；正确性来自“优先级 + 冲突检测 + 重调度”的组合，而不是共享时钟本身自动保证。
 
 #### 输出到 CP0
 
@@ -387,7 +395,7 @@ assign idu_cp0_rf_src0[63:0]  = rf_pipe0_src0_data_no_fwd;  // 不含前递
 assign idu_cp0_rf_func[4:0]   = pipe0_decd_func[4:0];
 ```
 
-注意 `idu_cp0_rf_src0` 使用 `_no_fwd` 版本——CP0 访问（CSR 读写）要求操作数来源严格可信，即使当前寄存器未写回 PRF 也不接受前递（防止 WB 阶段前推的不稳定值被 CSR 采用），而是使用 HAD 调试接口或 PRF 直接读出：
+`idu_cp0_rf_src0` 的确连接 `rf_pipe0_src0_data_no_fwd`。该信号只在 `had_idu_wbbr_vld` 时选择 HAD WBBR 数据，否则选择 PRF 读数据：
 
 ```verilog
 // 行 2232-2234
@@ -395,6 +403,8 @@ assign rf_pipe0_src0_data_no_fwd = (had_idu_wbbr_vld)
                                    ? had_idu_wbbr_data   // HAD 写回路径
                                    : prf_dp_rf_pipe0_src0_data;
 ```
+
+RTL 能直接证明 CP0 接口没有使用普通 `fwd_dp_rf_pipe0_src0_data` MUX；至于设计动机是 CSR 稳定性、调试覆盖还是其他协议约束，需规格说明支持。也不能据此说“未写回时 CP0 仍可安全使用旧 PRF 值”：源 ready/launch 条件仍必须由控制和依赖逻辑保证。
 
 ---
 
@@ -472,9 +482,9 @@ IU 收到这两个信号后，可在 MLA 完成后将积累结果重新写入 sr
 
 **功能单元**：BJU（Branch Jump Unit）
 
-这是最简单的译码器，174 行，仅处理分支和跳转指令。
+该译码器共 174 行，功能范围集中在分支和跳转路径。代码行数只用于说明阅读规模；是否是物理上“最简单”的模块仍需看综合逻辑。
 
-#### 译码器端口
+#### pipe2 译码器端口
 
 ```verilog
 ct_idu_rf_pipe2_decd x_ct_idu_rf_pipe2_decd (
@@ -538,7 +548,7 @@ BJU 需要 `rts`/`pcall` 信息来更新返回地址栈（RAS）。
 
 **功能单元**：LSU load 端（包括普通 load、原子 load、浮点 load）
 
-#### 译码器端口
+#### pipe3 译码器端口
 
 ```verilog
 ct_idu_rf_pipe3_decd x_ct_idu_rf_pipe3_decd (
@@ -578,7 +588,7 @@ inst_size[1:0]:
   pipe3_decd_inst_type = 2'b01;  // 原子
   pipe3_decd_inst_size = 2'b10;  // WORD
   pipe3_decd_offset    = 12'b0;  // 原子无偏移
-  pipe3_decd_lsfifo    = 1'b0;   // 原子不走 FIFO（需严格顺序）
+  pipe3_decd_lsfifo    = 1'b0;   // 原子不走该 LS FIFO 模式
 end
 
 // amoswap.w / amoadd.w / ... （行 224-244）
@@ -587,24 +597,31 @@ end
 // ...
 ```
 
-原子操作（AMO）关闭 lsfifo，确保它们以严格顺序执行，不被乱序合并。
+这些原子操作的译码将 `lsfifo` 置 0，说明它们不走该 LS FIFO 模式。原子性和内存顺序不能由这一位单独“确保”，还依赖 LSU 的原子状态机、LQ/SQ/WMB、Cache/总线事务及退休约束。
 
-#### 向量 load 解码
+#### 保留的向量 load 解码
 
-向量 load（vle*/vlse*/vluxei* 等）在 pipe3 decode，其 `inst_type=2'b10`，表示目的寄存器是向量寄存器（dst_vreg 有效）。
+pipe3 decode 表中保留向量 load 编码，匹配时 `inst_type=2'b10` 并使用 VREG 目的字段。当前向量总译码关闭，因此这是保留能力说明，不是当前有效指令流。
 
-#### 地址偏移量的 +1 预计算
+#### Boundary 路径的 `offset + 0x10` 预计算
 
 ```verilog
-// pipe3_decd_offset_plus：提前计算 offset+1，用于非对齐访问的第二次访问
-assign pipe3_decd_offset_plus = {1'b0, pipe3_decd_offset[11:0]} + 13'h1;
+// 实际 RTL：12 位 offset 符号扩展到 13 位后加 0x10
+assign pipe3_decd_offset_plus[12:0]
+       = {pipe3_decd_offset[11], pipe3_decd_offset[11:0]} + 13'h10;
 ```
 
-非对齐 load/store 可能需要两次 cache 访问，第二次访问的地址 = 第一次 + 1（在 cache 行边界处增1）。提前计算避免了 EX 阶段的关键路径加法。
+该值不是 `offset+1`，也不能解释为“cache line 地址加 1”。在 `ct_lsu_ld_ag.v` 中，`ld_ag_va_plus = base + sign_extend(offset_plus)`，并且只在
+
+```text
+ld_ag_boundary_unmask && ld_ag_ld_inst && !ld_ag_secd && !ld_ag_inst_ldr
+```
+
+时由 `ld_ag_va_plus_sel` 选中；其他情况使用普通 `base + shifted_offset`。因此它是特定首段 boundary load 的 `offset+16 byte` 地址候选。为何边界步长为 16 字节要结合 LSU boundary 拆分规则理解，不能误写成 64 B cache line 或统一的第二次访问地址。把加法放在译码侧可能缩短 AG 侧某些组合路径，但实际时序收益仍需 STA 验证。
 
 #### src3（mask 向量寄存器 srcvm）
 
-向量 load 指令还有一个 mask 操作数（vm，来自 v0 寄存器）。pipe3 保有独立的 `srcvm` 源路径：
+保留向量 load 格式还包含 mask 源 `srcvm`。pipe3 内部为其保留源路径：
 
 ```verilog
 // 行 2976-2981
@@ -621,7 +638,7 @@ assign rf_pipe3_srcvm_vr0_data = rf_pipe3_data[LSIQ_SRCVM_WB]
 
 **功能单元**：LSU store 地址端（包括普通 store、fence、sfence.vma、AMO 写端、向量 store 地址）
 
-pipe4 是所有 pipe_decd 中**最复杂的**（1507 行），因为 store 地址路径要处理：普通 store、原子条件 store（SC）、内存屏障（FENCE/FENCE.I）、TLB 刷新（SFENCE.VMA）、向量 store、非对齐 store 等众多情况。
+pipe4_decd 覆盖普通 store、SC/AMO 相关控制、FENCE/FENCE.I、SFENCE.VMA、非对齐处理以及保留向量 store 字段，功能分支较多。源代码行数可以帮助定位阅读范围，但不能作为面积、逻辑深度或“最复杂”排序的证据；这些结论应由综合统计和 STA 给出。
 
 #### 独特的输入：CP0 广播控制
 
@@ -727,7 +744,13 @@ assign rf_pipe5_staddr_no_rdy = !(rf_pipe5_data[SDIQ_LOAD]
                                   || rf_pipe5_staddr_create_stq);
 ```
 
-这段逻辑保证 store data（pipe5）不能早于 store address（pipe4）执行到 LSU——即使两者在 RF 阶段同时就绪，store data 也必须等地址已经进入 store 队列后才真正发送数据。
+这段逻辑把 store-data 的放行条件限定为三类之一：该项是特殊的 `SDIQ_LOAD`，
+匹配的 staddr 已由 `STADDR*_IN_STQ` 状态确认在 STQ 中，或者 LSU DC 本拍正在以
+相同 `sdiq_entry` 和 data-half 标志创建该 staddr。因而普通 store-data 不能在
+没有匹配地址进展证明时先行；但它不一定要多等一个完整周期到地址“早已在 STQ”，
+`rf_pipe5_staddr_create_stq` 明确允许与地址的 DC 创建事件同拍衔接。最终 LSU
+是否接收还受 pipe5 launch-valid、stall、取消和下游队列条件约束，本方程只定义
+地址就绪这一项。
 
 #### 非对齐处理
 
@@ -739,7 +762,7 @@ assign rf_pipe5_unalign_with_lsu_dc = rf_pipe5_data[SDIQ_UNALIGN]
 
 当 store address 因非对齐被拆分时，store data 也需要知道这一事实以进行正确的数据拆分。
 
-#### 向量 store 数据
+#### FREG/VREG 兼容的 store-data 通道
 
 ```verilog
 assign idu_lsu_rf_pipe5_srcv0_fr[63:0]  = rf_pipe5_srcv0_fr_data;   // 浮点标量部分
@@ -749,17 +772,17 @@ assign idu_lsu_rf_pipe5_srcv0_vld        = rf_pipe5_data[SDIQ_SRCV0_VLD];
 assign idu_lsu_rf_pipe5_srcv0_fr_vld     = !rf_pipe5_data[SDIQ_SRCV0_VREG]; // 1=标量浮点
 ```
 
-通过 `srcv0_fr_vld` 区分 store 数据是浮点标量（单个 64 位）还是向量寄存器（128 位，分两半传输）。
+`srcv0_fr_vld` 区分标量浮点 FREG 数据与保留 VREG 数据。当前标量浮点 store 使用 64 位 `fr`；内部 VR0/VR1 可以表示两个 64 位向量片段，但当前 RVV 译码关闭，不能把它们写成正在工作的 128 位向量 store 接口。
 
 ---
 
-### 5.7 pipe6_decd — VFPU0（向量/浮点）
+### 5.7 pipe6_decd — VFPU pipe6（当前标量浮点，向量译码保留）
 
-**功能单元**：VFPU0（Vector Floating Point Unit 0）
+**功能单元**：VFPU pipe6。当前有效配置执行标量 F/D 浮点；模块中仍保留向量功能码和数据字段。
 
-这是除 pipe7 外代码量最大的译码器（1971 行），需要支持 RISC-V 标准 F/D 扩展（单/双精度浮点）和 V 扩展（RVV，向量浮点）的全部运算。
+译码器包含标准 F/D 标量浮点分支以及大量保留向量编码。代码中出现某种编码不等于当前配置支持“V 扩展全部运算”：上游向量总判定被固定关闭，且当前顶层未把 VR0/VR1 操作数导出到 VFPU。
 
-#### 译码器端口
+#### pipe6 译码器端口
 
 ```verilog
 ct_idu_rf_pipe6_decd x_ct_idu_rf_pipe6_decd (
@@ -785,8 +808,7 @@ parameter FCNVT = 5'b00100;  // FP Converter
 parameter FDSU  = 5'b01000;  // FP Divide/Sqrt
 parameter FMAU  = 5'b10000;  // FP Multiply-Accumulate
 
-// 向量浮点执行单元（7 位，VEC_EU_WIDTH=12，上 7 位）
-// pipe6_decd_eu_sel[11:0] 中 [11:5] 用于向量单元标识
+// 保留的向量执行单元编码（7 位，位于 eu_sel[11:5]）
 ```
 
 #### 功能码编码（20 位）
@@ -843,7 +865,7 @@ assign decd_scalar_size = {(decd_op[26:25] == 2'b10),  // half
                            (decd_op[26:25] == 2'b01)}; // double
 ```
 
-#### 向量源操作数 MUX（4 路）
+#### 内部保留的向量源操作数 MUX
 
 pipe6 有 4 个向量源操作数（srcv0/srcv1/srcv2/srcvm），每个都分三路（fr/vr0/vr1）：
 
@@ -859,10 +881,10 @@ assign rf_pipe6_srcv0_vr0_data = rf_pipe6_data[VIQ0_SRCV0_WB]
 assign rf_pipe6_srcv0_vr1_data = rf_pipe6_data[VIQ0_SRCV0_WB]
                                   ? prf_dp_rf_pipe6_srcv0_vreg_vr1_data
                                   : fwd_dp_rf_pipe6_srcv0_vreg_vr1_data;
-// srcv1, srcv2, srcvm 完全对称...
+// srcv1、srcv2、srcvm 使用类似的 PRF/forward 选择模式，字段和用途并非完全相同
 ```
 
-共 12 路 64 位 MUX，是 rf_dp 中逻辑最"宽"的部分。
+源码内部形成多组 64 位候选 MUX，包含 `_fr/_vr0/_vr1`。其中只有 `_fr` 是当前模块到 VFPU 的 output；“逻辑最宽”若用于物理比较仍需综合后的位宽、裁剪结果和面积报告支持。
 
 #### 源不就绪判断（4 路）
 
@@ -891,7 +913,7 @@ always @(posedge rf_pipe36_clk ...) begin
     rf_pipe6_prf_srcv2_vreg_fr <= lsiq_dp_pipe3...[LSIQ_SRCVM_VREG-1:...];
 ```
 
-#### 向量 FMA（vmla）类型
+#### 保留的向量 FMA（vmla）类型
 
 ```verilog
 assign idu_vfpu_rf_pipe6_mla_srcv2_vreg[6:0] = rf_pipe6_data[VIQ0_SRCV2_VREG:...];
@@ -900,15 +922,15 @@ assign idu_vfpu_rf_pipe6_vmla_type[2:0]      = rf_pipe6_data[VIQ0_VMLA_TYPE:...]
 assign idu_vfpu_rf_pipe6_split_num[6:0]      = rf_pipe6_data[VIQ0_SPLIT_NUM:...];
 ```
 
-向量 FMA 的结果寄存器同时也是第三源，`vmla_type` 编码了具体的 FMA 变体（vfmadd/vfmsub/vfnmsub/vfnmadd）；`split_num` 记录当前指令是拆分执行的第几片（向量宽度超过硬件单元宽度时指令被拆分）。
+在保留 VMLA 格式中，目的寄存器可同时作为累加源，`vmla_type` 区分 FMA 变体，`split_num` 标识拆分片序号。当前 RVV 关闭且 VR0/VR1 未导出到 VFPU，因此这些字段不构成当前有效向量 FMA 数据通路。
 
 ---
 
-### 5.8 pipe7_decd — VFPU1（向量/浮点）
+### 5.8 pipe7_decd — VFPU pipe7（当前标量浮点，向量控制保留）
 
-**功能单元**：VFPU1（Vector Floating Point Unit 1）
+**功能单元**：VFPU pipe7。
 
-pipe7 与 pipe6 结构基本对称，都从 VIQ（向量发射队列）发射，都有 4 个向量源操作数，都输出 12 位 eu_sel 和 20 位 func。
+pipe7 与 pipe6 共享 VIQ→RF→VFPU 的基本数据格式和译码框架，但不能概括为完全对称：VIQ 宽度、VDIV/VMUL-unsplit 属性、共享端口和冲突控制不同。当前两路 VIQ 也承载标量浮点；内部四源向量网络属于保留结构。
 
 #### pipe7 与 pipe6 的关键差异
 
@@ -977,7 +999,7 @@ assign pipe0_decd_imm  = decd_op[13] ? decd_ext_offset : {4'b0, decd_op[26:25]};
 assign pipe6_decd_imm0[2:0] = decd_op[14:12];  // RM 字段（000=RNE, 001=RTZ, ...）
 ```
 
-### 6.4 向量立即数（vimm）
+### 6.4 保留的向量立即数（vimm）
 
 ```verilog
 // pipe6_decd vimm[4:0]：来自操作码 rs1 字段，用于 vslideup.vi/vmv.vi 等
@@ -1048,14 +1070,14 @@ idu_lsu_rf_pipe4_*（store addr）额外：
 
 idu_lsu_rf_pipe5_*（store data）:
   - src0[63:0]          : 整数 store 数据
-  - srcv0_fr/vr0/vr1    : 向量 store 数据（三路）
-  - srcv0_vld / srcv0_fr_vld : 向量数据有效标志
+  - srcv0_fr/vr0/vr1    : FREG/VREG 兼容通道；当前浮点标量使用 fr，向量部分为保留路径
+  - srcv0_vld / srcv0_fr_vld : 兼容通道有效及 FREG 类别标志
   - stdata1_vld         : 双字 store 第二数据有效
   - unalign             : 非对齐
   - sdiq_entry[11:0]    : store 队列条目
 ```
 
-### 7.3 VFPU（pipe6/pipe7）接口汇总
+### 7.3 VFPU（pipe6/pipe7）当前输出与内部保留字段
 
 ```
 idu_vfpu_rf_pipe6_*:
@@ -1064,7 +1086,7 @@ idu_vfpu_rf_pipe6_*:
   - eu_sel[11:0]         : 执行单元（12 位 one-hot）
   - func[19:0]           : 功能码
   - imm0[2:0]            : 浮点舍入模式
-  - vimm[4:0]/vimm_vld   : 向量立即数
+  - vimm[4:0]/vimm_vld   : 保留向量立即数控制
   - ready_stage[2:0]     : 结果就绪阶段
   - inst_type[5:0]       : 指令类型（精度）
   - oper_size[2:0]       : 操作精度
@@ -1073,10 +1095,12 @@ idu_vfpu_rf_pipe6_*:
   - split_num[6:0]       : 向量拆分序号
   - vlmul/vsew/vl        : 向量配置
   - vm_bit               : mask 位（来自操作码[25]）
-  - srcv0/v1/v2_fr[63:0] : 浮点标量部分
-  - srcv0/v1/v2_vr0/vr1  : 向量数据（低/高 64 位）
-  - srcvm_vr0/vr1        : mask 寄存器数据
+  - srcv0/v1/v2_fr[63:0] : 当前导出给 VFPU 的标量浮点操作数
+  - srcv0/v1/v2_vr0/vr1  : rf_dp 内部保留 wire，当前不是模块 output
+  - srcvm_vr0/vr1        : rf_dp 内部保留 mask 数据 wire
 ```
+
+上表中的控制字段有些仍是模块 output，但只有在有效译码产生相应指令时才有功能意义。判断“当前硬件支持什么”必须同时看译码总开关、顶层端口连接和执行单元实例，不能只看字段名字。
 
 ---
 
@@ -1093,12 +1117,16 @@ C910 rf_dp 中最具独特性的设计是**跨管线物理寄存器读端口共�
 | `rf_pipe36_clk` | pipe3 OR pipe6 | pipe3 srcvm / pipe6 srcv2 | `rf_pipe6_prf_srcv2_vreg_*`、`rf_pipe6_fwd_srcv2_vreg` |
 | `rf_pipe47_clk` | pipe4 OR pipe7 | pipe4 srcvm / pipe7 srcv2 | `rf_pipe7_prf_srcv2_vreg_*`、`rf_pipe7_fwd_srcv2_vreg` |
 
-### 8.2 为什么这样共享是安全的
+### 8.2 共享冲突如何被处理
 
-以 `rf_pipe03_clk` 为例：
-- pipe0（AIQ0 整数）有 src2 的情形：仅限于 MLA 类扩展指令（需要 pipe3 读端口空闲）
-- pipe3（LSIQ load）有 src1 的情形：访存指令（src1 = 偏移寄存器），不需要 src2
-- 两者在同一周期同时使用的可能性极低；即使同时发射，ctrl 模块也会通过 `ctrl_dp_rf_pipeX_other_lch_fail` 协调，确保不会发生冲突
+共享并不依赖“两个请求很少同时发生”的概率假设。以整数端口为例，`rf_ctrl` 明确生成：
+
+```text
+pipe3_preg_lch_fail = pipe3_src1_vld && pipe0_src2_vld
+pipe5_preg_lch_fail = pipe5_src0_vld && pipe1_src2_vld
+```
+
+即 pipe0 src2 优先于 pipe3 src1，pipe1 src2 优先于 pipe5 src0；低优先级项在 RF launch 检查失败后回队重调度。向量兼容端口也有 pipe6 srcv2 优先于 pipe3 srcvm、pipe7 srcv2 优先于 pipe4 srcvm 的同类规则。共享地址寄存器的 always 块必须与该优先级一致阅读：时钟只提供更新边界，冲突检测与失败重调度才防止两条请求把同一个物理端口当作同时可用。
 
 ### 8.3 目的寄存器 5 副本（dup0~dup4）
 
@@ -1108,7 +1136,7 @@ reg [6:0] rf_pipe0_dst_preg_dup1;
 // ... 到 dup4，共 5 份
 ```
 
-这 5 份副本分别驱动不同的前递比较网络扇出区域（每个执行管线或发射队列各需要一份），通过寄存器复制而非总线共享，保证时序收敛。
+这 5 份副本为综合和布局布线提供分散高扇出负载的结构。它通常用于降低单个寄存器输出的扇出压力，但副本与具体物理区域的对应关系、以及是否已经时序收敛，必须从综合网表、布局和 STA 报告确认，RTL 本身不能保证。
 
 ---
 

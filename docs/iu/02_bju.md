@@ -15,7 +15,8 @@
 1. **执行 Pipe2 上的所有控制流指令**：条件分支（beq/bne/blt/bltu/bge/bgeu）、
    直接跳转（jal）、间接跳转（jalr，含 ret）；
 2. **误预测检测**：方向错（BHT mispred）和目标错（JMP mispred）两类；
-3. **发起重定向**：EX2 拍向 IFU 发 `chgflw`，并广播 `iu_yy_xx_cancel` 取消错误路径；
+3. **发起重定向**：EX2 拍向 IFU 发 `chgflw`，同时以 `iu_yy_xx_cancel`
+   清理 IDU 早期流水状态并标记 PCFIFO；它不是所有执行单元的全局 kill；
 4. **预测器训练数据回传**：实际方向/目标/chk_idx 送回 IFU 更新 BHT/BTB/indirect BTB；
 5. **管理 PCFIFO**：保存分支 PC 与预测信息（IFU 创建、BJU 读改、RTU 弹出）。
 
@@ -32,8 +33,9 @@ IID年龄  │ 方向判定(比较器)       │ 重定向: iu_ifu_chgflw    │
 ```
 
 注意与 ALU 的不同：**BJU 的"动作"集中在 EX2**。EX1 算出了一切，但重定向、取消、
-完成汇报都打一拍到 EX2 才发出——因为这些信号扇出巨大（IFU 整个前端、IDU 所有
-发射队列、RTU），必须从寄存器直接驱动，不能带组合逻辑。
+完成汇报都打一拍到 EX2 才发出。RTL 结构使这些对外控制由 EX2 寄存状态驱动，
+有利于隔离 EX1 的比较/加法组合路径；实际扇出、缓冲树和关键路径仍应由综合网表
+确认，不能仅凭源码断言物理上“绝不带任何组合逻辑”。
 
 ---
 
@@ -64,7 +66,7 @@ assign bju_rf_iid_oldest = (!bju_chgflw_vld    || bju_rf_older_ex1)
 RF 级**——RF 级 IID 已知而比较结果 EX1 才用，白捡一拍。
 
 `ct_rtu_compare_iid` 是处理环形 IID 空间比较的小模块（IID 高位是 wrap 标志位），
-详见 doc/rtu/ 的 encode/compare 章节。
+详见 `docs/rtu/07_encode_compare.md`。
 
 ### 2.2 RF→EX1 流水寄存器（ct_iu_bju.v:508-609）
 
@@ -131,13 +133,17 @@ cjalr 被 IDU 拆成 lrw+jmp32 两个微操作时，链接地址要用原始 cja
 assign bju_jump_tarpc[39:0] = src0[39:0] + sext(offset[11:0]);
 ```
 
-**虚拟地址溢出检查（L688, 702-713）**：C910 虚拟地址有效位是 40 位（Sv39 + 1
-位扩展），bit[39:38] 之上必须是符号扩展。分支只需检查 `tarpc[38]^tarpc[37]`
-（偏移最多 ±1MB 跨不过更高位）；jalr 的 src0 是任意 64 位值，要检查 src0 高
-26 位是否落在 4 个合法编码（全 0/全 1/±1 边界），加法后 bit[39]^~bit[38] 验证
-无进位破坏。**非法目标不在 BJU 报异常，而是置 `page_fault` 标记并把 msb 清 0
-（L690），让 IFU 取指时触发 instruction page fault**——异常统一从取指口报，
-精确异常逻辑只需要处理一处。
+**虚拟地址合法性检查（L688, 702-713）**：在 MMU 使能时，PC 相对分支用
+`bju_br_tarpc[38] ^ bju_br_tarpc[37]` 检查计算结果是否仍满足该实现采用的
+高位符号扩展边界。jalr 的 64 位 `src0` 更一般，因此先检查 `src0[63:38]`
+是否属于加 12 位符号扩展立即数时可能合法跨边界的四类模式，再检查 40 位加法
+结果的 `[39:38]` 一致性。
+
+`bju_br_page_fault`/`bju_jump_page_fault` 是 BJU 内部用于形成误预测和重定向
+的合法性标志，不是直接送 RTU 的架构异常向量。分支路径在 fault 时把重定向高
+24 位置 0；jalr 路径仍取完整 64 位加法结果的 `[63:40]`。两者都通过重定向让
+IFU/MMU 在取指侧形成精确 instruction page fault。原文把两条路径都概括成
+“把 msb 清 0”是不准确的。
 
 ### 2.5 EX1：误预测判定（ct_iu_bju.v:729-765）—— 本模块的灵魂
 
@@ -201,20 +207,25 @@ else if(bju_chgflw_vld)    ifu_mispred_stall <= 1'b1;
 ```
 EX1: 发现误预测
 EX2: chgflw → IFU 立即从正确目标取指（前端抢跑）
-     cancel → 杀死 IU 各级错误路径指令
+     cancel → 清 IDU 早期流水/控制状态并标记 PCFIFO，不是逐个杀死所有已发射执行
      同时 idu_mispred_stall/ifu_mispred_stall 拉高
   …… 新指令最远只能走到 ID（被 stall 挡住），不进重命名 ……
-退休期: 误预测分支成为 ROB 头 → RTU 发 flush_fe（前端可恢复取指节奏）
-        → RTU 发 rtu_yy_xx_flush（后端按序刷新，重命名表回滚）
+退休期: 误预测分支成为 ROB 头 → RTU 发 FLUSH_IS/rtu_idu_flush_is
+        → 若保留状态尚未就绪则进入 WF_EMPTY
+        → RTU 发 rtu_yy_xx_flush（后端恢复，重命名表回到退休映射）
         → 两个 stall 解除，新路径指令开始 pipedown
 ```
 
 **为什么新指令要在 ID 停住而不直接进入后端？** 因为后端此刻还混着错误路径
 指令（已发射的无法精确逐条杀死），重命名表也是污染状态。等 RTU 在分支退休时
-统一 flush 后端、恢复重命名映射，新指令才能安全进入。前端那段时间先把 IBUF
-填满，flush 一到立即满速供指——损失被压到最小。L828-831 的注释解释了为何
-ifu_stall 可以更早解除：flush_fe 后不会再有旧 RAS/JMP 指令退休来弄脏 RAS，
-IFU 可以先恢复，但 IDU 必须等到完全 flush。
+统一 flush 后端、恢复重命名映射，新指令才能安全进入。前端那段时间可以先取得
+并缓存一部分正确路径指令，但实际填充量受 IBUF 空间和 I-Cache/TLB 行为限制。
+
+`ifu_mispred_stall` 的 RTL 比 `idu_mispred_stall` 多一个
+`rtu_iu_flush_fe` 清除条件。这是为**其他触发了前端 flush 的恢复场景**提供提前
+解除入口；纯 BJU 误预测在 retire 模块中走 `FLUSH_IS`，不会因此自动产生
+`rtu_iu_flush_fe`，通常仍由 `rtu_yy_xx_flush` 清除两个 stall。不能把这个附加
+条件写成每次分支误预测都固定经历的阶段。
 
 ### 2.7 EX2：动作发出（ct_iu_bju.v:841-1019）
 
@@ -232,7 +243,7 @@ RTU 退休时从 PCFIFO 弹出的将是**修正后的**信息，可直接用于�
 **取消与重定向（L1003-1019）**：
 
 ```verilog
-assign iu_yy_xx_cancel    = ex2_pipe2_chgflw_vld;            // 全核取消
+assign iu_yy_xx_cancel    = ex2_pipe2_chgflw_vld;            // IDU早期路径/PCFIFO取消
 assign iu_ifu_chgflw_vld  = ex2_pipe2_chgflw_vld;            // IFU 重定向
 assign iu_ifu_chgflw_pc   = {tar_pc_msb[23:0], tar_pc[38:0]};// 架构 VA[63:1]
 assign iu_ifu_bht_check_vld    = ex2_pipe2_conbr_vld;        // 条件分支必发（不只误预测时）
@@ -246,7 +257,7 @@ assign iu_ifu_chk_idx[24:0]    = ex2_pipe2_chk_idx[24:0];
 `VA[39:1]`，其内部最低位对应架构地址位 1，而不是架构地址位 0。
 
 注意 `bht_check_vld` 的条件是 `conbr_vld`（有效条件分支）而非 mispred——
-**BHT 是计数器，预测对了也要加强**。这组信号对应 `doc/ifu/04_bht.md` 的写口，
+**BHT 是计数器，预测对了也要加强**。这组信号对应 `docs/ifu/04_bht.md` 的写口，
 也是 perf 统计 `Cond Branch Misp`（hpcp 相关 event）的数据源头。
 
 `chgflw_vl/vlmul/vsew`（L1017-1019）：vsetvli 预译码机制需要——IFU 会根据
@@ -262,18 +273,30 @@ EX2 的写回信息再延一拍，以 `bju_pcfifo_ex3_*` 第二次送进 PCFIFO�
 
 ---
 
-## 3. 误预测代价量化
+## 3. 误预测代价如何量化
 
-从本模块时序可推出 C910 的分支误预测最小代价：
+从本模块可以确定“误预测在 BJU EX1 判定、EX2 对外重定向”，但不能只看
+`ct_iu_bju.v` 就给整个处理器写出固定的误预测惩罚。重定向后的首条正确路径指令
+何时重新到达、何时恢复派遣和何时退休，还取决于 IFU 状态、I-Cache/TLB 命中、
+分支在 ROB 中的年龄、前面老指令是否完成以及当时的后端资源状态：
 
 ```
-EX2 重定向 → IFU 重新走 IP/IB/ID… 取指管线（~5 拍）
-            + 新指令在 ID 等待分支退休 flush（取决于分支前还有多少未退休指令）
+EX2 重定向
+  ├─ 前端路径：正确 PC → 预测/取指 → I-Cache/TLB → 指令缓冲 → ID
+  └─ 后端路径：误预测分支等待成为 ROB 头 → RTU flush/recover → 恢复派遣
 ```
 
-最好情况（分支立即退休）约 10+ 拍，ROB 里积压多时更久。这解释了 coremark
-perf 报告中 `Cond Branch Misp 9.67%` 对 IPC 的显著伤害——每次误预测损失的
-不只是取指延迟，还有后端排空时间。
+因此“约 10+ 拍”至多是某个具体波形环境的观测值，不能作为 RTL 固有常数。
+量化每次误预测时至少应记录三个区间：
+
+1. `bju_chgflw_vld` 到 `iu_ifu_chgflw_vld`：BJU 内部判定到对外重定向；
+2. `iu_ifu_chgflw_vld` 到正确路径第一次有效供给 IDU：前端恢复时间；
+3. `iu_ifu_chgflw_vld` 到正确路径第一次 create/issue/retire：包含后端恢复的
+   可见损失。
+
+三段必须使用 PC 或 IID 确认“正确路径”，不能只找任意 valid 的下一次上升沿。
+最后再按 `总损失周期 / mispredict 次数` 求均值，并报告中位数、P90 和分布；
+这样才能区分固定前端重启成本与 ROB 排队造成的长尾。
 
 ---
 
@@ -286,7 +309,7 @@ perf 报告中 `Cond Branch Misp 9.67%` 对 IPC 的显著伤害——每次误�
 | 入 | RTU | `rtu_iu_rob_read*_pcfifo_vld`（退休弹出）、`rtu_iu_flush_chgflw_mask/flush_fe/rtu_yy_xx_flush` | 退休期 |
 | 出 | IFU | `iu_ifu_chgflw_*`（重定向）、`iu_ifu_bht_*`（训练）、`iu_ifu_pcfifo_full` | EX2 |
 | 出 | IDU | `iu_idu_mispred_stall`、`iu_idu_pcfifo_dis_inst*_pid`（分发 pid） | - |
-| 出 | 全核 | `iu_yy_xx_cancel` | EX2 |
+| 出 | IDU/PCFIFO | `iu_yy_xx_cancel` | EX2 |
 | 出 | CBUS | `bju_cbus_ex2_pipe2_*` | EX2 |
 | 出 | RTU | `iu_rtu_pcfifo_pop0/1/2_data[47:0]` | 退休期 |
 | 出 | SPECIAL | `bju_special_pc[39:0]`（auipc 类指令需要的 PC） | RF |
@@ -305,7 +328,7 @@ perf 报告中 `Cond Branch Misp 9.67%` 对 IPC 的显著伤害——每次误�
 | 2 | `bju_chgflw_vld`（EX1） | 同拍拉高 |
 | 3 | `iu_ifu_chgflw_vld` + `iu_ifu_chgflw_pc`（EX2） | 下一拍重定向 |
 | 4 | `iu_yy_xx_cancel`、`idu_mispred_stall`↑ | 取消+冻结 |
-| 5 | `rtu_iu_flush_fe` → `rtu_yy_xx_flush` → `idu_mispred_stall`↓ | 若干拍后退休 flush 解冻 |
+| 5 | `rtu_idu_flush_is` → 可选 `WF_EMPTY` → `rtu_yy_xx_flush` → `idu_mispred_stall`↓ | 误预测分支到队头后的后端恢复 |
 
 把这 5 步的波形截下来，就是 C910 误预测恢复机制的全部时序证据，与
-`doc/branch_prediction.md` 第 12 节的观察组 5 配合使用。
+`docs/branch_prediction.md` 第 12 节的观察组 5 配合使用。

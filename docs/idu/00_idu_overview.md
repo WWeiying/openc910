@@ -219,10 +219,12 @@ C910 有三类架构寄存器，各自独立重命名：
 |----------|------|----------|------|
 | `ir_rt` | ct_idu_ir_rt.v (5275 行) | 整数寄存器 x0-x31 | 整数物理寄存器池 |
 | `ir_frt` | ct_idu_ir_frt.v (6114 行) | 浮点寄存器 f0-f31 | 浮点物理寄存器池 |
-| `ir_vrt` | ct_idu_ir_vrt.v (518 行) | 向量寄存器 v0-v31 | 向量物理寄存器池 |
+| `ir_vrt` | ct_idu_ir_vrt.v | 向量寄存器接口 | 当前开源 RTL 为常量输出占位实现 |
 
-> 浮点和向量在 C910 中共享部分物理寄存器空间（向量寄存器堆兼容浮点），
-> 所以 `ir_frt` 较大，承担了浮点+向量标量部分的重命名。
+> F/D 的 f0-f31 与 V 的 v0-v31 是两套独立架构状态。`ir_frt` 有完整的 33 项
+> 逻辑映射结构并连接 64 项浮点物理寄存器池；当前 `ir_vrt` 没有保存映射状态，
+> 普通源返回物理编号 64 的越界哨兵及 ready/writeback 常量。阅读向量路径时必须把
+> "接口仍存在"与"完整向量重命名已经实现"区分开。
 
 ### 5.2 重命名表的工作
 
@@ -235,10 +237,15 @@ C910 有三类架构寄存器，各自独立重命名：
 
 ### 5.3 精细 stall 设计
 
-ir_ctrl 注释揭示了一个重要的时序优化：IR 和 IS 阶段采用**精细的 stall 与 inst valid 设计**。
-有两类 IS stall（dispatch stall 和 type stall）和一类 IR stall（creg stall）。
-为减少分发 stall 的时序压力，pipedown inst valid 可以忽略 dispatch/type stall，
-只考虑 creg stall——这是一种用复杂控制换取关键路径时序的典型手法。
+`ir_ctrl` 把 IS dispatch stall、IS type stall 与 IR 本级重命名资源 stall 分开
+处理。需要特别注意生成源注释的概括与最终方程之间的边界：
+`ctrl_ir_pipedown_stall = ctrl_ir_stage_stall || ctrl_is_dis_type_stall`，所以从 IR
+取新槽的 valid **会考虑 type stall**；从 IS 保留 slot2/slot3 前移的选择分支则
+不受该项阻断。dispatch stall 不直接串入每个局部 pipedown-valid 项，而由 IS
+寄存器更新、create 有效和向 IR 的总反压共同处理。RTL 注释中的 “creg stall”
+也不应擅自展开成 Committed Register；生效逻辑实际汇总 preg/vreg/freg/ereg
+分配无效、flush stall 和 mispredict stall。该分层减少了单一总 stall 方程的
+依赖集中，但实际关键路径收益必须由 STA 证明。
 
 **详见**：[06_ir_ctrl](06_ir_ctrl.md) · [07_ir_dp](07_ir_dp.md) · [08_ir_rt](08_ir_rt.md) · [09_ir_frt](09_ir_frt.md) · [10_ir_vrt](10_ir_vrt.md)
 
@@ -295,7 +302,9 @@ IS 阶段在分发指令的同时：
 ### 7.1 读物理寄存器堆
 
 指令从发射队列 launch 后，进入 RF 阶段，用重命名得到的物理寄存器号从 PRF
-（Physical Register File，物理寄存器堆）读出操作数。PRF 是多端口大型 SRAM/寄存器阵列。
+（Physical Register File，物理寄存器堆）读出操作数。当前整数/浮点 PRF 由大量门控
+寄存器单元和组合读选择构成，不应笼统称为 SRAM；向量 PRF 在公开配置中还是常量输出
+占位路径。
 
 ### 7.2 前递（Forwarding / Bypass）网络
 
@@ -329,17 +338,18 @@ biq       ──────▶ pipe2    ──────▶ BJU（分支跳�
 lsiq      ──────▶ pipe3    ──────▶ LSU Load / AGU        是（load 数据，整数+向量）
           └─────▶ pipe4    ──────▶ LSU Store 地址        否
 sdiq      ──────▶ pipe5    ──────▶ Store 数据            否（数据送 LSU）
-viq0      ──────▶ pipe6    ──────▶ VFPU0（向量/浮点）    是（向量 vreg）
-viq1      ──────▶ pipe7    ──────▶ VFPU1（向量/浮点）    是（向量 vreg）
+viq0      ──────▶ pipe6    ──────▶ VFPU0（向量/浮点接口）是（浮点/向量编号接口）
+viq1      ──────▶ pipe7    ──────▶ VFPU1（向量/浮点接口）是（浮点/向量编号接口）
 ```
 
 **写回端口**（从 top 接口确认）：
 - `iu_idu_ex2_pipe0/pipe1_wb_preg` —— 整数 ALU 在 EX2 写回整数物理寄存器
-- `lsu_idu_wb_pipe3_wb_preg / wb_vreg` —— LSU load 在 WB 级写回整数或向量寄存器
-- `vfpu_idu_ex5_pipe6/pipe7_wb_vreg` —— VFPU 在 EX5 写回向量寄存器
+- `lsu_idu_wb_pipe3_wb_preg / wb_vreg` —— LSU load 在 WB 接口写回整数或 vreg 编号空间
+- `vfpu_idu_ex5_pipe6/pipe7_wb_vreg` —— VFPU 在 EX5 接口写回 vreg 编号空间
 
-不同管线的执行延迟不同（ALU 1 拍、MULT 多拍、VFPU 5 拍 EX1-EX5、LSU 取决于 cache），
-这正是需要乱序调度和前递网络的原因。
+不同管线的执行延迟和可旁路时刻不同：整数路径暴露 EX1/EX2，VFPU 暴露多个
+EX 阶段接口，LSU 还取决于命中、重放和存储次序。正因为生产者完成时间不一致，
+调度器才需要分别追踪 ready、writeback 和当拍 forward 条件。
 
 ---
 
@@ -351,10 +361,14 @@ viq1      ──────▶ pipe7    ──────▶ VFPU1（向量/�
 |----------|------|------|
 | `rf_prf_pregfile` | 4052 行 | 整数物理寄存器（最大，多读写端口） |
 | `rf_prf_fregfile` | 2229 行 | 浮点物理寄存器 |
-| `rf_prf_vregfile` | 293 行 | 向量物理寄存器（单元，实例化多份做多端口/多份本） |
-| `rf_prf_eregfile` | 911 行 | E 寄存器堆（扩展状态，如向量配置相关） |
+| `rf_prf_vregfile` | 293 行 | 向量 PRF 接口；当前读数据均为常量 0，实例模板未激活 |
+| `rf_prf_eregfile` | 911 行 | 32 项、每项 6 位的 EREG 数据文件；保存乱序 VFPU 操作产生的 `fflags` 等状态贡献，并在 RTU 许可后按位或送 CP0 |
 
-配套 `rf_prf_gated_preg/vreg/ereg` 提供门控时钟，空闲端口不耗动态功耗。
+配套 `rf_prf_gated_preg/vreg/ereg` 为各存储项生成局部时钟请求，目标是在无写入时减少
+状态触发器的时钟活动。这里不能写成“空闲端口不耗动态功耗”：组合读 MUX、地址和
+广播网络仍可能翻转；`gated_clk_cell` 的技术分支还受 global/module/scan 控制，且
+未定义 `C910_USE_TSMC28_ICG` 时公开 RTL 直接令 `clk_out=clk_in`。实际停钟和功耗
+收益应以编译配置、综合网表和功耗报告为准。
 
 ### 9.2 写回-唤醒-前递的协同
 
@@ -491,7 +505,7 @@ ct_idu_top（6622 行）
 │       ├─ ct_idu_rf_prf_pregfile (4052)  整数
 │       ├─ ct_idu_rf_prf_fregfile (2229)  浮点
 │       ├─ ct_idu_rf_prf_vregfile (293)   向量
-│       ├─ ct_idu_rf_prf_eregfile (911)   E（扩展状态）
+│       ├─ ct_idu_rf_prf_eregfile (911)   EREG（浮点/VFPU 状态贡献的物理版本数据）
 │       └─ ct_idu_rf_prf_gated_{preg,vreg,ereg}  门控时钟
 │
 └─ 依赖检查（被各发射队列 entry 调用）

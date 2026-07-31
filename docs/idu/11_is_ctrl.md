@@ -108,8 +108,8 @@ RTL 中每个创建操作都有**三种**使能信号，这是 C910 功耗优化
 | 信号后缀 | 含义 | 使用场景 |
 |----------|------|---------|
 | `_en` | 真正的功能使能（含 stall 检查） | 写入队列/ROB/VMB 的功能触发 |
-| `_dp_en` | 数据通路使能（不含 stall，检查资源满） | 驱动 mux 写入数据，避免写 full 表项时损坏数据 |
-| `_gateclk_en` | 门控时钟使能（仅看指令是否存在） | 打开对应存储单元的时钟，最宽松，功耗敏感 |
+| `_dp_en` | 数据路径更新资格（不含全局 dispatch stall，检查目标资源当前 full） | 允许下游数据寄存路径按预计算控制更新 |
+| `_gateclk_en` | 局部时钟活动请求（通常只看预计算 create 有效） | 为下游状态组提供宽松活动条件 |
 
 例如 ROB create0（行 1239–1258）：
 ```verilog
@@ -120,10 +120,13 @@ assign idu_rtu_rob_create0_gateclk_en = is_dis_inst0_vld;
 ```
 
 - `_en`：inst0 有效 **且** 当前 dispatch 没有 stall → 才真正写入 ROB。
-- `_dp_en`：inst0 有效 **且** ROB 没满 → 才让数据通路把数据写过去（即使 stall 也可以，因为 ROB 有空间）。
-- `_gateclk_en`：只要 inst0 有效就打开时钟，提前准备，不检查任何 full/stall。
+- `_dp_en`：inst0 有效且 ROB 未满；它没有 `ctrl_is_dis_stall` 项，所以可能在功能 `_en=0` 时仍为 1。
+  下游必须把 `_dp_en` 与功能 create 状态按各自协议使用，不能把它单独等同为“ROB 已创建新条目”。
+- `_gateclk_en`：只由 inst0 valid 形成，不检查 full/stall；它是送往下游门控单元的局部请求，不是功能写使能。
 
-> **设计原理**：`_en` 是"是否真的写"，`_dp_en` 是"数据写不写过去"（写满的表项会造成错误），`_gateclk_en` 是"要不要给该表项上电"。三者粒度从细到粗，控制逻辑复杂度和功耗按需分离。
+> **精确读法**：三路信号把功能提交、数据路径更新和局部时钟请求拆开，使后两路不必依赖完整 stall
+> 组合锥。`_gateclk_en` 不控制供电，不能称为“给表项上电”；具体时序收益与无效更新活动需要由下游
+> always 条件、综合网表和 STA/功耗报告共同判断。
 
 ---
 
@@ -140,25 +143,27 @@ assign idu_rtu_rob_create0_gateclk_en = is_dis_inst0_vld;
 
 #### IR pre_dis（IS 级分发控制预计算）
 
-IR 阶段在自己的最后一拍提前计算好下一拍（IS）需要的所有分发控制信息，这样 IS 阶段只需要一个寄存器打拍，不增加关键路径延迟。
+IR 提供一组命名为 `pre_dis` 的分发控制接口，`is_ctrl` 在 `is_inst_clk` 边沿把它们锁存为
+`is_dis_*`。这说明队列选择、create 选择和 ROB/VMB 选择已在上游形成；是否“不增加关键路径延迟”
+以及相对于哪条数据路径更早，需要 IR 组合锥和 STA 证明。
 
 | 信号组 | 含义 |
 |--------|------|
-| `ctrl_ir_pre_dis_inst{0..3}_vld` | IS 分发有效位（比 pipedown_inst*_vld 晚一拍捕捉） |
+| `ctrl_ir_pre_dis_inst{0..3}_vld` | 分发控制所用有效位；与 pipedown valid 在同一 `is_inst_clk` 边沿分别被采样 |
 | `ctrl_ir_pre_dis_{队列名}_create{0/1}_en` | 指令应进入哪个队列的使能 |
 | `ctrl_ir_pre_dis_{队列名}_create{0/1}_sel[1:0]` | 指令在该队列中从哪条 IR inst 来（mux 选择） |
 | `ctrl_ir_pre_dis_rob_create{0..3}_sel` | ROB 创建的数据通路选择 |
 | `ctrl_ir_pre_dis_rob_create{1..3}_en` | ROB 创建 1/2/3 使能（create0 固定从 dis_inst0_vld） |
 | `ctrl_ir_pre_dis_pst_create{1..3}_iid_sel` | PST IID 选择（IID = Instruction Identifier） |
 | `ctrl_ir_pre_dis_vmb_create{0/1}_en/sel` | VMB 创建使能和数据选择 |
-| `ctrl_ir_pre_dis_pipedown2` | 本批次是 2-inst pipedown 模式（非4条） |
+| `ctrl_ir_pre_dis_pipedown2` | 同一 IQ 类型出现三条以上候选时采用局部双槽搬移；不是“前端宽度固定变成两条” |
 
 #### type stall 相关
 
 | 信号名 | 含义 |
 |--------|------|
-| `ctrl_ir_type_stall_inst2_vld` | 若 IR inst2 存在某类型约束，发出 type stall |
-| `ctrl_ir_type_stall_inst3_vld` | 若 IR inst3 存在某类型约束，发出 type stall |
+| `ctrl_ir_type_stall_inst2_vld` | 名称保留 `type_stall`，但有效 RTL 直接等于 `ir_inst2_vld`；供 IS 在 pipedown2 拼接时判断剩余槽 |
+| `ctrl_ir_type_stall_inst3_vld` | 有效 RTL 直接等于 `ir_inst3_vld`；本信号自身不编码队列类型冲突 |
 
 ### 3.2 来自各发射队列的反压输入
 
@@ -220,7 +225,7 @@ IR 阶段在自己的最后一拍提前计算好下一拍（IS）需要的所有
 
 ## 4. 门控时钟
 
-模块使用两个独立的门控时钟单元（gated_clk_cell），体现了精细的功耗管理：
+模块使用两个 `gated_clk_cell`，分别接收 IS 指令状态和资源满状态的局部时钟请求：
 
 ### 4.1 is_inst_clk（行 927–941）
 
@@ -237,7 +242,10 @@ assign is_inst_clk_en = ctrl_ir_pipedown_gateclk
 
 **驱动的寄存器**：全部 `is_inst*_vld` 和 `is_dis_*`（dispatch control）寄存器。
 
-**设计原理**：IS 流水线寄存器只在"有指令在流动"时才翻转，当流水线空时完全停止，节省功耗。
+`is_inst_clk_en=0` 表示该模块不提出本地请求。公共门控单元的功能使能为
+`global_en && (module_en || local_en)`，扫描使能还可打开工艺 ICG；未定义
+`C910_USE_TSMC28_ICG` 时当前 RTL 模型直接透传时钟。因此不能写成“流水线空时物理时钟完全停止”，
+实际活动与功耗收益需由构建宏、综合网表和功耗分析确认。
 
 ### 4.2 queue_full_clk（行 1571–1598）
 
@@ -325,13 +333,16 @@ assign ctrl_fence_is_pipe_empty = !is_inst0_vld; // Fence 指令判断 IS 流水
 
 ### 6.1 寄存器含义与来源
 
-dispatch control 寄存器组（行 1004–1198）保存 **IS→DIS 阶段**（IS 分发阶段）所需的全部控制信息，由 IR 阶段的 `ctrl_ir_pre_dis_*` 提前一拍计算好后打入。
+dispatch control 寄存器组（行 1004–1198）保存 IS 分发所需的控制信息，并在
+`is_inst_clk` 上升沿采样 IR 提供的 `ctrl_ir_pre_dis_*`。同一个时钟沿上，
+`is_inst*_vld` 也采样 `ctrl_ir_pipedown_inst*_vld`；所以从本模块 RTL 只能确认两组上游信号被并行寄存，
+不能把 `pre_dis` 命名解释为固定“提前一拍”。
 
 **寄存器命名模式**：`is_dis_{目标}_{操作}_{_en|_sel|_iid_sel}`
 
 | 寄存器子组 | 包含寄存器 | 作用 |
 |-----------|-----------|------|
-| inst valid | `is_dis_inst{0..3}_vld` | 分发槽位有效（比 is_inst 晚一个半周期） |
+| inst valid | `is_dis_inst{0..3}_vld` | 分发控制所用槽位有效；与 `is_inst*_vld` 在同一 `is_inst_clk` 边沿分别采样对应上游接口 |
 | pipedown2 | `is_dis_pipedown2` | 标记本批次是否为 2-inst pipedown |
 | AIQ0/1 create | `is_dis_aiq{0/1}_create{0/1}_{en,sel}` | AIQ 创建使能和来源选择 |
 | BIQ create | `is_dis_biq_create{0/1}_{en,sel}` | BIQ 创建使能和来源选择 |
@@ -345,19 +356,22 @@ dispatch control 寄存器组（行 1004–1198）保存 **IS→DIS 阶段**（I
 ### 6.2 为什么需要两套 vld（is_inst vs is_dis）
 
 ```
-IR 阶段最后一拍
+IR 阶段送出两组已对齐接口
   │
-  ├── 计算 ctrl_ir_pipedown_inst*_vld   ─→  is_inst*_vld (早一拍)
-  └── 计算 ctrl_ir_pre_dis_inst*_vld   ─→  is_dis_inst*_vld (晚一拍)
+  ├── ctrl_ir_pipedown_inst*_vld ─┐
+  └── ctrl_ir_pre_dis_inst*_vld ──┴─ 同一 is_inst_clk 边沿采样
+                                  ├─→ is_inst*_vld
+                                  └─→ is_dis_inst*_vld
 ```
 
-**is_inst_vld**：用于 IS 流水线本身的状态（fence 检测、type stall 输入、is_inst_clk 使能等），需要尽早有效。
+**is_inst_vld**：用于 IS 流水槽本身的状态，如 fence 空检测、type stall 输入和 IS 数据路径有效控制。
 
-**is_dis_inst_vld**：用于分发目标（ROB create、IQ create）的使能逻辑，与 pre_dis 控制寄存器对齐，保证时序一致性。
+**is_dis_inst_vld**：与同组 `is_dis_*` 选择和 create 控制一起服务 ROB/IQ/VMB 分发。
 
-两套信号实质上携带同一信息（同一批指令），只是时序对齐点不同，是精心的时序优化结果。
+两套寄存器面向不同组合逻辑扇出域。它们在正常无 stall 时分别采样同一批次的两组上游有效信号，
+但是否逐位恒等属于 IR 输出协议，不能仅由 `is_ctrl` 假定；其物理时序收益也需要综合和 STA 证明。
 
-### 6.3 更新逻辑（与 is_inst 完全对称）
+### 6.3 更新逻辑（与 is_inst 采用相同的保持/清空框架）
 
 ```verilog
 // 行 1102-1148（正常更新路径）
@@ -369,7 +383,9 @@ else if(!ctrl_is_dis_stall) begin
 end
 ```
 
-stall 时整组保持，flush 时整组清零（同 is_inst 组）。
+`is_dis` 组与 `is_inst` 组都采用“复位/flush 清零、允许更新时采样、否则保持”的
+外层框架，但两组采样的上游信号集合不同，字段数量也不同。因此这里只能称为控制
+框架相同，不能理解成两个寄存器组逐位对称或数值始终相等。
 
 ---
 
@@ -380,9 +396,12 @@ stall 时整组保持，flush 时整组清零（同 is_inst 组）。
 C910 IS 阶段支持两种 pipedown 模式：
 
 - **pipedown4**：IR→IS 一次打入 4 条指令（inst0~inst3），正常高吞吐情况
-- **pipedown2**：IR→IS 一次只打入 2 条指令（inst0~inst1），另 2 条保留在 IS 缓冲区
+- **pipedown2**：一次局部搬移只接纳部分新槽，并把 IS 中尚未分发的较老槽向前压缩
 
-pipedown2 模式出现于：上游只有 2 条就绪指令，或者因 type stall 只能发送 2 条时。
+当前 RTL 中 `ctrl_ir_pre_dis_pipedown2` 的直接条件是：IR 存在 inst2，且四个候选槽
+中至少三条同时指向 BIQ、AIQ0、AIQ1、LSIQ、VIQ0 或 VIQ1 中的同一个队列。上述队列
+每拍最多提供两个 create 端口，所以预分发不能在一拍把三条同类队列操作全部创建，
+必须拆成局部搬移。不能把这个条件泛化为“上游只有两条就绪指令”。
 
 此时 IS 阶段保存 4 条指令的方式是：
 
@@ -451,24 +470,36 @@ assign ctrl_is_dis_type_stall = is_dis_type_stall;
 
 ### 8.2 含义解释
 
-**type stall** 是一种特殊的流水线停顿，发生在 pipedown2 模式下 IR 新指令和 IS 中已有指令发生**类型约束冲突**时。
+这里的 `type` 指指令要进入的 IQ 类型及其创建端口带宽，不是数据类型，也不是
+load-use 相关或 barrier 语义。IR 预分发先检测“至少三条候选指令要进入同一个
+最多双创建端口的队列”，据此形成 `pipedown2`。IS 再根据当前保留槽占用情况与
+IR 尚有的 inst2/inst3 有效位，判断本拍能否完成下一次拼接。
 
 具体触发条件：
 
 1. 当前批次是 **pipedown2**（`is_dis_pipedown2 = 1`）
 2. **且**满足以下任一：
-   - IS 中已有 inst3（4 槽全满），而 IR 新来的 inst2（即将成为新 is_inst2）存在类型约束 → `is_inst3_vld && ctrl_ir_type_stall_inst2_vld`
-   - IS 中 inst3 空（3 槽占用），而 IR 新来的 inst3 存在类型约束 → `!is_inst3_vld && ctrl_ir_type_stall_inst3_vld`
+   - IS 中保留的 inst3 有效，且 IR 的 inst2 仍有效：
+     `is_inst3_vld && ctrl_ir_type_stall_inst2_vld`
+   - IS 中保留的 inst3 无效，且 IR 的 inst3 仍有效：
+     `!is_inst3_vld && ctrl_ir_type_stall_inst3_vld`
 
-**类型约束**的来源（由 `ct_idu_ir_ctrl` 计算）：某些特殊指令（如 barrier、load-use 相关约束等）不能与特定位置的指令组成同一个 pipedown 批次。
+虽然信号名是 `ctrl_ir_type_stall_inst2/3_vld`，`ct_idu_ir_ctrl` 的有效 RTL 只是将
+它们分别直接连接到 `ir_inst2_vld` 与 `ir_inst3_vld`。真正的“同类型三条”检测发生
+在 `ctrl_ir_pre_dis_3_{biq,aiq0,aiq1,lsiq,viq0,viq1}_inst` 组合逻辑中。
 
-**效果**：type stall 会传递到 `ctrl_is_stall`，阻止 IR→IS 打拍，直到类型约束解除。
+**效果**：`is_dis_type_stall` 输出为 `ctrl_is_dis_type_stall`，参与 IR 的
+`ctrl_ir_pipedown_stall` 和 IS 槽位选择，使多于目标队列创建端口数的同类指令分批
+进入，而不是丢失第三条。它不是资源已满；队列容量不足由另一组 full/stall 信号处理。
 
 ---
 
 ## 9. ROB 创建控制
 
-ROB（Reorder Buffer，重排序缓冲区）是乱序处理器维护"程序序"的核心结构。每条分发的指令都需要在 ROB 中占一个表项，记录：指令编号（IID）、完成状态、异常信息等。退休时按 ROB 顺序提交，保证精确异常语义。
+ROB（Reorder Buffer，重排序缓冲区）是乱序处理器维护程序序的核心结构。进入
+ROB 的指令或折叠组会占用按程序序分配的表项，记录完成计数、异常/控制属性等；
+具体是否为“一条架构指令对应一个表项”还受 ROB folding 和拆分协议影响，不能由
+本模块的四个 create 端口直接一概而论。退休端按 ROB 顺序检查精确状态。
 
 ### 9.1 设计关键：create0 总是来自 dis_inst0_vld
 
@@ -477,11 +508,18 @@ ROB（Reorder Buffer，重排序缓冲区）是乱序处理器维护"程序序"�
 assign idu_rtu_rob_create0_en = is_dis_inst0_vld && !ctrl_is_dis_stall;
 ```
 
-**inst0 始终是最老的指令**，ROB create0 总是对应 inst0。这是乱序处理器的基本约束：ROB 表项必须按程序序分配，inst0 先于 inst1 先于 inst2 先于 inst3 获得 ROB 位置。
+在当前 `is_dis` 批次的有效槽中，inst0 是最老槽；`is_ctrl` 明确用
+`is_dis_inst0_vld` 生成 create0。create1–create3 是否有效则由 IR 预分发根据
+折叠和槽位组合预先编码。这样 ROB 的实际 create 端口保持从老到新的顺序。
 
-**为什么 create0 没有 `_en` 控制位？** 因为 inst0 必然占 ROB create0 端口，不存在"inst0 有效但不用 create0"的情况，所以 IR 阶段没有为它单独计算 `rob_create0_en`，直接用 `is_dis_inst0_vld`。
+**为什么没有单独保存 `is_dis_rob_create0_en`？** 在本模块协议中，只要
+`is_dis_inst0_vld=1` 且没有 dispatch stall，create0 就有效；源码没有再接收一位
+来自 IR 的 create0 enable。这里的“必然”是当前接口方程的事实，不应外推成
+“任何微架构中的 inst0 都不可能被折叠”；本设计通过 create select 与后续
+create1–3 enable 表达批次的折叠组合。
 
-create1/2/3 则需要 IR 阶段根据指令类型、pipedown 模式等因素预先计算是否需要（`is_dis_rob_create{1..3}_en`）。
+create1/2/3 则由 IR 预分发根据有效槽、pipedown 搬移和 ROB folding 组合预先计算
+是否需要（`is_dis_rob_create{1..3}_en`），不只是按“指令类型”简单判断。
 
 ### 9.2 四路 create 使能（行 1239–1258）
 
@@ -503,11 +541,19 @@ assign idu_rtu_rob_create2_gateclk_en = is_dis_rob_create2_en;
 assign idu_rtu_rob_create3_gateclk_en = is_dis_rob_create3_en;
 ```
 
-注意 `_dp_en` 使用 `rtu_idu_rob_full` 而不是 `ctrl_is_dis_stall`。这是因为：
+注意三类信号不能互换：
 
-- `ctrl_is_dis_stall` 会因 ROB 满、IQ 满或 VMB 满而置 1；
-- 若 ROB 满导致 stall，数据通路不应写入 ROB（ROB 已满没有空槽）；
-- 若 IQ 满导致 stall，ROB 本身有空间，数据通路可以先写好（ROB 会等待），所以 `dp_en` 只看 `rob_full`。
+- `*_en` 含 `!ctrl_is_dis_stall`，在 RTU ROB 中参与表项 `vld`、完成计数和 create
+  指针推进，代表本拍真正创建；
+- `*_dp_en` 只屏蔽 `rtu_idu_rob_full`。在 `ct_rtu_rob_entry` 中，它允许相关
+  create 数据字段预写，即使 IQ/VMB full 使 `*_en=0`；此时不会仅因 `_dp_en`
+  置表项有效或推进 ROB create 指针；
+- `*_gateclk_en` 只由该 create 候选槽有效产生，是 RTU ROB 本地门控时钟的活动请求。
+  它不等价于状态创建，而且最终是否物理停钟仍受公共 ICG 的
+  global/module/scan 与实现分支控制。
+
+这种分离让宽数据字段可以与控制提交资格解耦，但“预写不会成为可见 ROB 表项”的
+正确性依赖 `_en` 对有效位和指针的独立控制；不能简写成“ROB 在 IQ 满时也先创建”。
 
 ### 9.3 ROB create 数据通路选择（行 1260–1266）
 
@@ -550,7 +596,7 @@ C910 区分四类寄存器文件，对应不同的 PST 状态表：
 | preg | `_preg_vld` | 整数物理寄存器（x0-x31 的物理映射） |
 | vreg | `_vreg_vld` | 向量物理寄存器（V 扩展） |
 | freg | `_freg_vld` | 浮点物理寄存器（F/D 扩展） |
-| ereg | `_ereg_vld` | CSR/扩展寄存器 |
+| ereg | `_ereg_vld` | `fflags` 等浮点/VFPU 状态贡献的物理版本；不是普通 CSR 数据寄存器 |
 
 ### 10.2 PST 使能生成（行 1271–1329）
 
@@ -655,7 +701,11 @@ assign idu_iu_is_pcfifo_inst_num[2:0] = {2'b0, ctrl_is_pcfifo_inst0_vld}
                                         + {2'b0, ctrl_is_pcfifo_inst3_vld};
 ```
 
-RTL 注释说明（行 1541）：`inst_num` 的计算不包含 `ctrl_is_dis_stall`，这是**时序优化**的刻意决策——stall 信号在 dispatch 时通常是关键路径，通过 `inst_vld` 信号提前给 IU 估算数量，由 IU 侧结合 `inst_vld` 再做最终判断。
+RTL 注释写着“`inst_num` 不包含 dis stall”，但当前展开方程中四个
+`ctrl_is_pcfifo_instN_vld` 已各自包含 `!ctrl_is_dis_stall`，`inst_num` 对它们求和，所以按有效
+Verilog 的传递依赖，`inst_num` 仍受 stall 影响。唯一可以确认的细微差别是：求和表达式没有**再次**
+直接相与 stall，而 `idu_iu_is_pcfifo_inst_vld` 又冗余地相与一次。文档应以最终展开方程为准，
+不能把生成源注释直接解释为当前网表已切断 stall 关键路径。
 
 ---
 
@@ -679,7 +729,8 @@ assign ctrl_lsiq_is_bar_inst_vld = is_inst0_vld && dp_ctrl_is_inst0_bar
 
 ### 14.1 统一设计模式
 
-7 个发射队列（AIQ0/AIQ1/BIQ/LSIQ/SDIQ/VIQ0/VIQ1），每个队列有 2 个创建端口（create0/create1），共 14 个端口。每个端口遵循完全相同的三段式模式（以 AIQ0 create0 为例，行 1395–1401）：
+7 个发射队列（AIQ0/AIQ1/BIQ/LSIQ/SDIQ/VIQ0/VIQ1），每个队列有 2 个创建端口，共 14 个端口。
+它们都采用 `_en/_dp_en/_gateclk_en` 三路形式；具体 full 信号和目标队列不同：
 
 ```verilog
 // 行 1395-1401
@@ -702,19 +753,24 @@ assign ctrl_dp_is_dis_aiq0_create0_sel[1:0] = is_dis_aiq0_create0_sel[1:0];
 | VIQ1 | 向量/浮点管线 1 | is_dis_viq1_create0_en | is_dis_viq1_create1_en |
 
 > **为什么 LSIQ 和 SDIQ 分开？**
-> Store 指令需要两个动作：（1）计算地址（LSIQ→LSU 地址计算管线）；（2）提交数据写内存（SDIQ→LSU store data 管线）。这两个动作可以乱序相对于其他指令，但 store data 的实际写入必须在 ROB 退休后（精确异常保证）。SDIQ 专门管理 store 的数据传输，与 LSIQ 解耦，提高 load/store 的并行度。
+> Store 在 IDU 中被拆成地址与数据两个调度分量：LSIQ 负责地址/访存控制，SDIQ 负责把 store 数据送往
+> LSU。SDIQ 发射表示数据进入 LSU 侧结构，不等于该拍已对 cache 或外部内存产生架构可见写入；提交顺序和
+> 精确异常还由 SQ/WMB/RTU 等后续协议保证。解耦允许地址、数据在各自依赖满足时推进，但实际并行度受
+> STQ 关联、端口和内存顺序限制。
 
 ### 14.3 sel[1:0] 的含义
 
-每个创建端口的 `sel[1:0]` 是 2-bit 信号，由 IR 阶段预计算，送到 `ct_idu_is_dp` 驱动 mux，选择该创建端口的数据来自哪条 `is_dis_inst`。编码通常为：
+每个创建端口的 `sel[1:0]` 由 IR 阶段预计算，送到 `ct_idu_is_dp` 的 4:1 MUX。以 AIQ0 create0
+的实际 `case` 为例，编码为：
 
 | sel | 含义 |
 |-----|------|
-| 2'b01 | 来自 is_dis_inst0 的数据 |
-| 2'b10 | 来自 is_dis_inst1 的数据 |
-| 2'b11 | 来自 is_dis_inst2/3 的数据（具体见 dp 模块） |
+| 2'b00 | 来自 is_inst0 数据 |
+| 2'b01 | 来自 is_inst1 数据 |
+| 2'b10 | 来自 is_inst2 数据 |
+| 2'b11 | 来自 is_inst3 数据 |
 
-具体含义以 IR ctrl 预计算逻辑为准，is_ctrl 模块只负责寄存和透传。
+其他 create 端口应以 `is_dp` 对应 `case` 核对；不能把 2'b11 合并描述成“inst2/3”。
 
 ---
 
@@ -722,7 +778,8 @@ assign ctrl_dp_is_dis_aiq0_create0_sel[1:0] = is_dis_aiq0_create0_sel[1:0];
 
 ### 15.1 为什么需要"预判"
 
-发射队列满状态（`aiq0_ctrl_full`）是从队列内部发出的**组合逻辑信号**，但 dispatch stall 的判断需要在当前周期完成，有时序压力。为了提前一拍决定是否 stall，is_ctrl 采用"预判"机制：
+发射队列同时提供当前满状态和考虑 create/pop 后的 `full_updt/1_left_updt` 状态。
+`is_ctrl` 用这些更新态条件形成 `ctrl_is_*_full_updt`，再寄存为控制后续 dispatch 的满状态：
 
 ```
 当前周期                 下一周期
@@ -733,8 +790,11 @@ ctrl_is_iq_full_updt（组合逻辑）
   ↓
 ctrl_is_iq_full（寄存一拍）
   ↓
-ctrl_is_dis_stall（下一周期的 dispatch stall）
+ctrl_is_dis_stall（由已寄存资源状态参与形成）
 ```
+
+这里的“updt”应理解为当前边沿要采样的 next-state 条件。若正常逐拍推进，它对应后续周期使用的资源状态；
+发生门控、stall 或 flush 时则要按相应寄存器更新优先级解释，不能脱离握手条件泛化成固定提前一拍。
 
 ### 15.2 _updt 信号的组合逻辑（行 1669–1697）
 
@@ -872,21 +932,26 @@ assign ctrl_is_stall = ctrl_is_dis_stall || is_dis_type_stall;
 | 来源 | 信号 | 含义 |
 |------|------|------|
 | dispatch stall | `ctrl_is_dis_stall` | 资源不足（ROB/IQ/VMB 满），无法分发 |
-| type stall | `is_dis_type_stall` | 指令类型约束冲突，pipedown2 模式下需要等待 |
+| type stall | `is_dis_type_stall` | 同一 IQ 类型的单拍 create 需求超过双端口后，pipedown2 拼接仍有剩余 IR 槽 |
 
-**传播路径**：
+**逻辑关联**：
 ```
-ctrl_is_stall → ct_idu_ir_ctrl → IR 阶段 pipedown 禁止 → IFU/ID 停止推送
+ctrl_is_stall → ct_idu_ir_ctrl 的 ctrl_ir_stall / pipedown 选择
 ```
 
-当 `ctrl_is_stall = 1` 时：
-- IR 阶段暂停向 IS 打拍（`ctrl_ir_pipedown_inst*_vld` 保持 0）
-- IS 级的 `is_inst*_vld` 和 `is_dis_*` 寄存器保持不变（stall 时 else 分支保持）
-- 发射队列、ROB、VMB、PST 均不更新
+不能把 `ctrl_is_stall=1` 统一解释成“所有结构全部保持”：
 
-**注意**：dispatch stall 和 type stall 虽然都产生 IS 停顿，但它们的粒度不同：
-- dispatch stall 是整体资源问题，停顿是"本批 4 条都不能发"
-- type stall 是指令排列约束，可能只需要等待几拍后约束解除就可以继续
+- 若是 `ctrl_is_dis_stall=1`，`is_inst*_vld` 与 `is_dis_*` 两组寄存器在
+  `is_ctrl` 中保持，所有 create 的功能 `_en` 被屏蔽；
+- 若只有 `is_dis_type_stall=1`，上述寄存器更新条件仍是
+  `!ctrl_is_dis_stall`，所以它们可以按 IR 产生的 pipedown 选择继续局部搬移，
+  不是整级冻结；
+- 即使 dispatch create 停止，既有 IQ 表项仍可发射/弹出，ROB 仍可接收完成并
+  退休，VMB/LSU 也可推进已有操作。stall 阻止的是当前 IS 批次的新创建，不是
+  全核所有状态更新。
+
+两种 stall 虽都影响 IR，但目的不同：dispatch stall 等待容量恢复；type stall
+利用保留槽分批吸收超过目标 IQ 单拍 create 端口数的同类指令。
 
 ---
 
@@ -953,31 +1018,50 @@ dp 模块
 
 ### Q1：为什么 is_inst_vld 和 is_dis_inst_vld 要分开？
 
-`is_inst_vld` 由 IR pipedown 驱动，紧跟 IR→IS 打拍；`is_dis_inst_vld` 由 `ir_pre_dis` 驱动，额外承载分发控制信息（队列选择、ROB sel 等），两者时序对齐点略有不同，但在同一个时钟沿下一起更新，本质上携带相同的"哪些指令有效"信息，只是作为不同下游逻辑的参考基准，避免因多路扇出引入时序问题。
+`is_inst_vld` 和 `is_dis_inst_vld` 在同一个 `is_inst_clk` 边沿分别采样
+`ctrl_ir_pipedown_inst*_vld` 与 `ctrl_ir_pre_dis_inst*_vld`。前者服务 IS 流水状态，后者与队列/ROB/VMB
+分发控制同组。它们是否逐位始终相等是上游接口协议；本模块没有比较器或断言自行保证。分组可能有利于
+扇出和组合逻辑组织，但实际时序效果需 STA 证明。
 
 ### Q2：为什么 queue full 判断要用寄存一拍的预判值而不是实时的 full 信号？
 
-如果直接用队列的 `ctrl_full` 组合信号，从"队列状态变化"到"stall 生效"再到"IR 停止打拍"形成一条长组合路径，极易成为时序关键路径。使用预判+寄存的方案，虽然引入 1 周期的延迟（即有时会"多打"一拍指令进来，但此时队列还没真的满），但完全消除了该关键路径。
+队列的 `full_updt/1_left_updt` 已把当前 create/pop 对后续容量的影响编码出来，`is_ctrl` 再结合将要创建
+一条或两条的控制形成 `ctrl_is_iq_full_updt` 并寄存。这样后续 dispatch stall 使用已寄存的资源风险状态，
+避免把完整队列 next-state 组合锥直接串到同一分发控制路径上。
 
-代价是：当预判命中时，IS 级可能在 stall 生效前多收了一批指令（因为预判在上一周期就置位 stall，阻止了 IR 向 IS 打那一拍），实际上这批"多出来"的指令会被阻挡在 IR，不会真正写入满的队列（因为 `_dp_en` 使用实时 `full` 信号）。
+不能仅凭 RTL 源码宣称“完全消除关键路径”或“固定多打一拍”；真实关键路径可能转移到其他控制锥，
+而是否接收新批次取决于 `ctrl_is_dis_stall`、`ctrl_ir_pre_dis_*`、门控边沿和 flush 优先级。其收益与
+保守停顿代价应通过 STA 和队列水位波形量化。
 
 ### Q3：ROB create0 为什么没有 `_en` 控制位？
 
-ROB 必须按程序序分配表项。inst0 是最老的指令，如果 inst0 有效，它必然使用 create0。IR 阶段的 pre_dis 逻辑为 create1/2/3 计算了使能（因为不同模式下 inst1/2/3 不一定都需要分配 ROB 条目），但 create0 与 inst0 一一对应，不需要额外使能位。
+对当前 `is_dis` 接口而言，inst0 是最老有效槽，方程直接规定
+`create0_en = is_dis_inst0_vld && !ctrl_is_dis_stall`。IR 阶段只为
+create1/2/3 额外传递 enable，并通过 create select 表达折叠后的来源组合。
+因此“没有单独 create0 enable”是这套编码协议的结果，而不是忽略了一项资源检查；
+ROB full 仍分别进入 dispatch stall 与 `create0_dp_en` 屏蔽条件。
 
 ### Q4：type stall 与 dispatch stall 的根本区别？
 
 | 维度 | dispatch stall | type stall |
 |------|---------------|------------|
-| 原因 | 硬件资源不足（ROB/IQ/VMB 满） | 指令排列约束（类型不兼容） |
-| 解决方式 | 等待执行单元消耗队列项目 | 等待 pipedown2 批次内约束消失 |
-| 反压粒度 | 整批 4 指令全部停顿 | 仅发生在 pipedown2 模式特定情形 |
+| 原因 | 容量不足或预判不足（ROB/IQ/VMB full） | 至少三条候选进入同一最多双创建端口 IQ，pipedown2 后仍有剩余槽 |
+| 解决方式 | 等待下游释放容量 | 用 IS 保留槽和 IR 剩余槽分批拼接 |
+| IS 寄存器 | `ctrl_is_dis_stall=1` 时保持 | 若 dispatch stall=0，仍可按 pipedown 选择更新 |
 | 哪级 stall | IS→IR（通过 ctrl_is_stall） | IS→IR（同一信号） |
 
 ### Q5：`ctrl_lsiq_is_bar_inst_vld` 为何不检查 stall？
 
-Barrier 指令的作用是"我之后的所有 load/store 不能在我之前完成"。LSIQ 需要在 barrier 进入 IS 级时**立即**停止接受新的 load/store 进队，不能等到 barrier 实际分发（dispatch）才生效。如果等到分发时才通知 LSIQ，在 stall 期间新的 load/store 可能已经进入 LSIQ，违反了 barrier 语义。因此用 `is_inst*_vld`（比 `is_dis` 更早有效）且不检查 stall，实现最保守最安全的 barrier 检测。
+该信号并不表示“停止接受所有新 load/store”。有效 RTL 对四个 IS 槽执行
+`is_instN_vld && dp_ctrl_is_instN_bar` 的 OR，并且不附加 dispatch stall。
+LSIQ 收到它后置 `lsiq_bar_mode`；bar mode 的局部含义是禁止 LSIQ bypass，并让
+新建 LSIQ 项以 freeze 状态进入，之后再依据较老 barrier 状态解除 freeze。
+
+忽略 stall 的作用是：barrier 只要仍停留在有效 IS 槽中，bar mode 请求就持续存在，
+不会因为本拍未成功 dispatch 而出现保护空窗。具体内存序保证还由 LSIQ 表项的
+barrier/freeze 判断、LSU 队列和 RTU 协议共同完成，不能只由这一根 OR 信号概括成
+“之后所有访存都不能完成”。
 
 ---
 
-*文档覆盖 `ct_idu_is_ctrl.v` 全部 1768 行逻辑。如需进一步了解 IS 数据通路（`ct_idu_is_dp`）或 IR 阶段预分发逻辑（`ct_idu_ir_ctrl`），请参阅系列其他文档。*
+IS 数据通路见 `ct_idu_is_dp`，IR 阶段的预分发逻辑见 `ct_idu_ir_ctrl`；二者分别由本系列对应章节继续说明。

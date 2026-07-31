@@ -1,49 +1,66 @@
-# C910 VFPU（向量 / 浮点执行单元）学习文档
+# C910 VFPU（浮点执行单元）学习文档
 
-本目录系统讲解 OpenC910 的 **VFPU**（Vector / Floating-Point Unit）：从顶层架构到四个子执行单元（vfalu / vfmau / vfdsu）的内部实现。所有内容直接基于 RTL，流水级数、延迟拍数、关键参数均带 `file:line` 出处，不作推测。
+本目录讲解 OpenC910 当前生成 RTL 中的 VFPU。模块和信号沿用了
+`Vector / Floating-Point Unit`、`vreg`、`vr0/vr1`、`simd` 等向量化命名，
+源码中也保留了若干 128 位、多 slice 和多 lane 的生成模板；但是这些名称和模板
+不能直接当成当前配置已经实现向量执行的证据。
 
-> RTL 目录：
-> - `C910_RTL_FACTORY/gen_rtl/vfpu/rtl/`（顶层 top/ctrl/dp/cbus/rbus）
-> - `C910_RTL_FACTORY/gen_rtl/vfalu/rtl/`（fadd 加减 / fspu 特殊 / fcnvt 转换）
-> - `C910_RTL_FACTORY/gen_rtl/vfmau/rtl/`（FMA 乘加 + 乘法器/压缩树/LZA）
-> - `C910_RTL_FACTORY/gen_rtl/vfdsu/rtl/`（SRT 基-16 除法 / 开方）
+## 当前配置边界
 
----
+以下结论同时由译码、CSR、物理寄存器状态表和 VFPU 顶层接线支持：
+
+- `ct_cp0_regs.v` 将 `misa_vector` 固定为 `0`，软件不可通过 `misa.V`
+  观察到 RISC-V Vector 扩展。
+- `ct_idu_id_decd.v` 将 `x_vec_inst` 固定为 `0`，当前指令译码不会把普通指令
+  识别为向量指令。
+- RTU 实例化的是 `ct_rtu_pst_vreg_dummy`，而不是有效的向量物理寄存器状态表。
+- VFPU RBus 的向量寄存器写有效和 VR0/VR1 写数据被固定为 `0`；当前有效写回是
+  64 位浮点物理寄存器数据和 5 位浮点异常状态。
+- `ct_vfdsu_top` 只有一个 64 位 `ct_vfdsu_double` 实例和
+  `ct_vfdsu_scalar_dp`；`ct_vfmau_top` 只有 `slice0` 实例。文件中的 set1、
+  slice1 和多 lane `&Instance` 行是注释形式的生成器输入痕迹，不是生成后
+  Verilog 的有效实例。
+
+因此，本目录默认描述的是**当前发布配置的 64 位标量浮点执行路径**。文中提到
+向量化模板时会明确标为“保留模板/接口”，不会写成当前硬件能力。
+
+`ct_cp0_regs.v` 仍把 `vlenb_value` 赋为 16，部分数据通路还保留 `VLEN=128`
+参数。这说明源码来自可配置或曾包含向量路径的代码基线，但在上述有效逻辑关闭
+向量译码、状态表和写回后，单独的 CSR 常量或参数不能证明本配置支持 VLEN=128。
 
 ## 文档索引
 
-| 篇 | 文件 | 主题 | 核心要点 |
+| 篇 | 文件 | 主题 | 当前 RTL 中的核心事实 |
 |---|---|---|---|
-| 00 | [`00_vfpu_overview.md`](./00_vfpu_overview.md) | VFPU 总体架构 | 两条对称管线 pipe6/pipe7、两处不对称（fcnvt 只 pipe7、vfdsu 只 pipe6）、eu_sel 分发、CBUS/RBUS 双轨写回、MTVR 注入、VLEN128 切分、各运算延迟总表 |
-| 01 | [`01_vfpu_top.md`](./01_vfpu_top.md) | 顶层五组件 | top/ctrl/dp/cbus/rbus 分工、逐级有效位流水、eu_sel 两级译码（12→5）、完成（早报）与结果（写回）双轨、子单元接线 |
-| 02 | [`02_vfalu.md`](./02_vfalu.md) | vfalu（fadd/fspu/fcnvt） | 三算子共用 **EX1→EX3 三级流水**、`dp_vfalu_ex1_pipex_sel` 一热选子算子、op 的 func 译码、半精度 set0/set1 SIMD、ex3_pipedown 三选一写回 |
-| 03 | [`03_vfmau.md`](./03_vfmau.md) | vfmau（FMA / 乘法器 / 压缩树 / LZA） | FMA **EX1→EX5 五级流水**、Booth+压缩树乘法、LZA 前导零预测、半精度独立 pipedown 通路、`ctrl_dp_ex5_fma_wb_vld` 写回、前递网络 |
-| 04 | [`04_vfdsu.md`](./04_vfdsu.md) | vfdsu（SRT 基-16 除法 / 开方） | 双状态机（SRT 迭代机 + 写回机）、`srt_cnt_ini`（**double=13 / single=6 / half=3**）、`skip_srt`/`rem_zero` 变延迟、商位选择 bound_table、开方二轮 `srt_secd_round`、各精度延迟 |
+| 00 | [`00_vfpu_overview.md`](./00_vfpu_overview.md) | VFPU 总体架构 | pipe6/pipe7 两个发射入口；fcnvt 仅 pipe7；vfdsu 仅 pipe6；CBUS 完成事件与 RBus 数据/异常写回分离 |
+| 01 | [`01_vfpu_top.md`](./01_vfpu_top.md) | top/ctrl/dp/cbus/rbus | 有效位传播、门控条件、12 位 EU 选择压缩、完成事件、物理浮点寄存器写回和唤醒广播 |
+| 02 | [`02_vfalu.md`](./02_vfalu.md) | fadd/fspu/fcnvt | 三个独立子模块采用对齐的 EX1~EX3 协议，按一热选择互斥启动并在 EX3 汇聚；当前实例为标量路径 |
+| 03 | [`03_vfmau.md`](./03_vfmau.md) | FMA/乘法 | 当前每条 VFPU 管线各有一个 `slice0` FMAU；结构经过 EX1~EX5，结果可在不同阶段前递或写回 |
+| 04 | [`04_vfdsu.md`](./04_vfdsu.md) | SRT 基-16 除法/开方 | 单个 64 位标量迭代器；双状态机；计数装载值 13/6/3；特殊值或零余数可提前结束 |
 
----
+## 读延迟时必须统一参考点
 
-## 各运算延迟与流水级速查
+文档中的 EX1、EX3、EX5 首先是 RTL 的**结构级名**，不是天然等同于“从发射到
+退休的拍数”。分析一条浮点指令时要区分以下观察点。编号只用于列举，不表示
+这些事件严格按该顺序串行发生；CBUS 在 IDU 选择后独立寄存，与子单元执行和
+RBus 数据路径并行：
 
-| 运算 | 子单元 | 流水级 | 延迟（拍） | 详见 |
-|---|---|---|---|---|
-| 加/减/比较/min/max | vfalu/fadd | EX1→EX3 | **3** | 02 §6 |
-| fsgnj/fmv/fclass | vfalu/fspu | EX1→EX3 | **3** | 02 §7 |
-| 类型转换（仅 pipe7） | vfalu/fcnvt | EX1→EX3 | **3** | 02 §8 |
-| FMA / 乘法 | vfmau | EX1→EX5 | **5** | 03 §4 |
-| FDIV double | vfdsu | 变延迟 | **约 18**（srt_cnt_ini=13） | 04 §5 |
-| FDIV single | vfdsu | 变延迟 | **约 11**（srt_cnt_ini=6） | 04 §5 |
-| FDIV half | vfdsu | 变延迟 | **约 8**（srt_cnt_ini=3） | 04 §5 |
-| FSQRT | vfdsu | 变延迟 | 比同精度 FDIV 多（需二轮） | 04 §8 |
+1. IDU 在 RF/issue 接口送出选择和操作数；
+2. 子单元内部有效位进入某个 EX 级；
+3. 结果可用于内部或跨管线前递；
+4. RBus 对浮点物理寄存器或异常状态产生写有效；
+5. CBUS 向 RTU 产生带 IID 的完成记账事件；
+6. ROB 满足顺序、异常和资源条件后退休。
 
----
+例如“FMA 具有 EX1~EX5 五级结构”是 RTL 事实；若没有声明起点和终点，就不应
+进一步简写成“所有 FMA 固定五拍退休”。同理，CBUS 完成事件不能当成浮点结果
+已经写回，也不能单独证明该指令当拍退休。
 
-## 推荐学习路径
+## 推荐学习顺序
 
-1. **先读 00（总体架构）**：建立全局图——两条管线、四个子单元、双轨写回、两处不对称。这是后面所有篇章的地图。
-2. **再读 01（顶层五组件）**：理解 ctrl 怎么产生逐级有效位、dp 怎么把 eu_sel 分发到子单元、cbus/rbus 怎么分别处理完成与写回。读完 00+01 就掌握了 VFPU 的「骨架与调度」。
-3. **按延迟从短到长读子单元**：
-   - **02 vfalu**（3 拍，最简）：先理解「定长短流水 + 一热选子算子 + 共用流水」的最小模型。
-   - **03 vfmau**（5 拍，中等）：在 vfalu 基础上加深一级，重点是 FMA 的 Booth/压缩树/LZA 与半精度独立通路、前递网络。
-   - **04 vfdsu**（变延迟，最复杂）：最后攻克 SRT 基-16 迭代、双状态机、变延迟提前结束、开方二轮——这是 VFPU 里唯一不可流水的单元，理解它就理解了「变延迟单元如何与定长流水共存」。
-
-**建议带着三个问题读**：① 这个运算为什么是这么多拍？② 它怎么与另一条管线 / 写回端口协作？③ 半精度（FP16）/向量是怎么切分覆盖的？这三条线贯穿全部五篇。
+1. 先读 00，建立发射、执行、完成、写回和退休之间的边界。
+2. 再读 01，对照 `ct_vfpu_ctrl`、`ct_vfpu_dp`、`ct_vfpu_cbus` 和
+   `ct_vfpu_rbus` 看控制与数据如何汇聚。
+3. 读 02，掌握浮点加法 close/far 双路、特殊操作和转换通路。
+4. 读 03，掌握 Booth/压缩树、对阶、LZA、规格化与前递。
+5. 最后读 04，掌握迭代执行单元如何借助 busy、写回申请和状态机接入乱序后端。

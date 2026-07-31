@@ -382,7 +382,8 @@ ex1_pipe2_inst_vld
 记录：dst_preg = p82，rel_preg = p37
 消费者：后续读 x5 得到 p82，形成真实 RAW 依赖
 退休：x5 的精确映射提交为 p82，旧 p37 最终释放
-flush：若该指令在错误路径上，RAT 从 PST 快照恢复，p82 被回收
+flush：若该指令在错误路径上，RAT 装入 PST RETIRE 项导出的已提交映射；
+       p82 是否回收还要看其 PST 生命周期和写回状态
 ```
 
 重命名消除的是 WAR/WAW 假依赖；RAW 真依赖不会消失，而是从“等待架构寄存器 x5”
@@ -401,8 +402,8 @@ C910 有七个主要发射队列：
 | BIQ | `IDU.x_ct_idu_is_biq` | 12 | pipe2，分支 |
 | LSIQ | `IDU.x_ct_idu_is_lsiq` | 12 | pipe3/4，Load/Store 地址 |
 | SDIQ | `IDU.x_ct_idu_is_sdiq` | 12 | pipe5，Store 数据 |
-| VIQ0 | `IDU.x_ct_idu_is_viq0` | 8 | pipe6，浮点/向量 |
-| VIQ1 | `IDU.x_ct_idu_is_viq1` | 8 | pipe7，浮点/向量 |
+| VIQ0 | `IDU.x_ct_idu_is_viq0` | 8 | pipe6；当前有效为标量浮点，保留向量接口 |
+| VIQ1 | `IDU.x_ct_idu_is_viq1` | 8 | pipe7；当前有效为标量浮点，保留向量接口 |
 
 对每个队列添加同名前缀信号。例如 AIQ0：
 
@@ -517,7 +518,7 @@ AIQ0 的 `read_src*_data[11:0]` 来自 `ct_idu_dep_reg_entry`，字段应按 RTL
 | 3 | Load 地址与数据路径 |
 | 4 | Store 地址 |
 | 5 | Store 数据 |
-| 6/7 | 浮点和向量 |
+| 6/7 | 当前标量浮点；RTL 名称和接口保留向量模板 |
 
 IQ issue 是“选择候选指令”，RF launch 是“操作数和结构条件满足后真正送入执行”。
 若 issue 活跃但 RF launch fail 很多，瓶颈位于选择之后，而不是 IQ 没有工作。
@@ -580,10 +581,12 @@ IU.iu_rtu_pipe0_cmplt / iu_rtu_pipe0_iid
 会预约 pipe0 写回资源。比较“完成通知、busy 结束、结果写回”的时刻，能看到 C910
 把 ROB 完成管理和数据结果网络分开的设计。
 
-### 8.4 浮点与向量
+### 8.4 当前标量浮点路径与保留向量接口
 
 CoreMark 主要是整数程序，不能用它判断 VFPU 是否工作良好。观察 VFPU 应运行
-`bench_fp`、`ISA_FP`、`rvv` 或 `ISA_VECTOR`。
+`bench_fp` 或 `ISA_FP` 等标量浮点 case。当前生成配置中 `misa.V=0`，VRT/向量
+PST 也存在 dummy 边界；`rvv`/`ISA_VECTOR` 只有在另一个确实接通完整向量译码、
+重命名和操作数通路的配置中才适合作为功能测试，不能用于证明当前顶层支持 RVV。
 
 ```text
 VFPU.idu_vfpu_rf_pipe6_sel / idu_vfpu_rf_pipe7_sel
@@ -598,7 +601,9 @@ VFPU.x_ct_vfpu_rbus.rbus_pipe6_vreg_wb_vld
 VFPU.x_ct_vfpu_rbus.rbus_pipe7_vreg_wb_vld
 ```
 
-完成可能早于 EX5 写回，消费者能否继续取决于对应前递级。pipe6 还承载不对称的
+这些信号沿用 `vreg` 命名，但当前有效数据是标量 F/D 的浮点物理寄存器通路，不能
+按名字直接解释成 128-bit 向量写回。完成可能早于 EX5 写回，消费者能否继续取决于
+对应前递级。pipe6 还承载不对称的
 除法/平方根等单元，因此 pipe6/7 使用率不一定对称。不要把这种结构不对称简单判断为
 负载不均；先按指令类型确认它是否是设计约束。
 
@@ -698,11 +703,13 @@ LSU.x_ct_lsu_spec_fail_predict.rtu_lsu_spec_fail_flush
 ```
 
 当年轻 Load 提前执行，之后发现它与更老 Store 存在不允许的顺序冲突时，不能只重写
-一个寄存器，因为错误值可能已经沿依赖链传播。处理器必须以该 IID 为边界 flush，
-然后重新执行。`spec_fail_predict` 会学习此类失败，降低同一模式再次过度投机的概率。
+一个寄存器，因为错误值可能已经沿依赖链传播。处理器必须以精确边界 flush 后重新执行。
 
-这体现了内存相关预测和分支预测的共同结构：先投机换取并行度，检测错误后恢复，再用
-历史降低未来错误率。
+这里要把两套状态分开观察。`LSU.x_ct_lsu_spec_fail_predict` 没有 PC 输入，它围绕
+一次冲突保存 store 的地址块、字节掩码和 IID，并在有限恢复窗口产生
+`sf_spec_mark/hit`；真正按取指 PC 保存 Store-Fetch Prediction 状态的是
+`IFU.x_ct_ifu_sfp`。要验证“历史降低未来过度投机”，必须把 IFU 的 SFP 读取/更新、
+LSU 的地址相关命中和 RTU 的 spec-fail IID 串起来，不能只看 LSU 模块名。
 
 ### 9.5 D-Cache 端口仲裁
 
@@ -787,8 +794,9 @@ LSU.x_ct_lsu_wmb.wmb_sync_fence_biu_req_success
 LSU.x_ct_lsu_wmb.wmb_empty
 ```
 
-Fence 的核心不是执行一个算术功能，而是等待之前的访存达到规定的可见顺序。因此看到
-前端/译码停顿时，应同时确认 WMB、RB 等旧事务是否已经排空。
+Fence 的核心不是执行一个算术功能，而是等待前驱集合中的访存达到该 fence 类型要求的
+可见点。看到前端/译码停顿时，应同时确认 WMB、RB 和具体 fence/sync 状态；不同类型、
+页面属性和阶段的完成条件不完全相同，不能要求每次都看到所有 LSU 队列同时为空。
 
 LR/SC：
 
@@ -1059,7 +1067,8 @@ BIU.x_ct_biu_snoop_channel.biu_pad_cddata[127:0]
 BIU.x_ct_biu_snoop_channel.biu_pad_cdlast
 ```
 
-AC 是 snoop 地址，CR 是一致性响应，CD 是需要回传的脏数据。一次 snoop 可能只需
+AC 是 snoop 地址，CR 是一致性响应，CD 是需要回传的数据拍；数据是否来自脏行、
+干净共享行或其他协议情形还要结合 CRRESP、snoop 类型和 cache 状态判断。一次 snoop 可能只需
 CR，也可能需要 CR+CD。将其与 LSU 的 SNQ、D-Cache tag/dirty 状态和 CIU SNB 放在
 一起，可以观察“另一个主设备请求一行，本核检查私有 Cache 并决定是否提供数据”的过程。
 
@@ -1297,7 +1306,7 @@ ROB 高占用
 | `13_mmu_ptw` | TLB/JTLB/PTW/PMP | MMU |
 | `14_biu_axi` | AR/R/AW/W/B | Cache miss、MMU |
 | `15_trap_privilege` | 中断、异常、mret/sret | interrupt、csr、OS |
-| `16_vfpu` | VIQ、pipe6/7、forward/writeback | bench_fp、ISA_FP、RVV |
+| `16_vfpu` | VIQ、pipe6/7、forward/writeback | 当前配置用 bench_fp、ISA_FP；RVV 仅适用于完整向量通路配置 |
 | `17_coherence` | AC/CR/CD、SNQ、CIU/L2 | 双核一致性测试 |
 
 第一次学习不要同时打开 18 组。推荐顺序是：

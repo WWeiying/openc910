@@ -24,6 +24,7 @@ PERF_DETAIL ?= off
 UPF = off 
 THREADS = 4
 COREMARK_ITERATIONS ?= 30
+COREMARK_WAVE_ITERATIONS ?= 1
 export COMPILER = gcc
 
 CODE_BASE_PATH ?= $(abspath ../C910_RTL_FACTORY)
@@ -297,6 +298,11 @@ else
         $(newline)   > make showcase ...)
 endif
 
+coremark-wave:
+	@$(MAKE) -s runcase CASE=coremark \
+		COREMARK_ITERATIONS=$(COREMARK_WAVE_ITERATIONS) \
+		DUMP=on PERF_DETAIL=on
+
 # Execute all cases
 regress:
 	rm -rf ./tests/regress/regress_result/*
@@ -314,7 +320,7 @@ regress:
 .DEFAULT_GOAL := help
 
 .PHONY: compile buildVerilator cleansim cleanVerilator verdi showcase buildcase \
-	simcase cleancase runVerilator runcase regress memlist docker-create \
+	simcase cleancase runVerilator runcase coremark-wave regress memlist docker-create \
 	docker-start docker-shell docker-root docker-deps docker-qemu-test \
 	docker-stop docker-rm clean help
 
@@ -389,6 +395,7 @@ help:
 	@echo "    buildcase CASE=[casename]       : clean and compile the .c/.s case [casename]";
 	@echo "    [casename]_build                : compile the .c/.s case [casename]";
 	@echo "    runcase CASE=[casename]         : run the case [casename] (full flow: build+compile+sim)";
+	@echo "    coremark-wave                   : run 1-iteration CoreMark with FSDB and detailed counters";
 	@echo "    simcase CASE=[casename]         : run case without RTL recompile (requires prior compile)";
 	@echo "    regress                         : run all cases and summarize the regress result";
 	@echo "    memlist                         : generate sram list with the help of VCS/Verdi";
@@ -407,6 +414,7 @@ help:
 	@echo "    CASE=                           : options: the list print by 'make showcase'"; 
 	@echo "    DUMP=                           : options: on / off";
 	@echo "    PERF_DETAIL=                    : options: on / off, enable detailed microarchitecture perf counters";
+	@echo "    COREMARK_WAVE_ITERATIONS=       : CoreMark iterations for coremark-wave, default: $(COREMARK_WAVE_ITERATIONS)";
 	@echo "    DOCKER_IMAGE=                   : default: $(DOCKER_IMAGE)";
 	@echo "    DOCKER_CONTAINER=               : default: $(DOCKER_CONTAINER)";
 	@echo "  Examples:";

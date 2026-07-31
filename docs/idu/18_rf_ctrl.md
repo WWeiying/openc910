@@ -50,7 +50,7 @@ C910 IDU 采用四级流水：
 |------|---------|
 | 维护各管线指令有效寄存器 | `rf_pipe0~7_inst_vld` |
 | 维护 ALU 短延迟前递就绪向量 | `rf_pipe0/1_alu_reg_fwd_vld[107:0]` |
-| 维护 MLA/VMLA 前递就绪向量 | `rf_pipe1_mla_fwd_vld`, `rf_pipe6/7_vmla_vreg_fwd_vld` |
+| 维护 MLA 以及保留的 VMLA 前递就绪向量 | `rf_pipe1_mla_fwd_vld`, `rf_pipe6/7_vmla_vreg_fwd_vld` |
 | 计算 RF 阶段暂停条件 | `ctrl_aiq0/1_stall`, `ctrl_viq0/1_stall` |
 | 计算发射失败条件（lch fail） | `ctrl_aiqN_rf_lch_fail_vld` 等 |
 | 向执行单元输出使能 | `idu_iu_rf_pipe0_sel` 等 |
@@ -59,14 +59,16 @@ C910 IDU 采用四级流水：
 
 数据路径（PRF 读端口多路选择、操作数前递 MUX）由 `ct_idu_rf_dp` 完成；rf_ctrl 仅产生驱动这些 MUX 的控制位。
 
+> **当前配置边界**：pipe6/7 连接 VFPU，并承担当前有效的标量浮点 F/D 指令；同一 VIQ/RF 结构还保留 VMLA、VDIV、VMUL、MFVR/MTVR 和 VREG 接口，但当前 `x_vec_inst=0`、`misa_vector=0`，这些 RVV 专用条件不会由正常有效译码产生。下文保留其 RTL 逻辑说明，但不把它们当作当前程序必然可观测的事件。
+
 ### 1.3 八条执行管线
 
 ```
 管线 | 发射队列 | 执行单元          | 延迟特征
 -----|---------|-------------------|----------
-pipe0| AIQ0    | ALU/DIV/CSR/Special | ALU 1拍；DIV 可变
-pipe1| AIQ1    | ALU/MULT          | ALU 1拍；MULT 3拍
-pipe2| BIQ     | BJU               | 1拍
+pipe0| AIQ0    | ALU/DIV/CSR/Special | 短 ALU 与长周期 DIV 并存
+pipe1| AIQ1    | ALU/MULT          | 短 ALU 与多级 MULT 并存
+pipe2| BIQ     | BJU               | 分支执行路径
 pipe3| LSIQ    | LSU Load          | 多拍（cache miss 可能更长）
 pipe4| LSIQ    | LSU Store Addr    | 多拍
 pipe5| SDIQ    | LSU Store Data    | 多拍
@@ -83,7 +85,7 @@ pipe7| VIQ1    | VFPU              | VFPU 多拍
 | 端口 | 方向 | 含义 |
 |------|------|------|
 | `aiq0_xx_issue_en` | in | AIQ0 在当前周期发射一条指令 |
-| `aiq0_xx_gateclk_issue_en` | in | AIQ0 门控时钟版 issue_en（早一拍，用于打开门控） |
+| `aiq0_xx_gateclk_issue_en` | in | AIQ0 提供的 RF 局部时钟活动请求；通常比最终 issue 少检查 ready/年龄仲裁条件，但没有固定“早一拍”关系 |
 | `aiq1_xx_issue_en` | in | AIQ1 发射使能 |
 | `biq_xx_issue_en` | in | BIQ（分支队列）发射使能 |
 | `lsiq_xx_pipe3_issue_en` | in | LSIQ 向 pipe3（Load）发射 |
@@ -93,7 +95,10 @@ pipe7| VIQ1    | VFPU              | VFPU 多拍
 | `viq1_xx_issue_en` | in | VIQ1 发射使能 |
 
 > **为什么有独立的 `gateclk_issue_en`？**  
-> 门控时钟单元需要在真实的时钟沿到来**之前**完成使能计算（ICG 约束），所以 gateclk_issue_en 由 IS 级组合逻辑提前给出，而 issue_en 是最终的发射有效信号。
+> 各 IQ 的该信号通常由“存在非冻结有效项”或更宽松的 bypass gateclk 条件生成，不依赖完整的源 ready
+> 与 oldest-ready 仲裁；`issue_en` 才表示最终存在可发射项。这样局部时钟请求不必经过完整发射判定路径，
+> 但两者可能同周期有效，前者也可能在指令等待操作数的多个周期保持有效。RTL 没有规定固定提前半拍或一拍，
+> 具体 ICG 建立时间和路径裕量必须由 STA 验证。
 
 ### 2.2 输入：IS 级数据路径辅助控制（dp_ctrl_is_*）
 
@@ -153,7 +158,7 @@ pipe7| VIQ1    | VFPU              | VFPU 多拍
 |--------|------|
 | `ctrl_aiqN_rf_lch_fail_vld` | 通知 AIQ/BIQ/LSIQ/SDIQ/VIQ：发射失败，请冻结当前项并重调度 |
 | `ctrl_aiqN_rf_pop_vld` | 通知 IQ：发射成功，弹出队列表项 |
-| `ctrl_aiqN_rf_pop_dlb_vld` | 通知 IR 级 DLB（Deferred Launch Buffer）：弹出记录（仅检查 inst_vld，不考虑 lch_fail，用于时序优化） |
+| `ctrl_aiqN_rf_pop_dlb_vld` | 向 IR 的 DLB（Dynamic Load Balance）占用估计反馈 RF-stage valid；它不是某个“延迟发射缓冲区”的功能性 pop |
 | `ctrl_aiqN_stall` | 发射暂停：阻止 IS 级向 RF 送出新指令 |
 | `ctrl_aiq0_rf_pipe0_alu_reg_fwd_vld[23:0]` | AIQ0 等待 pipe0 ALU 结果的前递就绪位（给 AIQ0 用） |
 | `ctrl_aiq1_rf_pipe0_alu_reg_fwd_vld[23:0]` | 同上，给 AIQ1 用 |
@@ -174,7 +179,10 @@ pipe7| VIQ1    | VFPU              | VFPU 多拍
 
 ## 3. 时钟门控架构
 
-rf_ctrl 中有 5 个独立的门控时钟单元，用于降低 RF 寄存器的翻转功耗。
+rf_ctrl 中实例化 5 个门控时钟单元，为不同 RF 控制寄存器提供局部更新时钟。公共
+`gated_clk_cell` 的功能使能为 `global_en && (module_en || local_en)`，不是把 module/local 串联；
+扫描使能还连接工艺 ICG 的测试使能端。未定义 `C910_USE_TSMC28_ICG` 时，当前 RTL 模型直接
+`clk_out = clk_in`。因此 `local_en` 只表示局部请求，实际门控和功耗收益需由所用宏、综合网表及功耗分析量化。
 
 ```verilog
 // 行 748-749：pipe0 专用门控
@@ -200,10 +208,10 @@ assign rf_inst_clk_en  = biq_xx_gateclk_issue_en || lsiq_xx_gateclk_issue_en
 
 **设计原理**：
 
-- pipe0 和 pipe1 的 RF 寄存器（`rf_pipe0_inst_vld`、`rf_pipe0_alu_reg_fwd_vld[107:0]` 等）**状态位多**，且每周期翻转率高（ALU 指令频繁），因此各分配一个独立的门控时钟，节省功耗。
-- pipe6/7（VIQ）也分配独立门控，因为 VMLA 前递向量（16位）同样较大。
-- pipe2/3/4/5 的 RF 寄存器只有 `inst_vld` 一位，共用一个门控时钟（`rf_inst_clk`）即可。
-- `gateclk_issue_en` 的门控使能来自 IS 级，比实际 `issue_en` 早半拍到一拍，确保时钟在有效数据到来时已经打开，满足 ICG 建立时间要求。
+- pipe0 和 pipe1 各有独立控制时钟请求，所驱动状态除 `inst_vld` 外还包括 ALU 前递位图等；这减少它们与通用控制时钟的活动耦合。实际功耗收益由实现结果决定。
+- pipe6/7 也各有独立请求，用于各自的 `inst_vld` 和 VMLA 相关控制状态。
+- `rf_inst_clk` 驱动 pipe2/3/4/5 的 `inst_vld`，同时其局部请求方程还包含 pipe6/7 的 gateclk issue 和现存 valid；不能把它概括为“只服务四个一位寄存器”。
+- `gateclk_issue_en` 绕开最终 ready/仲裁条件，提供更宽松的活动请求；它不是 RTL 定义的固定提前半拍到一拍信号。
 
 ---
 
@@ -332,8 +340,8 @@ begin
 end
 ```
 
-- `rf_pipe6_vmla_rf_lch_vld[3:0]`：4 份冗余拷贝，标记 pipe6 的指令是否是 VMLA（向量乘加）且需要在 RF 阶段进行前递解锁。`vmla_rf` 表示 VMLA 的 RF 阶段版本（区别于 IS 阶段的直接解锁）。
-- 同时在 IS 级直接发出 `idu_vfpu_is_vdiv_issue`（不经过 RF 阶段寄存器），是因为 VDIV 指令需要 VFPU 立即锁定资源，不能等到 RF 阶段才通知。
+- `rf_pipe6_vmla_rf_lch_vld[3:0]`：4 份逻辑副本，记录保留 VMLA 路径的 RF 前递解锁条件；当前 RVV 关闭时不应出现有效 VMLA 指令。
+- `idu_vfpu_is_vdiv_issue = viq0_xx_issue_en && dp_ctrl_is_viq0_issue_vdiv` 是 IS issue 的组合输出，没有经过 RF valid 寄存器。RTL 能证明通知时点较早，不能仅凭该连接进一步断言 VFPU 在何时“锁定资源”。当前 RVV 关闭时该事件也应保持不活跃。
 
 #### 4.2.8 Pipe7（VIQ1 → VFPU）
 
@@ -347,7 +355,7 @@ rf_pipe7_inst_vld             <= viq1_xx_issue_en;
 rf_pipe7_vmla_rf_lch_vld[3:0] <= {4{viq1_issue_vmla_rf_vld}};
 ```
 
-与 pipe6 完全对称，对应 VIQ1 → VFPU 的第二条向量管线。
+pipe7 与 pipe6 共享大部分结构，但并非完全对称：pipe6 侧有 VDIV issue/写回 stall 等控制，pipe7 侧有 `vmul_unsplit` 条件，队列字段宽度和冲突逻辑也不同。当前两路均可承载标量浮点，向量专用差异属于保留结构。
 
 ---
 
@@ -384,15 +392,27 @@ assign ctrl_lsiq_rf_pipe0_alu_reg_fwd_vld[23:0] = rf_pipe0_alu_reg_fwd_vld[95:72
 assign ctrl_sdiq_rf_pipe0_alu_reg_fwd_vld[11:0] = rf_pipe0_alu_reg_fwd_vld[107:96];
 ```
 
-**108 位的含义**：每个发射队列中最多有若干条等待中的指令（AIQ0/AIQ1/BIQ/LSIQ 各 24 位，SDIQ 12 位），`lch_rdy[107:0]` 是一个独热码位图，标识哪些等待者可以被这次 ALU 结果解锁。
+**108 位的含义**：AIQ0/AIQ1/BIQ/LSIQ 各占 24 位，SDIQ 占 12 位。每一位对应某个队列 entry
+的某一路源匹配资格；同一生产者可能同时匹配多个消费者，甚至匹配同一消费者的多个源，所以整个
+108 位向量不是 one-hot。它是“可被该生产者前递资格覆盖的等待源集合”。
 
-**为什么在 RF 阶段而不是 IS 阶段计算这个信号？**
+**为什么要把该位图寄存在 RF 控制中？**
 
-- IS 阶段：指令刚离开发射队列，对应的 ALU 指令将在**下一个时钟沿**（RF 阶段）才真正读寄存器并进入执行流水。
-- RF 阶段：ALU 指令已稳定在 RF 阶段，下一个周期（EX1）它的结果就会出现在前递总线上。
-- 因此，将解锁信号在 RF 阶段寄存一拍，恰好让等待队列中的指令在 ALU 结果真正可用（EX1 输出）的前一拍被解锁，以便下一周期可以发射并从前递总线获取数据。
+IS 发射生产者时，队列条目已经携带预计算的 `lch_rdy` 匹配集合。`rf_ctrl` 用
+`issue_en && dst_vld && alu_short` 对该集合限定，并在 `rf_inst0_clk` 边沿锁存。
+锁存后的位图送回各队列的 `dep_reg_entry`，在其中直接参与
+`x_read_rdy_for_issue = rdy || alu*_reg_fwd_vld || ...`。因此可以确认的闭环是：
 
-这就是注释 **"alu and special should set ready for pipe0 ex2 fwd"** 的含义：pipe0 进入 RF 阶段时，通过 `rf_pipe0_alu_reg_fwd_vld` 向等待者预告"下个周期（EX1）可以通过前递拿到数据"，等待者因此可以在 EX2 时从前递网络获得结果，而不是等到 PRF 写回。
+```text
+生产者被 issue
+  -> 对应匹配集合在 RF 控制寄存
+  -> 等待依赖项获得当拍 issue-ready 资格
+  -> 消费者若被选中，RF 数据路径还必须在实际需要数据时命中相应前递源
+```
+
+这里的关键不是一个可脱离流水停顿使用的绝对拍数，而是“调度资格”必须与真实数据前递窗口对齐。
+`alu_short`、队列仲裁、RF launch fail、执行级 stall 和前递选择都会改变具体时间关系。RTL 注释中的
+`ex2 fwd` 描述目标路径类别，不足以单独证明所有短 ALU 都按同一固定周期到达。
 
 ### 5.3 Pipe1 ALU + MLA 前递就绪
 
@@ -420,7 +440,8 @@ end
 
 - pipe1 除了普通 ALU 短延迟前递，还支持 **MLA（乘加累加）**的前递解锁。
 - `ctrl_aiq1_rf_pipe1_mla_reg_lch_vld[7:0]` 输出给 AIQ1，用于解锁等待 MLA 累加输入的指令。
-- MLA 的前递就绪只需 8 位（8 条等待槽），比 ALU 的 108 位少很多，因为 MLA 链通常只在局部范围内形成依赖。
+- MLA 前递位图为 8 位，是因为该接口只覆盖 AIQ1 的 8 个 entry；这是连接范围事实。不能仅从位宽推断
+  “MLA 依赖通常只在局部形成”这一工作负载统计结论。
 
 ### 5.4 Pipe6/7 VMLA 向量前递就绪
 
@@ -447,42 +468,48 @@ VMLA（向量乘加）是向量版本的 MLA，前递就绪机制与整数类似
 
 ## 6. 前递就绪控制（核心）
 
-### 6.1 前递时序全景
+### 6.1 前递资格与数据到达的关系
 
 ```
-时钟周期:    T         T+1        T+2        T+3
-           IS 级      RF 级      EX1 级     EX2 级
-           ┌───────┐  ┌───────┐  ┌───────┐  ┌───────┐
-Pipe0 ALU  │issue  │->│RF阶段 │->│EX1    │->│EX2    │
-           │en     │  │inst_  │  │结果   │  │结果   │
-           └───────┘  │vld=1  │  │可前递 │  │写PRF  │
-                      └───────┘  └───────┘  └───────┘
-
-等待者B    │IS队列 │  │IS队列 │  │RF阶段 │  │EX1    │
-           │等待A  │  │收到   │  │读到   │  │拿前递 │
-           │结果   │  │fwd_vld│  │前递值 │  │数据   │
-                      └───────┘  └───────┘  └───────┘
+生产者 issue_en + alu_short + dst_vld
+                    |
+                    v
+          aiq0_issue_alu_fwd_vld
+                    |
+             rf_inst0_clk 锁存
+                    |
+                    v
+  ctrl_*_rf_pipe0_alu_reg_fwd_vld
+                    |
+                    v
+ dep_reg_entry.rdy_for_issue（调度资格）
+                    |
+           oldest-ready 仲裁、RF launch
+                    |
+                    v
+ rf_fwd_preg 选择真实生产者数据（数据资格）
 ```
 
-**关键时序**：
-1. **T 时刻**：pipe0 ALU 短指令从 IS 发射（`aiq0_xx_issue_en=1`）。
-2. **T 时刻（组合逻辑）**：`aiq0_issue_alu_fwd_vld` 组合计算出哪些等待者可以解锁。
-3. **T+1 时刻（RF 阶段，时钟沿）**：`rf_pipe0_alu_reg_fwd_vld` 寄存器捕获该值，输出 `ctrl_aiqN_rf_pipe0_alu_reg_fwd_vld`。
-4. **T+1 时刻**：等待者（指令 B）收到前递就绪信号，在 AIQ 中状态从"等待"变"就绪"，下一周期（T+2）可以被选中发射。
-5. **T+2 时刻（EX1）**：pipe0 ALU 指令在 EX1 完成，结果出现在前递总线上；指令 B 同时从 RF 阶段进入执行单元，**在 EX1 末通过前递总线获得 pipe0 的结果**（而非等到 T+3 的 PRF 写回）。
-
-这实现了**前递路径上的流水线紧密耦合**：前递就绪信号提前一拍广播，等待者提前一拍解锁、发射，在恰好需要时拿到前递数据。
+前四步只决定消费者“可以尝试发射”，最后一步才决定 RF 数据选择是否真的拿到前递值。若预测的窗口没有
+兑现，`src_no_rdy` 会造成 launch fail，IQ 冻结/解冻和 `rdy_clr` 负责重调度。因此读波形时必须同时看
+`alu_reg_fwd_vld`、消费者 `issue_en`、`rf_*_lch_fail` 与 `fwd_*_sel/no_fwd`，不能只看到 ready 位就认为
+数据已经写回或已经被消费者接收。
 
 ### 6.2 `rf_pipe0_preg_lch_vld` 与 `rf_pipe0_alu_reg_fwd_vld` 的区别
 
 | 信号 | 含义 | 使用者 |
 |------|------|--------|
-| `rf_pipe0_preg_lch_vld[4:0]` | pipe0 有有效的物理寄存器写回（不限 ALU 类型） | rf_fwd_preg 模块：控制 PRF 写端口和 EX1 前递总线 |
+| `rf_pipe0_preg_lch_vld[4:0]` | pipe0 当前 RF 指令具有可用于前递比较的目的 preg 资格；多份复制用于不同接收扇出 | `rf_fwd_preg` 的生产者资格比较，不是 PRF 写端口使能 |
 | `rf_pipe0_alu_reg_fwd_vld[107:0]` | pipe0 是短延迟 ALU 且有目标寄存器，解锁等待者 | 各 AIQ/BIQ/LSIQ/SDIQ：唤醒等待此结果的指令 |
 
-注释 **"pipe0 ex1 fwd is set by alu reg fwd vld"** 的含义：`rf_pipe0_preg_lch_vld` 进入 `rf_fwd_preg`（前递逻辑模块），在 EX1 时控制前递总线选通，即 pipe0 EX1 阶段能否向等待者前递数据，由 `preg_lch_vld` 决定，而 `preg_lch_vld` 本身由 `aiq0_issue_alu_reg_vld`（也就是注释所说的 "alu reg fwd vld"）设置。
+`rf_pipe0_preg_lch_vld` 进入 `rf_fwd_preg` 后，只是多个候选生产者有效条件之一；模块还比较目的 preg
+与消费者源 preg，最终生成 one-hot 选择和 `no_fwd`。因此不能把 `preg_lch_vld` 单独称为“前递总线已经选通”，
+更不能称为 PRF 写使能。
 
-注释 **"alu and special should set ready for pipe0 ex2 fwd"** 则指出：不仅 ALU 短延迟指令会广播前递就绪，Special（CSR 等）指令同样在 RF 阶段完成后，需要为 pipe0 的 EX2 前递提前解锁等待者。虽然 Special 指令本身不直接参与 `alu_fwd_vld`，但 `rf_pipe0_special_vld` 会用于 `ctrl_rf_pipe0_special_stall`，防止后续指令在 special 完成前被错误发射。
+`rf_pipe0_special_vld` 的本地作用是形成 `ctrl_rf_pipe0_special_stall`；当前
+`aiq0_issue_alu_fwd_inst` 方程只接受 `issue_en && dst_vld && alu_short`。所以不能由注释进一步推出
+Special 指令也经同一 `alu_reg_fwd_vld` 位图解锁等待者。若要证明 Special 的 EX2 前递准备路径，应继续
+追踪 Special 的结果有效、目的 preg 广播及对应 dep 输入，而不是用 stall 信号替代数据就绪证据。
 
 ### 6.3 前递就绪向量的分区布局
 
@@ -502,7 +529,7 @@ bit[23:0]   = AIQ0  中等待该寄存器结果的 24 个条目的就绪位
 
 ## 7. 发射暂停（RF Stall）
 
-RF Stall 发生时，IS 级停止向 RF 送出新指令（即 IQ 不允许新的 issue），但 RF 中当前的指令继续处理（不清除 inst_vld）。
+RF stall 是反馈给相应 IQ 的**新 issue 抑制条件**。已经锁存在 RF 的当前指令仍按本周期的 `inst_vld/lch_fail/pipedown_vld` 处理；在下一次对应 RF 时钟沿，`rf_pipeN_inst_vld` 会重新采样新的 `issue_en`。若 stall 使新 issue 为 0，原有 valid 通常在完成当前周期后更新为 0，而不是无限保持。
 
 ### 7.1 AIQ0 暂停条件
 
@@ -561,10 +588,10 @@ pipe1 的 MTVR 占用 pipe7 的 VRF 写端口，暂停 VIQ1。
 ## 8. 发射失败（Launch Fail）
 
 发射失败（lch fail）与暂停（stall）的区别：
-- **Stall**：阻止 IS 级发射，RF 阶段空转（inst_vld 保持上一拍的值）。
+- **Stall**：阻止相应 IQ 产生新的 issue；已经在 RF 的当前项仍完成本周期检查，下一次 RF valid 由新的 issue_en 覆盖。
 - **Lch Fail**：IS 级已经发射（inst_vld 置位），但在 RF 阶段检测到指令**无法继续执行**，需要取消本次执行并通知 IQ 解冻（重新调度）。
 
-发射失败不清除 inst_vld（inst_vld 仍然是 1），只是不生成 pipedown_vld，从而不向执行单元输出使能。
+对发生 launch fail 的这个 RF 周期，`inst_vld` 仍表示槽中确有一项，但 `pipedown_vld = inst_vld && !lch_fail` 为 0，所以不向执行单元提交。IQ 收到 fail 后解冻/重调度该 entry；RF valid 在后续有效时钟沿继续按新的 issue_en 更新。这里的 `inst_vld=1` 是阶段占用事实，不是成功执行事实。
 
 ### 8.1 源操作数未就绪（src_no_rdy）
 
@@ -652,7 +679,9 @@ assign ctrl_rf_pipe6_vmul_unsplit_lch_fail = ctrl_rf_pipe7_vmul_unsplit_vld
                                             && ctrl_rf_pipe6_vmul_vld;
 ```
 
-向量乘法存在"拆分"（split）和"未拆分"（unsplit）两种形式。未拆分的乘法（`vmul_unsplit`）需要独占 VFPU 的双宽度乘法单元，因此当 pipe7 发出未拆分乘法时，必须让 pipe6 中正在进行的普通乘法（`vmul`）发射失败。
+保留向量乘法路径区分 split/unsplit；当 pipe7 的 unsplit 条件成立时，这段逻辑用于抑制与其共享资源的 pipe6 vmul 候选。
+
+> **RTL 核查点**：公开代码中 `ctrl_rf_pipe6_vmul_vld` 的有效门控写的是 `ctrl_rf_pipe7_inst_vld`，而属性位取自 `dp_ctrl_rf_pipe6_vmul`。这不是文档笔误。它可能是经过上下游配对约束的特意编码，也可能值得进一步验证；在没有仿真断言或设计规格前，不擅自改写为 `pipe6_inst_vld`，也不直接判定为 bug。波形核查时应同时观察 pipe6/7 valid、两个 vmul 属性位和最终 lch-fail。
 
 注意这里的死锁规避设计：**只有当 pipe7 自身没有发射失败时**，才让 pipe6 失败。如果两者互相让对方失败，就会死锁，因此 pipe7 的 `ctrl_rf_pipe7_lch_fail` 被提前计算并反馈到这里。
 
@@ -737,7 +766,9 @@ assign idu_iu_rf_pipe0_sel           = ctrl_rf_pipe0_eu_sel[0]; // ALU/普通整
 
 eu_sel 是一个 4 位独热码，由 IS 阶段解码得出（存在 rf_dp 的 pipeline 寄存器中，通过 `dp_ctrl_rf_pipe0_eu_sel` 传入），在 RF 阶段与 `pipedown_vld` 相与，产生最终的执行单元使能。
 
-`eu_gateclk_sel` 使用 `inst_vld` 而非 `pipedown_vld`：门控时钟只需知道**可能有指令**，不管是否发射失败，都需要提前打开门控以避免建立时间违例。
+`eu_gateclk_sel` 使用 `inst_vld` 而非 `pipedown_vld`，所以 RF 槽中有指令但发生 launch fail 时，
+执行单元对应的 gateclk 选择仍可能有效，而功能 `eu_sel` 被 `pipedown_vld` 抑制。这样把执行单元局部时钟
+请求与最终功能接收分开；是否用于解决哪一条建立时间路径，应由执行单元连接和 STA 证明，不能仅凭命名断言。
 
 ### 9.3 各管线执行单元输出
 
@@ -753,8 +784,8 @@ eu_sel 是一个 4 位独热码，由 IS 阶段解码得出（存在 rf_dp 的 p
 | pipe3 | `idu_lsu_rf_pipe3_sel` | LSU（Load） |
 | pipe4 | `idu_lsu_rf_pipe4_sel` | LSU（Store Addr） |
 | pipe5 | `idu_lsu_rf_pipe5_sel` | LSU（Store Data） |
-| pipe6 | `idu_vfpu_rf_pipe6_sel` | VFPU（向量） |
-| pipe7 | `idu_vfpu_rf_pipe7_sel` | VFPU（向量） |
+| pipe6 | `idu_vfpu_rf_pipe6_sel` | VFPU（当前标量浮点活跃，向量控制保留） |
+| pipe7 | `idu_vfpu_rf_pipe7_sel` | VFPU（当前标量浮点活跃，向量控制保留） |
 
 ### 9.4 IQ 弹出信号
 
@@ -767,7 +798,7 @@ assign ctrl_biq_rf_pop_vld   = ctrl_rf_pipe2_pipedown_vld;
 assign ctrl_viq0_rf_pop_vld  = ctrl_rf_pipe6_pipedown_vld;
 assign ctrl_viq1_rf_pop_vld  = ctrl_rf_pipe7_pipedown_vld;
 
-// DLB（Deferred Launch Buffer）弹出：只看 inst_vld，时序更宽松
+// DLB（Dynamic Load Balance）占用估计反馈：只看 RF inst_vld
 assign ctrl_aiq0_rf_pop_dlb_vld = ctrl_rf_pipe0_inst_vld;
 assign ctrl_aiq1_rf_pop_dlb_vld = ctrl_rf_pipe1_inst_vld;
 assign ctrl_viq0_rf_pop_dlb_vld = ctrl_rf_pipe6_inst_vld;
@@ -776,7 +807,7 @@ assign ctrl_viq1_rf_pop_dlb_vld = ctrl_rf_pipe7_inst_vld;
 
 注意：pipe3/4/5 的弹出信号由 LSU 自行处理，不在这里生成。
 
-`pop_dlb_vld` 用于通知 IR 级的 DLB（Deferred Launch Buffer，延迟发射缓冲区）。DLB 是 IR 级用于暂存已发射但可能需要重发的指令信息，只需知道指令到达 RF 阶段即可清理，不必等到确认成功推进，因此用更简单的 `inst_vld` 而不是 `pipedown_vld`。
+`DLB` 在 `ct_idu_ir_ctrl.v` 的 RTL 注释中明确指 **Dynamic Load Balance**。这些 `pop_dlb_vld` 用 RF 阶段 `inst_vld` 向 IR 的队列占用估计/动态负载均衡逻辑提供“预计离队”信息；它们不是某个实体 Deferred Launch Buffer 的功能 pop。因为使用 `inst_vld` 而不是成功推进的 `pipedown_vld`，该反馈可与真实队列 pop 存在语义差异，适合做调度容量估计，不应拿来证明指令已成功进入执行单元。
 
 ---
 
@@ -791,7 +822,7 @@ assign hpcp_clk_en = hpcp_idu_cnt_en
                      || ctrl_rf_hpcp_inst_vld_ff; // 上一周期有统计需更新
 ```
 
-HPCP（High-Performance Counter Platform）是 C910 的硬件性能计数器系统。只有当 `hpcp_idu_cnt_en` 使能且 RF 阶段有活跃指令时，才打开 HPCP 时钟，进一步节省功耗。
+HPCP 是 C910 的硬件性能事件采集接口。`hpcp_clk_en` 的运算优先级为 `(hpcp_idu_cnt_en && ctrl_rf_hpcp_inst_vld) || ctrl_rf_hpcp_inst_vld_ff`：第一项在计数使能且当前 RF 有指令时采样，第二项即使当前没有新事件，也为前一拍已寄存的非零采样再保留一个时钟机会，使 `_ff` 能在 else 分支清零。不能简写成“只有当前计数使能且有指令才开钟”。此外，物理门控仍受全局、模块和扫描使能影响。
 
 ### 10.2 采样与输出
 
@@ -806,13 +837,15 @@ if(hpcp_idu_cnt_en && ctrl_rf_hpcp_inst_vld) begin
 end
 ```
 
-每个管线统计两类事件：
-1. **inst_vld**：该管线在 RF 阶段有有效指令（吞吐量计数）。
-2. **lch_fail_vld**：发射失败次数（其中 `reg_lch_fail` 专门统计寄存器端口冲突引起的失败）。
+每个管线输出的事件口径必须分开理解：
 
-pipe3/4/5 额外区分了"因寄存器端口冲突失败"（`reg_lch_fail`）和"因源操作数未就绪失败"（普通 `lch_fail`），便于性能调优时区分两种不同原因的流水线停顿。
+1. **`inst_vld`**：采样该管线 RF 槽占用。它可以包含随后 launch fail 的项，所以更接近“RF 尝试/占用周期”，不是成功执行或退休吞吐量。
+2. **普通 `lch_fail_vld`**：RTL 注释明确为 `lch fail by src no rdy`，只统计 `inst_vld && src_no_rdy`。它没有把 pipe0/6/7 的其他资源冲突自动并入。
+3. **`reg_lch_fail_vld`**：只为 pipe3/4/5另行输出共享 PREG/VREG 读端口冲突。它和普通 src-not-ready 事件是不同口径。
 
-所有 HPCP 输出被额外延迟一拍（`_ff` 寄存器），避免组合逻辑的毛刺影响计数器精度。
+其他 launch fail，例如 MFVR 与 DIV/MULT 冲突、保留的 vmul-unsplit 冲突，不一定出现在上述普通 HPCP fail 位中。分析“全部 RF 重放”时不能只加总普通 `lch_fail_vld`。
+
+这些事件先在 `hpcp_clk` 上升沿写入 `_ff`，对外输出因此相对被采样 RF 组合事件晚一个寄存阶段；无新采样时下一次有效 HPCP 时钟会清零。寄存化提供了明确的采样边界和接口时序，不能把设计目的只归结为“消除毛刺”。
 
 ---
 
@@ -923,11 +956,11 @@ DIV 写回暂停信号是实时（组合）信号，当 RF 阶段的 MFVR 与 DI
 |---------|---------|
 | 有效性跟踪 | 8 个 `rf_pipeN_inst_vld` 寄存器，冲刷时清零 |
 | 前递预通告 | `rf_pipe0/1_alu_reg_fwd_vld[107:0]`：ALU 进入 RF 时广播，提前 1 拍解锁等待者 |
-| 向量前递 | `rf_pipe6/7_vmla_vreg_fwd_vld[15:0]`：VMLA 前递就绪广播 |
+| VFPU 保留向量前递 | `rf_pipe6/7_vmla_vreg_fwd_vld[15:0]`：当前 RVV 关闭，逻辑仍保留 |
 | 端口冲突暂停 | MTVR/MFVR 端口复用、DIV/VDIV 写回暂停 4 路暂停逻辑 |
 | 资源冲突失败 | PRF 读端口优先级仲裁、vmul_unsplit 死锁避免 |
 | 操作数验证失败 | src_no_rdy 乐观发射 + RF 验证 |
 | 执行单元调度 | pipedown_vld 驱动 EU sel，gateclk_sel 提前打开门控 |
-| 性能监控 | HPCP 双缓冲寄存器，区分 inst/lch_fail/reg_lch_fail |
+| 性能监控 | HPCP 单级事件采样寄存器，区分 RF 占用、源未就绪和 pipe3/4/5 端口冲突 |
 
-整个模块的设计哲学是：**乐观发射、RF 验证、失败重调度**，以及**前递信号提前广播、精确计时**，使 C910 能够在高频流水线中实现接近零气泡的 ALU 链式操作。
+整个模块体现了**队列先选、RF 再验证、失败重调度**以及前递就绪预告的设计思路。这些机制旨在缩短依赖链等待并协调有限端口，但“接近零气泡”属于需要 workload、波形和性能计数验证的结果，不能由控制结构本身保证。

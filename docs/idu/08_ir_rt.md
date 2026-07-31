@@ -34,7 +34,7 @@
 | WAR（先读后写，反相关） | `sub x4, x1, x5` → `add x1, x2, x3` | **假**相关 |
 | WAW（先写后写，输出相关） | `add x1, ...` → `add x1, ...` | **假**相关 |
 
-WAR 和 WAW 是"假相关"，原因是：多条指令碰巧使用了同一个**架构寄存器名字**，但逻辑上它们之间并没有真正的数据依赖关系。**寄存器重命名**通过将架构寄存器（x0–x31，共 32 个）映射到更多的**物理寄存器**（C910 有 128 个，7-bit 寄存器号）来消除假相关。
+WAR 和 WAW 是"假相关"，原因是：多条指令碰巧使用了同一个**架构寄存器名字**，但逻辑上它们之间并没有真正的数据依赖关系。**寄存器重命名**通过将架构寄存器（x0–x31，共 32 个）映射到更多的**物理寄存器**来消除假相关。当前 RTL 实现了 **96 项整数物理寄存器**（preg0–preg95）；物理寄存器号使用 7 位编码，但 7 位编码能力不等于实现了 128 项。
 
 ### 1.2 RAT 的作用
 
@@ -53,7 +53,7 @@ WAR 和 WAW 是"假相关"，原因是：多条指令碰巧使用了同一个**�
 
 ### 1.3 C910 的实现特点
 
-C910 是 4-issue 乱序核，每个周期最多同时处理 **inst0/inst1/inst2/inst3** 四条指令的重命名。这带来了显著的设计复杂性：
+C910 的 IR/IS 内部通路可同时处理 **inst0/inst1/inst2/inst3** 四个派遣槽。这里的"4 路"准确含义是**最多 4 个内部指令/微操作完成重命名和派遣**，不能直接写成"每周期发射 4 条执行指令"：IFU/ID 原始输入最多为 3 条架构指令，拆分可扩展成 4 个内部槽，而各发射队列和执行管线随后独立选择。四路重命名带来了显著的设计复杂性：
 
 ```
 同一个周期内：
@@ -137,7 +137,7 @@ C910 支持**拆分指令（split instruction）**：一条复杂指令在译码
 | `rt_dp_inst[0-3]_src0_data[8:0]` | 9 | 源寄存器 src0 的 {preg, wb, rdy} |
 | `rt_dp_inst[0-3]_src1_data[8:0]` | 9 | 源寄存器 src1 的 {preg, wb, rdy} |
 | `rt_dp_inst[0-3]_src2_data[9:0]` | 10 | 隐式依赖源（dst 旧值）的 {rdy, preg, wb, mla_rdy} |
-| `rt_dp_inst[0-3]_rel_preg[6:0]` | 7 | 目的寄存器的**旧物理映射**（用于发射后释放） |
+| `rt_dp_inst[0-3]_rel_preg[6:0]` | 7 | 目的寄存器的**旧物理映射**；随指令送往后续 RTU/PST 退休与物理寄存器释放协议，不表示在 IR 或发射后立即释放 |
 | `rt_dp_inst01_src_match[2:0]` | 3 | inst1 的三个源是否与 inst0 的 dst 匹配 |
 | `rt_dp_inst02_src_match[2:0]` | 3 | inst2 的源是否间接匹配 inst0 |
 | `rt_dp_inst03_src_match[2:0]` | 3 | inst3 的源是否间接匹配 inst0 |
@@ -151,13 +151,14 @@ C910 支持**拆分指令（split instruction）**：一条复杂指令在译码
 
 ### 4.1 物理组织
 
-RAT 由 33 个独立的寄存器表项（entry）组成，编号 0–32：
+RAT 的查表编码覆盖 0–32 共 33 个逻辑槽位，但物理实现不是 33 个相同状态实例：
 
-- **reg_0**：对应架构寄存器 x0（硬连接为常 0，特殊处理）
+- **reg_0**：对应架构寄存器 x0，`reg_0_read_data` 直接固定为常量，没有实例化依赖状态子模块
 - **reg_1 – reg_31**：对应架构寄存器 x1–x31
 - **reg_32**：对应编码为 `dst_reg[5]=1, dst_reg[4:0]=0` 的扩展槽（用于拆分指令的隐式目的）
 
-每个 entry（reg_1–reg_32）是一个 `ct_idu_dep_reg_src2_entry` 实例，内部维护以下状态寄存器：
+因此动态状态实例数为 32：reg1–reg32 各实例化一个 `ct_idu_dep_reg_src2_entry`。reg0 虽保留若干
+自动生成的 write/create wire 名称，但没有对应 always 状态，相关写请求不改变其常量读值。
 
 ```
 每个 entry 包含的状态：
@@ -196,18 +197,21 @@ assign inst0_src0_read_mla_rdy   = inst0_src0_read_data[9];   // mla_rdy
 
 ### 4.3 create_data 写入编码
 
-写入每个 entry 时使用 11-bit 的 `x_create_data[10:0]`：
+动态 entry 使用 11-bit 的 `x_create_data[10:0]`。以下方程在源码中对 reg0–reg32 都生成，但 reg0
+没有状态实例，真正消费该总线的是 reg1–reg32：
 
 ```verilog
-// 第 3321 行（以 reg_0 为例）
-assign reg_0_create_data[10:0] = {1'b0, r_vld, reg_0_create_preg[6:0], {2{r_vld}}};
+// 第 3322 行（以动态 reg_1 为例）
+assign reg_1_create_data[10:0] = {1'b0, r_vld, reg_1_create_preg[6:0], {2{r_vld}}};
 //                                  ^      ^            ^                    ^
 //                              lsu_match recover_vld  preg          {wb, rdy}
 ```
 
 解读：
 - 正常重命名写入时（`r_vld=0`）：`{0, 0, new_preg, 0, 0}` → rdy=0, wb=0（新映射，结果尚未就绪）
-- flush 恢复写入时（`r_vld=1`）：`{0, 1, recover_preg, 1, 1}` → rdy=1, wb=1（恢复状态，已提交值必然就绪且已写回）
+- flush 恢复写入时（`r_vld=1`）：`{0, 1, recover_preg, 1, 1}` → 将 entry 的 `rdy/wb`
+  编码为 1。体系结构上这是把退休映射当作可从 PRF 读取的精确状态；本地模块只负责存储该协议状态，
+  PRF 内容一致性仍由 RTU、写回和 flush 时序共同保证。
 
 ### 4.4 就绪位的动态更新（entry 内部）
 
@@ -272,7 +276,8 @@ begin
 end
 ```
 
-这是一个纯组合逻辑的 33-选-1 多路选择器，在时钟沿前就给出结果，保证当周期可以使用。
+这是行为级 33 路组合选择：地址 0 选择 x0 常量，1–32 选择动态状态，其他 6 位编码输出 `X`。
+它没有额外输出寄存器，但不等于零延迟；能否在目标采样边沿前稳定由综合后的 MUX 结构、布线和 STA 决定。
 
 ### 5.3 输出数据格式
 
@@ -371,9 +376,12 @@ begin
 end
 ```
 
-优先级：**inst3 > inst2 > inst1 > inst0 > recover**
+该数据 MUX 的源码顺序是 **inst3 > inst2 > inst1 > inst0 > recover/default**。但正常功能协议中，
+`rt_recover_updt_vld=1` 会把四路 `instN_gateclk_write_en` 全部压低，所以恢复与普通写应互斥；
+“recover 排在最后”不是说 flush 的功能优先级最低。若互斥协议被破坏，MUX 会按源码顺序选择较高槽位，
+而不是自动保护恢复值。
 
-**为什么 inst3 优先级最高？** 同一个周期内，程序序越靠后的指令对同一架构寄存器的写是"最终有效"的写，RAT 必须记录最新的映射。inst3 在 4-issue 包中程序序最后，优先级最高。
+**为什么 inst3 优先级最高？** 同一个周期内，程序序越靠后的指令对同一架构寄存器的写是"最终有效"的写，RAT 必须记录最新的映射。inst3 在四槽派遣包中程序序最后，优先级最高。
 
 ### 6.4 gateclk 优化
 
@@ -387,7 +395,13 @@ assign inst0_gateclk_write_en = ctrl_rt_inst0_vld
                                  &&  dp_rt_inst0_dst_vld;
 ```
 
-门控时钟写使能忽略 stall，这是出于**时序优化**目的：门控时钟（ICG cell）的使能端需要尽早稳定，而 stall 信号来得较晚（时序关键路径上），因此使用不含 stall 的宽松版使能来打开时钟门，再由 `x_write_en`（含 stall）来精确控制是否实际更新寄存器值。
+门控请求有意不含 `ctrl_ir_stall`，而功能 `x_write_en` 含 stall，形成“宽松活动请求 + 精确状态写入”。
+源码注释把它标为 timing optimization；可以确认它切断了 `local_en` 对 stall 的直接组合依赖，但
+stall 是否为关键路径、建立时间改善多少必须由 STA 证明。
+
+公共 `gated_clk_cell` 的使能为 `global_en && (module_en || local_en)`，扫描使能还可打开工艺 ICG；
+未定义 `C910_USE_TSMC28_ICG` 时当前 RTL 模型直接透传时钟。因此
+`instN_gateclk_write_en=0` 只表示本地不请求，不保证该叶子物理时钟停止。
 
 ---
 
@@ -486,18 +500,34 @@ end
 
 **优先级：inst2 > inst1 > inst0**。这符合程序语义：若 inst1 和 inst2 都写同一个寄存器，inst3 应看到 inst2 的结果（程序序更新的那次写）。
 
-### 7.5 MOV 指令的透传旁路
+### 7.5 MOV 指令的同包依赖透传
 
-`dp_rt_instN_mov` 标记某指令为 MOV（寄存器传送）指令。MOV 的语义是 `rd = rs1`，即目的寄存器直接获得源寄存器的物理映射。
+`dp_rt_instN_mov` 标记译码器识别出的 zero-delay move 候选。这里的“透传”
+只修改**同一重命名包内较年轻源操作数的依赖指向**，不修改 MOV 自身在 RAT 中
+建立的目的映射：
 
-当 inst0 是 MOV 且 inst1 的源依赖 inst0 的目的时，inst1 不应该等待 inst0 执行完（因为 inst0 根本不计算新值），而应该直接使用 inst0 的**源**所对应的物理寄存器。这就是 MOV 旁路：
+- MOV 自身的逻辑目的仍写入 `dp_rt_instN_dst_preg`，即 RTU 分配的新物理号；
+- 如果同包较年轻指令读取该逻辑目的，RT 可以利用 `rd=rs1` 的数值等价性，
+  让消费者直接依赖 MOV 的源物理项；
+- 因而省掉的是“消费者等待 MOV 新目的项”的依赖边，不应表述为
+  `RAT[rd]=RAT[rs1]`，也不能仅据此断定 MOV 本身不发射或不执行。
 
+例如：
+
+```text
+inst0: MOV x3, x7
+       RAT 拍后状态仍是 RAT[x3] = inst0 新分配的 preg
+
+inst1: ADD x5, x3, x2
+       若与 inst0 同包且满足保护条件，inst1 的 x3 源可直接使用
+       重命名前 RAT[x7] 的 preg/rdy/wb，而不依赖 inst0 的新 preg
 ```
-inst0: MOV x3, x7    (x3 <- x7 的物理映射，RAT[x3] = RAT[x7])
-inst1: ADD x5, x3, x2 (x3 依赖 inst0，但 inst0 是 MOV，直接用 x7 的物理寄存器)
-```
 
-实现：`rt_inst0_mov_dst_preg` = inst0 src0（即 x7）的物理寄存器，当检测到 inst1 依赖 inst0 且 inst0 是 MOV 时，直接将 `rt_inst0_mov_dst_preg` 旁路给 inst1，并清除 src_match（inst1 可以直接依赖 x7 的生产者，不需要等 inst0）。
+实现上，`rt_inst0_mov_dst_preg` 这个名字表示“MOV 数值语义对应的源物理号”，
+并不是“要写进 RAT 的 MOV 目的物理号”。它等于 inst0 的 src0 查表结果；
+当 inst1 的某个源匹配 inst0 的逻辑目的且 `dp_rt_inst0_mov=1` 时，该源数据
+选择 `rt_inst0_mov_dst_*`，相应的直接 `inst1→inst0` RAW match 被清除。若
+MOV 的源本身来自同包更老指令，则另外的级联 match 仍保留真实生产者关系。
 
 ```verilog
 // 第 3445–3449 行：inst0 MOV 旁路值的定义
@@ -519,7 +549,12 @@ assign rt_inst0_mov_bypass_over_inst1 =
            && (dp_rt_inst0_src0_reg[5:0] == dp_rt_inst1_dst_reg[5:0]));
 ```
 
-**含义**：如果 inst0 是 MOV，且 inst0 MOV 的源（src0）与 inst1 的目的寄存器相同，则 inst0 的 MOV 旁路值在 inst2 看来已经过时了（inst1 又写了新值），此时不能将 inst0 的 MOV 旁路透传给 inst2，必须改为依赖 inst1 的 dst。
+**含义**：如果 inst0 是 MOV，且 inst0 MOV 的逻辑源与 inst1 的逻辑目的相同，
+inst1 会为该逻辑寄存器建立更新版本。此时 inst2 若继续跨过 inst1 使用 inst0
+重命名时看到的旧源物理项，就可能引用错误版本，并与旧映射的释放生命周期冲突。
+所以该条件只允许在 inst1 没有覆盖这个逻辑源时把 inst0 的语义源映射继续透传
+给 inst2。具体该依赖最终指向 inst1、inst0 或 RAT 旧映射，还要结合 inst2
+自身的源匹配优先级判断，不能概括成所有场景都“必须依赖 inst1”。
 
 ---
 
@@ -527,7 +562,9 @@ assign rt_inst0_mov_bypass_over_inst1 =
 
 ### 8.1 src_match 信号的语义
 
-`rt_dp_instXY_src_match[2:0]` 是 RAT 输出的**跨包依赖指示位**，告诉发射队列（IQ）："指令 Y 的某个源依赖于同包的指令 X"。
+`rt_dp_instXY_src_match[2:0]` 是 RAT 输出的**同包依赖关系位**，告诉后续数据通路
+“当前重命名包中较年轻的指令 Y，其某个整数源最终依赖较老的指令 X”。这里的
+`XY` 描述同一个 IR 包内的槽号关系，不是两个不同取指包之间的比较。
 
 | 信号 | bit[0] | bit[1] | bit[2] |
 |------|--------|--------|--------|
@@ -580,7 +617,10 @@ inst0 写 x5 → inst1 MOV x3←x5 → inst2 读 x3
 
 ### 9.1 恢复策略：基于退休状态（精确状态恢复）
 
-C910 使用**提交状态恢复**策略：RTU（退休单元）维护一份"已提交"（committed）的 RAT 快照（PST, Physical State Table），当发生 flush 时，将这份快照写回 RAT。
+C910 使用**提交状态恢复**策略。RTU 的 PST（Physical Status Table）并不是一份
+按逻辑寄存器索引的 RAT 快照；每个 PST 项对应一个物理寄存器，保存其生命周期和
+目的逻辑寄存器号。RTU 把所有处于 RETIRE 状态的物理项按逻辑目的号转置、编码，
+形成一条完整的已提交映射总线；发生 flush 时，IR_RAT 再从这条总线并行恢复。
 
 ```verilog
 // 第 2430–2434 行
@@ -588,12 +628,13 @@ assign rt_recover_updt_vld         = ifu_xx_sync_reset
                                      || rtu_yy_xx_flush;
 assign rt_recover_updt_preg[223:0] = (ifu_xx_sync_reset)
                                      ? rt_reset_updt_preg[223:0]   // 复位映射
-                                     : rtu_idu_rt_recover_preg[223:0]; // PST 快照
+                                     : rtu_idu_rt_recover_preg[223:0]; // PST 导出的退休映射
 ```
 
 两种触发：
 - `ifu_xx_sync_reset`：同步复位，将 RAT 恢复为初始映射（ri → pi，i=0–31）
-- `rtu_yy_xx_flush`：任意 flush 事件（分支预测失败、异常、中断等），使用 RTU 提供的 PST 快照
+- `rtu_yy_xx_flush`：任意 flush 事件（分支预测失败、异常、中断等），使用 RTU
+  从 RETIRE 状态物理项导出的已提交映射
 
 ### 9.2 初始映射
 
@@ -606,34 +647,41 @@ assign rt_reset_updt_preg[223:0] =
 //  reg_31→p31, reg_30→p30, ..., reg_1→p1, reg_0→p0
 ```
 
-初始状态下，架构寄存器 xi 映射到同号物理寄存器 pi，物理寄存器 p32–p127 全部空闲。
+初始映射向量把 x0–x31 映射到 p0–p31。当前整数 PRF 实现的是 p0–p95 共 96 项，
+所以可进一步进入空闲/分配流程的额外编号范围是 p32–p95；7 位编码空间中的 p96–p127 并不存在于当前 PRF，
+不能称为“全部空闲物理寄存器”。
 
 ### 9.3 恢复数据的写入
 
-恢复时，`rt_recover_updt_vld=1`，32个架构寄存器的新 preg 从 `rt_recover_updt_preg[223:0]` 中解包（每7位一个寄存器）：
+恢复时，x0–x31 的 32 组映射从 `rt_recover_updt_preg[223:0]` 解包。写使能向量仍是 33 位，
+因为还包含 reg32 扩展槽：
 
 ```verilog
 // 第 2438–2442 行
-assign reg_write_en[32:0] = {33{rt_recover_updt_vld}}  // 恢复时全部使能
+assign reg_write_en[32:0] = {33{rt_recover_updt_vld}}  // 恢复时所有逻辑槽位有效
                             | reg_write0_en[32:0]
                             | reg_write1_en[32:0]
                             | reg_write2_en[32:0]
                             | reg_write3_en[32:0];
 ```
 
-恢复时 `rt_recover_updt_vld` 同时优先阻断了正常的指令写入（`inst_write_en` 包含 `!rt_recover_updt_vld`），避免冲突。
+`rt_recover_updt_vld` 同时压低普通功能写和 gateclk 写条件，建立恢复与正常重命名写的互斥。reg32
+没有对应的 33rd 恢复总线切片，其 create preg 默认取 0；reg0 则仍是常量读值，不会因这条 33 位使能变成
+动态状态。
 
 恢复后写入 entry 的 create_data：
 
 ```verilog
 // 第 3320–3322 行
 assign r_vld = rt_recover_updt_vld;
-assign reg_0_create_data[10:0] = {1'b0, r_vld, reg_0_create_preg, {2{r_vld}}};
+assign reg_1_create_data[10:0] = {1'b0, r_vld, reg_1_create_preg, {2{r_vld}}};
 // 恢复时 r_vld=1：写入 {0, 1, recover_preg, 1, 1} → rdy=1, wb=1
 // 正常写入时 r_vld=0：写入 {0, 0, new_preg,     0, 0} → rdy=0, wb=0
 ```
 
-**关键设计**：恢复后所有 entry 的 `rdy=1, wb=1`，表示已提交的状态其值必然在 PRF 中（已写回）且可以被读取（就绪）。新指令重命名后写入 `rdy=0, wb=0`，表示等待执行完毕。
+恢复 create_data 把动态 entry 的 `rdy/wb` 写成 1；正常重命名写把新目的的 `rdy/wb` 写成 0。
+这是一条明确的状态编码。把恢复映射解释为“最后退休版本可从 PRF 读取”是整个精确恢复协议的不变量，
+并非 `ir_rt` 能单独检查的数据内容事实。
 
 ### 9.4 与 entry 内部 flush 的配合
 
@@ -654,22 +702,32 @@ begin
 end
 ```
 
-这与 ir_rt 的全局恢复写入配合：全局恢复同时更新了 preg，entry 内部 flush 重置了 rdy/wb 状态，共同完成完整的恢复。
+要区分两组输入：`rtu_yy_xx_flush` 生成 RAT 恢复写请求，`rtu_idu_flush_fe/is` 在 dep entry
+内部把 `rdy/wb` 置为中性 1。物理 preg 索引使用独立 write clock 且没有 dep 内部 flush 分支。
+系统协议通常让这些事件共同完成恢复，但若它们同周期到达，dep 的 always 优先级是
+`flush_fe/is` 高于 `x_write_en`；具体逐拍结果应按三种 flush 信号的实际时序查看，不能把它们当成同一个信号。
 
 ### 9.5 恢复策略的体系结构含义
 
 ```
 时间线（提交状态恢复）：
 
-Cycle N:   inst_A(arch_x1←p45) 提交 ──→ RTU更新PST[x1]=p45
+Cycle N:   inst_A(arch_x1←p45) 退休
+           ──→ p45 的 PST 项进入 RETIRE，并以 dst_reg=x1 贡献恢复位图
 Cycle N+k: 分支预测失败 flush
            ──→ rtu_yy_xx_flush=1
-           ──→ ir_rt 使用 PST 快照恢复：RAT[x1]=p45
-           ──→ 所有 in-flight 指令（N 之后的）全部作废
-           ──→ p45 rdy=1, wb=1（已提交值在 PRF 中）
+           ──→ RTU 编码 RETIRE 项导出的映射；ir_rt 恢复 RAT[x1]=p45
+           ──→ 尚未退休的推测指令按全局 flush 协议失效
+           ──→ 表项协议状态置为 p45 rdy=1, wb=1
 ```
 
-这比"检查点（Checkpoint）恢复"方案开销更低（不需要快照多份 RAT），代价是 flush 时需要将 32 个 entry 全部写入，一个周期完成。
+该实现通过一条 224 位退休映射总线并行恢复 x0–x31，而不是在 `ir_rt` 内保存多份分支 RAT 快照。
+若恢复请求在有效门控边沿被采样，reg1–reg31 从总线相应字段恢复 x1–x31，内部 reg32
+在同一边沿写成 0；x0/reg0 没有动态状态，恢复总线中的 x0 字段不会写入本地表项。
+所以这里是“一次边沿更新 32 个动态实例”，但不能写成“32 个动态架构寄存器映射”：
+其中 31 个实例对应 x1–x31，另 1 个实例是内部扩展槽 reg32。
+与检查点方案的面积、恢复延迟和布线代价孰优，仍需结合分支恢复总延迟、PST 面积和 224 位总线实现量化，
+不能只由“没有本地多份快照”推导整体开销一定更低。
 
 ---
 
@@ -699,7 +757,10 @@ assign reg_0_read_data[12:0] = 13'b0111000000011;
 |---------|---------|---------|--------|----------|--------|--------|
 | lsu_match=0 | rdy_bypass=1 | rdy_issue=1 | mla_rdy=1 | preg=0 | wb=1 | rdy=1 |
 
-x0 被硬连接为：映射到物理寄存器 p0（通常永远不被写），rdy=1（始终就绪），wb=1（已写回）。这确保任何读 x0 的指令立即就绪，无需等待。
+x0 的**本地依赖编码**固定为 preg=0、rdy=1、wb=1。这里能直接证明的是 RAT
+查表结果始终就绪；p0 的实际数据内容和写屏蔽还需结合整数 PRF 及其写使能逻辑，
+不能仅从本常量进一步推导“p0 触发器永远不被写”。对依赖调度而言，读 x0 不会
+因 `ir_rt` 的 ready/writeback 状态而等待。
 
 ### 10.2 写 x0 的屏蔽
 
@@ -725,11 +786,13 @@ x0 被硬连接为：映射到物理寄存器 p0（通常永远不被写），rd
                     │              ir_rt 模块边界                   │
                     │                                              │
   dp_rt_instN_src_reg ──→  ┌──────────────────┐ ──→ rt_dp_instN_srcX_data
-                    │      │  33 个 RAT entry  │     (preg, rdy, wb)
+                    │      │ 33 个可查逻辑槽   │     (preg, rdy, wb)
   dp_rt_instN_dst_reg ──→  │  (reg_0 ~ reg_32) │ ──→ rt_dp_instN_rel_preg
-                    │      └──────────────────┘     (旧 preg，供释放)
+                    │      │ reg0 为常量；       │     (旧 preg，进入退休释放协议)
+                    │      │ reg1~32 有动态状态  │
+                    │      └──────────────────┘
                     │              ↑
-  dp_rt_instN_dst_preg ─────────────────────────→ (新 preg 写入，next cycle)
+  dp_rt_instN_dst_preg ─────────────────────────→ (在有效写边沿更新新 preg)
   ctrl_rt_instN_vld ──────────────────────────→
   ctrl_ir_stall ──────────────────────────────→   写使能控制
   rt_recover_updt_vld ────────────────────────→
@@ -737,7 +800,7 @@ x0 被硬连接为：映射到物理寄存器 p0（通常永远不被写），rd
   执行单元 wb 广播 ──────────────────────────────→ entry 内部 rdy/wb 更新
                     │
   rtu_yy_xx_flush ─────────────────────────────→  全局 flush + 恢复
-  rtu_idu_rt_recover_preg ────────────────────→  PST 快照（32×7 bit）
+  rtu_idu_rt_recover_preg ────────────────────→  PST 退休态映射（x0~x31，32×7 bit）
                     │
   各流水线 wb 信号 ──────────────────────────────→  entry 内部就绪位
                     │                                              │
@@ -751,25 +814,27 @@ Cycle T（rename）：
   1. [组合] 读 RAT：src_reg → case 语句 → read_data（preg, rdy, wb）
   2. [组合] 旁路检测：inst{1,2,3} src 是否 match inst{0,1,2} dst？
   3. [组合] 旁路选择：match? 用新 dst_preg : 用 RAT 结果
-  4. [组合] 生成 src_match、src_data → 写入 IQ 表项（next stage）
-  5. [时序] 写 RAT：dst_reg entry ← new preg（if !stall && !flush）
+  4. [组合] 生成 src_match、src_data，供后续 IS/IQ 创建数据通路采样
+  5. [时序] 在满足写使能且门控时钟产生有效边沿时：
+             dst_reg 对应动态 entry ← new preg
 
 Cycle T 之后（执行中）：
   6. [每周期] entry 内部监听 wb 广播，自动更新 rdy、wb 位
-  7. [flush 时] rt_recover_updt_vld=1 → 全部 entry 写入 PST 快照
+  7. [恢复时] rt_recover_updt_vld=1 →
+       reg1~reg31 写入 PST 的 x1~x31 退休映射，reg32 写 0；reg0 保持常量
 ```
 
 ### 11.3 关键设计要点总结
 
 | 设计点 | 实现方式 | 体系结构原理 |
 |--------|---------|------------|
-| 4-issue 同包旁路 | 组合逻辑 match+select，优先级链 inst3>inst2>inst1>inst0 | 同周期写入未更新 RAT，必须旁路 |
-| MOV 透传 | `inst0_mov_bypass_over_inst1`，级联 match 标志 | MOV 不产生新值，直接传递物理映射 |
+| 四槽派遣包内旁路 | 组合逻辑 match+select，优先级链 inst3>inst2>inst1>inst0 | 同周期写入尚未更新 RAT，必须旁路 |
+| MOV 同包依赖透传 | `inst0_mov_bypass_over_inst1`、级联 match 标志 | 消费者可直接依赖 MOV 的语义源映射；MOV 自身仍建立新目的物理映射 |
 | 拆分指令豁免 | `DEP_INST*_MASK` 参数，禁止错误旁路 | 拆分指令对的寄存器号相同不代表 RAW |
-| flush 恢复 | 提交状态恢复（PST 快照，224-bit 总线） | 无检查点开销，一周期完成全 RAT 恢复 |
-| 就绪位更新 | entry 内部分布式 wakeup，监听广播 wb | Scoreboard 机制，无需中心化唤醒逻辑 |
+| flush 恢复 | 224-bit 退休映射总线并行写 x0–x31，reg32 单独回到 0 | 从退休态重建推测 RAT；实际恢复总延迟还包括 flush 传播和重新取指 |
+| 就绪位更新 | reg1–reg32 的 dep entry 分布式比较执行/DC/WB 事件 | 在映射项旁保存 ready/writeback 状态；广播布线与比较仍有面积和时序代价 |
 | x0 特殊处理 | 静态常量 read_data，不实例化 entry | x0 硬连接为 0，无需动态管理 |
-| 门控时钟优化 | gateclk_write_en 忽略 stall，分离写使能 | 时序关键路径优化，ICG 提前稳定 |
+| 门控时钟请求分离 | gateclk write 条件忽略 stall，功能 write 条件保留 stall | 减少 local_en 对 stall 的直接依赖；收益由 STA/功耗报告确认 |
 | 扩展槽 reg_32 | dst_reg[5]=1 时映射到 reg_32 | 支持拆分指令的隐式目的（超过 x31） |
 
 ### 11.4 与 IQ 的接口约定
@@ -782,4 +847,4 @@ RAT 向发射队列输出的每个源寄存器的 9/10-bit 数据是 IQ 表项�
 
 ---
 
-*文档对应 RTL 文件：`ct_idu_ir_rt.v`（5275 行）及子模块 `ct_idu_dep_reg_src2_entry.v`（423 行）*
+*文档对应 RTL 文件：`ct_idu_ir_rt.v`（5275 行）及子模块 `ct_idu_dep_reg_src2_entry.v`（425 行）*

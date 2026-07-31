@@ -12,7 +12,8 @@
 
 ### 1.1 八条执行管线中的三条
 
-C910 的 IDU 把就绪指令发射到 8 条执行管线（见 `doc/idu/00_idu_overview.md`），
+C910 的 IDU 把就绪操作送到编号为 pipe0~pipe7 的 8 条执行路径（见
+`docs/idu/00_idu_overview.md`），
 其中 Pipe0~2 属于 IU：
 
 | 管线 | 发射队列 | IU 内执行单元 | 典型指令 |
@@ -20,17 +21,24 @@ C910 的 IDU 把就绪指令发射到 8 条执行管线（见 `doc/idu/00_idu_ov
 | Pipe0 | AIQ0 | ALU0 + DIV + SPECIAL | add/sub/逻辑/移位、div/rem、csrr*、vsetvli |
 | Pipe1 | AIQ1 | ALU1 + MULT | add/sub/逻辑/移位、mul/mulh、mula（乘累加） |
 | Pipe2 | BIQ  | BJU | beq/bne/blt…、jal/jalr、ret |
-| Pipe3~5 | LSIQ/SDIQ | （LSU，见 doc/lsu/） | load/store |
+| Pipe3~5 | LSIQ/SDIQ | （LSU，见 `docs/lsu/`） | load/store |
 | Pipe6~7 | VIQ0/1 | （VFPU） | 浮点/向量 |
 
 这个划分的体系结构含义：
 
-- **两条对称 ALU** 保证最常见的整数运算可以每拍双发射；
+- **两套同构 ALU 数据通路**给常见整数运算提供每拍最多两条的执行能力。这里的
+  “同构”只指 `ct_iu_alu` 被例化两次、组合功能和流水寄存器结构相同；整条
+  Pipe0/Pipe1 并不完全对称：Pipe0 还挂 DIV/SPECIAL/CP0 返回路径，Pipe1 还挂
+  MULT，并各自受到不同的发射、读端口和写回冲突约束。因此“两条 ALU 都可用”
+  是双发射的必要条件，不是任意两条整数指令都必能同拍发射的充分条件；
 - **长延迟单元挂在 ALU 管线上**（DIV 挂 Pipe0、MULT 挂 Pipe1），共享发射端口和
   写回端口，省面积——代价是 div/mult 发射那一拍，对应 ALU 管线不能再发 ALU 指令，
-  由 IDU 的 AIQ 仲裁保证（见 `doc/idu/13_is_aiq.md`）；
-- **分支独占 Pipe2**：分支不写通用寄存器结果（jal/jalr 的链接寄存器写由 ALU 完成拆分），
-  但需要专用的误预测检查通路和与 IFU 的重定向接口，独立成管线最干净。
+  由 IDU 的 AIQ 仲裁保证（见 `docs/idu/13_is_aiq.md`）；
+- **分支检查微操作独占 Pipe2**：条件分支以及 jal/jalr 的跳转检查部分不在
+  Pipe2 写通用寄存器结果；带链接的 jal/jalr 会由 IDU 拆出另一条
+  `PSEUDO_AUIPC` 微操作，在 Pipe0 的 SPECIAL 单元计算 `PC+4`，压缩
+  `C.JALR` 则计算 `PC+2`，并写入链接寄存器。跳转检查需要专用的误预测检测
+  通路和 IFU 重定向接口，因此单独占用 BJU 管线。
 
 ### 1.2 EX 流水级
 
@@ -47,7 +55,9 @@ CP0    │              │              │ ex3 结果/异常 │
 ```
 
 为什么 ALU 在 EX1 就"前递"、EX2 才"写回"？——**前递（forward）**是把结果直接
-送回 IDU 的前递网络（`doc/idu/20_rf_fwd.md`），让 back-to-back 依赖指令下一拍就能
+送回 IDU 的前递网络（`docs/idu/20_rf_fwd.md`），为 back-to-back 依赖指令提供
+尽早获得生产者结果的路径；消费者能否在紧邻周期发射还取决于具体执行单元、
+唤醒拍点和端口/stall 条件，不能只由存在前递接口推出固定一拍间隔。
 发射；**写回（writeback）**是把结果写进物理寄存器堆 PRF 并通知 RTU"这条指令完成"。
 两者分开，是乱序核实现"1 拍 ALU 延迟"的标准做法。
 
@@ -69,8 +79,15 @@ ct_iu_top
  └── x_ct_iu_rbus      (ct_iu_rbus,  结果总线 → IDU/RTU)       // L1180
 ```
 
-注意 ALU 是**同一模块例化两次**（`&ConnRule(s/pipex/pipe0|1/)`，ct_iu_top.v:866-868），
-两条 ALU 管线硬件完全相同——这是"对称双发射"的直接体现。
+注意 ALU 是**同一模块例化两次**（`&ConnRule(s/pipex/pipe0|1/)`，
+`ct_iu_top.v` 中的 `x_ct_iu_alu0/1`）。这能证明两套 **ALU 子模块**的逻辑
+同构，不能据此把 Pipe0 与 Pipe1 的全部能力写成相同。教学上应区分：
+
+```text
+ALU0 与 ALU1：同一份 ct_iu_alu 结构
+Pipe0 与 Pipe1：ALU 外围连接、附属长延迟单元和冲突条件不同
+实际双发射：还要满足队列映射、源就绪、端口、stall 和 flush 条件
+```
 
 内部数据流全景：
 
@@ -109,10 +126,10 @@ ct_iu_top 的端口约 270 个，按"对端模块 + 流水级"分组后并不难
 | `idu_iu_rf_pipe0_sel` | 1 | 本拍 pipe0 有指令发射到 IU |
 | `idu_iu_rf_pipe0_gateclk_sel` | 1 | 门控时钟使能（比 sel 早、范围宽） |
 | `idu_iu_rf_pipe0_func` | 5 | 功能码（ALU 操作类型） |
-| `idu_iu_rf_pipe0_src0/1/2` | 64×3 | 三个源操作数（src2 用于移位拼接/链接地址等） |
+| `idu_iu_rf_pipe0_src0/1/2` | 64×3 | 三个源操作数；ALU 的 `src2` 用于条件搬运成立时的新值，链接地址由 SPECIAL 结合 PCFIFO PC 与立即数计算 |
 | `idu_iu_rf_pipe0_src1_no_imm` | 64 | 未经立即数替换的 src1（给 DIV/MULT/SPECIAL 用） |
 | `idu_iu_rf_pipe0_imm` | 6 | 移位立即数 |
-| `idu_iu_rf_pipe0_dst_preg` | 7 | 目的物理寄存器号（128 项 PRF） |
+| `idu_iu_rf_pipe0_dst_preg` | 7 | 目的物理寄存器号（当前整数 PRF 实现 96 项，7 位编码覆盖该范围） |
 | `idu_iu_rf_pipe0_dst_vld / dstv_vld` | 1 | 整数/向量目的有效 |
 | `idu_iu_rf_pipe0_iid` | 7 | 指令 ID（ROB 索引，年龄标识） |
 | `idu_iu_rf_pipe0_rslt_sel` | 21 | 结果多路选择独热码（见 01_alu.md） |
@@ -141,9 +158,10 @@ pipe2（BJU）则完全不同：`offset[20:0]`（分支偏移）、`pcall`（函
 | `iu_idu_mispred_stall` | - | 误预测后冻结发射窗口（见 02_bju.md） |
 
 **为什么有 `_dup0~4` 五份复制？** 唤醒信号要同时广播给 AIQ0/AIQ1/BIQ/LSIQ/SDIQ
-五个发射队列，每个队列里每一项都要比较 preg——扇出极大。物理上复制 5 份寄存器，
-每份只驱动一个队列，是时序收敛的常规手段（综合工具不会自动做这种跨模块复制）。
-功能仿真时 5 份值恒等。
+五个发射队列，每个队列里每一项都要比较 preg，逻辑扇出很大。RTL 显式提供多份
+等值寄存器输出，使不同消费区域可由独立网络驱动；综合和布局工具仍可能进一步
+复制、合并或缓冲，所以最终物理结构应以网表和时序报告为准。功能仿真中这些副本
+应在各自有效时刻保持相同的 preg 值。
 
 ### 3.3 IFU ↔ IU：分支闭环
 
@@ -180,7 +198,7 @@ IU 侧（检查结果回送 IFU，ct_iu_top.v:461-472）：
 这是 RISC-V 指令至少按 2 字节对齐带来的无损压缩，并不表示这些 PC 是奇地址或
 缺少有效地址信息。
 
-这组接口与 `doc/ifu/04_bht.md`、`doc/branch_prediction.md` 第 12 节的 Verdi 观察信号
+这组接口与 `docs/ifu/04_bht.md`、`docs/branch_prediction.md` 第 12 节的 Verdi 观察信号
 一一对应：预测在 IFU，**验证与训练数据源在 IU 的 BJU**。
 
 ### 3.4 IU → RTU：完成与退休支持
@@ -196,17 +214,22 @@ IU 侧（检查结果回送 IFU，ct_iu_top.v:461-472）：
 
 **为什么退休 PC 要从 IU 的 PCFIFO 读？** ROB 为省面积不存完整 PC（只存增量信息），
 跳转指令的真实 PC/目标存在 PCFIFO 里；退休时 RTU 按程序序弹出 PCFIFO 拿到精确 PC。
-这是 C910 一个重要的面积优化设计，详见 03_bju_pcfifo.md 与 doc/rtu/。
+这是 C910 一个重要的面积优化设计，详见 03_bju_pcfifo.md 与 `docs/rtu/`。
 
 ### 3.5 CP0 / VFPU / HAD 杂项
 
-- `cp0_iu_ex3_*`（ct_iu_top.v:270-283）：CSR 指令实际在 CP0 执行 3 拍，结果与异常
-  从 CP0 送回 IU，由 CBUS/RBUS 代为汇报/写回——**CP0 借用 IU 的 pipe0 完成/写回通道**。
+- `cp0_iu_ex3_*`（ct_iu_top.v:270-283）：CP0 以 `ex3` 命名接口返回 CSR
+  指令的结果、IID 和异常/flush 元数据，IU 再由 CBUS/RBUS 代为汇报和写回。
+  这能确认 **CP0 借用 IU pipe0 的完成/写回通道**；端到端“执行几拍”还要以
+  IDU 接受该 CSR 的起始拍与 CP0 `ex3_*_vld` 的实际间隔定义，不能只由端口名推断。
 - `vfpu_iu_ex2_pipe6/7_mfvr_*`：mfvr（向量→整数搬运）指令在 VFPU 执行，但目的是
   整数寄存器，数据送回 IU 的 RBUS 写整数 PRF。
 - `iu_vfpu_ex1/ex2_pipe0/1_mtvr_*`：反方向，mtvr（整数→向量）由 ALU 把 src0 转交 VFPU。
 - `had_idu_wbbr_*`：硬件调试器（HAD）注入的写回数据。
-- `iu_yy_xx_cancel`：BJU 误预测产生的**取消信号**，广播给各单元压制错误路径上的指令。
+- `iu_yy_xx_cancel`：BJU EX2 重定向脉冲。当前顶层把它送到 IDU 的 ID/IR/IS、
+  split/fence 等控制路径，并在 IU 内送到 PCFIFO，用于立即停止或标记尚处于这些
+  前端/派遣边界的旧路径状态。它不是逐个连接所有执行单元的“全核 kill”；
+  更深的错误路径状态仍由后续 RTU flush 按各模块协议清理。
 
 ### 3.6 调试信息（ct_iu_top 唯一的自有逻辑）
 
@@ -279,13 +302,17 @@ assign iu_had_debug_info[9:3] = bju_top_mispred_iid[6:0];
   AND-OR——译码逻辑被移出执行级关键路径。EU 选择（adder/shifter/other）
   同样在 RF 级归并成 3 位 `eu_sel`。
 - **前递只给"短指令"**：add/sub/逻辑/移位等 EX1 即出结果的指令走 EX1 前递
-  （消费者 1 拍后可发射）；max/min/addsl 等"长指令"虽然也 EX1 完成，但走
-  独立选择树、到达晚，**不进前递路径**，消费者等 EX2 写回（2 拍）——
+  （无其他阻塞时，依赖消费者最早可在紧邻拍利用前递）；max/min/addsl 等
+  "长指令"虽然也在 EX1 形成结果，但走独立选择树、到达晚，**不进该 EX1 快速
+  前递路径**，其消费者要等待后续 RBUS/PRF 可见时机——
   前递总线是全核时序最紧的网络，宁可牺牲长指令。
 - ext/extu 位段提取用"符号位查表与移位并行"消除串行依赖；条件搬运 mveqz
   无条件写回（不成立时写回旧值 src0），让重命名/唤醒无需特判。
-- 大量 T-Head 指令（addsl/ext/ff1/rev/mveqz/tstnbz）即 xtheadc 扩展的硬件，
-  CoreMark 6.1 vs 4.4 的差距来源。
+- 大量 T-Head 指令（addsl/ext/ff1/rev/mveqz/tstnbz）对应 XThead 类扩展的
+  执行硬件。若某次 CoreMark 在开启和关闭相关编译扩展时出现分数差异，只能把
+  这些指令的动态替换、代码尺寸变化和分支/访存变化列为候选原因；不能仅凭
+  ALU RTL 把某组固定分数差全部归因于这些扩展。严谨验证应同时比较反汇编、
+  动态指令数、IPC 和周期数。
 
 ### 6.2 BJU：误预测判定与"早重定向+晚清理"（详见 02/03）
 
@@ -316,8 +343,8 @@ EX1 判错 → EX2 同时发三枪:
 **PCFIFO（32 项）**是这套机制的数据载体：IFU 创建（存预测现场：PC/方向/
 chk_idx），IDU 派遣时发 pid，BJU 执行时按 pid 读出对比、EX2 回写真实结果，
 RTU 退休时按序弹出（提供退休 PC，因为 ROB 不存 PC）。带链接寄存器的
-jal/jalr 占两项（一项给算 PC+4 的链接微操作，一项给跳转检查）。满了反压
-IFU 不许再发分支。
+jal/jalr 占两项（一项给计算 `PC+4` 或压缩指令 `PC+2` 的链接微操作，一项给
+跳转检查）。满了反压 IFU，不许再接收需要创建 PCFIFO 现场的指令。
 
 ### 6.3 MULT：延迟感知唤醒与 MLA 私有前递（详见 04）
 
@@ -325,20 +352,26 @@ IFU 不许再发分支。
   0 位、有符号补符号位——"宽一位换统一"）；
 - **EX3 发预告（preg）、EX4 出数据**：发射队列提前一拍唤醒消费者，消费者
   发射时数据恰好广播到——RBUS 里控制走寄存器、数据晚一拍走旁路 mux 对齐；
-- **MLA 链私有前递**：连续乘累加（rz += rx×ry）的累加源若是管线内前一条
-  MLA 的目的，RF 级 preg 匹配后从乘法器 EX3/EX4 输出直接抓数，背靠背 MLA
-  2 拍一条而非 4 拍。累加数在 EX2 作为一行部分积注入压缩树（MAC 免费加法）；
-- 乘法 EX1 时拉 `mult_stall` 禁止下拍向 pipe1 发 ALU——错开写回口冲突。
+- **MLA 链私有前递**：连续乘累加（rz += rx×ry）的累加源若命中管线内较老
+  MLA 的目的 preg，RF 级会记录匹配关系，随后从 EX3/EX4 结果路径取累加数。
+  在没有其他发射限制时，相关 MLA 链的最小启动间隔可达到 2 拍；“2 拍”描述
+  的是该特定依赖链的可达间隔，不是所有乘法流的无条件吞吐率；
+- `mult_ex1_inst_vld` 产生 `iu_idu_ex1_pipe1_mult_stall`。在 AIQ1 中它与
+  `lch_preg`/`dp_aiq1_create_alu` 等条件组合，阻止会发生 Pipe1 操作数锁存或
+  资源冲突的候选。不能把这个单比特简单解释为“整条 Pipe1 下一拍完全停住”。
 
 ### 6.4 DIV：变延迟 + 结果缓存（详见 05）
 
-- 状态机式非流水（一次一条），SRT 基 16 每拍 4 位商，**延迟随操作数有效
-  位宽变化**（6~22 拍）：两操作数都规格化到最高位，迭代数 =
-  ⌈(商位数+2)/4⌉，整除提前结束；
+- 状态机式非流水（同一时刻只跟踪一条除法），SRT 基 16 的主迭代按每轮
+  4 个商位组织，**EX3 停留时间随规格化后的指数差和余数是否提前为零而变**。
+  文档中若给出“6~22 拍”一类范围，必须同时注明从哪个握手信号计到哪个写回
+  信号；静态 RTL 能证明变延迟机制，不能单独证明所有系统配置下的固定总拍数；
 - 快速通道：除 0/溢出（RISC-V 定义返回值不 trap）、被除数<除数（商=0）
   1~2 拍直出；
-- **2 项结果缓存**存 {操作数, 商, 余数}：`a/b; a%b` 成对出现时第二条必命中
-  ——一次迭代两个结果；
+- **2 项结果缓存**存 `{操作数, 商, 余数, signed, word-width}`。当 `a/b`
+  与随后 `a%b` 使用完全相同的两个 64 位输入、符号模式和字宽，而且第一条
+  已完成正常迭代并填充、对应表项尚未被两次后续填充替换、缓存未被 CP0 禁用时，
+  第二条可以命中并复用商/余数；这是一条常见快路，不是无条件“必命中”；
 - 写回借 pipe0 的口：REQ 状态先发 `div_wb_stall` 让 IDU 清场一拍再写。
 
 ### 6.5 SPECIAL：异常入口与 vsetvli 预测校验（详见 06）
@@ -347,7 +380,8 @@ IFU 不许再发分支。
   随特权级 8/9/11）、译码期异常的占位 NOP（mtval 回填原始 opcode）；
 - **vsetvli 预测校验**：IFU 取指期预译码猜新 vl，向量指令带预测 vl 提前
   派遣；SPECIAL 执行期算真值（vl = min(AVL, VLMAX)，7 档 VLMAX 并行算再
-  16 路选）并比对——猜对零开销，猜错置 abnormal → 退休时 flush 重取。
+  16 路选）并比对——猜对时没有额外的配置恢复 flush，猜错置 abnormal →
+  退休时 flush 重取；“没有额外 flush”不等于该指令不占执行与退休资源。
   vsetvl（寄存器源 vtype）无法预测，一律 flush。新配置借 mtval 通道传给
   CP0（复用暗道，波形里 mtval 不一定是地址！）。
 
@@ -359,11 +393,14 @@ IFU 不许再发分支。
 |---|---|---|
 | 传什么 | cmplt + iid + 异常 | 64 位数据 + preg |
 | 给谁 | RTU 的 ROB（按 iid） | IDU 的 PRF/唤醒 + RTU 的 PST（按 preg） |
-| 决定什么 | 该指令能否退休 | 消费者能否拿到数据 |
+| 决定什么 | ROB 是否收到该执行成分的完成记账 | 物理结果何时可被消费者读取 |
 
-- **推定完成**：ALU/MULT/DIV 在 RF 发射拍就被 CBUS 推定"将完成"，打一拍
-  即报 RTU——它们无异常不会失败，ROB 早进入可退休态；数据何时写回由 PST
-  单独跟踪，互不干扰。SPECIAL/CP0 会产生异常，必须实报。
+- **推定完成**：ALU/MULT/DIV 的选择信号可在 RF 接受后经 CBUS 打一拍形成
+  `cmplt`，不等待 MULT/DIV 真正产生数据。这里的 `cmplt` 是 ROB 的执行成分
+  完成记账，不等同于“结果已经写入 PRF”。消费者仍由 preg 的 wakeup/writeback
+  状态约束；异常、flush、物理寄存器生命周期和精确状态正确性则由 RTU/PST
+  联合保证，不能用一句“互不干扰”略过。SPECIAL/CP0 可能携带异常或改流信息，
+  因而必须等实际执行结果再上报。
 - RBUS 是共享写回口的汇聚点（pipe0 五源/pipe1 三源），**无仲裁器**——
   同拍至多一源有效由 IDU 发射纪律保证（仲裁前移，数据通路保持哑）；
 - preg 在打拍前展开成 96 位独热（expand_96），消费端（PRF 写使能、PST
@@ -371,13 +408,16 @@ IFU 不许再发分支。
 
 ### 6.7 数据就绪时刻总表（消费者视角）
 
-| 生产者 | 最早拿数途径 | 间隔 |
+下表的“间隔”以生产者在 RF 被相应执行单元接受为起点，描述无 stall、无 flush、
+旁路条件成立时的最早可见时机。它不是端到端指令延迟，也不包含派遣前等待。
+
+| 生产者 | 最早拿数途径 | 理想最早间隔 |
 |--------|-------------|------|
 | ALU 短指令 | EX1 前递 | 1 拍 |
 | ALU 长指令 | EX2 写回广播 | 2 拍 |
 | MULT | EX3 唤醒+EX4 数据 | 4 拍 |
-| MLA→MLA | 乘法器私有前递 | 2 拍 |
-| DIV | 写回广播 | 6~22 拍 |
+| MLA→MLA | preg/宽度匹配后的乘法器私有前递 | 最小 2 拍 |
+| DIV | `div_rbus_pipe0_data_vld` 写回广播 | 变延迟，需按波形实测 |
 | CSR(CP0) | EX3 结果经 rbus | 4 拍 |
 
 ## 7. Verdi 观察层次

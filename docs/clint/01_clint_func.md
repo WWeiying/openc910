@@ -1,367 +1,565 @@
-# C910 CLINT func 模块详细教学文档
+# `ct_clint_func` RTL 逐段教学
 
-> RTL 文件：C910_RTL_FACTORY/gen_rtl/clint/rtl/ct_clint_func.v（约 520 行）
+> RTL 文件：`C910_RTL_FACTORY/gen_rtl/clint/rtl/ct_clint_func.v`
+>
+> 本文按 RTL 的组合条件、时序接受点和输出传播关系解释功能。涉及 RISC-V 软件习惯的段落会明确标为体系结构解释，不把背景知识写成当前 RTL 已证明的功能。
 
-## 目录
+## 1. 模块职责
 
-- [1. 模块概述](#1-模块概述)
-  - [1.1 职责](#11-职责)
-  - [1.2 在系统中的位置](#12-在系统中的位置)
-- [2. 端口说明](#2-端口说明)
-- [3. 参数与关键寄存器](#3-参数与关键寄存器)
-- [4. 地址译码与访问错误（acc_err / priv_err）](#4-地址译码与访问错误acc_err--priv_err)
-- [5. APB 总线接口（pready / perr / prdata）](#5-apb-总线接口pready--perr--prdata)
-- [6. 特权访问控制（mreg_wen / sreg_wen）](#6-特权访问控制mreg_wen--sreg_wen)
-- [7. 写使能生成（per-register wen）](#7-写使能生成per-register-wen)
-- [8. 寄存器主体（msip / mtimecmp / ssip / stimecmp）](#8-寄存器主体msip--mtimecmp--ssip--stimecmp)
-- [9. 读数据通路（data_out MUX）](#9-读数据通路data_out-mux)
-- [10. mtime 采样与中断生成（CP0 接口）](#10-mtime-采样与中断生成cp0-接口)
-- [11. 时钟门控](#11-时钟门控)
-- [设计取舍小结](#设计取舍小结)
+`ct_clint_func` 是 CLINT 的功能主体，包含：
 
----
+1. APB 从设备应答；
+2. 地址合法性与访问权限检查；
+3. 两个 hart 的软件中断寄存器；
+4. 两个 hart 的机器态、监管态定时器比较寄存器；
+5. 系统时间的本地采样寄存器；
+6. 八根中断电平输出；
+7. APB 逻辑和时间采样逻辑的两组门控时钟。
 
-## 1. 模块概述
+它不包含：
 
-### 1.1 职责
+- 自增式 `mtime` 计数器；
+- PLIC 外部中断仲裁；
+- 中断入口地址计算；
+- CP0 中断优先级选择；
+- IPI 消息缓冲区；
+- 64 位比较值的原子写提交机构。
 
-`ct_clint_func` 是 CLINT 的**唯一功能模块**（顶层 `ct_clint_top` 只是把它原样例化）。它把一条 APB 从设备接口、一组中断/比较寄存器、以及全部中断生成逻辑封装在一起，干三件事（代码注释也这么分段，`ct_clint_func.v:198-203`）：
+## 2. 端口按功能分组
 
-1. **APB interface** —— 当一个 32 位 APB 从设备，响应 CPU 对 CLINT 寄存器空间的读写，产生 `pready`/`perr`/`prdata`。
-2. **Software and Time Register** —— 保存 2 个 hart 各自的 `msip`/`ssip`（软件中断 pending）与 `mtimecmp`/`stimecmp`（64 位定时器比较值）。
-3. **CP0 interface** —— 采样全局 `mtime`，做比较，向 2 个核各输出 4 根中断线（mt/ms/st/ss）。
+### 2.1 时钟、复位和门控控制
 
-### 1.2 在系统中的位置
+| 端口 | 含义 | 直接使用位置 |
+|---|---|---|
+| `forever_apbclk` | APB 侧基础时钟 | `x_clint_gateclk` 输入 |
+| `forever_cpuclk` | CPU 侧基础时钟 | `x_mtime_gated_clk` 输入 |
+| `cpurst_b` | 异步低有效复位 | 模块内全部显式复位时序块 |
+| `apb_clk_en` | 时间与中断采样相关使能 | `mtime_clk`、上游 `sysio_kid` 的局部使能 |
+| `ciu_clint_icg_en` | CLINT 模块级 ICG 使能 | 两个 `gated_clk_cell` |
+| `pad_yy_icg_scan_en` | scan 模式时钟控制 | 两个 `gated_clk_cell` |
 
-它被 `ct_clint_top` 例化（`ct_clint_top.v:103-128`），后者再被 openC910 顶层例化（`openC910.v:1577`）。输入侧接 SoC 内部 APB 总线和 `sysio_clint_mtime`，输出侧的 8 根中断线经 sysio_kid 同步后送进两个核的 cp0（完整链路见 [00_clint_overview.md](00_clint_overview.md) 第 6 节）。
+`apb_clk_en` 名称中带 APB，但在本模块里它驱动的是基于 `forever_cpuclk` 的 `mtime_clk` 局部使能。阅读时应看实际连接，而不是仅按信号名字推断时钟域。
 
----
+### 2.2 APB 请求和应答
 
-## 2. 端口说明
+| 端口 | 方向 | 位宽 | RTL 中的用途 |
+|---|---|---:|---|
+| `psel_clint` | 输入 | 1 | 表示上级已选中 CLINT |
+| `penable` | 输入 | 1 | 区分 SETUP 与 ACCESS 阶段 |
+| `pwrite` | 输入 | 1 | 1 为写，0 为读 |
+| `paddr` | 输入 | 32 | 本模块只译码低 16 位 |
+| `pwdata` | 输入 | 32 | 写数据 |
+| `pprot` | 输入 | 2 | 本实现自定义解释为 U/S/M 访问属性 |
+| `pready_clint` | 输出寄存器 | 1 | SETUP 后在 ACCESS 阶段给出的 ready |
+| `perr_clint` | 输出寄存器 | 1 | 与应答配对的地址/权限错误指示 |
+| `prdata_clint` | 输出 | 32 | 组合读数据 |
 
-### 时钟与复位（`ct_clint_func.v:45-50`）
+这里的 `perr_clint` 是工程内部接口名。它承担 APB 错误应答方向的作用，但是否在更上层直接对应某一版 APB 的 `PSLVERR`，应继续沿上级连接确认，不需要在本模块文档中强行改名。
 
-| 端口 | 方向 | 位宽 | 说明 |
-|------|------|------|------|
-| `forever_apbclk` | in | 1 | APB 自由运行时钟，门控后生成 `clint_clk` |
-| `forever_cpuclk` | in | 1 | CPU 自由运行时钟，门控后生成 `mtime_clk` |
-| `apb_clk_en` | in | 1 | mtime 采样的局部使能（也是 mtime 门控时钟的 local_en） |
-| `ciu_clint_icg_en` | in | 1 | CIU 下发的模块级时钟门控使能 |
-| `pad_yy_icg_scan_en` | in | 1 | DFT scan 时旁路时钟门控 |
-| `cpurst_b` | in | 1 | 异步低有效复位 |
+### 2.3 时间和中断
 
-### APB 从设备接口（`ct_clint_func.v:51-68`）
+| 端口 | 方向 | 含义 |
+|---|---|---|
+| `sysio_clint_mtime[63:0]` | 输入 | sysio 已采样的系统时间 |
+| `clint_core0_ms_int` | 输出 | hart0 机器软件中断电平 |
+| `clint_core0_mt_int` | 输出 | hart0 机器定时器中断电平 |
+| `clint_core0_ss_int` | 输出 | hart0 监管软件中断电平 |
+| `clint_core0_st_int` | 输出 | hart0 监管定时器中断电平 |
+| `clint_core1_*` | 输出 | hart1 对应的四类中断电平 |
 
-| 端口 | 方向 | 位宽 | 说明 |
-|------|------|------|------|
-| `psel_clint` | in | 1 | APB 片选 |
-| `penable` | in | 1 | APB enable（访问的第二拍） |
-| `pwrite` | in | 1 | 1=写，0=读 |
-| `paddr` | in | 32 | 地址（实际只用 `paddr[15:0]` 译码） |
-| `pwdata` | in | 32 | 写数据 |
-| `pprot` | in | 2 | 保护属性 = 发起访问的特权级 |
-| `prdata_clint` | out | 32 | 读数据 |
-| `pready_clint` | out | 1 | 传输完成 |
-| `perr_clint` | out | 1 | 传输出错（非法地址或越权） |
+## 3. 地址参数不等于已实现寄存器
 
-### mtime 输入与中断输出（`ct_clint_func.v:57-65`）
+RTL 为 hart0 至 hart3 都定义了符号地址：
 
-| 端口 | 方向 | 位宽 | 说明 |
-|------|------|------|------|
-| `sysio_clint_mtime` | in | 64 | SoC 全局时间计数（来自 sysio 的 ccvr） |
-| `clint_core0_mt_int` / `clint_core1_mt_int` | out | 1 | 机器定时器中断（→ `mip.MTIP`） |
-| `clint_core0_ms_int` / `clint_core1_ms_int` | out | 1 | 机器软件中断（→ `mip.MSIP`） |
-| `clint_core0_st_int` / `clint_core1_st_int` | out | 1 | 监管定时器中断（→ `mip.STIP`） |
-| `clint_core0_ss_int` / `clint_core1_ss_int` | out | 1 | 监管软件中断（→ `mip.SSIP`） |
-
----
-
-## 3. 参数与关键寄存器
-
-### 地址 parameter（`ct_clint_func.v:148-174`）
-
-地址按特权与功能分成 4 个区，每区每 hart 一个偏移：
-
-```
-MSIP   区：0x0000 起，每 hart +4   →  MSIP0=0x0000, MSIP1=0x0004 ...
-MTIMECMP 区：0x4000 起，每 hart +8  →  MTIMECMP0=0x4000/H=0x4004, MTIMECMP1=0x4008/H=0x400C ...
-SSIP   区：0xC000 起，每 hart +4   →  SSIP0=0xC000, SSIP1=0xC004 ...
-STIMECMP 区：0xD000 起，每 hart +8  →  STIMECMP0=0xD000/H=0xD004, STIMECMP1=0xD008/H=0xD00C ...
+```text
+MSIP0..3
+MTIMECMP0..3 / MTIMECMPH0..3
+SSIP0..3
+STIMECMP0..3 / STIMECMPH0..3
 ```
 
-注意 parameter 一直定义到 `*2`/`*3`（hart2、hart3，`:150-151`、`:157-160`、`:164-165`、`:171-174`），**但本设计只实现 hart0/hart1**。hart2/3 的地址在译码表里没有 case 分支，会落到 `default`（见第 4 节），即对它们的访问被判为非法。这是"参数化预留、按需实现"的常见做法。
+但是后续只有 hart0、hart1 出现在：
 
-### 关键寄存器（`ct_clint_func.v:70-87`）
+- `acc_err` 合法地址 case；
+- 独立寄存器声明；
+- 专用写使能；
+- 读数据 MUX；
+- 中断输出。
 
-| 寄存器 | 位宽 | 复位值 | 行号 | 说明 |
-|--------|------|--------|------|------|
-| `clint_mtime_reg` | 64 | 0 | `:72`,`:488` | mtime 的本地采样副本 |
-| `msip0_reg` / `msip1_reg` | 1 | 0 | `:74-75`,`:303/363` | M 软件中断 pending |
-| `ssip0_reg` / `ssip1_reg` | 1 | 0 | `:82-83`,`:333/393` | S 软件中断 pending |
-| `mtimecmp0_reg` / `mtimecmp1_reg` | 32 | 0xFFFFFFFF | `:76-77`,`:313/373` | M 比较值低 32 |
-| `mtimecmph0_reg` / `mtimecmph1_reg` | 32 | 0xFFFFFFFF | `:78-79`,`:323/383` | M 比较值高 32 |
-| `stimecmp0_reg` / `stimecmp1_reg` | 32 | 0xFFFFFFFF | `:84-85`,`:343/403` | S 比较值低 32 |
-| `stimecmph0_reg` / `stimecmph1_reg` | 32 | 0xFFFFFFFF | `:86-87`,`:353/413` | S 比较值高 32 |
-| `data_out` | 32 | （组合） | `:73`,`:436` | 读数据 MUX 结果 |
-| `acc_err` | 1 | （组合） | `:71`,`:247` | 地址非法标志 |
-| `pready_clint` / `perr_clint` | 1 | 0 | `:80-81` | APB 应答 |
+因此当前有效寄存器总数是 12 个 32 位地址槽：
 
-**为什么比较值复位成全 1？** `mtimecmp`/`stimecmp` 复位为 `0xFFFFFFFF`（高低字都是，拼起来是 64 位全 1，即最大值）。这样上电后 `mtime`（从 0 开始）永远小于比较值，`mtime >= cmp` 不成立，定时器中断默认关闭。软件想用定时器时，先写一个合理的将来时刻进去再说。
+```text
+每 hart:
+  1 x MSIP
+  2 x MTIMECMP 高低半部
+  1 x SSIP
+  2 x STIMECMP 高低半部
 
----
+2 hart x 6 = 12 个地址槽
+```
 
-## 4. 地址译码与访问错误（acc_err / priv_err）
+`MSIP2` 等 parameter 是未实现预留。访问它们会报告地址错误。
 
-CLINT 把"访问是否合法"拆成**两个正交的检查**：地址是否存在（`acc_err`）、特权是否够（`priv_err`）。
+## 4. APB 时序：ready、error 和真正的写入沿
 
-### acc_err —— 地址合法性（`ct_clint_func.v:247-271`）
-
-一个组合 case，对 `paddr[15:0]` 译码。**只有真正实现的 12 个地址**（MSIP0/1、MTIMECMP0/1 及其 H、SSIP0/1、STIMECMP0/1 及其 H）置 `acc_err=0`，其余一切（包括预留的 hart2/3 地址）走 `default: acc_err=1'b1`（`:268`）：
+### 4.1 `pready_clint`
 
 ```verilog
-always @( paddr[15:0])
-case(paddr[15:0])
-  MSIP0:      acc_err = 1'b0;
-  MTIMECMP0:  acc_err = 1'b0;
-  ...
-  default:    acc_err = 1'b1;       // 非法地址
-endcase
+always @(posedge clint_clk or negedge cpurst_b)
+  if (!cpurst_b)
+    pready_clint <= 1'b0;
+  else if (psel_clint && !penable)
+    pready_clint <= 1'b1;
+  else
+    pready_clint <= 1'b0;
 ```
 
-**为什么用白名单而不是范围判断？** CLINT 寄存器在地址空间里是稀疏的（中间有大量空洞，比如 0x4000 区只用了头 16 字节），白名单 case 最精确，能把所有未实现地址都拦下报错。
+时序解释：
 
-### priv_err —— 特权合法性（`ct_clint_func.v:273-274`）
+| 阶段 | 输入 | 时钟沿后的 `pready_clint` |
+|---|---|---|
+| 空闲 | `psel=0` | 0 |
+| SETUP | `psel=1, penable=0` | 1 |
+| ACCESS | `psel=1, penable=1` | 0 |
+
+在 APB 的同步观察方式中，SETUP 末端寄存出的 1 会在随后的 ACCESS 阶段可见，因此主设备可在该 ACCESS 阶段完成传输。代码不是组合 `pready=1`，也不是在 SETUP 开始的瞬间就完成传输。
+
+### 4.2 `perr_clint`
 
 ```verilog
-assign priv_err = (paddr[15:12] == 4'h0 || paddr[15:12] == 4'h4) && !mach_mode
-               || (paddr[15:12] == 4'hC || paddr[15:12] == 4'hD) &&  user_mode;
+else if (psel_clint && !penable && (acc_err || priv_err))
+  perr_clint <= 1'b1;
 ```
 
-它用地址高 4 位 `paddr[15:12]` 判断访问落在哪个区，再核对发起者特权：
+错误同样在 SETUP 末端被寄存，并在后续 ACCESS 阶段与应答一起可见。`acc_err` 和 `priv_err` 是基于当前地址/属性的组合判断，因此 APB 协议要求 SETUP 阶段控制信号稳定非常重要。
 
-- **M 区（`0x0xxx` MSIP、`0x4xxx` MTIMECMP）**：只允许机器态。非 M 态访问 → `priv_err`。
-- **S 区（`0xCxxx` SSIP、`0xDxxx` STIMECMP）**：禁止用户态。U 态访问 → `priv_err`（M、S 都可访问）。
+### 4.3 目标寄存器何时更新
 
-这正好对应 RISC-V 的特权语义：M 态资源只能 M 访问；S 态资源 OS（S）和固件（M）都能碰，但 U 态应用程序不行。`acc_err` 和 `priv_err` 最后一起喂给 perr 生成逻辑（第 5 节）。
-
----
-
-## 5. APB 总线接口（pready / perr / prdata）
-
-CLINT 是个**两拍应答的 APB 从设备**。APB 协议里一次访问分 SETUP（`psel=1,penable=0`）和 ACCESS（`psel=1,penable=1`）两拍。
-
-### clint_wen —— 写命中（`ct_clint_func.v:210`）
+总写请求条件是：
 
 ```verilog
-assign clint_wen = psel_clint && pwrite && penable;
+clint_wen = psel_clint && pwrite && penable;
 ```
 
-只有片选 + 写 + enable 三者同时成立才算一次有效写（在 ACCESS 拍）。
-
-### pready 生成（`ct_clint_func.v:220-228`）
+再经过特权和地址条件形成专用写使能。例如：
 
 ```verilog
-if(!cpurst_b)              pready_clint <= 1'b0;
-else if(psel_clint && !penable)  pready_clint <= 1'b1;   // SETUP 拍置位
-else                       pready_clint <= 1'b0;
+mreg_wen     = mach_mode && clint_wen;
+mtimecmp0_wen = mreg_wen && paddr[15:0] == MTIMECMP0;
 ```
 
-在 SETUP 拍（`psel && !penable`）就把 `pready` 拉高一拍，这样到 ACCESS 拍时 master 看到 ready，传输完成。CLINT 寄存器访问无 wait state，固定一拍 ready。
+因此寄存器更新发生在 ACCESS 阶段末端的 `clint_clk` 上升沿，而不是 SETUP 阶段产生 ready 的那个沿。精确因果链是：
 
-### perr 生成（`ct_clint_func.v:231-239`）
+```text
+SETUP 地址/属性出现
+  -> SETUP 沿寄存 ready/error
+  -> ACCESS 阶段形成 clint_wen
+  -> 地址和特权形成专用 wen
+  -> ACCESS 沿写入目标寄存器
+  -> 新状态改变中断组合输出
+```
+
+## 5. 地址合法性检查
+
+`acc_err` 使用白名单组合 case。只有 12 个实际寄存器偏移返回 0，其他低 16 位地址都返回 1。
+
+这意味着：
+
+- 已声明但未实现的 hart2/3 地址非法；
+- 寄存器之间的空洞地址非法；
+- 对齐但未列入白名单的地址同样非法；
+- `paddr[31:16]` 不参与本地合法性判断，因为进入本模块前已经由 `psel_clint` 完成上层区域选择。
+
+非法地址时，读 MUX 的默认值是 32 位 `x`。这适合在 RTL 仿真中暴露错误使用；软件不能依赖错误访问的数据值，应该以错误应答为准。
+
+## 6. `pprot` 特权解释和边界
+
+### 6.1 三个有效编码
 
 ```verilog
-else if(psel_clint && !penable && (acc_err || priv_err))
-    perr_clint <= 1'b1;
+user_mode = pprot == 2'b00;
+supv_mode = pprot == 2'b01;
+mach_mode = pprot == 2'b11;
 ```
 
-同样在 SETUP 拍判定：若地址非法（`acc_err`）或越权（`priv_err`），把 `perr` 拉高，告诉 master 这次访问出错。两个错误源在这里**合并**成一根 perr 线。
-
-### prdata（`ct_clint_func.v:242`）
+写入许可：
 
 ```verilog
-assign prdata_clint[31:0] = data_out[31:0];
+mreg_wen = mach_mode && clint_wen;
+sreg_wen = (mach_mode || supv_mode) && clint_wen;
 ```
 
-读数据直接取读 MUX 的结果 `data_out`（第 9 节）。
+错误判断：
 
-**注意 clint_clk_en 也依赖 perr/pready：** 门控时钟使能 `clint_clk_en = psel_clint || perr_clint || pready_clint`（`:178`）。把 perr/pready 也算进去，是为了保证应答拍即使 psel 已撤掉，时钟仍然有效、寄存器能把应答输出更新到正确值。
+```text
+M 区 0x0/0x4: 不是 machine -> priv_err
+S 区 0xc/0xd: 是 user       -> priv_err
+```
 
----
+对于正常 U/S/M 编码，结果为：
 
-## 6. 特权访问控制（mreg_wen / sreg_wen）
+| 请求模式 | M 区读 | M 区写 | S 区读 | S 区写 |
+|---|---|---|---|---|
+| U `00` | 权限错误 | 权限错误且不更新 | 权限错误 | 权限错误且不更新 |
+| S `01` | 权限错误 | 权限错误且不更新 | 允许 | 允许更新 |
+| M `11` | 允许 | 允许更新 | 允许 | 允许更新 |
 
-特权级直接从 APB 的 `pprot[1:0]` 解码（`ct_clint_func.v:212-214`）：
+`priv_err` 不区分读写，因此越权读也会报错。写入端还通过 `mreg_wen/sreg_wen` 阻止寄存器状态改变。
+
+### 6.2 保留编码 `10`
+
+`10` 不是三个模式中的任何一个：
+
+- M 区：`!mach_mode` 成立，会报权限错；
+- S 区：`user_mode` 不成立，不报权限错；
+- S 区写：`mach_mode || supv_mode` 不成立，不会更新。
+
+因此，在保留编码下可能出现“读 S 区未报权限错、写 S 区未报错但也未生效”的非对称行为。这不是常规软件访问模式，但它是 RTL 的真实边界，验证环境应约束或覆盖它。
+
+## 7. 专用写使能
+
+每个寄存器的写使能由“总线写已进入 ACCESS + 特权许可 + 地址命中”构成：
+
+```text
+msip0_wen      = mreg_wen && addr == MSIP0
+mtimecmp0_wen  = mreg_wen && addr == MTIMECMP0
+mtimecmph0_wen = mreg_wen && addr == MTIMECMPH0
+
+ssip0_wen      = sreg_wen && addr == SSIP0
+stimecmp0_wen  = sreg_wen && addr == STIMECMP0
+stimecmph0_wen = sreg_wen && addr == STIMECMPH0
+```
+
+hart1 完全对称。这里没有字节写使能，因此本模块接收的是完整 32 位写数据；软件中断寄存器只主动选取 bit 0。
+
+## 8. 软件中断寄存器
+
+### 8.1 写入和读回
+
+`msip0_reg` 的结构代表四个软件中断寄存器的共同形式：
 
 ```verilog
-assign user_mode = pprot[1:0] == 2'b00;
-assign supv_mode = pprot[1:0] == 2'b01;
-assign mach_mode = pprot[1:0] == 2'b11;
+if (!cpurst_b)
+  msip0_reg <= 1'b0;
+else if (msip0_wen)
+  msip0_reg <= pwdata[0];
+
+msip0_value = {31'b0, msip0_reg};
 ```
 
-在此基础上生成两条"按区放行"的总写使能（`ct_clint_func.v:216-217`）：
+行为要点：
+
+- 复位值为 0；
+- 只有专用写使能成立的 ACCESS 沿才更新；
+- 只保存 `pwdata[0]`；
+- 未写时保持原值；
+- 读回的 `[31:1]` 固定为 0；
+- 直接驱动输出，因此是保持型电平。
+
+### 8.2 从“写 1”到“实际进入中断”的距离
+
+```text
+写 1 被目标寄存器接受
+  -> msip/ssip 寄存器变 1
+  -> CLINT 输出组合变 1
+  -> sysio_kid 在后续有效采样沿寄存
+  -> CP0 对应 pending 输入变化
+  -> CP0 检查使能和特权条件
+  -> RTU 在可接受边界进行控制流重定向
+```
+
+所以“写 1 立即中断另一个核”只适合作为软件层简写，不适合作为周期精确说明。
+
+## 9. 64 位定时器比较寄存器
+
+每个 64 位阈值由两个独立的 32 位寄存器组成：
+
+```text
+machine compare    = {mtimecmph*_reg, mtimecmp*_reg}
+supervisor compare = {stimecmph*_reg, stimecmp*_reg}
+```
+
+### 9.1 复位值
+
+每个半部复位为 `32'hffffffff`，组合阈值为 64 位最大无符号数。
+
+正确表述是：
+
+> 该复位值把首次正常触发推迟到系统时间达到最大值，因而通常可以避免复位后立即产生定时器中断。
+
+错误表述是：
+
+> `mtime` 永远追不上最大值。
+
+二进制 64 位计数器可以等于最大值；此时比较条件成立。
+
+### 9.2 非原子更新
+
+两个半部有独立地址和独立写使能，没有 shadow/commit 位。假设旧值为：
+
+```text
+old = {old_hi, old_lo}
+```
+
+先写高半部后，比较器立即看到：
+
+```text
+intermediate = {new_hi, old_lo}
+```
+
+再写低半部后才看到：
+
+```text
+final = {new_hi, new_lo}
+```
+
+这类中间值可能改变中断电平。RTL 没有替软件隐藏该过程。软件必须根据时间单调性和目标值选择安全写序。
+
+### 9.3 读取的边界
+
+读高低半部也是两次独立 APB 事务。这里读取的是软件配置的比较值，它不会像自由运行计数器那样每拍变化；但若另一个 hart、调试器或固件并发改写，两个读结果仍可能来自不同版本。当前 CLINT 没有快照锁存。
+
+## 10. 读数据通路
+
+`data_out` 是一个纯组合 case：
+
+```text
+paddr[15:0]
+  -> 选择 12 个寄存器值之一
+  -> prdata_clint
+```
+
+软件中断值高位补零，比较寄存器返回完整 32 位半部。非法地址返回 `x`，同时 `acc_err` 在 SETUP 时被捕获为错误应答。
+
+`prdata_clint` 本身没有“读数据有效”寄存器。其协议有效性来自 APB 的 `psel/penable/pready` 阶段关系，不能单看 `prdata_clint` 上出现某个数就认定一次读已经完成。
+
+## 11. 系统时间采样
+
+### 11.1 CLINT 内部采样
 
 ```verilog
-assign mreg_wen  = mach_mode && clint_wen;                 // M 区只许 M 写
-assign sreg_wen  = (mach_mode || supv_mode) && clint_wen;  // S 区许 M/S 写
+always @(posedge mtime_clk or negedge cpurst_b)
+  if (!cpurst_b)
+    clint_mtime_reg <= 64'b0;
+  else if (apb_clk_en)
+    clint_mtime_reg <= sysio_clint_mtime;
 ```
 
-- `mreg_wen`：M 态资源（msip/mtimecmp）的写门，只有机器态才放行。
-- `sreg_wen`：S 态资源（ssip/stimecmp）的写门，机器态或监管态都放行。
+`mtime_clk` 本身已经以 `apb_clk_en` 作为 `gated_clk_cell.local_en`，时序块内又检查一次 `apb_clk_en`。在真实门控单元配置下，内部判断通常与门控条件一致；在仓库的 pass-through 仿真配置下，内部判断仍确保寄存器只在使能为 1 时更新。
 
-**与 priv_err 的关系（重要）：** 这两条 wen 是"积极防御"——越权写时 wen 不会有效，寄存器内容不被破坏；而 `priv_err` 是"消极报错"——同一次越权访问还会通过 perr 反馈给 master。两者配合：**既不让坏写入生效，又把错误报出去**。这是体现 Sstc 思想的关键所在——S 态被允许直接写 stimecmp/ssip（`sreg_wen` 放行 S 态），从而无需陷入 M 态即可设置 S 定时器/软中断。
+### 11.2 上游并非直接连引脚
 
----
-
-## 7. 写使能生成（per-register wen）
-
-每个寄存器有自己的写命中信号，由"区写使能 && 地址精确匹配"得到（`ct_clint_func.v:281-295`）：
+上游 `ct_sysio_top` 还有：
 
 ```verilog
-// hart0 的 M 区（受 mreg_wen 控制）
-assign msip0_wen      = mreg_wen && paddr[15:0] == MSIP0;
-assign mtimecmp0_wen  = mreg_wen && paddr[15:0] == MTIMECMP0;
-assign mtimecmph0_wen = mreg_wen && paddr[15:0] == MTIMECMPH0;
-// hart0 的 S 区（受 sreg_wen 控制）
-assign ssip0_wen      = sreg_wen && paddr[15:0] == SSIP0;
-assign stimecmp0_wen  = sreg_wen && paddr[15:0] == STIMECMP0;
-assign stimecmph0_wen = sreg_wen && paddr[15:0] == STIMECMPH0;
-// hart1 同理（:289-295）
+if (axim_clk_en)
+  ccvr <= pad_cpu_sys_cnt;
+
+assign sysio_clint_mtime = ccvr;
 ```
 
-可以看到 M 区寄存器统一用 `mreg_wen`、S 区寄存器统一用 `sreg_wen`——特权检查在这里**自然落地**到每个寄存器。地址用全 16 位精确比较，确保只命中目标寄存器。
+因此：
 
----
+```text
+外部计数值
+  -> sysio 在 axim_clk_en 有效时采样
+  -> CLINT 在 apb_clk_en 有效时再采样
+  -> 比较器使用 CLINT 本地样本
+```
 
-## 8. 寄存器主体（msip / mtimecmp / ssip / stimecmp）
+文档不能把它简化成“mtime 每个 CPU 周期直接进入比较器”。若两个使能不是每周期有效，中断检测会相应延后。
 
-每个寄存器都是一个标准的"复位 + 写使能更新"的时序块，跑在 `clint_clk` 上。下面各举一例（hart1 与 hart0 结构相同，只是序号不同）。
+### 11.3 CDC 能证明到什么程度
 
-### 软件中断寄存器（1 bit）——`ct_clint_func.v:300-307`
+`sysio_clk` 和 `mtime_clk` 都由 `forever_cpuclk` 相关门控路径产生，这是 RTL 可见事实。但 `pad_cpu_sys_cnt` 的真正源时钟、相位约束和 SoC 集成假设不在本模块中。
+
+所以可以说：
+
+- sysio 和 CLINT 对时间值进行了两级寄存采样；
+- 采样寄存器位于 CPU 基础时钟派生路径。
+
+不能只据此说：
+
+- 64 位异步总线已经通过标准同步器无撕裂跨域；
+- 任意外部时钟关系下都不存在亚稳态；
+- 采样值一定对应同一个外部计数瞬间。
+
+这些结论需要顶层时钟约束、系统计数器接口协议或 CDC 报告支持。
+
+## 12. 定时器比较逻辑
+
+四个比较器完全对称：
 
 ```verilog
-always @ (posedge clint_clk or negedge cpurst_b)
-  if(!cpurst_b)       msip0_reg <= 1'b0;
-  else if(msip0_wen)  msip0_reg <= pwdata[0];      // 只取 bit0
-assign msip0_value[31:0] = {31'b0, msip0_reg};     // 读出时高位补 0
+clint_core0_mt_int = !({mtimecmph0_reg, mtimecmp0_reg}
+                     > clint_mtime_reg);
+clint_core0_st_int = !({stimecmph0_reg, stimecmp0_reg}
+                     > clint_mtime_reg);
 ```
 
-软件中断本质是个 1 比特锁存器：写 1 拉起中断、写 0 清中断，由软件全权控制。`ssip0_reg`（`:330-337`）结构完全一致，只是写门换成 `ssip0_wen`、输出 `ssip0_value`。
+等价伪代码：
 
-### 定时器比较寄存器（32 bit × 2）——`ct_clint_func.v:310-327`
+```text
+mt_int[hart] = unsigned(sampled_mtime) >= unsigned(mtimecmp[hart])
+st_int[hart] = unsigned(sampled_mtime) >= unsigned(stimecmp[hart])
+```
+
+关键细节：
+
+- 拼接后的两个操作数都是 64 位；
+- Verilog 中这些寄存器未声明 `signed`，因此执行无符号比较；
+- 输出为组合逻辑，不再经过 CLINT 内部输出寄存器；
+- 输出保持时间由比较关系决定，而不是固定一个周期；
+- 改写阈值和更新本地时间样本都可能改变输出；
+- `!(cmp > time)` 与 `time >= cmp` 逻辑等价，但面积和时序必须由目标工艺综合结果判断。
+
+## 13. 输出进入 CP0 后的准确含义
+
+### 13.1 机器态两路
+
+在 `ct_cp0_regs.v` 中：
 
 ```verilog
-// 低 32 位
-always @ (posedge clint_clk or negedge cpurst_b)
-  if(!cpurst_b)            mtimecmp0_reg[31:0] <= 32'hffffffff;   // 复位全 1
-  else if(mtimecmp0_wen)   mtimecmp0_reg[31:0] <= pwdata[31:0];
-assign mtimecmp0_value[31:0] = mtimecmp0_reg[31:0];
-// 高 32 位（mtimecmph0_reg，:319-327）结构相同，写门 mtimecmph0_wen
+mtip = biu_cp0_mt_int;
+msip = biu_cp0_ms_int;
 ```
 
-64 位比较值拆成低字 `mtimecmp0_reg` + 高字 `mtimecmph0_reg`，分别由两个地址写入，复位都为全 1。`stimecmp`/`stimecmph`（`:339-357`）是其 S 态镜像。
+这表示机器定时器和软件中断输入直接形成对应 pending 值。随后仍需与 `mtie/msie`、全局中断条件和当前特权态组合，才形成可选择中断。
 
-**对称性总结：** hart0 与 hart1 各有 8 个寄存器块（msip、ssip、mtimecmp/H、stimecmp/H），共 16 个，全部按上面两种模板复制（`:300-417`）。这种高度规整使代码易读、易扩展到更多 hart。
-
----
-
-## 9. 读数据通路（data_out MUX）
-
-读路径是一个组合 case，按 `paddr[15:0]` 选出对应寄存器的 `*_value` 送给 `data_out`（`ct_clint_func.v:437-457`）：
+### 13.2 监管态两路
 
 ```verilog
-case(paddr[15:0])
-  MSIP0:      data_out[31:0] = msip0_value[31:0];
-  MTIMECMP0:  data_out[31:0] = mtimecmp0_value[31:0];
-  MTIMECMPH0: data_out[31:0] = mtimecmph0_value[31:0];
-  SSIP0:      data_out[31:0] = ssip0_value[31:0];
-  ...
-  default:    data_out[31:0] = {32{1'bx}};   // 非法地址读出 X
-endcase
+stip = (biu_cp0_st_int && clintee) || stip_reg;
+ssip = (biu_cp0_ss_int && clintee) || ssip_reg;
 ```
 
-要点：
+所以 CLINT 监管态输出还受 `clintee` 控制，并与 CP0 内部软件保存位做 OR。波形分析时只看 `clint_core0_st_int` 无法解释最终 `mip.STIP`，至少还要看：
 
-- 软件中断读出是 `{31'b0, *_reg}`，符合 RISC-X msip/ssip 只有 bit0 的语义。
-- 64 位比较值要读两次（先读 `MTIMECMP0` 拿低字，再读 `MTIMECMPH0` 拿高字）。
-- `default` 给 `32'bx`——非法地址本来就会通过 `acc_err`/`perr` 报错，读数据是什么无所谓，给 X 让综合工具自由优化。
-- 这个 MUX 与 acc_err 的 case（第 4 节）地址表一致：能读到真值的地址恰好就是 `acc_err=0` 的那些。
+- `ct_sysio_kid.clint_core_st_int_cpu`；
+- `biu_cp0_st_int`；
+- `clintee`；
+- `stip_reg`；
+- `stip`；
+- `stie` 和委托/全局使能逻辑。
 
----
+### 13.3 监管态扩展不直接证明 Sstc
 
-## 10. mtime 采样与中断生成（CP0 接口）
+本模块实现内存映射 `stimecmp/stimecmph`。标准 Sstc 以 CSR 形式定义监管态比较接口。二者目标相近、接口形式不同；要判断扩展合规，需要继续核查 CP0 CSR 和整机软件可见行为。
 
-这是 CLINT 的核心输出段（`ct_clint_func.v:462-513`），对应注释"3. CP0 interface"。
+## 14. 中断线的下游寄存采样
 
-### mtime 采样（`ct_clint_func.v:485-493`）
+`ct_sysio_kid` 在 `kid_int_clk` 上把 PLIC 和 CLINT 中断各采样一拍。其局部使能同样为 `apb_clk_en`。
 
-```verilog
-always@(posedge mtime_clk or negedge cpurst_b)
-  if(!cpurst_b)        clint_mtime_reg[63:0] <= 64'b0;
-  else if(apb_clk_en)  clint_mtime_reg[63:0] <= sysio_clint_mtime[63:0];
-  else                 clint_mtime_reg[63:0] <= clint_mtime_reg[63:0];   // 保持
+这一结构带来：
+
+- CLINT 组合输出与核心看到的中断输入之间至少有一个可见寄存阶段；
+- 采样只在相应使能有效的时钟沿发生；
+- 复位把该级中断寄存器清零。
+
+但它只有单级寄存器。除非系统时钟关系和约束另有保证，否则不能把它描述成通用意义上的双触发器异步同步器。
+
+## 15. 时钟门控的实现边界
+
+### 15.1 `clint_clk`
+
+```text
+clk_in    = forever_apbclk
+local_en  = psel_clint || perr_clint || pready_clint
+module_en = ciu_clint_icg_en
+scan_en   = pad_yy_icg_scan_en
 ```
 
-把外部送来的 64 位 `sysio_clint_mtime` 采样进本地寄存器 `clint_mtime_reg`，只在 `apb_clk_en` 有效的节拍更新。**为什么用 `mtime_clk`（源自 cpuclk）而不是 apbclk？** 这样 mtime 副本与核同节拍，后续比较产生的中断电平和核的时间观一致；`apb_clk_en` 则把更新速率对齐到 APB 节奏，避免每个 cpuclk 都刷新带来的功耗与跨域问题。
+该使能表达式使一次事务从选择出现到应答结束期间保持 APB 逻辑可运行。
 
-### 软件中断输出（`ct_clint_func.v:495-496`、`505-506`）
+### 15.2 `mtime_clk`
 
-```verilog
-assign clint_core0_ms_int = msip0_reg;
-assign clint_core0_ss_int = ssip0_reg;
-assign clint_core1_ms_int = msip1_reg;   // :505
-assign clint_core1_ss_int = ssip1_reg;   // :506
+```text
+clk_in    = forever_cpuclk
+local_en  = apb_clk_en
+module_en = ciu_clint_icg_en
+scan_en   = pad_yy_icg_scan_en
 ```
 
-软件中断直接把 pending 寄存器接出去，无任何组合逻辑——写进 1 就立刻拉高中断。
+它只驱动 `clint_mtime_reg`。
 
-### 定时器中断比较（`ct_clint_func.v:498-511`）
+### 15.3 RTL 意图和当前编译模型
 
-```verilog
-assign clint_core0_mt_int = !({mtimecmph0_reg[31:0], mtimecmp0_reg[31:0]} > clint_mtime_reg[63:0]);
-assign clint_core0_st_int = !({stimecmph0_reg[31:0], stimecmp0_reg[31:0]} > clint_mtime_reg[63:0]);
-assign clint_core1_mt_int = !({mtimecmph1_reg[31:0], mtimecmp1_reg[31:0]} > clint_mtime_reg[63:0]);
-assign clint_core1_st_int = !({stimecmph1_reg[31:0], stimecmp1_reg[31:0]} > clint_mtime_reg[63:0]);
+通用 `gated_clk_cell.v` 的行为取决于宏：
+
+```text
+C910_USE_TSMC28_ICG 已定义 -> 例化特定 ICG 单元
+未定义                  -> clk_out = clk_in
 ```
 
-每根定时器中断线的逻辑都是同一个套路：
+因此：
 
-1. 把高字、低字两个 32 位寄存器用位拼接 `{高, 低}` 组成 64 位比较值。
-2. 与本地 `clint_mtime_reg[63:0]` 做无符号 `>` 比较。
-3. 取反 `!(...)`。
+- 从结构上可以讨论局部/模块/scan 使能的门控意图；
+- 在默认 pass-through 仿真中，输出时钟波形可能不会停；
+- 即使时钟不物理停，时序块内部的 `if (apb_clk_en)` 仍限制 `clint_mtime_reg` 更新；
+- 功耗收益不能由源 RTL 结构单独量化。
 
-`!(cmp > mtime)` 在数学上等于 `mtime >= cmp`，正是 RISC-V 规范要求的定时器中断条件。这样写只用一个 `>` 比较器（而非额外的 `>=`），是面积友好的写法。共 4 根定时器中断线（2 hart × {M, S}）。
+## 16. 复位行为逐项核对
 
-第 503、513 行有被注释掉的 `clint_core*_time[63:0]` 导出——曾经打算把 mtime 也送进核，最终未启用（核自有时间通路 `sysio_xx_time`）。
+| 状态 | 复位值 | 直接效果 |
+|---|---:|---|
+| `pready_clint` | 0 | 复位期间不应答 |
+| `perr_clint` | 0 | 复位期间不报事务错误 |
+| `msip0/1_reg` | 0 | 机器软件中断输出低 |
+| `ssip0/1_reg` | 0 | 监管软件中断输出低 |
+| 比较值高低半部 | 全 1 | 组合阈值为 64 位最大值 |
+| `clint_mtime_reg` | 0 | CLINT 本地时间样本从零开始 |
 
----
+上游 `ct_sysio_top.ccvr` 没有显式复位分支，不应被包括在“CLINT 全部时间路径都复位为零”的结论中。
 
-## 11. 时钟门控
+## 17. 建议的功能验证点
 
-模块内两个 `gated_clk_cell` 实例：
+### 17.1 APB
 
-| 实例 | 行号 | clk_in | local_en | clk_out | 服务对象 |
-|------|------|--------|----------|---------|----------|
-| `x_clint_gateclk` | `:180-188` | `forever_apbclk` | `clint_clk_en`（`:178`） | `clint_clk`：APB 逻辑 + 全部寄存器写 + pready/perr |
-| `x_mtime_gated_clk` | `:467-475` | `forever_cpuclk` | `apb_clk_en` | `mtime_clk`：仅 mtime 采样 |
+- 合法读、合法写分别验证 SETUP 和 ACCESS 时序；
+- 每个空洞地址验证 `acc_err/perr_clint`；
+- hart2/3 预留地址验证非法；
+- U/S/M 三个有效 `pprot` 编码覆盖 M/S 两个地址区；
+- 专门覆盖保留编码 `10` 的非对称行为；
+- 错误写验证寄存器不更新；
+- 非法读验证软件不依赖 `prdata` 的 `x` 值。
 
-两者 `global_en=1`、`external_en=0`，模块级使能均为 `ciu_clint_icg_en`，DFT 时由 `pad_yy_icg_scan_en` 旁路。`clint_clk_en = psel_clint || perr_clint || pready_clint`：只在有访问或正在应答时开 APB 时钟，平时关掉省功耗。
+### 17.2 软件中断
 
----
+- 写 1 后持续为高；
+- 无写事务时保持；
+- 写 0 后清除；
+- 高 31 位写入不影响结果；
+- hart0 和 hart1 地址互不串扰；
+- sysio_kid 采样延迟与 `apb_clk_en` 的关系。
 
-## 设计取舍小结
+### 17.3 定时器
 
-| 取舍 | 体现（行号） | 理由 |
-|------|------|------|
-| 比较值复位全 1 | `:313/323/343/353/373/383/403/413` | 上电默认不触发定时器中断 |
-| `!(cmp > mtime)` 实现 `mtime>=cmp` | `:498-511` | 单比较器 + 取反，省面积 |
-| 64 位拆 2×32 位寄存器 + 位拼接比较 | `:76-79`、`:498` | 适配 32 位 APB 数据通路 |
-| acc_err 用白名单 case | `:247-271` | 稀疏地址空间下精确拦非法访问 |
-| 特权 wen 与 priv_err 双管齐下 | `:216-217`、`:273-274` | 既阻止坏写生效又上报错误 |
-| S 区放行 S 态写（Sstc） | `:217`、`:285-287` | S 态 OS 直接管定时器/软中断，免 M 陷入 |
-| msip/ssip 仅 bit0、读补 0 | `:305`、`:307` | 符合 RISC-V 软件中断寄存器语义 |
-| mtime 用 cpuclk 域采样、`apb_clk_en` 选通 | `:467-493` | 对齐核节拍 + 控制刷新速率 |
-| 两路门控时钟、按需开启 | `:178-188`、`:467-475` | APB 逻辑与 mtime 采样分域低功耗 |
-| 参数预留 4 hart、仅实现 2 hart | `:148-174`、case 表 | 可扩展，未实现走 default 报错 |
+- `time < cmp`、`time == cmp`、`time > cmp` 三个边界；
+- 最大值比较；
+- 时间样本不更新时中断关系保持；
+- 高低半部分别写入时的中间比较值；
+- 写未来阈值后已有高电平清除；
+- `clintee=0/1` 对 STIP/SSIP 而非 CLINT 原始输出的影响。
 
-*文档覆盖 ct_clint_func.v 全部 520 行逻辑。*
+## 18. 用一句伪代码概括模块
+
+```text
+on APB SETUP edge:
+    ready_next = selected
+    error_next = selected && (illegal_address || illegal_privilege)
+
+on APB ACCESS edge:
+    if selected && write && privilege_allowed && address_matches:
+        selected_register = write_data
+
+on enabled CPU-derived mtime sample edge:
+    sampled_mtime = sysio_mtime
+
+continuous:
+    ms_int = msip
+    ss_int = ssip
+    mt_int = sampled_mtime >= mtimecmp
+    st_int = sampled_mtime >= stimecmp
+```
+
+这段伪代码保留了本模块最关键的时序边界：应答生成、寄存器写入、时间采样和中断组合输出是四类不同事件。

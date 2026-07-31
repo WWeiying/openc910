@@ -13,13 +13,13 @@
   - [1.2 两条触发线：陷入与出栈](#12-两条触发线陷入与出栈)
 - [2. 端口说明](#2-端口说明)
 - [3. 参数与关键寄存器](#3-参数与关键寄存器)
-- [4. mstatus：两级特权栈与中断使能栈](#4-mstatus两级特权栈与中断使能栈)
+- [4. mstatus：当前值与一层历史值](#4-mstatus当前值与一层历史值)
 - [5. 陷入时的原子写：mepc / mcause / mtval](#5-陷入时的原子写mepc--mcause--mtval)
 - [6. 特权级切换 pm 与委派 medeleg/mideleg](#6-特权级切换-pm-与委派-medelegmideleg)
-- [7. mtvec / stvec：Direct vs Vectored 与 vbr 输出](#7-mtvec--stvec-direct-vs-vectored-与-vbr-输出)
+- [7. mtvec / stvec：Direct vs Vectored 与 vbr 输出](#7-mtvec--stvecdirect-vs-vectored-与-vbr-输出)
 - [8. mret / sret 出栈与返回地址 efpc](#8-mret--sret-出栈与返回地址-efpc)
 - [9. 中断：mie/mip 过滤、委派仲裁、退休边界接受](#9-中断miemip-过滤委派仲裁退休边界接受)
-- [设计取舍小结](#设计取舍小结)
+- [本章小结](#本章小结)
 
 ---
 
@@ -27,7 +27,7 @@
 
 ### 1.1 什么是"陷入核心"
 
-RISC-V 的陷入（trap，统称异常 exception 与中断 interrupt）要求硬件在进入异常处理程序前**原子地**完成一组状态保存：
+RISC-V 的陷入（trap，统称同步异常 exception 与异步中断 interrupt）要求软件开始执行处理程序时看到一组彼此一致的架构状态：
 
 - `mepc ← 陷入点 PC`
 - `mcause ← 原因码`（区分中断/异常）
@@ -35,7 +35,9 @@ RISC-V 的陷入（trap，统称异常 exception 与中断 interrupt）要求硬
 - `mstatus`：把当前中断使能 `mie` 压进 `mpie`、把当前特权级压进 `mpp`、清 `mie`
 - `pm ← M（或委派后 S）`
 
-退出时 `MRET`/`SRET` 做逆操作。整个过程在 `ct_cp0_regs.v` 用一组并列的 `always` 块实现，**它们共享同一个触发条件 `rtu_cp0_expt_vld`/`mdeleg_vld`，因此天然在同一拍同步发生，即"原子"**。这正是本文要逐块拆解的内容。
+退出时 `MRET`/`SRET` 恢复其中的返回状态。整个过程在 `ct_cp0_regs.v` 中由一组并列时序块实现：实际 RTU trap 路径共享 `rtu_cp0_expt_vld`，并用同一个 `mdeleg_vld` 决定写 M 套还是 S 套寄存器。它们在同一个 `regs_flush_clk` 有效沿更新，因此对后续软件可见为同一次陷入状态转换。
+
+“原子”在这里不表示一个组合块一次性写完，也不表示从异常检测到 handler 第一条指令只需要一拍；它只描述架构状态不会先让软件看见新 `mepc`、下一拍才看见新 `mcause`。
 
 ### 1.2 两条触发线：陷入与出栈
 
@@ -65,7 +67,7 @@ RISC-V 的陷入（trap，统称异常 exception 与中断 interrupt）要求硬
 | `rtu_yy_xx_expt_vec[5:0]` | 6 | 301/717 | bit5=中断/异常，[4:0]=cause |
 | `rtu_cp0_epc[63:0]` | 64 | 283/699 | 陷入点 PC → mepc/sepc |
 | `rtu_cp0_expt_mtval[63:0]` | 64 | 285/701 | 辅助值 → mtval/stval |
-| `rtu_cp0_int_ack` | 1 | 288 | RTU 接受中断的应答 |
+| `rtu_cp0_int_ack` | 1 | 288 | 名义上的中断接受应答；当前 regs 仅声明该输入，没有在功能逻辑中使用 |
 | `rtu_yy_xx_flush` | 1 | 302 | 全核冲刷 |
 
 ### 2.2 来自 IUI 的写/出栈输入
@@ -120,7 +122,7 @@ RISC-V 的陷入（trap，统称异常 exception 与中断 interrupt）要求硬
 
 ---
 
-## 4. mstatus：两级特权栈与中断使能栈
+## 4. mstatus：当前值与一层历史值
 
 `mstatus` 是陷入核心最复杂的寄存器。它的字段布局在注释里画得很清楚（regs.v 行 1501-1510）。每个字段是独立的小 `always` 块，下面挑陷入相关的讲。
 
@@ -139,13 +141,13 @@ else if(iui_regs_inst_mret)         mpie <= 1'b1;         // MRET：mpie 置 1�
 else if(mstatus_local_en)           mpie <= iui_regs_src0[7];
 ```
 
-**这就是经典的"硬件中断使能栈，深度 1"**：
+这是一层历史保存，而不是可任意压入多项的通用堆栈：
 - 陷入瞬间：`mpie ← mie`（保存），`mie ← 0`（进入处理程序时默认关中断）。
 - MRET 瞬间：`mie ← mpie`（恢复），`mpie ← 1`（spec 要求，表示返回后那一层默认允许再陷入）。
 
 S 级用 `sie_bit`/`spie`（行 1695-1709、1665-1679），结构完全对称，触发条件改成 `mdeleg_vld`（委派给 S 时）和 `iui_regs_inst_sret`。
 
-**为什么要硬件栈？** trap 处理程序入口必须保证"原中断使能被保存且当前关中断"，否则刚进 handler 又被中断会丢现场。用硬件单层栈而非软件保存，是因为它必须与 mepc/pm 在同一拍原子完成。
+**为什么要硬件保存这一层？** trap 入口必须同步保存原全局使能并关闭目标特权级的全局使能。否则软件在执行第一条 handler 指令前就没有可靠的旧值可恢复。若要支持更深的可重入嵌套，handler 仍需先把这些 CSR 状态保存到软件栈，再有选择地重新开中断。
 
 ### 4.2 特权级两级栈：mpp / spp
 
@@ -175,7 +177,13 @@ assign mstatus_value = {sd, 23'b0, mpv, 3'b0, sxl, uxl, 7'b0, vs,
 
 只读派生字段：`sd`（任一 xs/fs/vs 为脏即 1，行 1511）、`sxl/uxl`（=`mxl`=2，即 RV64，行 1515-1517、1728）、`mpv`/`vs`/`xs` 恒 0（行 1513、1540、1591，因 C910 无 H、向量状态走另路、无附加扩展状态）。
 
-`fs`/`vs` 还有"脏更新"通路（行 1593-1614）：当浮点/向量寄存器被写（`rtu_cp0_fp_dirty_vld` 等）时自动从 01/10 跳到 11(Dirty)，无需软件干预。
+`fs` 有实际可见的脏更新通路：当其当前值为 Initial/Clean 且浮点相关状态被修改时，可更新到 Dirty。向量部分要更谨慎：
+
+- `vs_raw` 确实存在写入和 dirty 更新时序块；
+- 但当前 RTL 随后用 `assign vs[1:0] = 2'b0` 把软件可见 `mstatus.VS` 固定为 Off；
+- `regs_iui_vs_off` 也因此恒为真。
+
+所以不能仅凭 `vs_raw` 时序块宣称当前配置完整实现标准 `mstatus.VS` 状态机。向量数据通路的存在与标准 V 扩展 CSR 可见状态是否启用是两个不同问题。
 
 ---
 
@@ -217,11 +225,15 @@ if((rtu_cp0_expt_vld || iui_regs_inv_expt) && !mdeleg_vld)
     mtval_data <= mtval_upd_data;     // 普通 trap 用 RTU 给的值；CP0 自检非法指令用指令编码
 ```
 
-注意第二输入 `iui_regs_inv_expt`：当 CP0 自己在 iui 里检出"特权不足/非法 CSR"时（[03 文档](./03_cp0_lpmd_iui.md) §5），用**指令编码**当 mtval（行 2040），符合非法指令异常应填指令本身的约定。`stval` 同理（行 2364-2386）。
+第二个写入来源是 `iui_regs_inv_expt`。当 IUI 在 EX2 检出非法 CP0 指令时，`mtval_upd_data` 在没有 `rtu_cp0_expt_vld` 的分支选择零扩展的 32 位指令编码。
+
+这里存在时序边界：`iui_regs_inv_expt` 是 IUI 的前置非法检测，真正的架构陷入仍需 IU/RTU 后续形成 `rtu_cp0_expt_vld`。而 `mdeleg_vld` 是根据 RTU 当前 trap vector 计算的，不是根据 IUI 的 `cp0_iu_ex3_expt_vec` 直接计算。因此，不能简单写成“IUI 一发现非法指令，就已经准确选择 mtval 或 stval 完成最终陷入”；最终 M/S trap 状态仍应以 RTU 接受事件为准。
 
 ### 5.4 三者为何"原子"
 
-mepc/mcause/mtval/mstatus 各字段/pm 都是**独立的 always 块**，但**全部以 `rtu_cp0_expt_vld`（+ `mdeleg_vld`）为唯一陷入触发**，且都在同一时钟沿（`regs_flush_clk`）更新。因此从软件视角，进 handler 后看到的这五者必然来自同一个陷入事件——这就是硬件层面的"原子陷入"，不需要任何 handshake/排序。
+mepc/mcause/mstatus/pm 等是独立时序块；在实际 RTU trap 路径上，它们都由 `rtu_cp0_expt_vld` 和 `mdeleg_vld` 选择，并在 `regs_flush_clk` 的同一个有效沿更新。`mtval/stval` 还多一个 IUI 非法检测写入来源，但 RTU trap 路径仍优先选择 `rtu_cp0_expt_mtval`。
+
+这里不能说“不需要任何 handshake”：RTU 到 CP0 的 `rtu_cp0_expt_vld + payload` 本身就是已经选定的有效事件接口。准确说法是，CP0 regs 内部不再为 EPC/cause/tval 分别进行多次握手。
 
 ---
 
@@ -261,7 +273,16 @@ mtvec_base[61:0] <= iui_regs_src0[63:2]; // 高位是 BASE
 assign mtvec_value = {mtvec_base[61:0], 1'b0, mtvec_mode[0]};  // 只回读 mode bit0
 ```
 
-注意 `mtvec_value` 拼装时把 bit1 强制成 0、只保留 `mode[0]`：即 C910 只支持 **MODE=0(Direct)** 与 **MODE=1(Vectored)** 两种，MODE>=2 的编码被读为 0（行 1933）。`stvec` 完全对称（行 2240-2260）。
+写入时 `mtvec_mode[1:0]` 会保存源数据低两位，但读回值和送 IFU 的值都把 bit1 强制为 0，只使用 `mtvec_mode[0]`。因此软件可见效果是：
+
+| 写入 MODE | 保存的内部两位 | 读回 MODE | IFU 使用 |
+|---:|---:|---:|---|
+| `00` | `00` | `00` | Direct |
+| `01` | `01` | `01` | Vectored |
+| `10` | `10` | `00` | Direct |
+| `11` | `11` | `01` | Vectored |
+
+所以不是笼统的“MODE>=2 都读为 0”，而是 bit1 被屏蔽、bit0 仍然生效。`stvec` 完全对称。标准软件仍应只写受支持编码 0 或 1。
 
 ### 7.2 Direct vs Vectored 的实现在哪？
 
@@ -273,11 +294,25 @@ assign cp0_ifu_vbr[39:0] = pm[1:0]==2'b11 ? {mtvec_base[37:0],1'b0,mtvec_mode[0]
                                           : {stvec_base[37:0],1'b0,stvec_mode[0]};
 ```
 
-即：陷入发生时按**陷入后的目标特权级**（M 用 mtvec、否则 stvec）选基址，连同 mode[0] 一起给 IFU。真正的"Vectored 模式下 PC = base + 4×cause"的偏移加法由 IFU 在取指时完成（IFU 用 vbr + RTU 给的 vec）。CP0 这样设计是为了把陷入向量计算放到取指通路，缩短 CP0 关键路径。
+`cp0_ifu_vbr` 根据当前 `pm` 选择 M 或 S 向量；RTU trap 被接受的同一个沿会把 `pm` 更新到目标特权级。真正的向量地址计算位于 `ct_ifu_vector.v`：
+
+```text
+若 mode[0]=1 且 trap 是中断:
+    halfword_PC = VBR_base + (cause << 1)
+否则:
+    halfword_PC = VBR_base
+```
+
+这里 IFU 内部 PC 省略了字节地址 bit0，所以“halfword 表示中的 `cause<<1`”对应完整字节地址的 `4*cause`。异常即使在 Vectored 模式下也仍进入 BASE。把计算放在 IFU 是 RTL 事实；“这样一定缩短 CP0 关键路径”属于合理的微结构解释，但实际时序收益仍需综合时序报告支持。
 
 ### 7.3 复位向量 rvbr
 
-`mrvbr` 记录复位入口：上电时由 IFU 的首次 inv 请求 `ifu_cp0_rst_inv_req` 采样 `biu_cp0_rvba`（行 3046-3064），只读，经 `cp0_ifu_rvbr` 给 IFU（行 4137）。这是核出复位后第一条指令地址的来源。
+`mrvbr` 记录复位入口。实现分两步：
+
+1. `rst_sample` 在 `forever_cpuclk` 上看到 `ifu_cp0_rst_inv_req` 后置 1；
+2. `mrvbr_reg` 在后续 `regs_flush_clk` 有效沿看到 `rst_sample` 后采样 `biu_cp0_rvba[39:1]`。
+
+因此不要把它写成请求组合到来时“立即采样”。读回和 `cp0_ifu_rvbr` 都把 bit0 补 0；该值参与 IFU 复位向量流程。
 
 ---
 
@@ -302,7 +337,9 @@ assign cp0_iu_ex3_efpc[38:0] = cp0_mret ? mepc_value[39:1] : sepc_value[39:1];
 assign cp0_iu_ex3_efpc_vld   = cp0_mret || cp0_sret;
 ```
 
-MRET 返回到 mepc、SRET 返回到 sepc，作为 `cp0_iu_ex3_efpc` 送回 IU（IU 据此重定向取指）。`cp0_mret`/`cp0_sret` 信号来自 iui（top.v 行 746/749 把 iui 的 `cp0_mret` 连过来，但 efpc 选择用的是 regs 内部根据 iui_regs_inst_mret/sret 派生的同名信号）。`efpc_vld` 告诉 IU"这是一次返回跳转"。
+MRET 选择 mepc，SRET 选择 sepc，并以省略 bit0 的 `[39:1]` 形式送到 `cp0_iu_ex3_efpc[38:0]`。
+
+有一个容易被端口名掩盖的细节：regs 中的 `cp0_iu_ex3_efpc_vld` 直接等于 IUI 输出的 `cp0_mret || cp0_sret`，而 IUI 的这两个信号由 `cp0_select` 门控。`cp0_select` 在 EX1、匹配 commit 的 EX2、以及已 commit 的 EX3 都可能成立，所以该 valid 不是在 regs 内再次严格限定为单独一个 EX3 周期。真正更新 `pm/mstatus` 的信号则是 `iui_regs_inst_mret/sret`，只在匹配 commit 的 EX2 成立。波形分析必须把“返回目标被广播”与“返回状态已经提交”分开。
 
 `MRET`/`SRET` 本身还会触发 `cp0_iu_ex3_flush`（iui.v 行 1651），冲掉错误路径上预取的指令——因为返回目标在执行前不可知。
 
@@ -321,47 +358,56 @@ assign moip = hpcp_cp0_int_vld;      // 性能计数器溢出
 assign mcip = ecc_int_vld;           // ECC（C910 恒 0，行 2110/3203）
 assign seip = biu_cp0_se_int || seip_reg;  // 引脚 OR 软件置位
 ```
-S 级 pending 位（seip/stip/ssip）可由软件经 MIP/SIP 写 `*ip_reg`（行 2080-2106）；写语义特殊（行 2063-2068）：只有 CSRRW 或写值对应位为 1 时才真正改，模拟 MIP 的 W1-style 行为。
+CP0 内部只保存 `seip_reg/stip_reg/ssip_reg` 三个位：
+
+- 写 MIP 时，M 模式可更新三个位；
+- 写 SIP 时，当前代码只在 `ssip_acc_en` 成立时更新 `ssip_reg`，不会通过 SIP 更新 `seip_reg/stip_reg`；
+- CSRRW/CSRRWI 对可写位执行直接赋值；
+- CSRRS/CSRRC 的原始 source 对应位为 0 时，该位保持不变；为 1 时，IUI 已算好的新值决定置位或清位。
+
+因此它不是简单的“W1C”或“W1S”寄存器，而是为了保持标准 CSRRS/CSRRC 的“source 位为 0 则不写该位”语义所做的逐位写屏蔽。
 
 ### 9.2 三级使能 + 特权 + 委派过滤
 
 每个中断要变成"有效请求"，需穿过三道闸：
 
 1. **局部使能**：`xip_en = xie && xip`（行 2124-2133），即 mie 寄存器对应位开。
-2. **特权级闸**：M 级中断只在"当前 M 且 mie_bit 开，或当前更低权"时有效（行 2157-2159）；S 级中断的 nodeleg/deleg 两套条件见行 2165-2185。核心思想：**更高特权级的中断总能打断更低特权级；同级中断需该级全局使能**。
-3. **委派分流**：每个源拆成 `xip_nodeleg_vld`（去 M）与 `xip_deleg_vld`（去 S）两条，由 `mideleg_value[*]` 决定走哪条（行 2136-2185）。
+2. **特权级闸**：`meip/mtip/msip` 使用 `(pm!=M || mie_bit)`，即在较低特权级不看 MIE，在 M 模式看 MIE。S 类源则分别形成委派和非委派条件：非委派去 M 时，在 S/U 模式不看 MIE；委派去 S 时，在 S 模式看 SIE、在 U 模式不看 SIE。
+3. **委派分流**：S 类中断和扩展的 `moip` 有 nodeleg/deleg 两套候选。`meip/mtip/msip` 在当前 RTL 中只有直接的 `*_vld` 路径，并没有被 `mideleg` 分流；`mideleg` 可写位也只包括 `moip/seip/stip/ssip`，而 `mhip/mcip` 委派位被硬连为 0。
 
 最终打包成 15 位 one-hot 候选 `int_sel[14:0]`（行 2187-2193），经 `regs_iui_int_sel` 送 iui。
 
 ### 9.3 iui 编码唯一向量并请求 RTU
 
-iui 收到 `regs_iui_int_sel` 后用优先级 casez 编码出**唯一**中断号（iui.v 行 1592-1611，含优先级：mcip>mhip>meip>msip>mtip>seip>… 顺序），锁存为 `iui_int_vec`，并拉低 `cp0_rtu_xx_int_b`（iui.v 行 1625）请求 RTU。
+IUI 收到 `regs_iui_int_sel` 后用 `casez` 的从上到下匹配顺序编码一个中断号，随后在 `cpuclk` 沿把 cause 锁存到 `iui_int_vec`，并把“当前是否有候选”锁存为低有效 `iui_int_vld_b`。所以 `int_sel` 组合变化与 `cp0_rtu_xx_int_b/cp0_rtu_xx_vec` 对外变化之间有一个寄存阶段。
+
+固定优先级顺序为：
+
+```text
+非委派 mcip > mhip > meip > msip > mtip > seip > ssip > stip > moip
+> 委派 mcip > mhip > seip > ssip > stip > moip
+```
+
+当前配置下 `mcip`、`mhip` 及其委派项为 0，但编码槽位仍保留。
 
 ### 9.4 "中断只在退休边界接受"
 
-关键点：**CP0 只是"请求"，真正何时陷入由 RTU 在退休边界决定**。RTU 拿到 `cp0_rtu_xx_int_b`+`cp0_rtu_xx_vec` 后，会等到一条指令的退休边界（保证精确中断），才回送 `rtu_cp0_expt_vld`（bit5=1 表示中断）+ `rtu_yy_xx_expt_vec`，触发 §5 的原子陷入。也就是说，中断和异常**共用同一条陷入回路**，区别只在 `rtu_yy_xx_expt_vec[5]`。这保证了：
+关键点：**CP0 产生请求，RTU 决定精确接受条件**。RTU 的 ROB retire 逻辑还会考虑当前提交宽度、调试等约束，再把所选中断转成 `retire_async_expt_vld`，最终形成 `rtu_cp0_expt_vld` 和带 interrupt bit 的 vector。中断和同步异常随后共用 CP0 的 trap 状态更新通路。
 
 - 中断绝不会在指令中途打断（精确性）；
 - 投机/乱序执行不会让中断提前生效（CP0 的状态写都挂在退休触发上）。
 
-`cp0_hpcp_int_disable`（行 2195-2196）则在当前特权级关中断时反向通知 HPCP 别再报溢出中断，省功耗。
+`cp0_hpcp_int_disable` 在 M 模式且 MIE=0，或 S 模式且 SIE=0 时为 1，并送往
+HPCP。沿接收端继续追踪可确认：当前 `ct_hpcp_top` 只把它零扩展为 event36
+的每周期增量，用来统计“全局中断关闭状态持续了多少周期”；它没有参与
+`hpcp_cp0_int_vld = |(cntinten_value & cntof_int)` 的门控，也不冻结其它事件
+计数。因此虽然信号名包含 `int_disable`，它不是“禁止 PMU 溢出中断输出”的
+控制线。
 
 ---
 
-## 设计取舍小结
+## 本章小结
 
-1. **"一字段一 always、共享触发"实现原子陷入**：mepc/mcause/mtval/mstatus 各位/pm 写成几十个独立小块，但都监听同一组 `rtu_cp0_expt_vld + mdeleg_vld` 条件，同一时钟沿落盘。这比写一个巨型 always 更易读、综合更友好，且天然原子——无需任何内部握手。
+CP0 陷入路径首先把中断 pending、enable、当前特权和委派条件压缩成唯一候选及 cause，再由 RTU 在精确退休边界决定是否接受。接受时，单一 `mdeleg_vld` 统一决定写入 M 级还是 S 级陷入状态，各字段虽然由独立时序块更新，却共享同一有效条件和同一分流结果；这保证 EPC、cause、tval、当前 IE/privilege 与 previous 字段在同一个架构事件上成组变化。硬件只保存一层 previous 状态，更深的嵌套上下文仍需软件保存。普通 trap 的 tval 来自 RTU，CP0 自身检测到的非法 CSR 则可选择指令编码作为 mtval 来源，因此必须结合 cause 判断 tval 的语义。
 
-2. **委派用单一 `mdeleg_vld` 做全局分流**：把"去 M 还是去 S"压缩成一个布尔（行 1842），所有陷入寄存器据它二选一。代价是 M/S 两套寄存器逻辑几乎重复，但换来分流点单一、易验证不会"半边写 M 半边写 S"。
-
-3. **向量偏移计算下放给 IFU**：CP0 只输出 `cp0_ifu_vbr`(base+mode)（行 4134），不算 `base+4×cause`。把加法放到 IFU 取指通路，避免在 CP0 陷入关键路径上插加法器。
-
-4. **中断"请求/接受"分离**：CP0 负责按 mie/特权/委派过滤并编码出唯一向量，RTU 负责选退休边界接受。职责切分让 CP0 完全组合式地算请求、RTU 独占精确性时机——这是乱序核实现精确中断的标准范式。
-
-5. **特权栈深度恰为 1**：硬件只存一层 mpp/mpie（spp/spie），多层嵌套靠软件在 handler 里再保存。深度 1 覆盖了"陷入即关中断"的最常见场景，硬件成本最低；嵌套陷入的额外保存交给软件，符合 RISC-V 的最小硬件原则。
-
-6. **mtval 双源（RTU 值 / 指令编码）**：普通 trap 用 RTU 的 mtval，CP0 自检的非法 CSR 异常用指令编码（行 2039-2040）。一个寄存器复用两条来源，省掉单独的非法指令记录寄存器。
-
----
-
-*文档覆盖 ct_cp0_regs.v 全部 4394 行逻辑中与陷入入口/出口/特权/中断相关的部分；CSR 配置位与读写解码见 [02_cp0_csr.md](./02_cp0_csr.md)。*
+陷入目标 PC 不是在 CP0 内完整计算。CP0 输出压缩表示的 trap base 和 mode，RTU 提供 cause，IFU 的 `ct_ifu_vector` 再在内部省略 PC bit0 的表示下完成等价于字节地址 `base + 4*cause` 的向量偏移，并启动前端重定向。返回指令沿相反方向恢复 previous privilege/IE 并跳回 EPC。由此形成“CP0 判定资格、RTU 保证精确、CP0 更新架构状态、IFU 生成目标地址”的职责链。波形分析时，应先确认候选中断或异常，再确认 RTU 接受，随后检查寄存器更新和 IFU 重定向；只观察其中任一环节都不足以证明一次完整陷入已经完成。CSR 配置位与读写解码见 [02_cp0_csr.md](./02_cp0_csr.md)。

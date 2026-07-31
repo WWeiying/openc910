@@ -1,6 +1,6 @@
 # C910 IFU（取指单元）深度学习指南
 
-> 本文档覆盖 C910 IFU 全部模块，包含体系结构原理、微架构设计、RTL 代码解析。
+> 本文从取指重定向、分支预测、I-cache、预译码、指令缓冲和下游交付六条主线说明 C910 IFU，并给出对应 RTL 入口。
 > 学完本文档，应能对 IFU 的每个子模块的职责、关键信号、设计取舍有清晰认知。
 
 ---
@@ -10,7 +10,7 @@
 1. [IFU 总体架构](#1-ifu-总体架构)
 2. [体系结构基础：为什么需要这些模块](#2-体系结构基础)
 3. [pcgen — PC 生成](#3-pcgen--pc-生成)
-4. [L0 BTB — 零延迟分支目标缓冲](#4-l0-btb--零延迟分支目标缓冲)
+4. [L0 BTB — 前移的分支目标缓冲](#4-l0-btb--前移的分支目标缓冲)
 5. [BTB — 分支目标缓冲](#5-btb--分支目标缓冲)
 6. [BHT — 分支历史预测器](#6-bht--分支历史预测器)
 7. [RAS — 返回地址栈](#7-ras--返回地址栈)
@@ -47,7 +47,8 @@
 ```
 
 IFU 是流水线的**源头**，其核心使命：
-- 每周期向 IDU 提供尽量多的有效指令（C910 目标 4 条/周期）
+- 每周期向 IDU 提供尽量多的有效指令；当前 RTL 的 IDU 接口为
+  `inst0/1/2` 三槽，因此接口峰值是 3 条指令/周期
 - 通过分支预测减少流水线气泡
 - 管理 I-Cache，处理 miss 和 refill
 
@@ -79,11 +80,14 @@ IFU 内部有三个流水级，对应三套 ctrl+dp（控制+数据通路）模�
 |------|------|----------|
 | `ct_ifu_top.v` | 4366 | IFU 顶层，连接所有子模块 |
 | `ct_ifu_pcgen.v` | 1076 | PC 选择与生成 |
-| `ct_ifu_l0_btb.v` | 1351 | L0 BTB（16 项，零额外延迟） |
-| `ct_ifu_btb.v` | 861 | BTB（1024 项，4 路组相联） |
+| `ct_ifu_l0_btb.v` | 1351 | L0 BTB（16 项寄存器表，命中向量打拍后用于 IF 级早期目标） |
+| `ct_ifu_btb.v` | 861 | BTB（当前 RTL 为 512 行×4 个固定位置槽） |
 | `ct_ifu_bht.v` | 1975 | BHT（Bi-Mode，64K bits） |
-| `ct_ifu_ras.v` | 1930 | 返回地址栈（18 项） |
+| `ct_ifu_ras.v` | 1930 | 返回地址栈（12 项投机栈 + 6 项退休恢复副本） |
+| `ct_ifu_ind_btb.v` | 685 | 间接跳转目标预测（256×23-bit） |
+| `ct_ifu_sfp.v` | 1128 | 推测失败与 `vsetvli`/VL 预测表（12 项） |
 | `ct_ifu_icache_if.v` | 832 | I-Cache SRAM 接口 |
+| `ct_ifu_ipb.v` | 1002 | 下一 cache line 预取、BIU 请求和预取缓冲 |
 | `ct_ifu_precode.v` | 320 | 128→32bit 预解码 |
 | `ct_ifu_ifctrl.v` | 1396 | IF 级流水线控制 |
 | `ct_ifu_ifdp.v` | 2085 | IF 级数据通路 |
@@ -94,6 +98,13 @@ IFU 内部有三个流水级，对应三套 ctrl+dp（控制+数据通路）模�
 | `ct_ifu_lbuf.v` | 6954 | 循环缓冲 |
 | `ct_ifu_addrgen.v` | 306 | 分支目标地址计算 |
 | `ct_ifu_l1_refill.v` | 793 | I-Cache miss 填充状态机 |
+| `ct_ifu_pcfifo_if.v` | 1074 | 从 H1~H8 中选最多两个控制流并创建 IU PCFIFO 项 |
+| `ct_ifu_vector.v` | 293 | 复位、异常和中断入口 PC 控制；不是 SIMD 向量执行单元 |
+| `ct_ifu_debug.v` | 386 | 将关键状态压缩为 83-bit HAD 调试快照 |
+
+上表列出 `ct_ifu_top.v` 的 22 个直接子模块。各子模块内部还实例化 entry、
+array 和 SRAM wrapper；这些叶子模块不是新的体系结构阶段，但它们决定真实容量、
+端口数、更新粒度和时序边界，不能只根据顶层信号名推断。
 
 ---
 
@@ -103,7 +114,10 @@ IFU 内部有三个流水级，对应三套 ctrl+dp（控制+数据通路）模�
 
 现代处理器流水线深度通常超过 10 级。若没有分支预测，每遇到分支指令（beq/jal/jalr 等）就必须等到执行阶段确认跳转方向和目标，期间流水线空转。
 
-**代价计算**：C910 IFU→IDU→IU 约 5-6 级，每次预测失败冲刷约 5 条 bubble，按 CPI=1 估算损失约 5 个周期。若分支频率为 1/5 条指令，无预测时 CPI = 1 + 5×0.2 = 2.0，性能减半。
+预测失败的损失不是一个可由单个 RTL 文件固定证明的常数。它取决于错误在哪一级
+被发现、重定向优先级、当时各级有效指令数和前端重新供给速度。分析时应从
+`iu_ifu_chgflw_vld` 或 RTU flush 开始，量到下一次 IDU 接收非零指令的周期；
+综合后的时钟频率和具体 benchmark 统计另行决定最终性能代价。
 
 **分支预测的两个问题**：
 1. **方向预测**（taken/not-taken）：条件跳转会不会跳？— BHT 负责
@@ -112,10 +126,10 @@ IFU 内部有三个流水级，对应三套 ctrl+dp（控制+数据通路）模�
 ### 2.2 C910 的三级分支预测层次
 
 ```
-L0 BTB（16 项）── 最快，PCGEN 阶段就能用，零额外延迟
+L0 BTB（16 项）── PCGEN 形成查找键，命中向量打拍后比主 BTB 更早给出目标
     │ miss
     ▼
-BTB（1024×4路）── IF 级，1 拍延迟，覆盖更多跳转历史
+BTB（512 行×4 个固定位置槽）── IF 级，1 拍 SRAM 延迟，覆盖更多跳转历史
     │ miss
     ▼
 Indirect BTB ── IP 级，针对间接跳转（jr, 函数指针）
@@ -129,9 +143,11 @@ Indirect BTB ── IP 级，针对间接跳转（jr, 函数指针）
 C910 I-Cache 是**2-way 组相联（Set-Associative）**，使用 **FIFO 替换策略**：
 
 ```
-I-Cache 结构：
-  容量：由 SRAM 规格决定（从 spsram_2048x59 可推算 Tag 有 2048 项）
-  组织：index[15:0] → 定位哪一"组"（Set）
+I-Cache 结构（当前 `ICACHE_64K` 配置）：
+  容量：64 KiB，2 路，64 字节 cache line，共 512 组
+  Tag：ct_spsram_512x59，一行保存同一组的两路 tag 和 FIFO 位
+  Data：每路 4 个 ct_spsram_2048x32_split bank
+  组织：虚拟索引定位 set，物理 tag 判断命中
         tag[27:0] 与 PA 比较 → 判断是否命中（Hit）
         way0 / way1 → 2 路，靠 FIFO bit 决定替换哪路
 
@@ -140,8 +156,8 @@ I-Cache 结构：
   [57:29]   Way1：{valid(1), tag(28)}
   [28:0]    Way0：{valid(1), tag(28)}
 
-  数据宽度：每路 4 个 bank，每 bank 128 位，共 512 位/行
-  即每次取出 128 位 = 8 个 16 位半字 = 最多 4 条 32 位指令
+  数据宽度：每路 4 个 32 位 bank，同一数据行合计 128 位
+  即每次取出 128 位 = 8 个 16 位半字；一条 64 字节 line 占 4 个数据行
 ```
 
 **关键设计**：Tag 和 Data 分开存储，**Tag 先读**（用于命中判断）；
@@ -293,13 +309,13 @@ assign ifu_mmu_va_vld   = 1'b1;  // 每周期无条件发虚地址给 MMU
 
 ---
 
-## 4. L0 BTB — 零延迟分支目标缓冲
+## 4. L0 BTB — 前移的分支目标缓冲
 
 **文件**：`ct_ifu_l0_btb.v`（1351 行）
 
 ### 4.1 为什么需要 L0 BTB？
 
-BTB 存在 1 拍 SRAM 读延迟，在 PCGEN 阶段拿不到结果。L0 BTB 是一个**全寄存器实现的极小 BTB**，可以在 PCGEN 同周期提供预测结果，消除分支预测的额外延迟。
+普通 BTB 使用同步 SRAM，PCGEN 发起访问后，目标信息要到后续流水阶段才可参与判断。L0 BTB 是一个**全寄存器实现的 16 项热点目标表**，把全项并行比较提前到 IF 级附近；但比较所得命中向量还要写入 `entry_hit_flop`，因此不能把整条重定向路径称为“零周期”或“PCGEN 同周期改 PC”。
 
 ### 4.2 结构
 
@@ -309,22 +325,23 @@ L0 BTB = 16 个寄存器项（不使用 SRAM）
 每项包含：
   vld       (1 bit)  — 有效
   tag[14:0] (15 bit) — 来自 ibdp_btb_index_pc[14:0]
-  target[19:0](20 bit)— 跳转目标低 20 位
-  way_pred[1:0](2 bit)— I-Cache way 预测
+  target[19:0]  (20 bit) — 跳转目标低 20 位
+  way_pred[1:0] (2 bit)  — I-Cache way 预测
   cnt       (1 bit)  — 分支计数（用于淘汰）
   ras_bit   (1 bit)  — 是否是 return 指令
 ```
 
-### 4.3 读取流程（零延迟）
+### 4.3 读取流程（组合比较与命中寄存）
 
 ```verilog
-// 16 路并行 tag 比较（纯组合逻辑，在 PCGEN 周期内完成）
+// 16 路并行 tag 比较
 wire entry0_rd_hit = (l0_btb_rd_tag[14:0] == entry0_tag) && entry0_vld;
 // ... entry1~15 类似
 
-// 多路选择取命中项的 target
+// 命中向量先在时钟沿写入 entry_hit_flop，
+// 随后再用该向量选择命中项的 target
 always @(*) begin
-  case(entry_hit[15:0])
+  case(entry_hit_flop[15:0])
     16'b...0001: l0_btb_hit_target = entry0_target;
     16'b...0010: l0_btb_hit_target = entry1_target;
     // ...
@@ -332,22 +349,27 @@ always @(*) begin
 end
 ```
 
-命中结果直接送 `ifctrl` 触发 IF 级 chgflw，PCGEN 下一拍就能更新 PC，无需等待 BTB 的 SRAM 读出。
+命中向量寄存后，L0 BTB 根据命中项的 `cnt`、`target` 和 `way_pred` 形成候选改流信息；IFCTRL 还要检查指令数据有效、stall 和 reissue 等条件，条件成立才向 PCGEN 发出 IF 级改流。它比普通 BTB 的 SRAM 路径更早给出热点目标，但节省的实际周期数要结合整条 PCGEN/IFCTRL 波形判断。
 
 ### 4.4 更新时机
 
-L0 BTB 的更新来自 `addrgen`（IB 级 +1，即执行确认阶段）：
-- 当分支在 BTB 中未命中（miss）或预测目标错误时，addrgen 把正确的 target 写入 L0 BTB。
-- 采用简单轮转（round-robin）或 LRU 替换策略（16 项中选一项覆盖）。
+L0 BTB 的字段创建和更新来自 IBDP 下传的信息；新条目由 16-bit one-hot
+`entry_fifo` 选择，每次创建循环移位一位，形成确定的 FIFO/轮转替换，不是
+LRU。ADDRGEN 在更后一级复算直接控制流目标；若已有 L0 BTB 命中项最终被确认
+为目标预测错误，它只通过命中独热码清除该项 `vld`，并不把完整正确目标写入
+L0 BTB。
 
 ### 4.5 状态机
 
 ```
-IDLE ──[ipctrl_l0_btb_chgflw_vld]──▶ WAIT（等待 addrgen 更新完成）
-WAIT ──[entry_inv_done]──────────────▶ IDLE
+IDLE ──[pcgen_l0_btb_chgflw_vld]──▶ WAIT
+WAIT ──[IP 级确认已到达且无需继续等待]──▶ IDLE
+WAIT ──[更高优先级改流形成 mask]────────▶ IDLE
 ```
 
-在 WAIT 状态期间，L0 BTB 暂停响应新的命中，防止读到过期数据。
+WAIT 不是“等待 entry 写完”。它跟踪一次早期 L0 BTB 改流何时到达 IP 级，
+配合 `wait_next/chgflw_mask` 防止预测上下文错拍；精确条件见
+[02_l0_btb.md](02_l0_btb.md) 第 6 节。
 
 ---
 
@@ -358,7 +380,9 @@ WAIT ──[entry_inv_done]──────────────▶ IDLE
 ### 5.1 结构
 
 ```
-BTB = Tag Array + Data Array，各 1024 项，4-way 组相联
+BTB = Tag Array + Data Array。当前生成 RTL 中每个阵列由两个 512 深度 SRAM
+并行组成；每行合计读出 4 个固定位置槽。RTL 把这些槽命名为 way0~way3，
+但写槽由分支 PC 的低位确定，并不存在组相联结构中的任意路替换。
 
 Tag Array（44 位宽，每项含 4 路）：
 [43] valid3  [42:33] tag3[9:0]
@@ -410,7 +434,7 @@ BTB Miss 发生：
   → refill_buf_way_pred ← ipctrl_btb_way_pred（IP 级确认）
   → refill_buf_valid = 1（条目完整）
 
-下次发生 Miss 或 Way 预测错误：
+下次发生 Miss 或 I-Cache way 预测错误：
   → refill_buf → 写入 BTB SRAM（才真正填充）
 ```
 
@@ -430,13 +454,13 @@ BTB Miss 发生：
 
 ### 6.1 Bi-Mode 预测算法
 
-C910 使用 **Bi-Mode BHT**，总容量 64K bits：
+C910 使用 **Bi-Mode BHT**。主 Predict Array 为 64 Kibit，另有 2 Kibit
+Select Array：
 
 ```
 结构：
-  Predict Array（预测表）：1K×32 bits × 2 = 2 个 SRAM（共 64K bits）
-    - Taken 预测表：给"倾向于跳转"的分支
-    - Not-Taken 预测表：给"倾向于不跳转"的分支
+  Predict Array：1 个 1024×64 SRAM（共 64 Kibit）
+    - 每行交错存放 32-bit Taken + 32-bit Not-Taken
 
   Select Array（选择表）：128×16 bits = 1 个 SRAM
     - 每项 16 bits = 8 个 2-bit 饱和计数器
@@ -496,14 +520,15 @@ BHT 写回必须等 SRAM 无读操作时才能进行（同一周期 SRAM 不能�
 - **call**：把返回地址 PC+4 压栈（Push）
 - **ret**：弹出栈顶地址作为跳转目标（Pop）
 
-RAS 专门预测这类模式，精度接近 100%（前提是调用和返回配对）。
+RAS 专门预测这类模式。正常配对的 call/ret 通常具有很高可预测性，但深度
+溢出、非标准链接寄存器用法和投机恢复都会造成失败，RTL 本身不能给出固定精度。
 
 ### 7.2 结构
 
 ```
-RAS 总容量：18 项
-  IFU 维护：12 项（投机更新，可能被 mispred 冲刷）
-  RTU 维护：6 项（提交后确认，用于恢复）
+RAS 物理状态：12 个投机栈项 + 6 个退休恢复项
+  IFU 栈深度：12 项（投机 push/pop，直接用于预测）
+  RTU 恢复副本：6 项（提交后确认，按最近窗口选择性复制回 12 项栈）
 
 每项内容：
   pc[38:0]           — 返回地址
@@ -521,7 +546,9 @@ reg [4:0] top_ptr;    // IFU 侧指针，5 位（bit[4] 为奇偶标志）
 // 当 top_ptr[3:0] == 11（最后一项）时，翻转 bit[4]，低 4 位归 0
 ```
 
-**5 位指针的妙用**：12 项的栈不能用简单的 4 位比较判断满/空（4 位会混淆）。用第 5 位作为"圈数奇偶"标志：两指针低 4 位相同且第 5 位相同 → 空；第 5 位不同 → 满。
+**5 位指针的作用**：12 项的栈不能只比较 4-bit 位置判断满/空。第 5 位是
+环绕位：两个指针完全相同表示空；低 4 位相同且环绕位相反表示满。不能把
+12+6 简单理解成“可连续预测 18 层调用”，实际投机栈深度是 12。
 
 ### 7.4 Push/Pop
 
@@ -596,7 +623,9 @@ Refill 最后一包       1           真实 tag  ← 数据完整后才置有�
 
 指令从总线取回时，`l1_refill` 模块**顺手做预解码**（`l1_refill_icache_if_pre_code[31:0]`），连同指令数据一起写入 Predecode Array。
 
-下次命中 Cache 时，IP 级直接读到预解码结果，无需重新解析，**节省 IP 级的解码周期**。每 32 位 precode 对应一个 16 字节取指块中 8 个半字的类型信息。
+下次命中 Cache 时，IP 级直接读到预解码结果，无需在 hit 路径重新计算同一组
+边界/类型提示。每 32 位 precode 对应一个 16 字节取指块中 8 个半字的类型信息；
+是否缩短完整周期取决于最终流水边界和综合时序。
 
 ---
 
@@ -669,12 +698,14 @@ assign if_stage_stall = ipctrl_ifctrl_stall      // IP 级拥塞
                       || ifctrl_l0_btb_stall;    // L0 BTB 查询等待
 ```
 
-**Invalidation 状态机**（简化）：
+**Invalidation 状态机**：
 ```
-IDLE → READ_REQ → READ_RD → INV_ALL（逐项清 tag）→ IDLE
-              ↓（插入式 inv）
-           INS_TAG_REQ → INS_TAG_RD → INS_CMP → INS_INV → IDLE
+全量/复位路径：IDLE → READ_REQ → READ_RD → READ_ST/INV_ALL → IDLE
+按地址路径：    INS_TAG_REQ → INS_TAG_RD → INS_CMP → INS_INV/INS_INV_ALL
 ```
+
+当前 RTL 共有 10 个编码状态，同时支持全量失效和按地址/tag 检查后的局部失效。
+各状态的精确分支条件应以 `ct_ifu_ifctrl.v:748~757` 及后续 next-state 逻辑为准。
 
 ### 10.3 ifdp 的核心职责
 
@@ -699,11 +730,12 @@ ifdp_ipctrl_way0_X_hit            — Way0 各段的命中信息
 ifdp_ipctrl_way1_X_hit            — Way1 命中信息
 ```
 
-**BRY Array（分支有效掩码缓存）**：
-```
-ifdp 维护 32 项 × 8 bit 的 BRY 数组，缓存已通过 tag 比较的分支有效位。
-IP 级用它快速判断当前取出的哪些 half-word 是分支指令。
-```
+**BRY 候选与流水寄存**：
+
+ifdp 不维护“32 项 × 8-bit BRY 数组”。它从两路 Predecode Array 取得各
+32-bit precode，拆出 `way0/way1 × bry0/bry1` 四组 8-bit 候选，在 IF/IP
+流水寄存器中保存并由 `ipctrl` 回写更新。这里的 32-bit 是一个 16-byte
+取指块的预解码信息，不是 32 个表项。
 
 ---
 
@@ -814,11 +846,10 @@ assign ibctrl_ras_pcall_vld   = ibdp_hn_pcall_vld && !ib_cancel;
 assign ibctrl_ras_preturn_vld = ibdp_hn_preturn_vld && !ib_cancel;
 ```
 
-**Indirect BTB 状态机**：
-```
-IDLE ──[ind_btb miss]──▶ WAIT（等待 Indirect BTB 查询结果）
-WAIT ──[结果就绪]────────▶ IDLE
-```
+间接跳转的等待控制不是 `ct_ifu_ind_btb.v` 内部的两态 FSM。该模块发起同步
+SRAM 查询并锁存结果；IB 级通过 `ind_btb_rd_state` 记录查询是否已经发起，
+在结果尚不可用时形成 `ind_btb_stall`。完整路径历史、索引、更新和恢复机制见
+[17_ind_btb.md](17_ind_btb.md)。
 
 ### 12.3 ibdp 的数据通路
 
@@ -841,7 +872,8 @@ ibdp（IB 级数据通路）负责将指令信息格式化，准备写入 IBUF�
 
 取指速率和译码速率可能不匹配：
 - I-Cache Miss 时取指停顿，但 IDU 可能仍在消费之前缓存的指令
-- 每周期取出 4 条指令，IDU 有时只能处理 2~3 条
+- 一个 16-byte 取指块最多带来 8 个新 half-word，叠加跨块 H0 时 IBUF 写入口
+  最多处理 9 个 half-word；IDU 接口最多接收 3 条完整指令
 
 IBUF 作为**弹性缓冲**，解耦取指和译码的速率差异，使两端都能满负荷运行。
 
@@ -874,16 +906,11 @@ Bypass 条件：IBUF 空 + IDU 未 stall + 指令有效。
 
 ### 13.4 队列管理
 
-```verilog
-reg [3:0] create_num;  // 写入计数
-reg [3:0] retire_num;  // 读出计数
-
-wire [3:0] entry_cnt = create_num - retire_num;  // 当前深度（模 16）
-assign ibuf_full  = (entry_cnt == 4'd8);
-assign ibuf_empty = (entry_cnt == 4'd0);
-```
-
-使用循环计数器而非指针比较，避免读写指针回绕时的逻辑复杂度。
+IBUF 使用 32-bit one-hot create/retire pointer 和两组 5-bit 模 32 计数。
+`ibuf_full` 检查从当前 create pointer 开始的 9 个候选写位置是否已有 valid，
+为最坏 9-half-word 写入预留空间；`ibuf_empty` 比较 create/retire 计数，并
+用 `entry_vld[0]` 区分“模 32 后相等”的全满与全空。详见
+[13_ibuf.md](13_ibuf.md) 第 3 节。
 
 ### 13.5 特殊指令处理
 
@@ -900,7 +927,11 @@ IBUF 为每条指令维护额外标记位：
 
 ### 14.1 设计动机
 
-程序中频繁出现小循环（循环体只有几条指令）。每次循环都要访问 I-Cache 是浪费。Loop Buffer 把循环体缓存在寄存器中，循环运行期间**完全不访问 I-Cache**，节省功耗，也避免 I-Cache 访问延迟。
+程序中频繁出现小循环（循环体只有几条指令）。Loop Buffer 把已捕获的循环
+half-word 保存在本地 Entry 中，ACTIVE 期间由这些 Entry 承担功能上的指令供给，
+从而减少正常 I-Cache 取数及其延迟暴露。BHT 查询、PCGEN、失效/flush 和前端控制
+仍可能活动，是否完全关闭某个 SRAM 时钟还取决于当拍请求和 ICG 实现，不能概括成
+“整个循环期间 I-Cache 与预测器都停止工作”。
 
 ### 14.2 状态机
 
@@ -933,16 +964,21 @@ READY ──[ibctrl_lbuf_retire_vld]──▶ IDLE（循环体消费完毕）
 
 ### 15.1 职责
 
-addrgen 在 **IB 级之后（IB+1）**执行，是 IFU 流水线的"事后验证"阶段：
+addrgen 在 **IB 级之后（IB+1）**工作，是 IFU 对直接控制流目标的后一级验证阶段：
 
 ```
-IFU 预测（IP 级）→ 执行（IB 级）→ addrgen 确认目标 → 通知 BTB/L0-BTB 更新
+IP 级记录预测改流目标
+  → IB 级识别预测 taken 条件分支或 JAL/C.J，并下传 PC 与立即数
+  → ADDRGEN 复算 PC-relative 目标
+  → 必要时纠正 PC、请求 BTB refill buffer 更新，或使错误的 L0 BTB 项失效
 ```
 
 主要工作：
-1. 计算分支指令的**真实跳转目标**（PC + sign_extend(offset)）
-2. 与 IP 级的预测目标比较，检测 misprediction
-3. 将正确的 target 写入 L0 BTB（和 BTB Refill Buffer）
+1. 对预测 taken 条件分支和 JAL/C.J 计算 PC-relative 目标（PC + sign_extend(offset)）
+2. 与 IP 级记录的预测改流目标比较，检测直接目标不一致
+3. 不一致时向 PCGEN 发出纠错，并把更新信息提交给 BTB refill buffer
+4. 若错误来源是已有 L0 BTB 命中项，则用命中独热码清除该项有效位；ADDRGEN
+   不负责向 L0 BTB 写入完整正确目标
 
 ### 15.2 目标地址计算
 
@@ -1095,7 +1131,7 @@ IP 级检测到 I-Cache miss（tag 比较失败）：
 
 l1_refill 模块：
   → 向 BIU/L2 发请求（ipb 模块）
-  → 等待 4 包 × 128 bit = 512 bit 数据返回（约 10~50 周期）
+  → 等待 4 包 × 128 bit = 512 bit 数据返回；间隔和总延迟由 BIU/L2/外存响应决定
   → 数据写入 I-Cache（Tag Array + Data Array + Predecode Array）
   → l1_refill_ifctrl_idle = 1 → stall 解除
 
@@ -1110,30 +1146,30 @@ pcgen 恢复取指，重新从 miss 地址取指（此时命中 Cache）
 
 | 预测器 | 容量 | 延迟 | 精度 | 覆盖范围 |
 |--------|------|------|------|----------|
-| L0 BTB | 16 项 | 0 周期 | 高（精确匹配）| 热点小循环 |
-| BTB | 1024×4路 | 1 周期 | 中高 | 大多数分支 |
-| BHT（Bi-Mode）| 64K bits | 2 周期 | 高（历史相关）| 条件分支方向 |
-| Indirect BTB | 独立 | IP 级 | 中 | 间接跳转 |
-| RAS | 18 项 | 0 周期 | 极高 | 函数返回 |
+| L0 BTB | 16 个寄存器项 | PCGEN 组合查找、结果打拍 | 目标预测 | 热点控制流 |
+| BTB | 512 行×4 个固定位置槽 | 同步 SRAM 流水读取 | 目标/way 预测 | 普通直接控制流 |
+| BHT（Bi-Mode）| 64 Kibit Predict + 2 Kibit Select | SRAM 读取并流水到 IPDP | 方向预测 | 条件分支 |
+| Indirect BTB | 256×23-bit | 同步 SRAM 查询并锁存 | 间接目标预测 | `jalr` 等 |
+| RAS | 12 项投机栈 + 6 项恢复副本 | 寄存器读与流水选择 | 返回目标预测 | call/return |
 
 ### 18.2 功耗优化技术
 
 | 技术 | 实现位置 | 节省效果 |
 |------|----------|----------|
-| Way Predict | pcgen → icache_if | 减少约 50% Data Array 读功耗 |
-| Bank 精确激活 | pcgen → icache_if | 减少约 75% Bank 读功耗 |
-| ICG（门控时钟）| 所有 SRAM 路径 | 空闲时关闭 SRAM 时钟 |
-| Predecode Array | icache_if | 避免重复解码，减少 IP 级功耗 |
-| Loop Buffer | lbuf | 循环时完全不访问 I-Cache |
+| Way Predict | pcgen → icache_if | 在资格条件满足时只使能预测路的数据阵列；预测错误会触发 stall/reissue |
+| Bank 精确激活 | pcgen → icache_if | 减少不需要的 Data SRAM bank 翻转；节能比例需门级功耗分析 |
+| ICG（门控时钟）| 预测器、Cache 阵列及控制寄存器的多条局部路径 | RTL 提供 local/module/scan enable；物理停钟与功耗收益取决于 ICG 宏和实现 |
+| Predecode Array | icache_if | 保存指令边界/控制流预编码，减少后续级重复计算这些早期属性 |
+| Loop Buffer | lbuf | ACTIVE 时由本地 Entry 提供循环指令，减少正常 I-Cache 供给访问；BHT 和前端控制仍参与 |
 
 ### 18.3 面积优化技术
 
 | 技术 | 实现 | 说明 |
 |------|------|------|
-| PC 高位分离 | pcgen | 39 位寄存器 + 24 位特殊寄存器，节省面积 |
+| PC 高位分离 | pcgen | 常用内部 PC 保存 `[39:1]`，异常高位只在特殊改流场景暂存；实际面积收益需综合证明 |
 | BTB Refill Buffer | btb | 避免频繁 SRAM 写，简化控制 |
-| FIFO 替换 | icache_if | 只需 1 bit tag，无需 LRU 计数器 |
-| RAS 5 位指针 | ras | 区分满/空而不增加额外硬件 |
+| 两路轮转替换 | icache_if | 每组保存 1 位替换状态，不维护完整 LRU 顺序；该位不是 tag |
+| RAS 5 位环形指针 | ras | 低 4 位选 16 个物理位置，附加 wrap 位参与满/空与覆盖关系判断 |
 
 ### 18.4 关键权衡
 
@@ -1141,7 +1177,7 @@ pcgen 恢复取指，重新从 miss 地址取指（此时命中 Cache）
 
 **投机更新 vs 精确更新**：VGHR 在 IP 级投机更新（可能错），RTUGHR 在 RTU 退休时精确更新。预测出错时 VGHR 从 RTUGHR 恢复，以精度换吞吐量。
 
-**L0 BTB 容量 vs 速度**：L0 BTB 只有 16 项（全寄存器，零延迟），容量有限但速度最快。BTB 有 1024×4 路但需要 1 拍 SRAM 延迟。分级设计让热点分支（16 个最常用）获得零延迟预测。
+**L0 BTB 容量 vs 速度**：L0 BTB 只有 16 项（全寄存器，组合命中），容量有限但速度最快。主 BTB 使用 512 行 SRAM，每行读出 4 个由 PC 位置决定的槽，需要 1 拍 SRAM 延迟。分级设计让进入 L0 BTB 的近期分支避开主 BTB 的读延迟。
 
 ---
 
@@ -1166,6 +1202,10 @@ pcgen 恢复取指，重新从 miss 地址取指（此时命中 Cache）
 | `addrgen_btb_update_vld` | addrgen→BTB | 更新 BTB 条目 |
 | `pcgen_icache_if_way_pred[1:0]` | pcgen→icache | I-Cache way 预测 |
 | `ifu_hpcp_icache_access/miss` | IFU→PMU | 性能计数器（命中/缺失） |
+| `sfp_ifdp_pc_hit/hit_type` | SFP→IFDP | no-spec 或 VL 预测命中及类型 |
+| `ipb_debug_req_cur_st/wb_cur_st` | IPB→debug | 预取请求/回放状态 |
+| `vector_pcgen_pcload/pc` | vector→pcgen | 装载复位或异常入口 PC |
+| `ifu_had_debug_info[82:0]` | IFU→HAD | JDBREQ 时采样的 IFU 状态快照 |
 
 ---
 

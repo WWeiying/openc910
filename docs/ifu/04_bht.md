@@ -27,10 +27,10 @@
 
 现代超标量处理器每个时钟周期可取多条指令。当取指流水线遇到条件分支指令（`beq`、`bne`、`blt` 等）时，在指令真正执行并得到结果之前，处理器必须猜测这条分支"是否跳转"（taken / not-taken）。
 
-- 如果猜错，流水线必须冲刷（flush），已经取进来的指令全部作废，损失数个周期的吞吐量。
-- 如果猜对，流水线无缝连续执行，性能最优。
+- 如果猜错，处理器必须取消错误路径上的年轻指令并把取指重定向到正确路径；实际损失取决于分支被发现的位置、当时流水线占用和恢复通路，不能从 BHT 模块单独归纳为固定“数个周期”。
+- 如果猜对，前端可以继续沿预测路径推进，但整体吞吐仍可能受 I-Cache、取指边界、后端反压等其他因素限制；“方向预测正确”不等于整条流水线一定无停顿。
 
-BHT（Branch History Table）就是负责做这个"猜测"的硬件模块。它只判断**方向**（taken 还是 not-taken），而**目标地址**（跳到哪里）由另一个模块 BTB（Branch Target Buffer）负责。
+BHT（Branch History Table）负责提供条件分支的**方向预测状态**（taken / not-taken）。在当前 RTL 中，`ct_ifu_ipdp` 选择 2-bit 预测计数器并取其最高位作为方向；目标候选由 BTB 等目标预测结构提供，后续控制逻辑还要结合预解码边界、命中 way 和控制流类型形成真正的取指重定向。因此“BHT 只管方向、BTB 只管目标”适合作为职责概括，不代表二者在最终控制方程中彼此独立。
 
 ### 1.2 最基础方案：2-bit 饱和计数器
 
@@ -72,16 +72,15 @@ Bi-Mode 有三个表：
 
 **为什么 Bi-Mode 比普通方案好？**
 
-普通 GHR 索引下，一条"总是跳转"的分支与一条"总是不跳转"的分支可能哈希到同一个表项，导致两者相互覆盖（destructive aliasing）。在 Bi-Mode 中，"总是跳转"的分支被 Select Array 指向 Taken 表，"总是不跳转"的分支被指向 Not-Taken 表。即使它们的 GHR 哈希结果相同，也分别落在不同的物理表里，彼此不干扰——这种分离将破坏性别名冲突转化为无害的别名冲突（constructive aliasing）。
+普通 GHR 索引下，一条强 taken 偏置分支与一条强 not-taken 偏置分支可能反复训练同一个计数器。Bi-Mode 让 Select Array 把它们引向不同的**逻辑方向侧**，从而减少相反偏置在同一个方向计数器上的直接对冲。C910 的两侧并不是两个独立 SRAM：每个 Predict Array 行把 16 个 Taken 与 16 个 Not-Taken 计数器交错放在同一个 64-bit SRAM 中。即使分到不同方向侧，同一侧内部仍可能发生别名，Select Array 本身也会别名，所以“彼此不干扰”或“冲突无害”只能作为算法动机，不能当成所有地址模式下的硬件保证。
 
-更新规则（Bi-Mode 特有）：
+当前 RTL 的更新规则需要比“按实际方向更新对应方向表”描述得更精确：
 
-- 若分支**实际 taken**，且 Select Array 指向 Taken 表：更新 Taken 表计数器，**不更新** Select Array。
-- 若分支**实际 taken**，且 Select Array 指向 Not-Taken 表：更新 Taken 表计数器，**同时更新** Select Array（向 Taken 偏置方向移动）。
-- 若分支**实际 not-taken**，且 Select Array 指向 Not-Taken 表：更新 Not-Taken 表计数器，**不更新** Select Array。
-- 若分支**实际 not-taken**，且 Select Array 指向 Taken 表：更新 Not-Taken 表计数器，**同时更新** Select Array（向 Not-Taken 偏置方向移动）。
+- `cur_sel_rst[1]` 决定本次更新 Taken 侧还是 Not-Taken 侧，因而 **Predict Array 更新的是预测时由 Select Array 选中的那一侧**。
+- 被选中的 2-bit 计数器按实际 taken/not-taken 做饱和加减；已经处于同方向饱和值时跳过该侧写入。
+- Select Array 是否更新由 `sel_array_check_updt_vld` 的四组排除条件决定。实际结果与当前选择偏置一致时，选择计数器继续向该偏置的饱和端训练；若实际结果与偏置相反但所选方向表仍预测正确，则不改变选择计数器；若这种反偏置结果造成 change-flow/mispredict，则选择计数器向相反方向移动。
 
-简言之：**只有当 Select Array 和实际结果"意见相反"时，才更新 Select Array**。这个规则在 RTL 的 `sel_array_check_updt_vld` 信号中体现（详见第 8 节）。
+这比“只有选择方向与实际结果相反时更新”多了一层条件：**选择表关注的不只是实际方向，还区分所选方向表是否已经正确处理了反偏置样本**。第 8.6 节按当前布尔方程逐项展开。
 
 **本文的 PC 位号约定**：BHT 接收的 `[38:0]` PC 是半字地址，RTL
 `rtl_vpc[38:0]` 保存架构字节地址 `byte_vpc[39:1]`。因此 RTL 位
@@ -179,7 +178,7 @@ C910 的解决方案：**同时维护两套 GHR**。
 | 寄存器 | 全称 | 用途 | 更新时机 |
 |--------|------|------|---------|
 | `vghr_reg[21:0]` | Virtual GHR / Speculative GHR | 取指预测时使用 | 每发现一条条件分支就立即更新（投机） |
-| `rtughr_reg[21:0]` | RTU GHR / Retire GHR | 精确历史参考，冲刷/恢复时用 | 每个周期 RTU 退休至多 3 条分支后才更新 |
+| `rtughr_reg[21:0]` | RTU GHR / Retire GHR | 已退休条件分支历史参考，RTU flush 时用于恢复 | 接收 retire0/1/2 三个退休槽位的条件分支有效位与实际方向 |
 
 ### 3.2 RTUGHR 更新逻辑
 
@@ -191,7 +190,7 @@ assign rtu_con_br_vld  = rtu_ifu_retire0_condbr ||
                          rtu_ifu_retire2_condbr;
 ```
 
-C910 是一个三发射处理器，每周期最多可退休（commit）3 条指令，其中可能包含 0～3 条条件分支。`rtughr_pre` 通过一个 8 种情况的 case 语句处理所有组合：
+此接口显式提供 retire0、retire1、retire2 三个退休槽位，所以 BHT 能在一次更新中吸收 0～3 条已退休条件分支。这个事实证明的是**该接口和 RTUGHR 更新逻辑具有三个退休反馈槽位**，不能据此单独推出前端发射宽度，也不能把“退休槽位”写成“发射槽位”。`rtughr_pre` 通过 8 种 case 组合处理这三个槽位：
 
 ```verilog
 // 行 622-638
@@ -225,7 +224,7 @@ endcase
 | `3'b110` | retire0 和 retire1 是条件分支 | 左移 2 | retire0_taken, retire1_taken |
 | `3'b111` | 全部 3 条都是条件分支 | 左移 3 | 三者 taken 值 |
 
-GHR 是移位寄存器，最新的分支历史在最低位，最旧的在最高位（左移入新结果）。
+GHR 通过 `{旧值低位, 新结果}` 形式向高位方向丢弃旧历史，并把最新结果放到 bit0。多槽位同时有效时，拼接顺序是 retire0、retire1、retire2；在 RTU 槽位按程序顺序由老到新排列的接口约定下，retire2 的结果最终位于 bit0，因而是三者中最新的历史。文档应把“最新在低位”建立在该槽位顺序约定上，而不是只根据信号编号猜测。
 
 **注意**：`3'b101`（retire0 和 retire2 有效，retire1 无效）这种情况看起来奇怪，但在程序里完全可能：retire1 可能是非条件分支指令、load 指令或其他非条件分支指令。
 
@@ -258,17 +257,17 @@ end
 
 | 优先级 | 触发条件 | 动作 | 原因 |
 |--------|---------|------|------|
-| 1 | `bht_inv_on_reg`（BHT 无效化进行中） | 清零 | 无效化期间所有状态重置 |
-| 2 | `rtu_ifu_flush`（RTU 冲刷流水线） | 恢复为 `rtughr_reg` | 退休 GHR 是唯一的精确值，冲刷后必须从精确值重新开始投机 |
-| 3 | `ghr_updt_vld`（`iu_ifu_chgflw_vld`，即 BJU 检测到误预测） | 恢复为 `bju_ghr` 并可能追加新结果 | BJU 在 IU 阶段确认了一条分支的真实方向，需要从该点重建 GHR |
+| 1 | `bht_inv_on_reg`（BHT 无效化进行中） | 将 VGHR 清零 | 当前寄存器的最高优先级分支明确写零 |
+| 2 | `rtu_ifu_flush`（RTU 冲刷流水线） | 恢复为 `rtughr_reg` | RTUGHR 是本模块中由已退休条件分支形成的历史状态 |
+| 3 | `ghr_updt_vld`（`cp0_ifu_bht_en && iu_ifu_chgflw_vld`） | 恢复为 `bju_ghr` 并视 check 状态追加实际方向 | IU/BJU 返回历史快照和本次检查信息，供投机历史重建 |
 | 4 | `vghr_lbuf_updt_vld`（Loop Buffer 中有分支） | 移位追加 lbuf 分支方向 | lbuf 激活时取指由 lbuf 控制，需从 lbuf 得知分支结果 |
 | 5 | `vghr_ip_updt_vld`（IP 级发现条件分支） | 移位追加 IP 预测方向 | 正常流水线推进，投机更新 GHR |
 
 **优先级 3 的两种子情况**：
 
-当 BJU 发现误预测（`iu_ifu_chgflw_vld` 为真）时，同周期可能还有来自 BHT 的检查（`iu_ifu_bht_check_vld`）。
-- `iu_ifu_bht_check_vld` 为真：说明这条分支本身是 BHT 的检查目标，其实际 taken 结果 `iu_ifu_bht_condbr_taken` 必须追加到 `bju_ghr` 之后，形成完整的历史。
-- `iu_ifu_bht_check_vld` 为假：直接使用 `bju_ghr` 恢复，因为 BHT check 发生在更早的分支，当前分支的结果已经包含在 `bju_ghr` 中。
+当 IU/BJU 发出 change-flow（`iu_ifu_chgflw_vld` 为真，通常对应需要纠正预测路径）时，同周期可能还有 BHT 检查有效（`iu_ifu_bht_check_vld`）。
+- `iu_ifu_bht_check_vld` 为真：RTL 形成 `{bju_ghr[20:0], iu_ifu_bht_condbr_taken}`，即在返回的快照之后追加本次已确认方向。
+- `iu_ifu_bht_check_vld` 为假：RTL 直接写回 `bju_ghr[21:0]`，不追加方向。该方程说明此类 change-flow 返回包已经给出需要恢复到的完整历史边界；更细的“哪条分支已包含”语义还依赖 IU 对 `iu_ifu_chk_idx` 的生成协议。
 
 ### 3.4 bju_ghr 的来源
 
@@ -298,7 +297,7 @@ assign bht_ind_btb_vghr[7:0]     = vghr_reg[7:0];
 
 ### 4.1 GHR 折叠（Folding）原理
 
-Predict Array 有 1K 项，需要 10-bit 索引。GHR 有 22 bit，如果直接截取其中 10 bit，利用率太低。C910 采用 **GHR 折叠（Folding / History Folding）** 技术，将 22-bit GHR 的高低两段异或，压缩到 10 bit：
+Predict Array 有 1K 行，需要 10-bit 行索引。当前 RTL 针对不同流水线恢复场景，从 22-bit GHR 中选取一个连续的 18-bit 窗口：其中 4 位直接作为索引高位，另两组 6 位异或成索引低位。这属于历史折叠（history folding）形式，但并不是每次都把全部 22 位混入 10 位索引。
 
 ```
 折叠索引 = { GHR[N:N-3],  GHR[N-4:N-9] ^ GHR[N+8:N+3] }
@@ -315,11 +314,11 @@ bht_pred_array_rd_index = {vghr_reg[11:8], {vghr_reg[7:2] ^ vghr_reg[19:14]}};
 - 高 4 位：直接取 `vghr_reg[11:8]`
 - 低 6 位：`vghr_reg[7:2]` 与 `vghr_reg[19:14]` 异或
 
-这样将 22 bit 历史折叠进 10 bit，同时尽量保持不同历史向量的可区分性（异或后不同位组合产生不同索引值）。
+正常 IP 条件分支读取使用 GHR `[19:2]`：`[11:8]` 直接进入索引高 4 位，`[7:2]` 与 `[19:14]` 异或形成低 6 位；`[13:12]` 没有参与这一条方程，`[21:20]` 和 `[1:0]` 也不在正常读取索引中。其他恢复场景平移这个 18-bit 窗口，以对齐各自所处的历史状态。
 
 **为什么要折叠而不是直接截取？**
 
-直接截取 22-bit GHR 的某 10 位，相当于丢弃了 12 位历史信息。两条分支如果这 12 位不同但被丢弃的 10 位相同，就会发生不必要的别名冲突。异或折叠将所有位的信息都混合进索引中，在有限的表项空间内最大化历史区分能力。
+与只截取同一窗口中的 10 位相比，异或可让该窗口内额外的历史位影响索引，因此有机会减少某些历史模式的别名；但异或映射本身仍是多对一，也可能产生新的冲突。当前正常方程只使用 22 位 GHR 中的 18 位，而且 18 位压缩成 10 位必然存在别名，所以不能写成“混合全部历史”或“最大化区分能力”。准确率收益需要用工作负载统计或与替代索引方案的对照实验验证。
 
 ### 4.2 不同场景下的索引
 
@@ -339,13 +338,13 @@ else  // ipctrl_bht_con_br_vld（正常预测）
 
 | 场景 | 使用的 GHR | 折叠位段 | 原因 |
 |------|-----------|---------|------|
-| RTU flush 当周期 | `rtughr_reg` | `[13:10]` / `[9:4]^[21:16]` | flush 后立即用精确 GHR 预取；从 bit13 而非 bit11 开始，是因为 rtughr 比 vghr"慢"2 个分支，需要偏移补偿 |
-| BJU 误预测当周期（无 check） | `bju_ghr` | `[13:10]` / `[9:4]^[21:16]` | bju_ghr 是误预测时记录的精确历史点 |
-| BJU 误预测当周期（有 check） | `bju_ghr` | `[12:9]` / `[8:3]^[20:15]` | 有 check 意味着该分支方向已被纳入 GHR，偏移调小 1 |
-| 误预测/flush 后一周期 | `vghr_reg` | `[12:9]` / `[8:3]^[20:15]` | 上周期 vghr 已从 bju_ghr 恢复，偏移调小 1 |
-| 正常预测 | `vghr_reg` | `[11:8]` / `[7:2]^[19:14]` | 当前投机 GHR |
+| RTU flush 当周期 | `rtughr_reg` | `[13:10]` / `[9:4]^[21:16]` | 直接使用已退休历史，并选择窗口 `[21:4]` |
+| BJU change-flow 当周期（无 check） | `bju_ghr` | `[13:10]` / `[9:4]^[21:16]` | 使用返回快照的窗口 `[21:4]` |
+| BJU change-flow 当周期（有 check） | `bju_ghr` | `[12:9]` / `[8:3]^[20:15]` | 使用返回快照向低位平移一位的窗口 `[20:3]` |
+| change-flow/flush 后一周期 | `vghr_reg` | `[12:9]` / `[8:3]^[20:15]` | 使用恢复后 VGHR 的窗口 `[20:3]` |
+| 正常预测 | `vghr_reg` | `[11:8]` / `[7:2]^[19:14]` | 使用正常投机 VGHR 的窗口 `[19:2]` |
 
-折叠位段的偏移差异反映了一个原则：**索引要反映"当读出 SRAM 数据时，GHR 已经移位了几次"**。由于 SRAM 读取有一个周期的延迟，取指阶段的 vghr 比 SRAM 读出时已经多移位一次（追加了 ipctrl 阶段发现的那条分支的方向），因此预测时用 `vghr[11:8]` 而不是 `vghr[12:9]`。
+这些窗口按场景逐级平移，说明设计在补偿“快照所处历史边界”和“SRAM 结果被消费时的历史边界”差异。RTL 可以证明各场景确实选择了上述位段，却不能仅凭位段差一位就断言某一状态固定“慢两个分支”或给出固定 SRAM 周期解释；要完整证明这种对齐，需要同时追踪 VGHR 更新、IF/IP pipedown、change-flow 返回包和读使能时序。调试时应检查的是：同一分支用于更新的 `bju_ghr`、读取索引和 `pre_vghr_offset` 是否保持同一历史语义。
 
 ---
 
@@ -410,7 +409,7 @@ assign sel_array_val_cur[1:0] =
   ({2{if_pc_onehot[7]}} & bht_sel_data[15:14]);
 ```
 
-这是一个 8:1 的 2-bit 多路选择器，用 one-hot 编码避免优先级编码器的逻辑延迟。
+这是一个由 8 组“2-bit 数据与 one-hot 位相与”再按位 OR 构成的 8:1 选择网络。RTL 没有显式优先级链；其综合后的门级结构、延迟是否优于其他写法，仍需由综合映射与 STA 结果确认。
 
 ### 5.4 sel_array_val_cur 的选择逻辑
 
@@ -427,9 +426,9 @@ assign sel_array_val[1:0]           = (wr_buf_hit)
 
 最终使用的 Select Array 结果有三层选择：
 
-1. **Write Buffer Bypass**（最高优先级）：若当前正在读取的表项与 Write Buffer 中某个待写项地址匹配（`wr_buf_hit`），直接使用 Write Buffer 中的新数据，避免 SRAM 读出的是尚未被更新的旧数据（"读旧写新"问题）。
+1. **Write Buffer 的 Select 结果旁路**（最高优先级）：若当前读上下文与某个待写 entry 的 GHR/PC 键匹配，使用该 entry 重新计算出的 Select 计数器值覆盖 `memory_sel_array_result`。这条旁路不替换 Predict Array 两侧的输出。
 
-2. **more_br / h0_con_br 保持**：若 `ipctrl_bht_more_br`（IP 级检测到有多条分支，已经消耗了一条）或 `ipdp_bht_h0_con_br`（H0 槽位有条件分支时），使用上周期保存的 `sel_array_val_flop`，避免因为 Select Array 读取时序不对齐而使用错误的预测。
+2. **more_br / h0_con_br 选择保存值**：若 `ipctrl_bht_more_br` 或 `ipdp_bht_h0_con_br` 为 1，使用 `sel_array_val_flop`。该方程表明这些场景沿用前一拍已经对齐的 Select 结果；“已经消耗哪一条分支”等更细语义应结合 IP 控制状态解释。
 
 3. **正常值**：使用当前 SRAM 读出 + one-hot 选择后的 `sel_array_val_cur`。
 
@@ -444,7 +443,7 @@ assign sel_array_val[1:0]           = (wr_buf_hit)
 | Select Array | pcgen 阶段（与取指同步） | `pcgen_bht_chgflw` 或 `pcgen_bht_seq_read` | PC 生成后立刻读 Sel Array，为 IF 阶段准备好方向偏置 |
 | Predict Array | IP 阶段（由 ipctrl 触发） | `ipctrl_bht_con_br_vld` 等 | IP 阶段才知道哪条指令是条件分支，才真正触发 Pred Array 读 |
 
-这种错拍设计使得两个 SRAM 可以在流水线的不同阶段分别访问，避免冲突，同时满足各自的时序需求。
+这种错拍组织让较早可得的 PC 偏置信息和较晚确认的条件分支信息分别驱动两个独立 SRAM。它用于对齐流水线数据，并不意味着两个 SRAM 之间原本会发生同端口冲突；真正需要仲裁的是**每个单端口 SRAM 自身**的读与写。
 
 ### 6.2 pre_rd_flop：Predict Array 读锁存
 
@@ -484,7 +483,7 @@ end
 
 `sel_rd_flop` 同理：上周期读了 Sel Array 时置 1，本周期 SRAM dout 有效。
 
-注意：当 `ifctrl_bht_stall` 为高时（IFU 流水线暂停），`sel_rd_flop` 不置 1，即不捕获本次读出。这是因为 stall 时流水线暂停，上游的 pcgen 阶段的地址在下一周期还会重新发，SRAM 读请求会重新触发，所以不需要保存本次结果。
+注意：当 `ifctrl_bht_stall` 为高时，`sel_rd_flop` 不置 1。RTL 能确认的是本次读请求不会被标记为可供后续选择的新读结果；地址是否保持、何时重发由 pcgen/ifctrl 的 stall 与 seq_read 协议共同决定，不能只从这一寄存器推断“下一周期一定重新发”。
 
 ### 6.4 读出数据的选择
 
@@ -521,14 +520,14 @@ Predict Array 同理（`pre_rd_flop`、`pre_taken_reg`、`pre_ntaken_reg`）。
 ### 6.5 管道时序图
 
 ```
-周期:         T0         T1         T2         T3
-pcgen:    [计算PC]
-Sel Array:             [读SRAM]
-sel_rd_flop:                       1→dout有效
-IP级:                              [ipctrl触发Pred Array读]
-Pred Array:                                   [读SRAM]
-pre_rd_flop:                                          1→dout有效
-预测结果:                                              [pipe down到IP DP]
+事件顺序（概念图，不代表固定绝对周期）：
+
+pcgen 形成 PC/seq_read 或 chgflw
+    → Select Array 接收读地址
+    → sel_rd_flop 标记相应读出有效，必要时保存到 bht_sel_data_reg
+    → IP 控制确认条件分支并触发 Predict Array 读取
+    → pre_rd_flop 标记相应读出有效，必要时保存到 pre_*_reg
+    → bht_pipe_clk 条件满足时把预测侧数据、offset 和 VGHR 送入 IP 数据通路
 ```
 
 ---
@@ -539,8 +538,8 @@ BHT 向 IP 数据路径（ipdp）输出以下信号，IP 级使用这些信号�
 
 ```verilog
 // 端口声明（行 111-118）
-output [31:0] bht_ipdp_pre_array_data_taken;  // Pred Array Taken 侧 32个计数器
-output [31:0] bht_ipdp_pre_array_data_ntake;  // Pred Array Not-Taken 侧 32个计数器
+output [31:0] bht_ipdp_pre_array_data_taken;  // Taken 侧 16 个 2-bit 计数器
+output [31:0] bht_ipdp_pre_array_data_ntake;  // Not-Taken 侧 16 个 2-bit 计数器
 output [15:0] bht_ipdp_pre_offset_onehot;     // 16-bit one-hot，指向哪个计数器
 output  [1:0] bht_ipdp_sel_array_result;      // Sel Array 2-bit 结果（偏置方向）
 output [21:0] bht_ipdp_vghr;                  // 当前 VGHR 快照
@@ -626,12 +625,21 @@ end
 
 ### 8.1 为什么需要 Write Buffer
 
-SRAM 是单端口存储器，在同一个周期内无法同时进行读操作和写操作。BHT 的使用场景中，以下两类操作可能在同一周期发生冲突：
+`ct_ifu_bht_pre_array` 和 `ct_ifu_bht_sel_array` 分别实例化
+`ct_spsram_1024x64` 与 `ct_spsram_128x16`；`spsram` 名称以及每个实例只有一组
+地址、CEN、GWEN/WEN 和数据端口，表明当前 RTL 按单端口同步 SRAM 接口使用。
+同一个阵列周期不能同时给出两个独立读/写地址，因此控制逻辑必须在读与写之间
+选择一个地址和操作。BHT 中以下两类请求可能竞争各自阵列端口：
 
 - **读操作**：`ipctrl_bht_con_br_vld`（IP 级取指）、`pcgen_bht_seq_read`（pcgen 阶段顺序读）、`pcgen_bht_chgflw`（跳转时读）等。
 - **写操作**：`iu_ifu_bht_check_vld`（BJU 确认分支方向，需要更新 BHT 计数器）。
 
-如果读和写同时请求，写操作必须等待。但也不能无限期推迟，否则 BHT 学习效果消失。Write Buffer 是一个小型队列，暂存待写的更新信息，在没有读操作的周期里进行实际写入。
+当前仲裁优先保证预测/恢复读取；发生冲突时，满足
+`bht_wr_buf_create_vld && !buf_full` 的更新被存入 4 项 Write Buffer，之后在两个
+阵列都没有读请求时消耗。该队列隐藏短时冲突，但它不是无限容量：若创建指针所指
+entry 已有效，`buf_full=1` 会阻止本次 `entry_create`，RTL 也没有从 BHT 向 BJU
+输出反压。因此持续读压力或缓冲满时，新的训练更新可能不进入队列；这影响学习
+及时性，不影响已执行指令的架构正确性。
 
 ### 8.2 4 项循环队列的管理
 
@@ -652,8 +660,8 @@ end
 ```
 
 - **create_ptr**：指向下一个要写入（新建）的 entry，循环左移推进。
-- **retire_ptr**：指向下一个要读出（消耗）的 entry，循环左移推进。
-- **buf_full**：当 `create_ptr` 指向的 entry 已经有效（`entry_vld`），说明队列已满，不再新建。
+- **retire_ptr**：指向下一个要排空到 SRAM 的 entry，循环左移推进。这里的 `retire` 是写缓冲内部“消耗 entry”的命名，与处理器架构退休无关。
+- **buf_full**：在循环 FIFO 指针与有效位协议保持正确的前提下，create_ptr 所指 entry 仍有效表示没有可覆盖空位，本次不新建。
 
 每个 entry 存储 37 bit 的更新信息：
 
@@ -685,15 +693,20 @@ assign bht_wr_buf_updt_vld = (bju_check_updt_vld ||
                              );
 ```
 
-只有以下情况下才真正向 SRAM 写：
+只有以下情况下才形成 `bht_wr_buf_updt_vld` 并向两个 SRAM 共用的写时隙推进：
 1. 有待写的数据（`bju_check_updt_vld` 或 buffer 非空）
-2. 当前周期 SRAM 没有被读操作占用
+2. 当前周期不存在方程列出的预测、恢复或 Select Array 读取条件
 
 **注意**：`lbuf_bht_active_state` 为真时，`pcgen_bht_chgflw` 不会阻止写，因为 lbuf 激活时不走 pcgen 正常流程。
 
 ### 8.4 Bypass 逻辑（wr_buf_hit）
 
-当 Write Buffer 中有待写数据，而此时恰好要从 SRAM 读取同一个地址的数据，SRAM 读出的是旧数据，而正确值在 Write Buffer 中。此时 `wr_buf_hit` 旁路逻辑直接用 Write Buffer 中的值代替 SRAM 读出值：
+当 Write Buffer 中有尚未落入 SRAM 的训练结果，而预测读取匹配相同的历史/PC
+键时，阵列仍可能返回训练前的值。`wr_buf_hit` 旁路选择 entry 根据其保存的旧值
+与实际方向重新计算出的 Select 计数器结果。需要注意，当前旁路输出
+`wr_buf_sel_array_result` 只替换 `sel_array_val`；Predict Array 输出仍走
+`pre_array_pipe_*` 路径。因而不能笼统写成“两个阵列的新值都由 Write Buffer
+完整前递”。
 
 ```verilog
 // 行 1785-1803
@@ -708,8 +721,8 @@ assign wr_buf_rd         = sel_rd_flop && pre_rd_flop;  // Sel 和 Pred 都在�
 ```
 
 命中判断需要同时满足：
-- **GHR 匹配**：`vghr_reg[20:0]` 等于 entry 中存储的 `bju_ghr[20:0]`（`entry_data[30:10]`），意味着两次预测在相同历史语境下索引了同一个 Predict Array 表项。
-- **PC 匹配**：当前读取的 Select Array 索引等于 entry 存储的 PC 低位，意味着同一个 Select Array 表项。
+- **GHR 键匹配**：`vghr_reg[20:0]` 等于 entry 中保存的 `bju_ghr[20:0]`。比较没有包含 GHR bit21，因此准确说是 21 位键相等，而不是完整 22 位 GHR 相等。
+- **PC 键匹配**：`bht_sel_array_index_flop[9:0]` 等于 entry 保存的 `iu_ifu_cur_pc[12:3]`。这里比较的是 Select 行内选择所需的完整 10 位 PC 键，不只是 7 位 SRAM 行地址。
 - **entry 有效**
 
 `wr_buf_rd` 要求两个 SRAM 同时处于读后一周期（`sel_rd_flop && pre_rd_flop`），表示当前是 IP 级使用预测结果的时刻，需要 bypass。
@@ -745,7 +758,7 @@ assign pred_array_check_updt_vld = !(
 - `bju_pred_rst == 2'b00`（最低值 = 强烈 not-taken）且实际 not-taken：不用更新。
 - `bju_pred_rst == 2'b11`（最高值 = 强烈 taken）且实际 taken：不用更新。
 
-这是一个性能优化：减少不必要的 SRAM 写操作，降低功耗，也减轻 Write Buffer 的压力。
+该门控避免数值不会变化的 SRAM 写请求，并减少 Write Buffer 占用；“降低功耗”是合理的设计意图，但具体动态功耗收益需要门级活动率和功耗分析量化。
 
 ### 8.6 sel_array_check_updt_vld：Bi-Mode 更新规则
 
@@ -767,12 +780,18 @@ assign sel_array_check_updt_vld = !(
 |------|------|------|
 | 1 | Sel 计数器为 `00`（强烈 not-taken 偏置）且分支实际 not-taken | 已饱和，更新无效 |
 | 2 | Sel 计数器为 `11`（强烈 taken 偏置）且分支实际 taken | 已饱和，更新无效 |
-| 3 | Sel 计数器 MSB 为 0（not-taken 偏置）且分支 taken，且不是误预测 | Bi-Mode 规则：偏置与结果一致，不更新 Sel Array |
-| 4 | Sel 计数器 MSB 为 1（taken 偏置）且分支 not-taken，且不是误预测 | Bi-Mode 规则：偏置与结果一致，不更新 Sel Array |
+| 3 | Sel MSB 为 0、实际 taken，且没有 change-flow | 虽然样本方向与 Not-Taken 偏置相反，但所选方向表已给出可接受预测，不改变选择侧 |
+| 4 | Sel MSB 为 1、实际 not-taken，且没有 change-flow | 虽然样本方向与 Taken 偏置相反，但所选方向表已给出可接受预测，不改变选择侧 |
 
-条件 3 和 4 是 Bi-Mode 算法的核心：**当 Sel Array 的偏置方向与实际分支方向一致时，不更新 Sel Array**。只有当两者不一致（Sel 指向了"错误"的预测表）时，才更新 Sel Array，让它朝正确方向偏置一步。
+这四个排除条件合起来得到更准确的行为：
 
-注意条件 3 和 4 中的 `!iu_ifu_chgflw_vld`：当发生误预测（chgflw_vld=1）时，即使 Bi-Mode 规则本来不应更新 Sel Array，也要强制更新——因为误预测说明当前偏置方向导致了错误预测，必须纠正。
+- 实际方向与选择偏置一致时，Select 计数器继续向相同方向训练，直到 `00` 或 `11` 饱和；并非“不更新”。
+- 实际方向与偏置相反，但当前预测没有产生 `iu_ifu_chgflw_vld` 时，不更新 Select；说明当前所选方向表能够吸收这次反偏置样本，不必立即切换预测侧。
+- 实际方向与偏置相反且产生 change-flow 时，不再命中条件 3/4，Select 计数器向实际方向移动。
+
+这里把 `iu_ifu_chgflw_vld` 作为当前 RTL 的恢复/误预测指示使用。若上游还可能因其他
+原因产生 change-flow，则需要结合 IU 文档进一步缩小语义，不能只凭信号名把每次
+change-flow 都等同于纯方向误预测。
 
 计数器的更新状态机（pred 和 sel 相同）：
 
@@ -784,7 +803,7 @@ case({cur_pred_rst[1:0], cur_condbr_taken})
   3'b010 : pred_array_updt_data = 2'b00;  // 01+ntaken → 00
   3'b110 : pred_array_updt_data = 2'b10;  // 11+ntaken → 10（未饱和才能到这里）
   3'b101 : pred_array_updt_data = 2'b11;  // 10+taken  → 11
-  3'b100 : pred_array_updt_data = 2'b01;  // 10+ntaken → 01（实际不会到，但RTL完备）
+  3'b100 : pred_array_updt_data = 2'b01;  // 10+ntaken → 01
   3'b111 : pred_array_updt_data = 2'b11;  // 11+taken  → 11（饱和，不会触发写）
   3'b000 : pred_array_updt_data = 2'b00;  // 00+ntaken → 00（饱和，不会触发写）
 endcase
@@ -804,7 +823,7 @@ else if(ifctrl_bht_inv)
   bht_inv_on_reg <= 1'b1;
 ```
 
-`ifctrl_bht_inv` 由 IFU 控制模块发出，主要触发来源是 `fence.i` 指令。`fence.i` 要求对指令缓存做同步，分支预测器历史信息也需要清除（因为 icache 刷新后，原来的指令已经改变，之前积累的分支历史不再有效）。
+`ifctrl_bht_inv` 是 `ct_ifu_ifctrl` 对 CP0 电平信号 `cp0_ifu_bht_inv` 做上升沿检测后产生的一次启动脉冲。继续追到 `ct_cp0_regs`，该请求由 MCOR 中的 `bht_inv` 控制位发起，并在 IFU 回报完成后清零。因此当前可直接证明的是“软件/CP0 控制的 BHT invalidate 流程”；不能把它未经证据地等同为每次 `fence.i` 必然触发。`fence.i` 的架构语义主要约束指令取值一致性，是否同时清预测器状态属于具体实现策略。
 
 ### 9.2 无效化过程
 
@@ -828,7 +847,7 @@ end
 1. `ifctrl_bht_inv` 有效：设置 `bht_inval_cnt_pre = 1023`（10'b1111111111），设置 `bht_inv_on_reg = 1`。
 2. 每周期 `bht_inval_cnt_pre` 减 1，同时 `bht_inval_cnt` 作为 Predict Array 和 Select Array 的写地址（从 1023 倒数到 0）。
 3. 当 `bht_inval_cnt == 0` 时，`bht_inv_on_reg` 清零。
-4. 下一周期（`after_inv_reg = 1`）触发一次 SRAM 读，确认无效化完成。
+4. `bht_inv_on_reg` 从 1 变 0 后，`after_inv_reg` 形成一个后继周期脉冲，并触发 Predict/Select Array 读取。该读取重新建立阵列读出流水状态；RTL 没有比较读回值，所以不能称为“读回确认无效化正确”。
 
 Predict Array 有 1K 项（1024），所以需要 1024 周期写完。Select Array 只有 128 项，但它用 `bht_inval_cnt[6:0]`（低 7 位）作为索引，在 1024 次写入中每个表项被写 8 次，足够。
 
@@ -841,12 +860,23 @@ assign bht_pred_array_din[63:0] = bht_inv_on_reg
                                 : bht_wr_buf_pred_updt_val[63:0];
 ```
 
-`0x33` = `0b0011_0011`，每 2 bit 为 `01`，即弱 not-taken 状态（`2'b01 = Weakly Not-Taken`）。
+`0x3 = 4'b0011` 不能被分割成两个 `01`。结合本模块的数据拆分：
 
-为什么不用 `00`（强烈 not-taken）或 `10`（弱 taken）？
+```text
+每个 4-bit 小组 = {Not-Taken 计数器[1:0], Taken 计数器[1:0]}
+4'b0011          = {2'b00, 2'b11}
+```
 
-- **选弱状态（`01` 或 `10`）而非强状态**：弱状态只需一次"错误"方向的执行就能切换预测方向，这意味着 BHT 在重新学习时反应更快，不需要两次才能从强状态翻转。
-- **选弱 not-taken（`01`）而非弱 taken（`10`）**：统计上，大多数程序中 not-taken 分支（例如循环的最后一次退出）比 taken 分支略多，或者说两者差不多。选弱 not-taken 是一个保守的中性初始值，比强状态收敛更快。
+因此每一行初始化后：
+
+- 16 个 Taken 侧计数器均为 `11`，其方向输出 MSB 为 1；
+- 16 个 Not-Taken 侧计数器均为 `00`，其方向输出 MSB 为 0。
+
+这正好让两张方向表从各自命名方向的强状态开始，而不是把全部计数器初始化为弱
+not-taken。随后 Select Array 的 8 个计数器均清为 `00`，`ct_ifu_ipdp` 根据
+`bht_sel_result[1]` 在两侧之间选择，所以初始默认选择 Not-Taken 侧并输出
+not-taken。若后续 Select 训练到 MSB=1，则切换到初始为 strongly-taken 的
+Taken 侧。
 
 Select Array 无效化值：
 
@@ -857,7 +887,10 @@ assign bht_sel_array_din[15:0] = bht_inv_on_reg
                                : bht_wr_buf_sel_updt_val[15:0];
 ```
 
-Select Array 清零意味着所有 Sel 计数器为 `2'b00`（强烈 not-taken 偏置），即默认让所有分支都先查 Not-Taken 预测表。这与 Not-Taken 为默认预测方向的惯例一致。
+Select Array 清零意味着所有 Sel 计数器为 `2'b00`。由
+`pre_array_data = bht_sel_result[1] ? taken : ntake` 可直接确认这会默认选择
+Not-Taken 侧。至于为何选择该冷启动偏置以及它对具体程序的收益，RTL 没有给出
+统计依据，应通过冷启动阶段的分支行为或对照实验评价。
 
 ### 9.4 无效化期间 GHR 和输出寄存器清零
 
@@ -875,7 +908,11 @@ else if(bht_inv_on_reg)
   bht_ipdp_pre_array_data_taken[31:0] <= 32'b0;
 ```
 
-无效化期间所有内部状态（两套 GHR、输出流水寄存器、Write Buffer）全部清零，确保无效化完成后 BHT 从干净状态开始重新学习。
+无效化期间，两套 GHR、本文列出的预测输出/保存寄存器以及 Write Buffer 有效位
+会被清零，两个 SRAM 被写入规定的初始化模式。应避免用“所有内部状态”这种无法
+穷举的表述；例如部分索引流水寄存器只按各自读使能更新，并不都在
+`bht_inv_on_reg` 分支显式清零。功能上的关键点是：无效化后不再依赖旧的有效训练
+entry，预测从指定初态重新开始。
 
 ### 9.5 状态输出
 
@@ -925,7 +962,10 @@ else if(vghr_lbuf_updt_vld)
   vghr_reg[21:0] <= {vghr_reg[20:0], lbuf_bht_con_br_taken};
 ```
 
-`vghr_lbuf_updt_vld = cp0_ifu_bht_en && lbuf_bht_con_br_vld`：lbuf 每发现一条条件分支，就像正常 IP 级分支一样更新 vghr，保证 GHR 状态的正确性，使得下一个循环迭代能使用正确的历史索引 BHT。
+`vghr_lbuf_updt_vld = cp0_ifu_bht_en && lbuf_bht_con_br_vld`：lbuf 报告条件分支
+时，RTL 把 `lbuf_bht_con_br_taken` 追加到 VGHR。这个机制使 lbuf 路径也参与
+投机历史推进；“历史是否正确”还依赖 lbuf 提供的 valid/taken 与分支程序顺序
+一致，以及后续 change-flow/flush 恢复协议，不能由这一条赋值单独保证。
 
 ### 10.4 lbuf 的预测结果输出
 

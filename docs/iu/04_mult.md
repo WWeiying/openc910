@@ -1,8 +1,11 @@
 # C910 IU 乘法单元详解（ct_iu_mult）
 
 > RTL 源文件：`C910_RTL_FACTORY/gen_rtl/iu/rtl/ct_iu_mult.v`（666 行）
-> 内部例化：`multiplier_65x65_3_stage`（DesignWare 风格 3 级流水 65×65 乘法器，
-> 在 common 目录，含 booth_code / compressor_32 / compressor_42 压缩树原件）
+> 内部例化：`multiplier_65x65_3_stage`（自带 RTL 的 3 级 65×65 乘法器，
+> 与 `ct_iu_mult.v` 同在 `gen_rtl/iu/rtl/`；它调用的 `booth_code`、
+> `compressor_32`、`compressor_42` 等基础编码/压缩单元位于
+> `gen_rtl/common/rtl/`。这些均为随工程提供的 RTL，不能仅凭结构把它称为
+> 某个 DesignWare 宏）
 >
 > 挂在 Pipe1（与 ALU1 共享发射端口和写回端口），4 拍流水（EX1~EX4），支持
 > 乘法、宽位乘、以及 T-Head 扩展的乘累加（mula/muls 系列）。
@@ -30,8 +33,10 @@
 
 - **EX3 拍发"写回预告"**（`mult_rbus_ex3_data_vld/preg`，L531/555），**EX4 拍数据
   才真正有效**（`mult_rbus_ex4_data_vld/data`，L570, 648-661）。预告比数据早一拍，
-  让发射队列提前唤醒消费者——消费者在 EX4 数据广播的同拍发射，RF 级恰好抓到数据。
-  这是"延迟感知唤醒"（latency-aware wakeup）的实现。
+  供发射队列做提前唤醒。预告的目的，是让消费者的选择/读数时序与随后到达的
+  EX4 数据对齐；“消费者必然在 EX4 同拍发射并恰好抓到数据”还取决于 IDU 的
+  ready、端口竞争和 stall。它体现了延迟感知唤醒（latency-aware wakeup），
+  但不是无条件发射保证。
 - 乘法器本体横跨 EX1~EX3 三拍（L611-612 注释），输入在 EX1 直接喂组合逻辑
   （booth 编码），EX2/EX3 拍内部打拍（pipe1_clk/pipe2_clk 即 ex2/ex3_inst_clk）。
 
@@ -50,7 +55,9 @@ assign mult_rf_src0[31:0]  = func[4] ? sext(src0[15:0]) : src0[31:0];
 
 **为什么是 65 位？** 用一个有符号 65×65 乘法器统一处理四种符号组合：
 无符号数第 65 位补 0、有符号数补符号位，乘法器内部永远按有符号算。
-这比做 4 个变种或在结果端修正便宜得多——典型的"宽一位换统一"技巧。
+这样用一套有符号运算语义覆盖不同符号组合，是典型的“宽一位换统一”技巧。
+它减少了源代码层面的运算变体；“一定比四套变种更便宜多少”属于综合面积结论，
+仍需综合网表数据支持。
 mulw 则把高 32 位清零（无符号化），结果取低 32 位再符扩，同样无需专用硬件。
 
 `src1_no_imm` 而非 `src1`：pipe1 的 src1 端口可能被立即数替换（ALU 共用），
@@ -84,8 +91,12 @@ EX1 选择（L408-428）:                     EX2 选择（L510-512）:
 ```
 
 `mult_ex3_src2_fwd_data` 直接取自乘法器组合输出（L642-643），
-`mult_ex4_src2_fwd_data` 取自 EX4 结果寄存器（L607-608）。于是**背靠背 MLA
-可以每 2 拍一条**发射（RF 时上一条在 ex1，EX2 抓 ex3 输出），而不是每 4 拍。
+`mult_ex4_src2_fwd_data` 取自 EX4 结果寄存器（L607-608）。于是，在 preg
+相同、word/dword 模式一致、AIQ1 能连续选中该依赖链且没有其他 stall/flush
+的条件下，**相关 MLA 的最小启动间隔可以达到 2 拍**（RF 时上一条位于 EX1，
+较新指令在 EX2 抓到较老指令的 EX3 输出），而不必机械地等满 4 拍写回。
+这里说的是特定累加链的最短依赖间隔，不等于乘法单元对任意指令流都保证每
+2 拍接受一条。
 
 `iu_idu_pipe1_mla_src2_no_fwd` 告诉 IDU：累加源**不能**走私有前递（不是管线内
 MLA 产生的），IDU 必须按常规依赖等 src2 写回 PRF 才能发射。为什么累加源不能走
@@ -101,10 +112,17 @@ MLA 产生的），IDU 必须按常规依赖等 src2 写回 PRF 才能发射。�
 assign iu_idu_ex1_pipe1_mult_stall = mult_ex1_inst_vld;   // L357
 ```
 
-乘法在 EX1 时拉 stall：**禁止 IDU 下一拍向 pipe1 发 ALU 指令**。原因是写回端口
-冲突——若 EX1 是乘法（将于 EX4 写回）、下一拍发一条 ALU（EX2 写回），两者会在
-同一拍抢 pipe1 写回口。stall 一拍错开即可（乘法 EX2 时发射的 ALU 在乘法 EX4+1
-拍写回，不冲突）。
+乘法在 EX1 时拉 `iu_idu_ex1_pipe1_mult_stall`。RTL 注释写的是
+`stop issue alu inst`，但精确作用还要看 IDU 消费端：AIQ1 entry 的
+`x_rdy` 只在 `lch_preg && mult_stall` 时被压制，create-bypass 路径则在
+`dp_aiq1_create_alu && mult_stall` 时被压制；RF 控制还用它处理 Pipe7 MFVR
+与 Pipe1 的共享锁存冲突。因此它不是一个“无条件冻结整个 Pipe1”的全局 stall，
+而是一个由下游候选类型进一步限定的资源冲突信号。
+
+对普通 ALU 候选，主要目的确实是避免操作数锁存、共享路径和后续结果通路冲突。
+要证明某一条具体 ALU 被它挡住，应同时观察
+`mult_ex1_inst_vld`、AIQ1 候选的 `lch_preg`/`create_alu` 和最终 issue valid；
+只看 `mult_stall=1` 不能断言该拍所有 Pipe1 工作都停止。
 
 `mult_ex2_inst_vld_dup[4:0]`（L437-453）和 `mult_ex2_dst_preg_dup0~4`（L461-505）
 是发往 5 个发射队列的预告唤醒信号的物理复制（见 00 总览 3.2 节）——注意它在
@@ -124,9 +142,12 @@ multiplier_65x65_3_stage x_... (
 );
 ```
 
-把累加数直接作为一行部分积送进压缩树（CSA 阵列加一行几乎免费），**乘累加与
-纯乘法同延迟**——这是硬件 MAC 的标准做法，也是 th.mula 比"mul+add"两条指令
-快的根本原因。`sub_vld` 同理把减法转成补码注入。
+把累加数直接作为 addend 送入乘法器压缩/求和路径，因此在本模块中，纯乘法与
+乘累加都沿用同一组 EX1~EX4 有效级和同一个结果接口，也就是**可见流水级数相同**。
+这不等于增加 addend 的面积和时序代价“几乎为零”；其真实代价要由综合报告与
+关键路径确认。与把乘法和加法拆成两条架构指令相比，融合 MLA 还减少一次指令
+派遣、一个中间架构结果及相应依赖，但最终收益仍受发射间隔和私有前递命中影响。
+`sub_vld` 用于形成累减所需的运算形式。
 `mult_ex2_src2_data` 的高 33 位由 `src2_h`（func[6]）控制（L514-516）：
 mulaw 等 32 位累加变种只注入低 32 位。
 
@@ -139,9 +160,10 @@ case (mult_ex4_rslt_sel[1:0])
   2'b10: 取 sext(result[31:0])// mulw
 ```
 
-result 寄存器 128 位（L594-605），130 位乘法器输出截掉顶 2 位（65×65 的符号
-冗余位）。选择放在 EX4 而不是 EX3，是让 EX3 那拍只走"压缩树收尾加法"这一条
-关键路径，选择逻辑挪到松弛的 EX4。
+result 寄存器 128 位（L594-605），从 130 位乘法器输出中保留 `[127:0]` 供
+架构结果选择。结果选择在 EX4 完成，使 EX3 乘法器输出与最终高/低/word 选择
+跨寄存器边界分开；这是可以从流水寄存器位置确认的结构事实。至于 EX3 是否正是
+全核关键路径、EX4 有多少时序余量，必须由 STA 证明，不能只靠代码位置下结论。
 
 ---
 
@@ -153,8 +175,10 @@ result 寄存器 128 位（L594-605），130 位乘法器输出截掉顶 2 位�
 | 出 | IDU | `iu_idu_ex1_pipe1_mult_stall`（结构冲突）、`iu_idu_pipe1_mla_src2_no_fwd`（发射约束）、`iu_idu_ex2_pipe1_mult_inst_vld_dup*/preg_dup*`（早期唤醒） | EX1/EX2 |
 | 出 | RBUS | `mult_rbus_ex3_data_vld/preg`（预告）、`mult_rbus_ex4_data/data_vld`（数据） | EX3/EX4 |
 
-乘法指令的"完成"汇报由 CBUS 用 `idu_iu_rf_mult_sel` 自行延拍生成（乘法定长
-4 拍、无异常），MULT 模块不连 CBUS——与 ALU 同理。
+乘法指令的“完成”汇报由 CBUS 从 `idu_iu_rf_mult_sel` 和 IID 形成，而 MULT
+模块本身不直接连接 CBUS。这里应把两个事实分开：MULT 的数据结果沿 EX1~EX4
+推进；CBUS 则依据该类操作在这条通路中不生成执行期异常的协议独立报告完成。
+不能把“CBUS 能预定完成”写成它必须等四拍数据写回后才报告。
 
 ---
 
@@ -165,9 +189,11 @@ result 寄存器 128 位（L594-605），130 位乘法器输出截掉顶 2 位�
 | 信号 | 看什么 |
 |------|--------|
 | `mult_ex1/2/3/4_inst_vld` | 4 级流水推进 |
-| `iu_idu_ex1_pipe1_mult_stall` | 乘法后一拍 pipe1 无 ALU 发射 |
+| `iu_idu_ex1_pipe1_mult_stall` + AIQ1 候选/issue valid | EX1 有乘法时资源冲突信号有效；是否挡住某条 ALU 候选还要结合 IDU 消费条件判断 |
 | `mult_rbus_ex3_data_vld` vs `mult_rbus_ex4_data_vld` | 预告/数据相差一拍 |
 | `mult_rf_mla_match_ex1/2/3` + `mult_ex1_pipedown_src2` | 连续 MLA 的私有前递命中 |
 
-观察 MLA 前递建议写个内积小循环（连续 th.mula），coremark 的矩阵部分
-（matrix_mul_matrix）在开启 xtheadc 编译时也会出现成串 mula。
+观察 MLA 前递可使用明确写有连续 `th.mula` 的内积小循环。若使用 CoreMark，
+应先在该次构建的反汇编中确认 `matrix_mul_matrix` 等热点是否真的生成
+`th.mula`，再根据动态 PC/轨迹判断这些指令是否执行；仅开启某个 `-march`
+扩展不能保证编译器一定采用该指令。

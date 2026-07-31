@@ -1,6 +1,6 @@
 # C910 IDU ir_ctrl 模块详细教学文档
 
-> RTL 文件：`ct_idu_ir_ctrl.v`（2658 行）
+> RTL 文件：`ct_idu_ir_ctrl.v`（2660 行）
 > 模块名：`ct_idu_ir_ctrl`
 
 ---
@@ -11,9 +11,9 @@
 2. [IS ctrl path 参数定义](#2-is-ctrl-path-参数定义)
 3. [端口说明](#3-端口说明)
 4. [IR 流水寄存器与门控时钟](#4-ir-流水寄存器与门控时钟)
-5. [IR pipedown 指令有效信号（核心）：精细 stall 设计](#5-ir-pipedown-指令有效信号核心精细-stall-设计)
+5. [IR pipedown 指令有效信号（核心）：分层 stall 与槽位重排](#5-ir-pipedown-指令有效信号核心分层-stall-与槽位重排)
    - 5.1 [三类 stall 的含义与来源](#51-三类-stall-的含义与来源)
-   - 5.2 [为什么 pipedown inst valid 可以忽略 dispatch/type stall](#52-为什么-pipedown-inst-valid-可以忽略-dispatchtype-stall)
+   - 5.2 [pipedown valid 如何分别处理 dispatch stall 与 type stall](#52-pipedown-valid-如何分别处理-dispatch-stall-与-type-stall)
    - 5.3 [creg stall：必须考虑的 IR 级 stall](#53-creg-stallir-级必须考虑的-stall)
    - 5.4 [ctrl_ir_pipedown_stall 的计算](#54-ctrl_ir_pipedown_stall-的计算)
    - 5.5 [ir_pipedown_instN_vld 逐位解析](#55-ir_pipedown_instn_vld-逐位解析)
@@ -145,7 +145,7 @@ parameter IS_CTRL_ALU     = 0;   // 普通 ALU（AIQ01 两路均可）
 | `rtu_idu_alloc_preg[0-3]_vld` | in | RTU 可为 slot0~3 提供物理整数寄存器 |
 | `rtu_idu_alloc_vreg[0-3]_vld` | in | RTU 可为 slot0~3 提供物理向量寄存器 |
 | `rtu_idu_alloc_freg[0-3]_vld` | in | RTU 可为 slot0~3 提供物理浮点寄存器 |
-| `rtu_idu_alloc_ereg[0-3]_vld` | in | RTU 可为 slot0~3 提供扩展寄存器 |
+| `rtu_idu_alloc_ereg[0-3]_vld` | in | RTU 可为 slot0~3 提供物理 EREG；EREG 保存 `fflags` 等推测状态贡献，不是通用整数结果或 `vl/vtype` |
 
 ### 3.5 来自 RTU 的 flush 信号
 
@@ -194,7 +194,11 @@ gated_clk_cell  x_ir_inst_gated_clk (
 );
 ```
 
-**为什么这么做**：流水线寄存器是功耗大户。当 IR 阶段没有有效指令，且 ID 阶段也没有即将流入的指令（`ctrl_id_pipedown_gateclk = 0`）时，关闭 `ir_inst_clk`，完全消除这一组寄存器的翻转功耗。这是 C910 精细化低功耗设计的体现。
+当 IR 四个 valid 均为 0，且 ID 没有通过 `ctrl_id_pipedown_gateclk` 提出活动请求时，
+`ir_inst_clk_en=0`。这只是该实例的 `local_en`：技术分支还按
+`global_en && (module_en || local_en) || external_en` 形成门控条件，并接收扫描使能；
+未定义 `C910_USE_TSMC28_ICG` 时，公开 RTL 的 `clk_out` 直接跟随 `clk_in`。因此该
+结构表达了减少 IR 状态时钟活动的意图，不能写成所有配置下“完全消除翻转功耗”。
 
 ### 4.2 IR 流水寄存器实现
 
@@ -252,9 +256,12 @@ ID 阶段          IR 阶段          IS 阶段
 
 ---
 
-## 5. IR pipedown 指令有效信号（核心）：精细 stall 设计
+## 5. IR pipedown 指令有效信号（核心）：分层 stall 与槽位重排
 
-这是本模块最精妙的设计，也是 C910 为优化 dispatch 时序而做的关键创新。
+这一部分把 IR 本级资源阻塞、IS dispatch 阻塞和 IS type stall 分配到不同的
+保持/选择路径。它是理解 IR→IS 数据是否真正更新的关键，但文档必须以生效方程
+为准：生成源注释中的“pipedown valid 可以忽略 type stall”是概括性描述，
+最终 RTL 的 `ctrl_ir_pipedown_stall` 实际包含 `ctrl_is_dis_type_stall`。
 
 ### 5.1 三类 stall 的含义与来源
 
@@ -285,29 +292,55 @@ RTL 注释（行 941-952）对此有明确说明：
 - IQ（指令队列）满，无法创建新表项
 - ROB（重排序缓冲）满，无法分配新 IID
 
-**效果**：IS 阶段控制寄存器冻结，不接收来自 IR 的新指令（IS 阶段整体停顿）。
+**效果**：相关 IS 控制/数据寄存器保持，当前拍不创建新的 IQ/ROB/VMB 状态。
+“整体停顿”只描述 IS 接收/dispatch 边界，不能外推成已经驻留在各 IQ 中的老指令
+都停止发射或执行。
 
 #### IS stall 类型二：Type Stall（类型 stall）
 
 **来源**：`ctrl_is_dis_type_stall`
 
-**含义**：当4条待分发指令中，某类 IQ 的需求超过该 IQ 的接收能力（每类 IQ 每周期最多接收2条指令）时，超出的指令（通常是 slot2/slot3）需要在 IS 阶段"原地等待"一个周期。
+**含义**：当前预分发包若有至少 3 条有效指令被路由到同一个 BIQ、AIQ0、
+AIQ1、LSIQ、VIQ0 或 VIQ1，而这些队列各只有两个 create 口，本拍不能把整个
+四槽包一次性分发完。检测逻辑并不编码“任意指令类型冲突”，而是逐队列统计
+“至少三条目标相同”。
 
-**效果**：IS 阶段通过 `is_dis_inst_sel` 信号，从 IS 自身已有的指令（IS 阶段 slot2/slot3 中残留的指令）中重新选择，而不是从 IR 接收新指令。IS 阶段不清空，而是重新分发未完成的指令。
+**效果**：预分发只允许 slot0/slot1 形成当拍 create，slot2/slot3 被保存在 IS
+寄存器中。随后 `ctrl_xx_is_inst0_sel` / `ctrl_xx_is_inst_sel` 可以把这两个保留槽
+前移，并在允许时用 IR 中较老的新槽补到后面。它不是简单地“整个 IS 都改选旧
+数据”，而是按选择向量对四个目标槽分别重排。
 
 **典型场景**：4条指令都是 BIQ 类型，但 BIQ 每周期只能接收2条。slot2/slot3 的指令需要 type stall。
 
 #### IR stall（creg stall）
 
-**来源**：`ctrl_ir_stage_stall`（包含 preg_stall / vreg_stall / freg_stall / ereg_stall）
+**来源**：`ctrl_ir_stage_stall`，由 preg/vreg/freg/ereg 分配无效，再加
+`rtu_idu_flush_stall` 与 `iu_idu_mispred_stall` 组成。
 
-**含义**："creg" 即 Committed Register（物理寄存器）stall。当 RTU（寄存器重命名单元）无法为某个 IR 阶段的指令提供物理寄存器（空闲物理寄存器耗尽）时，该指令必须等待。
+**含义**：RTL 注释使用 “creg stall” 作为本级重命名资源 stall 的简称，但代码
+没有定义它是 “Committed Register”。可直接确认的是：只要某个有效目的需要的
+preg/vreg/freg/ereg 分配结果无效，或者 flush/mispredict 协议要求 IR 暂停，
+本级不能完成这批指令的正常重命名推进。分配无效通常与可用物理项不足有关，但
+具体原因由 RTU 分配器状态决定。
 
 **效果**：IR 阶段整体 stall，所有 IR 中的指令均不能向 IS 流水。
 
-### 5.2 为什么 pipedown inst valid 可以忽略 dispatch/type stall
+### 5.2 pipedown valid 如何分别处理 dispatch stall 与 type stall
 
-这是本模块时序优化的精华所在。以下从体系结构和时序两个角度解释：
+不能把 dispatch stall 和 type stall 都概括为“被 pipedown valid 忽略”。当前
+生效 RTL 是：
+
+```verilog
+assign ctrl_ir_pipedown_stall = ctrl_ir_stage_stall
+                              || ctrl_is_dis_type_stall;
+```
+
+随后，每个目标槽的 valid 是三类来源的选择：
+
+- 从 IS 保留的 slot2/slot3 前移时，不与 `!ctrl_ir_pipedown_stall` 相与；
+- 从 IR 的 inst0–inst3 取新数据时，必须满足 `!ctrl_ir_pipedown_stall`；
+- dispatch stall 不直接出现在这个局部方程中，而由 IS 寄存器更新使能和上游
+  `ctrl_is_stall` 反馈共同保持状态。
 
 #### 体系结构角度
 
@@ -318,9 +351,10 @@ RTL 注释（行 941-952）对此有明确说明：
 周期 N+1: IS 阶段控制寄存器被冻结，IR 阶段保持不变
 ```
 
-当 dispatch stall 发生时，IS 阶段的控制寄存器不接收新数据——这意味着 IS 阶段"当前持有"的指令（本质上就是从 IR 流水下来的指令）已经安全保存在 IS 级寄存器中了。下一周期 IR 阶段的 pipedown 动作会被 IS 阶段的控制寄存器阻止写入，所以 IR 的 pipedown valid 只需要表达"IR 中有没有指令可以发送"，IS 级会自己管控是否接收。
-
-换言之：**pipedown valid 是 IR 的"意愿"表达，IS 的控制寄存器使能决定是否"真正接收"**。
+dispatch stall 发生时，IS 的状态更新条件阻止当前预分发结果被当作成功 create。
+IR 也通过 `ctrl_is_stall` 进入 `ctrl_ir_stall`，停止向 RTU发出实际 alloc，并保持
+IR 状态。因而局部 `ir_pipedown_inst*_vld` 没有逐项串入 dispatch-stall 信号，
+不等于指令在 dispatch stall 下仍被后续结构接收。
 
 **Type Stall 场景**：
 
@@ -329,28 +363,43 @@ RTL 注释（行 941-952）对此有明确说明：
           IS 阶段通过 is_dis_inst_sel 选择"自己保存的 slot2/slot3"重新分发
 ```
 
-type stall 的处理机制是 IS 阶段用自己保存的旧指令（slot2/slot3）覆盖从 IR 流入的数据。IS 阶段有专门的选择逻辑（`is_dis_inst_sel`）来决定用 IS 自身的数据还是 IR 新数据。这套选择逻辑已经在 IS 阶段实现，所以 IR 的 pipedown valid 不需要感知 type stall——IS 会自行处理数据来源选择。
+type stall 与之不同：它**明确出现在** `ctrl_ir_pipedown_stall` 中，所以所有
+带 `!ctrl_ir_pipedown_stall` 的 IR 新数据分支被阻止；但 IS slot2/slot3 前移分支
+没有这个门控，仍可形成新的 slot0/slot1。这样可以继续消化上拍未分发的年轻槽，
+同时避免把新的 IR 指令混进尚未解决的 type-stall 包。
 
 #### 时序角度
 
-这是关键的时序优化动机：
+下面是理解这种逻辑分层的一种体系结构视角；“哪条是关键路径”仍需 STA 证明：
 
 ```
-传统设计（naive）：
+概念上的单一总阻塞设计：
   pipedown_valid = ir_inst_vld && !dispatch_stall && !type_stall && !creg_stall
                        ^                  ^                ^              ^
                    IR 寄存器输出      IS 的 IQ 满信号   IS 的类型判断   RTU 分配反馈
                                      （长路径！）
 ```
 
-`dispatch_stall` 的产生路径很长：需要等待 IQ 当前状态、ROB 状态等多路信号汇聚。如果将其加入 pipedown_valid 的计算关键路径，会显著增加 IR->IS 流水的时钟周期时间。
+`dispatch_stall` 汇聚 IQ/分发资源等反馈，逻辑锥通常比本地 valid 更复杂。RTL 将其
+影响放到 IS 侧保持/选择，而没有直接串入这里的 `ir_pipedown_inst*_vld`。可以确认
+组合依赖被分开；是否“显著增加周期时间”需比较综合时序路径。
 
-C910 的优化方案是：**将 dispatch_stall/type_stall 的处理责任转移到 IS 阶段的控制寄存器写使能上**，而非放在 IR 的 pipedown valid 生成逻辑中。这样 pipedown valid 的路径只需考虑 creg stall（可在 IR 内部快速生成），时序压力大幅降低。
+C910 的实现把“保留的 IS 槽能否前移”和“新的 IR 槽能否进入”拆成不同项：
+前者可越过 IR stage/type stall，后者受
+`ctrl_ir_stage_stall || ctrl_is_dis_type_stall` 限定；dispatch stall 则在 IS
+寄存器/分发更新边界处理。可以确认的是控制锥被拆分，而不是所有 valid 都经过
+同一个总 stall。是否缩短了目标频率上的关键路径、缩短多少，必须由综合网表和
+STA 比较证明。
 
 ```
-优化后：
-  pipedown_valid = ir_inst_vld && !creg_stall  （路径短，时序好）
-  IS 控制寄存器使能 = !dispatch_stall           （长路径在 IS 级消化）
+当前结构的概念化伪代码：
+  if select_retained_IS_slot:
+      target_valid = retained_IS_valid
+  else if select_new_IR_slot:
+      target_valid = IR_valid && !IR_stage_stall && !IS_type_stall
+
+  dispatch_stall:
+      由 IS 状态更新与 IR 反压协议阻止真正接收/分配
 ```
 
 ### 5.3 creg stall：IR 级必须考虑的 stall
@@ -473,7 +522,12 @@ assign ctrl_ir_preg_stall =
 
 **触发条件**：IR 中某条指令有整数目标寄存器（`dst_vld=1`），但 RTU 无法为该 slot 分配空闲物理寄存器（`alloc_preg_vld=0`）。
 
-注意：RTU 每个 slot 独立分配（preg0 给 slot0，preg1 给 slot1）。4条指令各自独立地判断，任何一条 preg 不足就触发 stall。
+注意：从 IDU 接口看，四个 IR 位置分别检查对应的
+`rtu_idu_alloc_pregN_vld`，任何一个实际需要整数目的寄存器的位置拿不到有效
+编号都会触发 stall。但这不表示 RTU 内部有四条完全独立的整数空闲项选择链：
+当前 PREG PST 只有三条独立新选择链，slot3 在满足接口约束时复用 slot0 或
+slot1 的选择结果补位。四个 IR 位置来自最多三条原始指令加 split 微操作，
+因此“按位置独立检查有效位”与“最多选择三个不同新 preg”并不矛盾。
 
 #### vreg stall（向量物理寄存器）
 
@@ -497,7 +551,7 @@ assign ctrl_ir_freg_stall =
 
 条件：指令有浮点目标寄存器（`dstf_vld=1`）且对应 freg 无可分配资源。
 
-#### ereg stall（扩展寄存器）
+#### ereg stall（异常/状态贡献物理项）
 
 ```verilog
 // 行 1042-1046
@@ -506,7 +560,10 @@ assign ctrl_ir_ereg_stall =
   || ...
 ```
 
-条件：指令有扩展目标寄存器（`dste_vld=1`）且对应 ereg 无可分配资源。
+条件：有效内部槽具有 EREG 目的（`dste_vld=1`），但 RTU 对该槽没有提供可分配
+物理 EREG。这里的 `dste` 表示该 VFPU/浮点操作会产生需要随程序序提交的状态
+贡献，典型内容是 `fflags` 五个异常标志；它不是 `fclass/fmv.x` 的整数目的，也
+不是向量 `vl/vtype` 的当前值。
 
 #### 向上报告（供 top 层门控时钟使用）
 
@@ -519,7 +576,10 @@ assign ctrl_top_ir_preg_not_vld = !(rtu_idu_alloc_preg0_vld
 // 同理对 vreg / freg / ereg
 ```
 
-这些信号用于 top 层的门控时钟判断——当任意物理寄存器资源紧张时，提前激活门控时钟，准备好处理可能的 stall。
+这些信号用于 top 层的门控时钟判断：当任一位置分配输出尚未有效时，相关控制
+逻辑需要保持活动以准备处理可能的 stall。以 PREG 为例，
+`ctrl_top_ir_preg_not_vld` 只是四个位置有效位的归约，不能进一步推导成“四条
+独立整数空闲选择链均无资源”。
 
 ### 7.2 ctrl_ir_stage_stall 汇总
 
@@ -577,7 +637,9 @@ assign idu_rtu_ir_preg0_alloc_vld = ir_inst0_vld
 3. `dp_ctrl_ir_inst0_dst_vld`：该指令有目标寄存器（无目标寄存器的指令不需要重命名）
 4. `!dp_ctrl_ir_inst0_dst_x0`：目标寄存器不是 x0（x0 是整数零寄存器，写 x0 是 NOP）
 
-向量（vreg）、浮点（freg）、扩展（ereg）的分配类似，但不需要检查 x0（向量/浮点寄存器没有"零寄存器"概念）。
+向量（vreg）、浮点（freg）和 EREG 的分配控制形式类似，但不检查整数 `x0`：
+freg/vreg 没有硬连零的逻辑寄存器，EREG 则是一条全局状态贡献版本链，根本不
+使用整数逻辑寄存器编号。三者“分配形式类似”不表示保存的数据或恢复语义相同。
 
 ### 门控时钟版本（gateclk_vld）
 
@@ -590,13 +652,19 @@ assign idu_rtu_ir_preg_alloc_gateclk_vld =
          || ir_inst3_vld && dp_ctrl_ir_inst3_dst_vld;
 ```
 
-`gateclk_vld` 版本不考虑 stall，用于 RTU 内部的门控时钟判断（只要 IR 阶段有可能需要分配，就提前激活 RTU 分配器的时钟）。这是一种典型的"提前激活门控时钟"优化——门控时钟的激活需要提前1周期，`gateclk_vld` 用于此目的。
+`gateclk_vld` 故意不与 `ctrl_ir_stall` 相与，因此它是功能 `alloc_vld` 的活动上界：
+只要 IR 中存在带目的寄存器的有效指令，就可让 RTU 的相关门控逻辑提前看到请求。
+这里的“提前”是相对于最终、受 stall 限定的分配有效，不代表固定提前 1 个完整周期；
+准确相位和路径预算需看上下游寄存边界及 STA。
 
 ---
 
 ## 9. 预分发控制信号（Pre-Dispatch Signals）
 
-IR 阶段在流水到 IS 之前，提前计算出各指令应进入哪个 IQ（以及具体的 create 端口），并以 `ctrl_ir_pre_dis_*` 信号的形式输出，供 IS 阶段直接使用，避免 IS 阶段重复做大量组合逻辑，压缩关键路径。
+IR 阶段在流水到 IS 之前组合计算各槽的目标 IQ、create 口 enable 与 select，并以
+`ctrl_ir_pre_dis_*` 输出。IS 侧随后寄存/使用这些信息，因此队列分类和 create
+选择不是在各 IQ 内重新从 opcode 开始译码。该分层改变了组合逻辑所在的流水级；
+能否“压缩关键路径”以及关键路径是否转移到 IR，需要 STA 证明。
 
 ### 9.1 IS inst valid 准备
 
@@ -631,7 +699,12 @@ assign ctrl_ir_pre_dis_type_stall_pipedown2 = ctrl_ir_pre_dis_3_biq_inst
                                            || ctrl_ir_pre_dis_3_viq1_inst;
 ```
 
-**体系结构原理**：每类 IQ 每周期最多接收2条指令（2个 create 端口）。若某类 IQ 需要接收3条或4条指令，必然无法在一个周期内全部分发，需要 type stall。当发生 type stall 时，slot2 和 slot3 中超出能力的指令会被推迟，因此 `ctrl_ir_pre_dis_inst2/3_vld` 应置0（不发送到 IS 预分发路径）。
+**体系结构原理**：被检测的每个目标队列在该接口上有两个 create 口；若四槽候选
+中至少三条指向同一个被检测队列，当前接口无法在一拍内为该队列创建全部表项。
+RTL 因此把预分发包截断为最老的两个槽：`inst0/1_vld` 保留，
+`inst2/3_vld` 同时屏蔽，并令 `ctrl_ir_pre_dis_pipedown2` 提示后续保留/重排。
+注意 inst2/inst3 不一定恰好都是造成超额的那一类；这是按程序序切割整个包，而
+不是从四槽中任意挑出两个同类指令。
 
 **注意**：这里检测的是"至少3条同类型指令"，而不是"至少2条"。原因是：即便有2条同类型指令，IQ 也能在一个周期内接收（2个 create 端口），不会 stall；只有3条及以上才会超出容量。
 
@@ -670,7 +743,10 @@ assign ctrl_ir_pre_dis_aiq0_create1_en =
 | `al_2_aiq01 && al_1_aiq0/1` | 2个 aiq01，有其他 aiq0/1 指令填满 aiq1，aiq0 需要2个 create |
 | `al_3_aiq01` | 3个 aiq01，每个 IQ 各接收若干，aiq0 需要2个 create |
 
-这套逻辑是经典的**超标量调度问题**（superscalar scheduling），需要在1个周期内确定4条指令如何分配到各 IQ 的各 create 端口。C910 采用提前在 IR 阶段计算好选择信号（寄存在 IS 阶段），避免在 IS 阶段实时计算，减少关键路径延迟。
+这套逻辑处理的是**预分发端口匹配**：在一个组合阶段内，把最多四个有序槽映射
+到多个队列的 create0/create1。它不是 IQ 内部从 ready 集合选择执行指令的
+issue scheduler。当前实现把选择结果从 IR 送到 IS 使用；这种流水分工意在控制
+dispatch 逻辑深度，但实际时序收益仍以 STA 为准。
 
 #### AIQ0 create0 select（实际选哪条指令）
 
@@ -688,7 +764,10 @@ always @(...) begin
 end
 ```
 
-优先选编号最小的同类指令（inst0 优先，inst3 最后），保证程序序（program order）下最早的指令先分发。
+该优先链在对应候选条件成立时优先选择较小槽号，因而 create0 通常承载该目标类
+中较老的候选，create1 再选择剩余候选。它维持当前包内选择的程序序倾向，但不能
+单凭这个 2-bit MUX 宣称整个乱序核“按序发射”；不同 IQ 可以独立 dispatch，
+IQ 内部也会在 ready 集合中按各自年龄逻辑选择执行。
 
 BIQ、LSIQ、SDIQ、VIQ0、VIQ1 有类似的 create enable/select 逻辑，此处不再逐一展开，原理相同。
 
@@ -748,7 +827,10 @@ assign ctrl_ir_inst2_aiq1 =
 
 ### 10.2 VIQ DLB
 
-VIQ（向量 IQ）的 DLB 逻辑与 AIQ 完全对称，使用 `ctrl_viq_dlb_en` 对 viq01 指令进行类似的负载均衡，不再重复说明。
+VIQ DLB 复用了与 AIQ DLB 相同形状的差值阈值、独立状态寄存器和
+inst0/1 优先重定向规则，但操作的是 `viq0/viq1` 计数与 `PIPE67` 类别。二者
+属于两套并列状态：更新 valid、flush 清零和类别字段分别连接，不能把“方程结构
+相同”写成所有信号、负载或执行语义完全对称。
 
 **DLB 门控时钟**：
 
@@ -761,7 +843,8 @@ assign dlb_clk_en = ctrl_aiq_dlb_en
                     || viq0/1_ctrl_entry_cnt_updt_vld;
 ```
 
-DLB 相关寄存器使用独立的门控时钟 `dlb_clk`，仅在 IQ 状态更新时激活，进一步降低功耗。
+`dlb_clk_en` 在 DLB 使能本身或 AIQ/VIQ 计数更新时为 1。它定义独立的本地时钟请求，
+使 DLB 状态不必与 IR 主寄存器共享同一活动条件；实际停钟仍受公共 ICG 配置约束。
 
 ---
 
@@ -859,7 +942,9 @@ HPCP（Hardware Performance Counter）在每个 IR stall = 0 的周期记录指�
 - 当 `ctrl_ir_stall = 0` 且 `hpcp_idu_cnt_en = 1` 时，统计有多少条指令通过了 IR 阶段（未 stall）
 - 统计每条指令的类型（`hpcp_type[6:0]`），便于分析各类指令的执行频率
 
-HPCP 使用独立的门控时钟 `hpcp_clk`，仅在实际需要统计时激活。
+`hpcp_clk_en` 在“计数使能且本拍任一 IR valid”或任一前拍
+`ctrl_ir_hpcp_inst*_vld_ff` 为 1 时成立。后半项给已寄存采样一次清零/推进机会，所以
+不能简写成“仅在本拍需要统计时”。最终物理门控同样取决于公共 ICG 配置。
 
 ---
 
@@ -925,11 +1010,11 @@ HPCP 使用独立的门控时钟 `hpcp_clk`，仅在实际需要统计时激活�
 
 | 路径 | 关键信号 | 优化方式 |
 |------|---------|---------|
-| pipedown valid 生成 | `ir_pipedown_instN_vld` | 不包含 dispatch stall（长路径），只含 creg stall（短路径） |
-| creg stall 生成 | `ctrl_ir_preg_stall` 等 | RTU 分配信号直接与 IR 寄存器 AND，路径极短 |
+| pipedown valid 生成 | `ir_pipedown_instN_vld` | 不直接串入 dispatch stall，保留本级分配 stall；实际时序看 STA |
+| creg stall 生成 | `ctrl_ir_preg_stall` 等 | 由 IR valid/目的类型与 RTU 分配有效组合；不宣称固定门延迟 |
 | Pre-Dispatch 信号 | `ctrl_ir_pre_dis_aiq*_create*` | 在 IR 阶段提前计算，流水到 IS 使用，不在 IS 实时计算 |
-| DLB 更新 | `ctrl_aiq_dlb_en` | 使用独立低频门控时钟，不在主时钟域的关键路径上 |
-| 物理寄存器分配申请 | `idu_rtu_ir_preg*_alloc_vld` | 直接由 IR 寄存器驱动，1 gate delay |
+| DLB 更新 | `ctrl_aiq_dlb_en` | 使用独立本地门控请求；仍属于 CPU 时钟体系，不能称为独立低频域 |
+| 物理寄存器分配申请 | `idu_rtu_ir_preg*_alloc_vld` | 由 IR 状态和目的字段组合产生；精确逻辑深度看综合网表 |
 
 ### stall 信号与 valid 信号的关系汇总
 
@@ -960,4 +1045,8 @@ HPCP 使用独立的门控时钟 `hpcp_clk`，仅在实际需要统计时激活�
                                            --> RTU（申请物理寄存器）
 ```
 
-这套精细的 stall 设计是 C910 高性能的关键之一：通过将不同 stall 的处理责任分配到最合适的流水级，既保证了正确性，又最大化地减少了关键路径长度，使得 IR/IS 流水能够在高频率下正常工作。
+从体系结构角度，这套设计的价值在于把三件事分开：IR 重命名资源不足时阻止新
+映射提交，type stall 时保留并前移 IS 的未分发槽，dispatch stall 时保持 IS
+状态并向 IR 反压。这样既避免丢失或重复创建指令，又不要求所有 valid 都串过同一
+个总 stall 方程。功能正确性还依赖 IS、各 IQ、RTU/ROB 的跨模块协议；目标频率、
+关键路径长度和性能收益则必须由验证、STA 与工作负载测量支撑。

@@ -148,7 +148,7 @@ assign biq_ctrl_full = (biq_entry_cnt[3:0] == 4'd12);
 | 端口名 | 方向 | 宽度 | 说明 |
 |--------|------|------|------|
 | `biq_xx_issue_en` | 输出 | 1 | BIQ 有指令可发射（通知 ctrl） |
-| `biq_xx_gateclk_issue_en` | 输出 | 1 | 门控时钟版本（提前一拍，时序优化） |
+| `biq_xx_gateclk_issue_en` | 输出 | 1 | RF 局部时钟活动请求：bypass gateclk 条件或任一非冻结有效项存在；不要求最终 ready/仲裁成立 |
 | `biq_dp_issue_entry[11:0]` | 输出 | 12 | 选中发射的 entry（one-hot） |
 | `biq_dp_issue_read_data[81:0]` | 输出 | 82 | 选中 entry 的数据（发往 RF 读端口） |
 | `biq_ctrl_empty` | 输出 | 1 | 队列空（所有 entry 无效） |
@@ -215,7 +215,13 @@ parameter BIQ_OPCODE         = 31;  // [31:0]  32 位 RISC-V 编码
 | `src0/src1_wb` | 各 1 | 是否需要等待写回 | 与 dep_reg_entry 配合 |
 | `vl/vsew/vlmul` | — | 向量相关（保留给 V 扩展） | 当前分支不使用，保留字段 |
 
-> **注意**：`BIQ_SRC0_RDY` 和 `BIQ_SRC1_RDY` 在 entry 对外读出时**强制为 0**（见 entry.v 第 463/527 行 `assign x_read_data[BIQ_SRC0_RDY] = 1'b0`）。实际就绪状态由 `ct_idu_dep_reg_entry` 内部维护，只通过 `src0_rdy_for_issue` / `src1_rdy_for_issue` 信号输出给 `x_rdy`，不通过数据总线携带。这是为了避免数据总线上的状态更新路径影响关键路径时序。
+> **注意**：`BIQ_SRC0_RDY` 和 `BIQ_SRC1_RDY` 在 entry 对外
+> `x_read_data` 中被强制为 0（entry.v 第 463/526 行）。供仲裁使用的实时就绪状态
+> 仍由两个 `ct_idu_dep_reg_entry` 维护，并通过
+> `src0_rdy_for_issue/src1_rdy_for_issue` 直接参与 `x_rdy`。因此，“issue
+> eligibility” 与“被选中后送往 RF 的 82-bit 数据”是两条接口；不能从输出总线
+> 的 ready 位读出队列当前就绪状态。RTL 没有在这两条 assign 附近注明设计原因，
+> 把它解释成时序优化只能作为合理的结构推断，实际关键路径需由 STA 确认。
 
 ---
 
@@ -252,7 +258,12 @@ begin
 end
 ```
 
-**为什么这样设计？** create0 和 create1 需要确保不指向同一个 entry。若同向扫描，需要先确定 create0 的选择再计算 create1，有串行依赖。反向扫描在队列未满时天然不重叠（create0 选最低空位、create1 选最高空位），消除了组合逻辑串行依赖，对时序友好。
+**为什么这样设计？** create0 选择最低编号空项，create1 选择最高编号空项；当
+当前 `entry_vld` 至少显示两个空项时，两者必然不重叠，而且两个优先编码器可以
+并列求值。只剩一个空项时，两路都会选中该项，必须依靠 `1_left/full` 反馈禁止
+有效双创建；因此不能写成“只要队列未满就天然不重叠”。并列编码消除了
+“create1 必须先屏蔽 create0 结果”这种显式功能依赖，是否消除了物理关键路径、
+节省多少延迟仍要看综合与 STA。
 
 ### 5.3 入队信号拆分（控制/数据/门控）
 
@@ -260,11 +271,17 @@ end
 
 | 信号 | 用途 |
 |------|------|
-| `create_gateclk_en` | 仅用于打开门控时钟（含 bypass 但不做功能判断） |
-| `create_en` | 控制面，用于 vld/frz/agevec 的寄存器写入 |
-| `create_dp_en` | 数据面，用于 opcode/iid 等数据寄存器写入 |
+| `create_gateclk_en` | 等于 `is_dis_biq_createN_en`；原始候选存在就提出本地时钟活动请求，不检查 full 或总 dispatch stall |
+| `create_en` | `is_dis_biq_createN_en && !ctrl_is_dis_stall`；实际创建有效状态并参与计数 |
+| `create_dp_en` | `is_dis_biq_createN_en && !biq_ctrl_full`；允许数据字段预写，不等价于表项已经有效创建 |
 
-三路信号的宽松度依次降低，越靠近数据存储越松弛，目的是在不影响功能正确性的前提下**减小关键路径扇出/延迟**。
+三路信号不是单一链条上固定的“严格包含关系”：`create_en` 排除汇总的
+`ctrl_is_dis_stall`，`create_dp_en` 只排除 BIQ 自身 full，
+`create_gateclk_en` 两者都不排除。这样数据字段可以在某些其他队列造成全局
+dispatch stall 时预写，但 `vld` 不建立、计数/指针不推进；后续真正 create 时
+数据已准备。生效 RTL 能证明这些布尔边界，设计意图通常与控制扇出和时序分层有关，
+但功能正确性需要 entry 的 `create_en`/`create_dp_en` 协议共同保证，物理收益需
+STA 证明。
 
 ```verilog
 // ct_idu_is_biq.v 第 684～742 行
@@ -565,7 +582,12 @@ assign biq_entry_issue_en[11:0] = biq_entry_ready[11:0]
                                   & ~biq_older_entry_ready[11:0];
 ```
 
-一个 entry 能发射，当且仅当：**自身就绪 AND 没有更老的 entry 也就绪**。由于年龄向量维护了完全偏序，理论上每周期只有一个 entry 满足此条件（除非两个 entry 恰好无法比较，但 BIQ 的年龄向量是入队时赋值完整关系，不存在此情况）。
+一个 entry 能被该仲裁器选中，当且仅当：**自身 ready，且其 agevec 标记的更老
+entry 中没有 ready 项**。若 create/pop/flush 始终维持“所有有效 BIQ entry
+两两可比较、较年轻项记录较老项”的总序不变量，输出应为 one-hot-or-zero。
+“偏序”一词本身不要求任意两项可比较，所以这里更准确地说是有效项上的**总年龄
+序**。本地 AND-OR 网络无法在 agevec 已损坏时自行恢复该性质；验证中仍应断言
+age 反对称性以及 `$onehot0(biq_entry_issue_en)`。
 
 ### 9.3 整体 issue 使能
 
@@ -582,7 +604,10 @@ assign biq_xx_issue_en = |{biq_bypass_en, biq_entry_ready[11:0]};
 
 ### 10.1 Bypass 的意义
 
-Bypass 是性能优化机制：若一条新入队的分支指令两个源操作数在 dispatch 时**已经就绪**，并且队列中**没有任何未冻结的有效项**（表明没有更老的指令在等待），则该指令可以**不实际进入队列存储**而直接发射，节省一拍延迟。
+Bypass 是性能优化机制：若一条新分发的分支指令两个源操作数已经满足 bypass-ready 条件，并且队列中没有
+`vld && !frz` 的候选项，则 create0 数据可以在创建周期直接作为 issue 数据送往 RF。RTL 仍会为该指令选择一个
+entry，并以 `create_frz=bypass_dp_en` 创建状态，以便 RF launch 失败时保留和重调度；因此这里的“bypass”
+是绕过常规驻留后再仲裁的等待，不是完全不写 entry。
 
 ### 10.2 Bypass 条件
 
@@ -739,7 +764,7 @@ else if(rtu_idu_flush_fe || rtu_idu_flush_is || rtu_yy_xx_flush)
 
 ## 14. 门控时钟策略
 
-BIQ 使用精细的门控时钟策略减少动态功耗。
+BIQ 按计数器、entry 动态状态和创建数据生成多组局部时钟请求。
 
 ### 14.1 计数器门控时钟
 
@@ -750,7 +775,8 @@ assign cnt_clk_en = (biq_entry_cnt[3:0] != 4'b0)
                     || ctrl_biq_create1_gateclk_en;
 ```
 
-仅在计数器非零（有指令在队列中）或新指令入队时才开启计数器时钟。
+当计数器非零或任一 create gateclk 请求有效时，`cnt_clk_en` 请求计数器时钟；这描述的是 `local_en`
+条件，不等于公共门控单元输出在其他情况下必然停止。
 
 ### 14.2 Entry 门控时钟（两级）
 
@@ -768,7 +794,10 @@ assign create_clk_en = x_create_gateclk_en;
 - `entry_clk`：驱动 `vld`、`frz`、`agevec`——这些需要在 entry 有效期间可能更新（flush、pop、age 更新）
 - `create_clk`：驱动 `opcode`、`iid`、`src0_vld` 等静态指令信息——只在入队时写一次，之后只读，所以只在 `x_create_gateclk_en` 时开启
 
-这样 12 个 entry 中未被使用的 entry 其内部时钟完全关闭，大幅节省功耗。
+这样可使未使用 entry 不提出本地更新请求。公共 `gated_clk_cell` 仍按
+`global_en && (module_en || local_en)` 组合使能，并受扫描测试使能影响；若未定义
+`C910_USE_TSMC28_ICG`，当前 RTL 模型还会直接透传输入时钟。因此“物理时钟完全关闭”和具体功耗收益
+不能由 `local_en=0` 单独推出，需查看实际 ICG 宏、综合网表与功耗报告。
 
 ---
 
@@ -797,7 +826,10 @@ IFU 的 BHT/BTB 训练是异步的，训练结果改善后续取指预测精度�
 
 ### 15.3 分支密集场景下的 BIQ 压力
 
-正常代码中分支指令约占 15~25%。BIQ 深度 12 项，在 dispatch 宽度为 2 的情况下最多支持 6 拍的满负荷分支填充。若 BJU 因某种原因延迟（如等待条件寄存器就绪），BIQ 可能填满并阻塞 dispatch，此时 `biq_ctrl_full=1`，IDU ctrl 模块停止向 BIQ 派送新的分支指令。
+BIQ 深度为 12 项。若分支源操作数长期未就绪，或 BJU 侧连续无法接收，BIQ 可能逐步
+填满并阻塞后续分支派遣；此时 `biq_ctrl_full=1`，IDU 控制逻辑停止向 BIQ 创建新项。
+具体程序中的分支比例和填满速度取决于动态指令流及同周期创建数，应从性能计数器或
+波形统计，不能由队列深度直接给出固定比例或固定拍数。
 
 ---
 

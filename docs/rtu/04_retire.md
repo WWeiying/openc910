@@ -22,8 +22,11 @@ assign retire_inst2_normal_retire = rob_retire_inst2_vld;
 "只看队头"。
 
 **单退休模式 srt**（L1143-1155）：中断、调试、CTC flush、split spec fail、
-CSR 配置（cp0_rtu_srt_en）时退化为每拍 1 条——所有难缠的场景都用"放慢"
-换"简单"，这是 C910 控制逻辑反复出现的策略。
+CSR 配置（cp0_rtu_srt_en）等场景只允许退休窗口的 inst0 槽前进。严格说这是
+“每拍最多弹出 1 个 ROB 退休项”，不是无条件等于“每拍 1 条架构指令”：
+若该项是非 split 的合法折叠项，架构退休数仍由它的 `inst_num` 决定；若是
+split 微操作，HPCP 会用 `!split` 将其排除在 `minstret` 之外。SRT 简化的是
+并行退休槽之间的边界处理，不会把 `inst_num` 强制改写成 1。
 
 ## 2. 异常与中断仲裁（L1183-1302）
 
@@ -43,8 +46,10 @@ assign retire_expt_vec[5:0] = int ? {1'b1, int_vec[4:0]} : {2'b0, expt_vec[3:0]}
 32 位指令跨页的 corner case）；其余用异常缓冲带来的 mtval。
 
 优先级（L1242-1257）：调试请求 > 中断 > 异常（`retire_expt_vld` 里
-`!dbgreq_ack` 排除调试）；MMU 的 bad_vpn 通知（L1246-1248）让 MMU 同步
-作废对应 TLB 项。
+`!dbgreq_ack` 排除调试）。对异常向量高两位为 `2'b11` 的 MMU 类异常，RTU
+还输出 `rtu_mmu_expt_vld` 和 `rtu_mmu_bad_vpn=mtval[38:12]`。当前 MMU RTL
+在 `ct_mmu_regs.v` 中用它更新 `meh_vpn`，即记录发生异常的 VPN，供后续
+MMU/TLB 管理操作使用；这条通路本身不是“立即作废对应 TLB 项”的硬件命令。
 
 ## 3. flush 状态机（L1860-1990）—— 全核恢复总指挥
 
@@ -60,27 +65,36 @@ parameter FLUSH_IDLE=00001; FLUSH_IS=00010; FLUSH_FE=00100; WF_EMPTY=01000;
 - `retire_inst0_mispred`：误预测分支正常退休
   → 走 **FLUSH_IS** 路线（IFU 早在 EX2 已被 BJU 重定向过了，
   前端不用动，只需冲洗 IS/RF 和后端——这就是"早重定向+晚清理"的下半场，
-  对应 doc/iu/02_bju.md 第 2.6 节）。
+  对应 `docs/iu/02_bju.md` 第 2.6 节）。
 
 ```
-                  ┌─ pipeline已空 ─► FLUSH_FE_BE ─► IDLE   (一拍合并完成)
+                  ┌─ 保留状态已就绪 ─► FLUSH_FE_BE ─► IDLE
  IDLE ─ flush触发 ┤
-                  └─ 未空 ─► FLUSH_FE ─┬─ 空 ─► FLUSH_BE ─► IDLE
-                                       └─ 未空 ─► WF_EMPTY(等) ─► FLUSH_BE ─► IDLE
+                  └─ 尚未就绪 ─► FLUSH_FE ─┬─ 就绪 ─► FLUSH_BE ─► IDLE
+                                           └─ 未就绪 ─► WF_EMPTY ─► FLUSH_BE ─► IDLE
  IDLE ─ mispred ──► FLUSH_IS(_BE) 同构
 ```
 
-**为什么 BE（后端 flush）要等 pipeline empty？**（L1888-1889）
+**`retire_flush_pipeline_empty` 到底表示什么？**（L1888-1889）
 
 ```verilog
 assign retire_flush_pipeline_empty = pst_retire_retired_reg_wb      // 已退休指令的写回全部落地
                                      && lsu_rtu_all_commit_data_vld; // 已提交 store 数据就位
 ```
 
-后端 flush 会恢复重命名表、按 PST 回收 preg。若某条**已退休**指令的数据还
-在写回途中（如长延迟除法、未完成的 store 提交），此刻回滚会丢失体系结构
-状态。所以必须等"该留下的都落定"才动手清"该清除的"。`x_retired_released_wb`
-（pst entry 信号，见 05）就是为这次检查准备的。
+这个名字容易被误读成“所有执行流水级 valid 都为 0”，但 RTL 并没有逐级检查
+全核流水线。它只检查两类**恢复时必须保留的状态是否已经可见**：
+
+1. `pst_retire_retired_reg_wb`：PREG、FREG、当前活动配置下的 VREG PST 以及
+   EREG PST 的 `retired/released` 写回条件全部满足；
+2. `lsu_rtu_all_commit_data_vld`：LSU 已提交存储所需的数据全部有效。
+
+PST 单项的 `x_retired_released_wb` 仅在该项处于 `ALLOC && retire_vld`、
+`RETIRE` 或 `RELEASE` 时返回自己的 WB 状态，其他生命周期状态返回 1。也就是说，
+它检查的是 flush 必须保留或正确回收的物理版本，不是在统计任意在飞执行是否结束。
+指令只有完成后才可能从 ROB 正常退休，因此这里也不应举成“已经退休但除法仍未完成”；
+ROB 完成、结果写回到物理存储、PST 观察到 WB 以及成为可恢复体系结构状态，是四个
+相关但不能混为一谈的时序概念。
 
 各状态的全核动作（L1894-1905 注释 + L1959-1988 输出）：
 
@@ -88,14 +102,16 @@ assign retire_flush_pipeline_empty = pst_retire_retired_reg_wb      // 已退休
 |------|------|------|
 | FLUSH_IS | `rtu_idu_flush_is` | 清 IDU IS/RF 级与 ptag 池，ID 级开始 stall |
 | FLUSH_FE | `rtu_ifu_flush / rtu_idu_flush_fe / rtu_iu_flush_fe` | 清 IFU 全部 + IDU 各级；IU 的 PCFIFO 清错误路径项、BJU 解除 ifu_mispred_stall |
-| WF_EMPTY | （仅 stall） | 等已退休写回排空 |
-| FLUSH_BE | **`rtu_yy_xx_flush`** | 恢复重命名表（PST 的 dreg 位图）、清 PST 推测项、清各发射队列/执行单元 vld、解除 mispred stall |
-| 整个非 IDLE 期 | `rtu_idu_flush_stall`、`rtu_iu_flush_chgflw_mask` | ID 停止放行；压制错误路径分支的 chgflw（doc/iu/02 第 2.5 节的 mask 来源） |
+| WF_EMPTY | （仅 stall） | 等 PST 保留版本 WB 条件与 LSU committed-data 条件同时满足 |
+| FLUSH_BE | **`rtu_yy_xx_flush`** | 向连接该全局恢复信号的模块发出后端恢复脉冲；各模块按自己的局部语义恢复映射或清推测状态 |
+| 整个非 IDLE 期 | `rtu_idu_flush_stall`、`rtu_iu_flush_chgflw_mask` | ID 停止放行；压制错误路径分支的 chgflw（见 `docs/iu/02_bju.md` 第 2.5 节） |
 
 **flush 原因通报 LSU**（L2018-2051）：`rtu_lsu_expt_flush / eret_flush /
 spec_fail_flush + spec_fail_iid`——LSU 内部已提交的 store 不能被 flush 清掉，
 但 spec fail 场景下违例 load 之后的项要精确作废，LSU 需要知道"为什么 flush"
-来决定清到哪。异步 flush（调试注入，L1993-2016）则连已提交项也强制写回完成。
+来决定清到哪。异步 flush（调试注入，L1993-2016）额外令 PST 的 WB 状态机
+进入 WB，并通知 LSU 执行异步清理；这是一种**控制状态上的强制完成语义**，
+不应表述成异步脉冲替执行单元真正产生了一次数据写回。
 
 ## 4. 其余职责速览
 
@@ -108,18 +124,23 @@ spec_fail_flush + spec_fail_iid`——LSU 内部已提交的 store 不能被 flu
 - **性能监控**（L1736 起）：`rtu_hpcp_*` 事件——退休数、条件分支/误预测、
   间接跳转/误预测、store/load 退休等。**tb.v 与 HPCP 的 retired inst（
   minstret）、Cond Branch Misp 等计数全部源于这里**，这是 RTL 与你的 perf
-  报表之间的最后一级对应关系。
+  报表之间的最后一级对应关系。`rtu_hpcp_instN_vld` 在计数使能时直接锁存
+  `rob_retire_instN_vld`；HPCP 侧对 minstret 再屏蔽 `split`，但这里没有
+  额外用 `!expt_vld` 屏蔽。普通 benchmark 热点区通常没有同步异常，对异常
+  指令本身的计数边界则应另做定向测试。
 - **异步异常 FSM**（L2072 起，AE_IDLE/WFC/WFI/EXPT）：总线错误等异步事件
   挂起等待，择机打在某次退休上。
 
 ## 5. 把误预测恢复的完整时序串起来
 
-结合 doc/iu/02_bju.md，C910 误预测全流程（最终版）：
+结合 `docs/iu/02_bju.md`，C910 误预测恢复可按下面的控制阶段理解：
 
 ```
 EX1  BJU 检出 mispred，年龄合格
 EX2  iu_ifu_chgflw → IFU 重定向取指；iu_yy_xx_cancel；idu/ifu_mispred_stall↑
-...  新路径指令填满 IBUF/ID，被 stall 挡在 ID；错误路径指令陆续完成（被 cancel 压制写回）
+...  IFU 可开始获得重定向路径数据；IDU 的 mispred stall/flush 控制限制其继续进入后端。
+     旧路径在飞操作如何被 cancel、禁止提交或等待后续 flush，由各接收模块的局部逻辑决定，
+     不能用一个全局信号概括成“所有错误路径写回都在同拍消失”
 退休拍 误预测分支到达 ROB 头正常退休 → retire_inst0_mispred=1
 T+1  FLUSH_IS（或管线已空直接 FLUSH_IS_BE）→ 清 IS/RF
 T+2~ WF_EMPTY 等已退休写回落地
@@ -135,9 +156,19 @@ T+n  FLUSH_BE: rtu_yy_xx_flush 一拍脉冲 → 重命名表恢复、PST/发射�
 |------|--------|
 | `flush_cur_state[4:0]` | 状态机轨迹：01→04→08→10→01（FE 路线） |
 | `retire_inst0_mispred` vs `retire_expt_vld` | 两类触发的区分 |
-| `retire_flush_pipeline_empty` | WF_EMPTY 卡多久 = 写回排空时间 |
-| `rtu_yy_xx_flush` | 全核最重要的单 bit：所有模块的推测状态在它的上升沿蒸发 |
-| `rtu_yy_xx_retire0/1/2` | 退休带宽（IPC 直接体现） |
+| `retire_flush_pipeline_empty` | PST 保留版本 WB 与 LSU committed-data 的合取；不是全流水级空闲检测 |
+| `pst_retire_retired_reg_wb` | 把 WF_EMPTY 原因进一步分解到物理寄存器状态 |
+| `lsu_rtu_all_commit_data_vld` | 把 WF_EMPTY 原因进一步分解到已提交 store 数据 |
+| `rtu_yy_xx_flush` | 后端恢复脉冲；只有实际连接并实现相应分支的模块才按局部语义响应 |
+| `rtu_yy_xx_retire0/1/2` | 三个 ROB 退休槽有效；直接反映的是退休项数 |
+| `rob_retire_inst0/1/2_num`、`split` | 非 split 有效槽按 `inst_num` 计入 HPCP `minstret` 增量；split 微操作退出不增加该计数 |
+
+例如 `retire0=1, retire1=0, retire2=0` 且 `inst0_num=3`，含义是弹出一个折叠
+ROB 项、在该项 `split=0` 时退休三条架构指令，而不是 IPC=1。相反，三个
+valid 都为 1、三项 `inst_num=1` 且均为非 split，在普通无异常区间才对应三条
+架构指令。画退休性能曲线时建议同时画“ROB 槽数”“split 槽数”和“按
+`!split && inst_num` 加权的 minstret 增量”，前两者用于判断退休端结构利用率，
+后者用于普通 benchmark 的 IPC；异常测试还应同时画 `rob_retire_inst0_expt_vld`。
 
 建议把本表 5 个信号 + BJU 的 `bju_chgflw_vld` + IDU 的 `mispred_stall` 存成
 一个 Verdi group，跑 bench_br_bimodal 一次看全误预测恢复的两幕剧。

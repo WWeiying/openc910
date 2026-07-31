@@ -70,12 +70,14 @@ C910 的指令分发单元（IDU）内部组织为四个流水级：
 
 ### 1.3 吞吐量设计原则
 
-IFU 每周期最多送出 **3 条原始指令**（inst0/1/2）。某些 RISC-V 指令（如向量指令、复杂访存）需要被拆分为多条微操作才能进入后端乱序队列。拆分策略有两种：
+IFU 每周期最多送出 **3 条原始指令**（inst0/1/2）。部分被预译码标记的指令需要先拆成多条内部微操作，再进入后端乱序队列。拆分策略有两种：
 
 - **split_short（短拆分）**：1 条原始指令 → **2** 条微操作，ID 阶段内一次性生成，占用 2 个 pipedown 槽位。
 - **split_long（长拆分）**：1 条原始指令 → **多条**微操作（最多 4 条/周期），由专用 `id_split_long` 子模块跨周期迭代生成，每次通过 `split_long_ctrl_inst_vld[3:0]` 告知 id_ctrl 本周期有效微操数。
 
 由于短拆分产生额外槽位，再加上原有指令，ID 阶段向 IR 下发的微操作数可达 **4 条**（pipedown inst0~3）。
+
+> **当前配置边界**：公开 RTL 保留了向量相关字段和长拆分框架，但当前有效配置中 `ct_idu_id_decd.v` 将 `x_vec_inst` 固定为 0，CP0 的 `misa_vector` 也固定为 0。因此，不能仅凭这些接口推断当前实例能够执行 RVV 指令；这里首先描述的是 RTL 中保留的通用拆分结构。
 
 ---
 
@@ -185,13 +187,24 @@ assign id_inst_clk_en = ifu_idu_ib_pipedown_gateclk  // IBUF 有数据准备写�
                         || id_inst2_vld;
 ```
 
-门控逻辑：当 IBUF 有新指令（将写入 ID 寄存器）或 ID 寄存器当前有效时，才开启 `id_inst_clk`。否则寄存器时钟被关闭，节省功耗。
+该表达式生成 `id_inst_clk` 的**本地活动请求**：IBUF 可能写入，或任一 ID valid
+仍为 1 时，`local_en` 拉高；都不成立时，本模块不因这些功能条件请求时钟。它不是
+最终物理停钟条件。
 
-`gated_clk_cell` 是标准门控时钟单元，其使能由以下层级决定：
+公开 `gated_clk_cell` 的技术 ICG 分支使用下式形成使能：
 
-- `global_en`（`cp0_yy_clk_en`）：全局时钟使能，省电模式下关断整个核
-- `module_en`（`cp0_idu_icg_en`）：IDU 模块级使能
-- `local_en`（`id_inst_clk_en`）：局部动态使能
+```verilog
+clk_en = global_en && (module_en || local_en) || external_en;
+```
+
+- `global_en` 连接 `cp0_yy_clk_en`；
+- `module_en` 连接 `cp0_idu_icg_en`，在方程中可覆盖 `local_en=0`；
+- `local_en` 连接 `id_inst_clk_en`；
+- `external_en` 在该实例固定为 0，扫描使能另接技术单元 `TE`。
+
+只有定义 `C910_USE_TSMC28_ICG` 时该模块才实例化目标技术 ICG；否则公开 RTL 直接
+`assign clk_out=clk_in`。因此普通 RTL 仿真可能始终看到 `id_inst_clk` 跟随主时钟，
+即使 `id_inst_clk_en=0`；真正停钟和功耗收益需检查编译宏及综合网表。
 
 ### 3.3 流水寄存器实现（行 293-315）
 
@@ -217,7 +230,7 @@ end
 **优先级**（从高到低）：
 
 1. **复位**：硬件复位后清零
-2. **流水线冲刷**：分支误预测（`iu_yy_xx_cancel`）或异常返回（`rtu_idu_flush_fe`）时立即清零
+2. **流水线冲刷**：IU 取消/重定向（`iu_yy_xx_cancel`）或 RTU 前端冲刷（`rtu_idu_flush_fe`）有效时，在下一次 `id_inst_clk` 有效上升沿把 valid 同步清零
 3. **正常推进**：`ctrl_id_pipedown_stall` 为低时，接收上游计算的新 valid
 4. **保持**：stall 时保持当前值不变
 
@@ -249,9 +262,18 @@ begin
 end
 ```
 
-`debug_id_pipedown3` 含义：**本周期 ID 阶段成功向 IR 下发了（至少一条）指令**。只有在调试或性能计数使能（`had_idu_debug_id_inst_en || hpcp_idu_cnt_en`）时才激活。
+`debug_id_pipedown3` 不是“至少下发一条”的通用成功标志。其更新条件可展开为：
 
-`idu_hpcp_backend_stall = !debug_id_pipedown3`：当 ID 没有成功下发时，认为后端（从 ID 往后的流水线）处于 stall 状态，HPCP 据此累计停顿周期数。
+```text
+debug_id_inst_vld = id_inst0_vld
+                    && (had_idu_debug_id_inst_en || hpcp_idu_cnt_en)
+
+debug_id_pipedown3 <= !ctrl_id_stall
+```
+
+其中 `ctrl_id_stall = id_inst0_vld && (ctrl_ir_stall || !ctrl_id_pipedown_3_inst)`。所以，在 ID 中存在 inst0 且调试或计数已使能时，寄存后的 `debug_id_pipedown3=1` 表示被采样的那个 ID 周期满足 **IR 未反压，并且采用完整的 `pipedown_3` 原始槽位消耗模式**。只消耗 inst0 或 inst0/1 的 `pipedown_1/2` 周期，即使确实产生了有效微操作，该位仍为 0。
+
+`idu_hpcp_backend_stall = !debug_id_pipedown3` 因而是该实现定义的宽口径“未达到完整三槽推进”观测量，而不是严格意义上的“本周期后端完全没有接收任何指令”。此外，`debug_id_pipedown3` 是时钟沿采样后的寄存值；观察波形时，应把它与前一采样周期的组合条件对应，而不能当作当前组合握手信号。
 
 ### 4.3 debug 快照寄存器（行 371-392）
 
@@ -308,7 +330,7 @@ assign ctrl_split_long_id_inst_vld = ctrl_id_inst0_split_long;
 
 ### 6.1 整体框架
 
-每个周期，ID 阶段向 IR 阶段下发 **4 路**微操作（pipedown inst0~3），每路有独立的 valid 信号。同时存在三种"从 IBUF 角度看"的 pipedown 模式：
+ID→IR 接口固定提供 **4 个候选微操作槽**（pipedown inst0~3），每槽有独立 valid；某周期真正有效的微操作数可以是 0～4。与此同时，`pipedown_1/2/3_inst` 描述的是本周期从 ID 的三个**原始指令槽**中消耗 1、2 或 3 个，而不是输出微操作数：一条 split 指令可能占用多个输出槽。
 
 ```
 pipedown_1_inst：本周期只消耗 ID 中 inst0；inst1/inst2 保留到下周期
@@ -316,7 +338,10 @@ pipedown_2_inst：本周期消耗 inst0 + inst1；inst2 保留
 pipedown_3_inst：本周期消耗全部 inst0/1/2，并从 IBUF 接收新的 inst0/1/2
 ```
 
-这三个模式信号**互斥**（虽然代码中没有明示互斥检查，但逻辑上 pipedown_3 覆盖 pipedown_1/2 的情形之外的情形）。
+三个方程按 normal/fence/split 的槽位组合被设计为互斥的消费模式，后续 MUX 也按
+这一协议使用它们。但本模块没有 `$onehot0` 断言；验证时应显式检查
+`{pipedown_3,pipedown_2,pipedown_1}` 不会多 bit 同时为 1，而不把“逻辑意图”
+当成局部断言已经实现。
 
 ### 6.2 pipedown inst0 valid（行 434-438）
 
@@ -334,15 +359,19 @@ inst0 总是对应 inst0 本身产生的第一个微操作：
 | inst0 类型 | pipedown inst0 有效条件 |
 |-----------|------------------------|
 | normal | `id_inst0_vld`（inst0 存在即有效）|
-| split_short | 恒为 1（split 的第一微操必然有效）|
+| split_short | 当前选择分支写常量 1；该分支前提已包含 `id_inst0_vld` |
 | split_long | `split_long_ctrl_inst_vld[0]`（由长拆分子模块决定）|
 | fence | `fence_ctrl_inst0_vld`（由 fence 状态机决定）|
 
-**为何 split_short 恒为 1？** short-split 指令本身就是一条需要拆分的指令，已经在 ID 寄存器中，一定有效；split_short 的本意就是"这条指令被拆成 2 条"，拆分出的第一条必然存在。
+**为何该分支可以写常量 1？** `ctrl_id_inst0_split_short` 的定义已经是
+`id_inst0_vld && dp_ctrl_id_inst0_split_short`。进入这一分支时，原始 inst0 有效且
+被译码为 short-split，因此 short-split 组合模块定义的第一个输出槽有效条件无需
+再次重复 `id_inst0_vld`。这是当前控制方程的常量折叠，不应脱离前置条件理解为
+“任何时候 split 输出都有效”。
 
 ### 6.3 pipedown inst1 valid（行 444-473）
 
-这是最复杂的一个信号，使用组合逻辑 `always` 块（相当于 `assign`，有 sensitivity list）：
+这是分支条件较多的一个组合信号，使用组合逻辑 `always` 块描述。它在功能上是组合选择网络；是否构成时序关键路径，仍需以综合和 STA 结果为准：
 
 ```verilog
 // 行 444-473（精简）
@@ -371,7 +400,7 @@ end
 | 分支 | 触发条件 | inst1 valid 来源 | 含义 |
 |------|---------|-----------------|------|
 | ① | inst0 是 fence | `fence_ctrl_inst1_vld` | fence 状态机多周期输出第 2 个微操 |
-| ② | inst0 是 split_short | 恒 1 | split_short → 2 微操，第 2 微操必然有效 |
+| ② | inst0 是 split_short | 当前分支常量 1 | 进入条件已含 inst0 valid，short-split 接口定义两个输出槽 |
 | ③ | inst0 是 split_long | `split_long_ctrl_inst_vld[1]` | 长拆分子模块第 2 个输出 |
 | ④ | inst1 是 fence | 0 | fence 只能在 inst0 位置激活，此处 inst1 的 fence 不能下发 |
 | ⑤ | inst1 是 split_long | 0 | 同上，long-split 需等到 inst0 位置 |
@@ -380,7 +409,7 @@ end
 
 **④⑤ 的设计哲学**：fence 和 long-split 需要多周期处理且独占 inst0。如果 inst1 是这类指令，本周期 inst1 不能下发（其类型逻辑还没激活），必须等 inst0 处理完、inst1 滑入 inst0 位置后再处理。下发 0 可防止错误流量进入 IR。
 
-**⑦ 中的 `!pipedown_1_inst`**：pipedown_1 模式意味着本周期只下发 1 条（inst0），但 pipedown inst1 的 valid 也要反映出"原始 inst1 是有效的（虽然没有下发）"这一信息——实际上这里 `id_inst1_vld && !ctrl_id_pipedown_1_inst` 在 pipedown_1 时为 0，即不下发 inst1，符合语义。
+**⑦ 中的 `!pipedown_1_inst`**：该项直接控制输出槽 p1 是否有效，而不是保留“inst1 存在”的旁带信息。`pipedown_1` 时表达式为 0，表示原始 inst1 本周期没有被输出；其 valid 仍留在 ID 流水寄存器中，供后续周期处理。
 
 ### 6.4 pipedown inst2 valid（行 478-524）
 
@@ -427,7 +456,7 @@ inst3 **没有**对应的原始 inst3（IBUF 最多 3 条），其来源只可�
   else if(ctrl_id_inst0_split_long)
     ctrl_id_pipedown_inst3_vld = split_long_ctrl_inst_vld[3];
   else if(ctrl_id_inst0_split_short && ctrl_id_inst1_split_short)
-    ctrl_id_pipedown_inst3_vld = 1'b1;              // inst1 拆出的第 2 微操必然有效
+    ctrl_id_pipedown_inst3_vld = 1'b1;              // 前置条件已确认两条 short-split 有效
   else if(ctrl_id_inst0_split_short)
     ctrl_id_pipedown_inst3_vld = id_inst2_vld && !pipedown_1 && !pipedown_2;
   else if(ctrl_id_inst1_fence || ctrl_id_inst1_split_long)
@@ -652,7 +681,7 @@ IR 阶段只能通过 ctrl_ir_stall 反压，不能逐路 ack。
 
 ### 8.3 门控时钟传递
 
-`ctrl_id_pipedown_gateclk = id_inst0_vld`（行 320）传递给 `ir_ctrl`，用于驱动 IR 阶段流水寄存器的门控时钟。当 ID 没有 inst0（即没有任何可下发的内容）时，IR 的时钟被关闭，节省功耗。
+`ctrl_id_pipedown_gateclk = id_inst0_vld`（行 320）作为 IR 侧门控时钟的本地活动请求之一。当 ID 没有 inst0 时，本模块不因 ID 数据请求打开该门控时钟；但 `gated_clk_cell` 还接受全局使能、模块使能和扫描使能，不能仅由这个 `local_en` 推断物理时钟在所有模式下必然关闭。实际功耗收益也需要门级或功耗分析验证。
 
 ---
 
@@ -690,7 +719,7 @@ IR 阶段（寄存器重命名 + ROB 分配）
 | pipedown 模式分离 | pipedown_1/2/3 三态 | 允许部分消耗 ID 寄存器，避免复杂 FIFO |
 | fence/split_long 只在 inst0 处理 | `ctrl_fence_id_inst_vld = ctrl_id_inst0_fence` | 简化子模块接口，保证顺序语义 |
 | pipedown_stall vs id_stall 分离 | 两路 stall 信号 | 数据路径保持需要更窄的 stall 条件 |
-| 门控时钟两层（id/debug） | `id_inst_clk` + `debug_id_inst_clk` | 调试路径频率低，分离门控可更好节能 |
+| 分离的本地时钟请求 | `id_inst_clk` + `debug_id_inst_clk` | 功能活动条件分开；是否形成独立物理门控及收益需看 ICG 配置和实现报告 |
 
 ### 9.3 边界场景速查
 

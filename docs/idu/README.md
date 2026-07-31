@@ -21,7 +21,7 @@ IDU（Instruction Decode Unit，指令译码单元）是 C910 乱序超标量执
 | [07_ir_dp.md](07_ir_dp.md) | IR 数据通路、IR 译码 | ct_idu_ir_dp.v / ir_decd.v |
 | [08_ir_rt.md](08_ir_rt.md) | 整数重命名表（RAT）、消除假依赖 | ct_idu_ir_rt.v |
 | [09_ir_frt.md](09_ir_frt.md) | 浮点重命名表 | ct_idu_ir_frt.v |
-| [10_ir_vrt.md](10_ir_vrt.md) | 向量重命名表 | ct_idu_ir_vrt.v |
+| [10_ir_vrt.md](10_ir_vrt.md) | 向量重命名接口及当前常量输出占位实现 | ct_idu_ir_vrt.v |
 | **IS 阶段（发射/调度）** | | |
 | [11_is_ctrl.md](11_is_ctrl.md) | 发射控制、ROB/PST 创建、dispatch | ct_idu_is_ctrl.v |
 | [12_is_dp.md](12_is_dp.md) | 发射数据通路、流水项 | ct_idu_is_dp.v / is_pipe_entry.v |

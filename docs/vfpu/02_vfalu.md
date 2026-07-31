@@ -2,7 +2,7 @@
 
 > RTL 目录：`C910_RTL_FACTORY/gen_rtl/vfalu/rtl/`
 > 核心文件：
-> - `ct_vfalu_top_pipe6.v`（141 行，fadd+fspu）/ `ct_vfalu_top_pipe7.v`（166 行，fadd+fspu+fcnvt）
+> - `ct_vfalu_top_pipe6.v`（140 行，fadd+fspu）/ `ct_vfalu_top_pipe7.v`（166 行，fadd+fspu+fcnvt）
 > - `ct_fadd_ctrl.v`（164 行）/ `ct_fadd_top.v`（379 行）/ `ct_fadd_scalar_dp.v` / `ct_fadd_double_dp.v` / `ct_fadd_half_dp.v`；
 >   close 路：`ct_fadd_close_s0_d/s1_d/s0_h/s1_h.v` + `ct_fadd_onehot_sel_d/_h.v`（数据通路详见 §6.5）
 > - `ct_fspu_ctrl.v`（133 行）/ `ct_fspu_top.v`（106 行）/ `ct_fspu_dp.v` / 精度通路 `ct_fspu_double/single/half.v`（见 §9）
@@ -16,7 +16,7 @@
 
 - [1. 模块概述](#1-模块概述)
   - [1.1 vfalu 是什么](#11-vfalu-是什么)
-  - [1.2 三算子共用一条 3 级流水](#12-三算子共用一条-3-级流水)
+- [1.2 三算子共享发射时隙与 EX3 汇聚](#12-三算子共享发射时隙与-ex3-汇聚)
 - [2. 端口说明](#2-端口说明)
 - [3. 参数与关键寄存器](#3-参数与关键寄存器)
 - [4. EX1→EX3 三级流水机制](#4-ex1ex3-三级流水机制)
@@ -24,10 +24,9 @@
 - [6. fadd：加 / 减 / 比较 / min / max](#6-fadd加--减--比较--min--max)
 - [7. fspu：fsgnj / fmv / fclass](#7-fspufsgnj--fmv--fclass)
 - [8. fcnvt：类型转换（仅 pipe7）](#8-fcnvt类型转换仅-pipe7)
-- [9. 半精度 SIMD 路与 set0/set1 切分](#9-半精度-simd-路与-set0set1-切分)
+- [9. 当前标量实例与保留的 SIMD 生成模板](#9-当前标量实例与保留的-simd-生成模板)
 - [10. ex3_pipedown 写回汇聚](#10-ex3_pipedown-写回汇聚)
-- [设计取舍小结](#设计取舍小结)
-- [覆盖声明](#覆盖声明)
+- [本章小结](#本章小结)
 
 ---
 
@@ -35,19 +34,32 @@
 
 ### 1.1 vfalu 是什么
 
-vfalu（Vector / Floating-point Arithmetic & Logic Unit）是 VFPU 中负责**定长 3 拍浮点运算**的子单元集合，包含三个互斥的子算子：
+vfalu（Vector / Floating-point Arithmetic & Logic Unit）是 VFPU 中采用
+EX1~EX3 结构协议的浮点算术/逻辑子单元集合。这里“EX1~EX3”首先描述内部级名；
+若把它换算成从 IDU 接收、前递、物理寄存器写回或退休之间的周期数，必须另行
+声明起点和终点。
 
 | 子算子 | 顶层 | 负责的指令 |
 |---|---|---|
-| **fadd** | `ct_fadd_top.v` | 浮点加 `fadd`、减 `fsub`、比较 `feq/flt/fle/fne/ford`、`fmin/fmax`（minnm/maxnm） |
+| **fadd** | `ct_fadd_top.v` | 浮点加 `fadd`、减 `fsub`、标量比较 `feq/flt/fle`、`fmin/fmax`；数据通路还保留向量比较使用的 `fne/ford` 内部操作码 |
 | **fspu** | `ct_fspu_top.v` | 符号注入 `fsgnj/fsgnjn/fsgnjx`、寄存器搬移 `fmv.x.f / fmv.f.x`、分类 `fclass` |
 | **fcnvt** | `ct_fcnvt_top.v` | 浮点/整数与不同浮点宽度间的类型转换（itof/ftoi/stod/dtos/stoh/htos 等）|
 
-vfalu 在 VFPU 顶层被实例化两份：`ct_vfalu_top_pipe6`（只含 fadd+fspu）与 `ct_vfalu_top_pipe7`（含 fadd+fspu+**fcnvt**）。pipe6 的 `ct_fcnvt_top` 实例被注释掉（`ct_vfalu_top_pipe6.v:81`），fcnvt 仅在 pipe7 实例化（`ct_vfalu_top_pipe7.v:86`）——这是 VFPU 两处不对称之一（详见 `00_vfpu_overview.md` §7）。
+vfalu 在 VFPU 顶层被实例化两份：`ct_vfalu_top_pipe6`（只含 fadd+fspu）与 `ct_vfalu_top_pipe7`（含 fadd+fspu+**fcnvt**）。pipe6 的 `ct_fcnvt_top` 实例被注释掉（`ct_vfalu_top_pipe6.v:81`），fcnvt 仅在 pipe7 实例化（`ct_vfalu_top_pipe7.v:86`）——这是 VFPU 两条入口不对称的一部分（详见 `00_vfpu_overview.md` §4）。
 
-### 1.2 三算子共用一条 3 级流水
+### 1.2 三算子共享发射时隙与 EX3 汇聚
 
-三个子算子的运算延迟都是 **3 拍（EX1→EX3）**，且任一拍最多只有一个子算子被激活。它们各自有一份完全相同结构的 ctrl（`ct_fadd_ctrl` / `ct_fspu_ctrl` / `ct_fcnvt_ctrl`），但都接收同一个三位一热选择信号 `dp_vfalu_ex1_pipex_sel[2:0]`，靠不同位决定自己是否启动。三者的结果在 EX3 末由 `ct_vfalu_dp_pipe7`/`pipe6` 汇聚成一个 `pipex_dp_ex3_vfalu_freg_data[63:0]` 写回。
+三个子算子分别实例化自己的 ctrl 和数据通路，并不是三种运算复用同一组内部
+流水寄存器。它们接收同一个三位选择向量的不同位，正常译码下一次只启动一个，
+并在 EX3 由 `ct_vfalu_dp_pipe7`/`pipe6` 汇聚为一个 64 位结果。
+
+因此，“共享”的准确含义是：共享同一个发射时隙约束、同一个 VFALU 结果汇聚点
+和后续写回资源；“独立”的准确含义是：fadd、fspu、fcnvt 各自保留控制和运算
+逻辑。不能写成“三种算子物理共用一条算术流水”。
+
+当前发布配置只启用 64 位标量浮点路径。各文件前半段的 set0/set1、多 single/
+half lane `&Instance` 行均已被注释；它们是生成模板痕迹，不是当前 Verilog 中
+正在工作的实例。
 
 ---
 
@@ -76,7 +88,7 @@ vfalu 各子单元顶层的端口高度一致（`ct_fadd_top.v:15`-`33`、`ct_fs
 |---|---|---|---|
 | `dp_vfalu_ex1_pipex_sel` | 3 位一热 | `ct_fadd_ctrl.v:32` | 子算子选择 |
 | `ex2_pipedown` / `ex3_pipedown` | 各 1 bit reg | `ct_fadd_ctrl.v:41`-`42` | 逐级有效位（每子算子各一套） |
-| 源操作数/结果宽度 | 64 位 | `ct_fadd_top.v:42` | 单 lane 浮点宽度 |
+| 源操作数/结果宽度 | 64 位 | `ct_fadd_top.v:42` | 当前有效标量数据路径宽度 |
 | ereg（异常）宽度 | 5 位 | `ct_fadd_top.v:49` `fadd_ereg_ex3_result[4:0]` | NV/DZ/OF/UF/NX 五个浮点异常标志 |
 | func 宽度 | 20 位 | `ct_fadd_top.v:39` | 操作码 |
 
@@ -105,31 +117,53 @@ always @(posedge ex1_vld_clk or negedge cpurst_b)
   else                  ex2_pipedown <= 1'b0;
 ```
 
-**EX3（再传播）**：`ex2_pipedown` 经 `ex2_vld_clk` 锁存为 `ex3_pipedown`（`ct_fadd_ctrl.v:144`-`158`）。`ex3_pipedown` 即「本拍 EX3 有 fadd 结果可写回」。
+**EX3（再传播）**：`ex2_pipedown` 经 `ex2_vld_clk` 锁存为
+`ex3_pipedown`（`ct_fadd_ctrl.v:144`-`158`）。它表示该子模块的 EX3 结果
+周期有效，随后还要经过 VFALU 汇聚和 VFPU 顶层/RBus 控制；不能把这个局部
+有效位单独解释为物理寄存器已写回或指令已退休。
 
 **门控时钟**：每级一个 `gated_clk_cell`。`local_en` 取「本级或下一级有有效指令」，例如：
 - `ex1_vld_clk_en = ex1_pipedown || ex2_pipedown`（`ct_fadd_ctrl.v:85`）
 - `ex2_vld_clk_en = ex2_pipedown || ex3_pipedown`（`ct_fadd_ctrl.v:143`）
-- 另有一条 `ex1_pipe_clk`（仅 fadd 有，`ct_fadd_ctrl.v:104`-`121`，`local_en=ex1_pipedown`）驱动 EX1 数据通路锁存。
+- fadd 的 ctrl 还导出一条 `ex1_pipe_clk`（`ct_fadd_ctrl.v:104`-`121`，
+  `local_en=ex1_pipedown`）给部分 EX1 数据寄存器；但这不表示只有 fadd 有
+  数据时钟。fadd 的 double/half 数据通路、`ct_fspu_dp` 以及 fcnvt 的
+  scalar/double 数据通路也各自在本模块内实例化按 `ex1_pipedown` 开启的
+  `x_ex1_pipe_clk`。控制有效位时钟和各数据块的局部门控时钟必须分开追踪。
 
-空闲时这些时钟全部停摆，子算子不耗动态功耗——这是 vfalu 面积/功耗友好的根基。注意 vfalu 的 ctrl **没有 flush 清零逻辑**（不像 vfmau/vfpu 顶层），因为 3 拍定长、且上层 vfpu ctrl 已用有效位把冲刷的结果丢弃，子算子内部即使「跑完」也无副作用。
+当本地有效位为空时，`local_en` 可以撤销开钟请求；最终门控仍受
+`global_en`、`module_en` 和扫描使能影响，因而不能写成“所有模式下时钟都停”
+或“完全没有动态功耗”。
+
+vfalu 的三个局部 ctrl **没有 `rtu_yy_xx_flush` 端口**。被冲刷的局部
+`pipedown` 或数据可能继续传播到 EX3；顶层 VFPU/RBus 的 flush 后有效控制负责
+阻止其作为有效体系结构结果写回。准确说法是“体系结构可见的有效性在上层被
+取消”，而不是“子单元内部立即清空”或未经逐条输出核对便断言“没有任何内部
+活动”。
 
 ---
 
 ## 5. dp_vfalu_ex1_pipex_sel：子算子一热选择
 
-VFPU 顶层 dp 把发射 eu_sel 拆成 vfalu 的三位一热（`00_vfpu_overview.md` §6）：
+VFPU 顶层 dp 把发射 eu_sel 拆成 vfalu 的三位一热（`00_vfpu_overview.md` §5）：
 
 - pipe6：`dp_vfalu_ex1_pipe6_sel[2:0] = {1'b0, eu_sel[1:0]}` —— bit2 恒 0，因 pipe6 无 fcnvt。
 - pipe7：`dp_vfalu_ex1_pipe7_sel[2:0] = eu_sel[2:0]` —— bit2 才可能为 fcnvt。
 
-三个子算子分别只看自己那一位（§4）。因为是一热码，任一拍至多一个子算子的 `ex1_pipedown` 为 1，三条 3 级流水实际共享时间槽——这就是「三算子共用 EX1→EX3」的物理含义：它们各有寄存器，但永不同拍激活，互斥复用写回端口。
+三个子算子分别只看自己那一位（§4）。正常 IDU 译码应提供一热选择，使它们
+互斥复用汇聚/写回时隙。`ct_vfalu_dp_pipe*` 的结果 mux 对 0 热或多热组合进入
+default 并输出 `X`，它依赖上游协议，而不是在本模块内检测并纠正非法一热码。
 
 ---
 
 ## 6. fadd：加 / 减 / 比较 / min / max
 
-fadd 由 `ct_fadd_scalar_dp`（控制译码 + 标量数据）+ 多份 `ct_fadd_double_dp`/`ct_fadd_single_dp`/`ct_fadd_half_dp`（按精度/lane 的数据通路）组成（`ct_fadd_top.v:211`-`369`）。
+当前 fadd 由 `ct_fadd_ctrl`、`ct_fadd_scalar_dp`、一个
+`ct_fadd_double_dp` 和一个 `ct_fadd_half_dp` 组成
+（`ct_fadd_top.v:211`-`369`）。`ct_fadd_double_dp` 同时接收
+`ex1_double/ex1_single`，`ct_fadd_half_dp` 处理标量 half 路径；两者的
+`ex1_scalar` 都接常量 1。文件前面的多 set/lane 例化规则是注释，不应计入当前
+实例数量。
 
 **op 译码**（`ct_fadd_scalar_dp.v:227`-`237`）从 func 直接取位：
 
@@ -144,12 +178,22 @@ assign ex1_op_maxnm = func[9];
 assign ex1_op_minnm = func[8];
 ```
 
+比较子操作还使用 `func[4:0]`：`func[0]`、`[1]`、`[2]` 分别选择
+`feq`、`flt`、`fle`，`func[3]`、`[4]` 则选择内部 `ford`、`fne`。
+这里必须区分“算术数据通路支持的内部操作码”和“当前软件可发出的标量指令”。
+前三种由当前标量浮点译码产生；后两种对应 RF 译码中保留的
+`vford/vfne` 向量比较路径。由于 `ct_idu_id_decd.v` 把 `x_vec_inst`
+固定为 0，后两种内部比较码在当前发布配置下不可由合法向量指令到达，不能列作
+当前标量 RISC-V 浮点指令能力。
+
 **三级分工**：
 - EX1：对阶/比较的前置准备（比较类指令的结果在 EX1 即产生，见 `ex1_doub_cmp_result`，`ct_fadd_top.v:233`，故比较走 mfvr 通路可早一拍）。
 - EX2：尾数对齐相加/相减、舍入模式展开（`ex2_rm_rne/rtz/rdn/rup/rmm`，`ct_fadd_top.v:90`-`94`）。
 - EX3：规格化、舍入、异常打包，输出 `ex3_result[63:0]` + `ex3_expt[4:0]`（`ct_fadd_top.v:96`-`98`）。
 
-延迟：**EX1→EX3，3 拍**（`ct_fadd_ctrl.v:62`,`94`,`152`）。`fadd_mfvr_cmp_result` 是比较/搬移结果送往 mfvr（move-from-vector-register）通路，在 EX1 即有效，供整数侧读取浮点比较结果。
+结构路径为 **EX1→EX2→EX3**（`ct_fadd_ctrl.v:62`,`94`,`152`）。
+`fadd_mfvr_cmp_result` 是比较类结果进入 MFVR 汇聚的早出数据；“早出”表示它
+不必等待普通 EX3 浮点结果路径，不表示同拍已经完成整数物理寄存器写回。
 
 ---
 
@@ -177,15 +221,17 @@ assign ex1_op_minnm = func[8];
 
 **两路选择**：`fadd_ex2_close_sel`（`ct_fadd_double_dp.v`）按指数差挑 close 还是 far 的结果。
 
-**为什么非拆两路不可**：单路实现既要支持大对齐移位（far 需要）、又要支持大规格化移位（close 需要），
-还得等加法完才能数前导零——关键路径极长、上不了高频。拆两路后**各自只做一种大移位**、且 close 路
-用 LZA 把"数零"与加法**并行**——**两条短路径取代一条长路径**，这是浮点加法器能跑高频的根本
-（经典 FP adder 设计，见 H&P 附录 J / 浮点单元微架构）。
+**为什么采用双路**：若用一条通路同时覆盖大幅右移对阶和抵消后的大幅左移
+规格化，组合逻辑通常更复杂；close/far 分路让两类数值情形分别优化，LZA 又使
+前导零预测与尾数运算部分并行。这通常有利于缩短关键组合路径，但“缩短了多少”
+和“是否为芯片主关键路径”必须由综合与时序报告确认，不能由 RTL 结构单独量化。
 
-**为什么有 `close_s0/s1` 与 `_d/_h` 之分**：fadd 顶层把 close/far 通路都例化两份
-`x_set0_*` / `x_set1_*`（两条 SIMD lane，见 §9），且双精度走 `*_double_dp`、半精度走 `*_half_dp`。
-于是同一套 close/far 逻辑按 **lane × 精度** 复制出 `close_s0_d`/`close_s1_d`（双精度两 lane）、
-`close_s0_h`/`close_s1_h`（半精度两 lane）、`onehot_sel_d`/`onehot_sel_h`——**结构复用、只是宽度/lane 不同**。
+**`close_s0/s1` 不应解释成向量 set0/set1**：当前
+`ct_fadd_double_dp` 内部确实实例化 `ct_fadd_close_s0_d` 和多个
+`ct_fadd_close_s1_d`，half 路也有对应 `_h` 模块；但这些名称属于 close
+算法内部的不同候选/路径，不是 `ct_fadd_top` 注释模板中的 128 位向量
+set0/set1。`_d/_h` 反映 double-family 与 half 宽度实现差异。判断“实例还是
+模板”应看是否存在未注释的模块例化，而不能只按名称猜测。
 
 ---
 
@@ -207,7 +253,9 @@ assign ex1_op_class  = func[18];             // fclass 分类
 - **fmv**：整数与浮点位模式直接搬移；fmvfx 还会接 `dp_vfalu_ex1_pipex_mtvr_src0`（MTVR 注入数据，`ct_fspu_top.v:89`）。
 - **fclass**：把浮点数分类成 10 类（±0/±inf/±normal/±subnormal/sNaN/qNaN），结果是一热位掩码（`set0_doub_result_fclass`，`ct_fspu_dp.v:109`）。
 
-延迟同样 **3 拍**（`ct_fspu_ctrl.v:60`,`92`,`124`）；`fspu_mfvr_data[63:0]` 在 mfvr 通路输出（fmv.x.f / fclass 的结果给整数侧读）。
+其局部有效协议同样经过 EX1~EX3
+（`ct_fspu_ctrl.v:60`,`92`,`124`）；`fspu_mfvr_data[63:0]` 是 MFVR 汇聚的
+数据源。该信号本身没有携带最终整数写回完成语义。
 
 ---
 
@@ -221,29 +269,39 @@ fcnvt（`ct_fcnvt_top.v`）= `ct_fcnvt_ctrl` + `ct_fcnvt_scalar_dp` + 按精度�
 
 对应的专用子单元（在 `ct_fcnvt_top.v` 顶部注释列出的实例规则）：`ct_fcnvt_itof_sh.v`（整数→浮点）、`ct_fcnvt_ftoi_sh.v`（浮点→整数）、`ct_fcnvt_stod_sh.v`（单→双）、`ct_fcnvt_dtos_sh.v`（双→单）、`ct_fcnvt_stoh_sh.v`/`htos_sh.v`（单↔半）、`ct_fcnvt_dtoh_sh.v`（双→半）。
 
-延迟 **3 拍**（`ct_fcnvt_ctrl.v:58`,`87`,`119`）。fcnvt 之所以只放 pipe7，是因为类型转换是相对低频运算，单份即可，复制到 pipe6 不划算（`00_vfpu_overview.md` §7）。`ct_fcnvt_ctrl.v:125`-`142` 处大段被注释掉的 `ex*_simd_pipedown` 说明早期版本曾为 fcnvt 设计独立 SIMD 流水，最终未启用——现版 SIMD 走 set0/set1 多份数据通路（§9）。
+其局部有效协议经过 EX1~EX3
+（`ct_fcnvt_ctrl.v:58`,`87`,`119`）。当前 RTL 能直接证明的是：fcnvt 只在
+pipe7 实例化，pipe6 将选择 bit2 屏蔽。将其解释为面积和常见指令频率之间的
+折中是合理的体系结构推断，但“转换一定低频、复制一定不划算”仍需负载统计和
+综合结果，不能写成 RTL 已证明的事实。
+
+`ct_fcnvt_ctrl.v` 中注释掉的 SIMD pipedown，以及 `ct_fcnvt_top.v` 前半段的
+set0/set1 多实例规则，都是未进入当前有效实例的模板；当前实际实例只有
+`ct_fcnvt_scalar_dp` 和一个 `ct_fcnvt_double_dp`，后者的
+`ex1_scalar` 固定为 1。
 
 ---
 
-## 9. 半精度 SIMD 路与 set0/set1 切分
+## 9. 当前标量实例与保留的 SIMD 生成模板
 
-vfalu 用「**两套 set（set0=低 64b，set1=高 64b）× 每 set 内多份精度数据通路**」覆盖 VLEN=128 的向量。以 fadd 为例（`ct_fadd_top.v:116`-`199` 的 `&Instance` 规则）：
+阅读生成 RTL 时，要把“注释中的目标结构”和“生成后的有效结构”分开：
 
-| 实例命名 | 精度/lane | 处理的数据片 |
+| 文件 | 注释模板描述 | 当前未注释实例 |
 |---|---|---|
-| `x_set0_ct_fadd_double_dp` | 双精度 | set0 整 64b |
-| `x_set0_ct_fadd_single_dp` | 单精度 | set0 内 1 个 32b（×2 lane）|
-| `x_set0_ct_fadd_doub_half_dp` / `half0_dp` / `half1_dp` | 半精度 FP16 | set0 内 4 个 16b 片 |
-| `x_set1_*` | 同上 | set1（高 64b）|
+| `ct_fadd_top.v` | set0/set1、多 single/half lane | scalar_dp + 1 个 double_dp + 1 个 half_dp |
+| `ct_fspu_dp.v` | set0/set1、多 single/half lane | set0 的 double、single0、half0，各自标量模式 |
+| `ct_fcnvt_top.v` | set0/set1、多精度转换实例 | scalar_dp + 1 个 double_dp，`ex1_scalar=1` |
 
-半精度（FP16）走专门的 `ct_fadd_half_dp.v`，每个 64b set 切成 4 个 16 位 lane，两 set 合计 **8 个 FP16 lane**，正好填满 128 位向量。fcnvt 同理（`ct_fcnvt_top.v:103`-`146` 的 set0/set1 × half0/half1 实例）。
-
-标量浮点指令只激活 set0 的对应精度通路（`ex1_scalar` 在标量实例上接 `1'b1`，如 `ct_fadd_top.v:301`、`ct_fcnvt_top.v:218`），其余 lane 停钟。这就是「浮点与向量共享数据通路」的实现——标量是 SIMD 的退化情形，只用 lane0。
+因此当前硬件支持标量 f64/f32/f16 的相关路径，但不能由这些文件得出“每拍并行
+处理 8 个 FP16 lane”或“两个 64 位 set 构成 VLEN128”的结论。模板本身仍有
+教学价值：它展示了生成器曾计划如何复制 lane；只是不能混入当前面积、吞吐或
+波形预期。
 
 **fspu 与 fcnvt 的精度/方向变体**：同样的"按精度分通路"也贯穿 fspu 和 fcnvt——
-- **fspu**（比较 / 符号注入 / 分类）有 `ct_fspu_double.v` / `ct_fspu_single.v` / `ct_fspu_half.v`
-  三份精度数据通路，分别处理 f64 / f32 / f16：比较、min/max、fclass 在不同精度下尾数/指数位宽不同，
-  故各精度独立成路。
+- **fspu**（符号注入 / 搬移 / 分类）有 `ct_fspu_double.v` /
+  `ct_fspu_single.v` / `ct_fspu_half.v` 三份当前标量精度通路，分别处理
+  f64/f32/f16 的字段抽取、符号组合和分类。浮点数值比较、min/max 属于 fadd，
+  不属于 fspu。
 - **fcnvt**（类型转换）按"转换方向"拆成一组移位器 `ct_fcnvt_*_sh.v`：`dtos`（双→单）、`stod`（单→双）、
   `dtoh`（双→半）、`htos`（半→单）、`stoh`（单→半）、`ftoi`（浮→整）、`itof`（整→浮）。**每种转换的
   对齐/舍入移位规律不同，做成独立小模块各管一种方向**——"一种方向一个移位器"让每个模块只处理一条
@@ -282,19 +340,25 @@ pipex_dp_ex1_vfalu_mfvr_data = {64{sel[1]}} & fadd_mfvr_cmp_result
                              | {64{sel[0]}} & fspu_mfvr_data;
 ```
 
-汇聚后的 `pipex_dp_ex3_vfalu_freg_data` 经 VFPU 顶层送入 RBUS 写回 VREG（`01_vfpu_top.md` §7）。pipe6 版（`ct_vfalu_dp_pipe6.v`）少了 fcnvt 那一路。
+汇聚后的 `pipex_dp_ex3_vfalu_freg_data` 送入 VFPU 顶层和 RBus。当前目的编码
+最高位为 0 时走 64 位浮点物理寄存器写回；向量 VR 写有效固定为 0。pipe6 版
+少了 fcnvt 那一路。
 
 ---
 
-## 设计取舍小结
+## 本章小结
 
-1. **三算子共用 EX1→EX3 定长 3 级**：fadd/fspu/fcnvt 流水深度相同、靠一热码互斥激活，共享时间槽与写回端口；各自只有 2 个 1-bit 有效寄存器，控制极轻。
-2. **fcnvt 只放 pipe7**：类型转换低频，单份省面积；pipe6 把它的 sel bit2 恒置 0。
-3. **fspu 端口最精简**：位操作无需舍入/异常，省掉 rm 与大部分 ereg 逻辑。
-4. **set0/set1 × 精度多实例覆盖 VLEN128**：复用成熟 64b lane，FP16 走专用 16b half_dp，每 64b set 拆 4 lane；标量是只激活 lane0 的退化 SIMD。
-5. **比较/搬移走 mfvr 早出通路**：EX1 即产生结果，缩短整数侧等待。
-6. **门控时钟逐级 + 无 flush**：3 拍短流水靠上层有效位丢弃冲刷结果，子单元内部无需自带 flush。
+VFALU 用统一的 EX1~EX3 局部协议接纳三类性质不同的操作，但并没有把它们物理
+合并成同一个算术体。fadd、fspu 和 fcnvt 各自保存控制和数据通路，一热选择保证
+同一发射时隙只启动其中一路，EX3 再把结果、异常和有效信号汇聚到 VFPU 顶层。
+fadd 通过 close/far 双路覆盖近指数抵消和远指数对阶两类数值情形，比较结果还能
+从 EX1 的 MFVR 通路早出；fspu 只做符号、分类和位模式搬移，因此不需要舍入和
+浮点异常数据通路；fcnvt 处理源类型到目的类型的规格化、移位和舍入，只在 pipe7
+实例化。这样的组织同时保持了各算法的数据通路独立性和后端接口的一致性。
 
-## 覆盖声明
-
-本文覆盖 vfalu 三子算子（fadd/fspu/fcnvt）的 EX1→EX3 三级流水、`dp_vfalu_ex1_pipex_sel` 一热分发、各 op 的 func 译码、半精度 set0/set1 SIMD 切分与 ex3_pipedown 三选一写回汇聚。所有流水级数（均 3 拍）、信号名与行号均直接引自上述 RTL，未作推测。vfalu 在 VFPU 顶层的接线见 `01_vfpu_top.md` §8，整体定位见 `00_vfpu_overview.md`。
+当前有效实例是使用 64 位容器的标量 f64/f32/f16 多精度路径。set0/set1 和多
+single/half lane 只存在于生成器注释，不能计入当前 VLEN、实例数或并行吞吐。
+三个局部 ctrl 都没有直接接收全局 flush，短流水内部可能继续传播已进入的数据；
+VFPU 顶层和 RBus 通过清除有效控制阻止被冲刷结果成为体系结构可见写回。因此
+EX1~EX3 只描述局部结构级，从 IDU 接收、消费者前递、物理寄存器写回到 ROB
+退休的完整延迟仍需沿顶层控制逐段计算。

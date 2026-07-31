@@ -211,7 +211,9 @@ x_ct_idu_id_split_short1  ← inst1 通道
 x_ct_idu_id_split_short2  ← inst2 通道
 ```
 
-三路彼此独立，互无依赖，全组合逻辑，面积/延迟均为可接受的三倍。需要三份是因为 C910 的 ID 级一次 fetch/decode 最多 3 条指令，每条均可能需要短拆分。
+三路彼此独立，互无依赖，均为组合逻辑。需要三份是因为 C910 的 ID 级一次最多接收
+3 条指令，每条都可能需要短拆分；具体面积与关键路径必须由综合结果判断，不能从
+实例数直接写成精确三倍。
 
 ---
 
@@ -238,7 +240,9 @@ output         split_long_ctrl_id_stall;  // 向上游发 stall（还未拆完�
 output [16:0]  split_long_dp_dep_info;    // 17 位内部依赖掩码
 ```
 
-有时钟域，每类拆分使用独立门控时钟（gated clock）节能。
+各拆分子状态机具有独立的 `gated_clk_cell` 实例和本地活动条件，以便实现阶段按子模块
+控制时钟请求。是否实际停钟取决于公共门控单元的 global/module/scan 输入及技术宏；
+默认无技术 ICG 宏的 RTL 仿真中 `clk_out` 直接跟随 `clk_in`。
 
 ### 4.2 type 独热码含义
 
@@ -709,14 +713,17 @@ end
 
 ### 13.3 门控时钟节能
 
-每个子拆分模块使用独立的 `gated_clk_cell`（行 1096~1104 等），只有当该子模块活跃时才打开时钟：
+每个子拆分模块使用独立 `gated_clk_cell`（行 1096~1104 等）。以下表达式只定义该
+AMO 子模块的 `local_en`：新 AMO 到来或状态机尚未回到 IDLE 时请求时钟。
 
 ```verilog
 assign split_clk_en = ctrl_split_long_id_inst_vld && dp_split_long_type[0]  // AMO 指令到来
                     || (amo_cur_state != AMO_IDLE);                          // AMO 状态机运行中
 ```
 
-这极大减少了非向量/非 AMO 程序下的动态功耗。
+在采用真实 ICG 且 module/scan 没有强制开钟时，这种分区可减少无关子状态机的时钟
+活动。减少幅度需由门级活动率和功耗分析确认；当前配置又关闭 RVV，因此保留向量
+拆分状态机是否被有效指令激活必须与 `x_vec_inst=0` 的上游边界一起理解。
 
 ---
 

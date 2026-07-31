@@ -29,21 +29,27 @@ assign cbus_pipe0_cmplt = idu_iu_rf_pipe0_sel        // ALU 指令: RF 级就算
                        || cp0_iu_ex3_inst_vld;       // CSR: EX3 实际汇报
 ```
 
-ALU/MULT/DIV 指令**在 RF 级发射的同拍就被推定为"将要完成"**，打一拍后
-（=EX1 结束时）报给 RTU。它们根本不等执行结束。为什么可以？
+ALU/MULT/DIV 的选择信号**在 RF 被接受时就进入“推定完成”路径**，经
+`cbus_pipe*_inst_vld` 打一拍后报给 RTU。它们不等待乘除数据真正产生。这里先
+限定术语：`cmplt` 表示 ROB 收到了该执行成分的完成记账，不表示目的 preg 已有
+可读数据，也不等于一条折叠 ROB entry 内所有微操作都已完成。
 
-1. 这些指令**不会失败、没有异常**（RISC-V 整数加减乘除全部无 trap）；
-2. flush 时 `cbus_pipe*_inst_vld` 同步清零（L311-314），错误路径的"完成"
-   不会漏报给 RTU（RTU 自己也在 flush）；
-3. ROB 的"完成"只决定退休资格，**数据就绪与否由 PST 的 preg 写回位单独跟踪**
-   （见 doc/rtu/）——所以 4 拍乘法、20 拍除法都可以先报完成，消费者照样会
-   等真正写回。
+1. 这些已被正确译码并接受的整数运算在执行单元内没有同步 trap 结果需要等待；
+2. `rtu_yy_xx_flush` 会清除 CBUS 仍寄存着的完成 valid。更年轻的错误路径操作
+   在后端 flush 到来前仍可能把 cmplt 写进其推测 ROB 项，这本身允许存在；后续
+   ROB flush 会整体作废这些项，不能把正确性解释成“错误路径完成从不进入 RTU”；
+3. 消费者的数据相关性由 preg 的 ready/writeback 广播单独约束，所以长延迟
+   MULT/DIV 即使先报 `cmplt`，依赖者也仍会等真正的数据路径；
+4. ROB 对折叠 entry 还会统计多个完成成分，不能把任意一个 pipe 的单次 cmplt
+   等同于整个 entry 已满足退休条件。
 
-收益：ROB 表项更早进入可退休状态，退休带宽不受执行延迟扰动。这是 C910
-"完成与写回解耦"哲学最集中的体现。
+收益是把“无异常执行成分的控制记账”从“结果数据到达”中解耦，缩短 ROB
+完成路径。它确实可能使相关 entry 更早满足完成条件，但整机仍要靠 RTU/PST、
+物理寄存器释放和 flush 协议维持精确状态，不能概括成“退休完全不受执行延迟
+影响”。
 
-而 SPECIAL/CP0 **必须实报**：它们会产生异常和 flush 请求，必须等真实执行
-结果出来才能告诉 RTU。
+而 SPECIAL/CP0 可能产生异常和 flush 元数据，必须等相应执行级形成这些字段后
+再上报。这里的“实报”指等待控制结果，不表示 CBUS 同时携带了写回数据。
 
 ---
 
@@ -60,7 +66,7 @@ assign cbus_pipe0_src_iid = {7{rf_pipe0_sel}} & rf_pipe0_iid
                           | {7{cp0_vld}}      & cp0_iid;
 ```
 
-无仲裁器！**靠 IDU 保证同拍最多一个源有效**：pipe0 一拍只发射一条指令
+无优先级仲裁器，接口协议要求同拍最多一个源有效：pipe0 一拍只发射一条指令
 （ALU/DIV/SPECIAL 互斥），CP0 的 ex3 汇报与 RF 发射间隔由 IDU 的 CSR
 串行化机制保证不重叠。硬件只做合并不做裁决——调度的复杂度留在 IDU，
 完成路径保持极简。
@@ -89,10 +95,11 @@ assign pipe0_abnormal_clk_en = cbus_pipe0_gateclk_cmplt
                                && (gateclk_src_abnormal || cbus_pipe0_abnormal);  // L398-400
 ```
 
-12 个异常字段寄存器（expt_vec/mtval/efpc 等约 90 bit）**只在"本次完成带
-abnormal 或上一次是 abnormal（需要清除）"时才有时钟**（L438 注释 "power
-optimization: clock enable only when abnormal complete"）。正常程序里异常
-万中无一，这 90 bit 几乎从不翻转。
+12 个异常字段寄存器（expt_vec/mtval/efpc 等约 90 bit）**只在“本次完成带
+abnormal 或上一次保存的是 abnormal、需要写回正常值清除”时开钟**（L438 注释
+`power optimization: clock enable only when abnormal complete`）。正常完成
+不会持续翻转这组异常负载寄存器；实际开钟率取决于 workload 中 abnormal/normal
+交替情况，不能从 RTL 给出固定发生率。
 
 ### 2.3 pipe1：极简版（L501-567）
 
@@ -113,8 +120,9 @@ assign iu_rtu_pipe2_bht_mispred = ...; iu_rtu_pipe2_jmp_mispred = ...;
 ```
 
 BJU 在自己的 EX2 寄存器里已经打好拍（02_bju.md 2.7），CBUS 只改个名。
-分支的 `abnormal` 含义与 pipe0 不同：**不是异常而是误预测**，RTU 看到它
-会在该分支退休时启动 flush 状态机（flush_fe → rtu_yy_xx_flush）。
+分支的 `abnormal` 含义与 pipe0 不同：**不是架构异常，而是误预测恢复元数据**。
+该分支到达退休 inst0 后，retire 走 `FLUSH_IS`/可选 `WF_EMPTY`，最终发出
+`rtu_yy_xx_flush`；它不是 `FLUSH_FE` 路线。
 
 ---
 
@@ -123,7 +131,7 @@ BJU 在自己的 EX2 寄存器里已经打好拍（02_bju.md 2.7），CBUS 只�
 | 管线 | 指令 | 完成报到 RTU 的拍 | 实际数据写回拍 |
 |------|------|------------------|----------------|
 | pipe0 | ALU | EX1 末（RF+1） | EX2 |
-| pipe0 | DIV | EX1 末 | 变延迟（6~22 拍后） |
+| pipe0 | DIV | RF 选择经一拍到 CBUS | 变延迟；按 `rf_div_sel` 到 `div_rbus_*_data_vld` 实测 |
 | pipe0 | SPECIAL | EX2 末（EX1 实报+1 拍） | EX2 |
 | pipe0 | CSR(CP0) | EX4 末（EX3 实报+1 拍） | EX4（经 rbus ex3 通道） |
 | pipe1 | ALU/MULT | EX1 末 | EX2 / EX4 |

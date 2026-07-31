@@ -18,7 +18,10 @@
 
 ## 1. PMU 是什么
 
-PMU（Performance Monitor Unit，C910 内部代号 HPCP = Hardware Performance Counter & Profiling）是处理器里专门"数事件"的硬件单元。它回答这样的问题：
+PMU（Performance Monitor Unit）是处理器里专门"数事件"的硬件单元。OpenC910
+RTL 用 `hpcp` 作为这组模块和接口的统一前缀；本文因此把这一实现称为 HPCP。
+RTL 本身没有给出 `HPCP` 缩写的唯一英文展开，不应从模块名反推一个未经源码
+确认的全称。
 
 - 这段程序跑了多少个周期？退休了多少条指令？（→ IPC）
 - ICache/DCache 命中率多少？每千条指令多少次缺失？（→ MPKI）
@@ -27,7 +30,12 @@ PMU（Performance Monitor Unit，C910 内部代号 HPCP = Hardware Performance C
 
 PMU 通过一组**可配置的 64 位计数器**，让每个计数器去数一种**事件**（如"ICache 缺失"），软件读出计数值并组合成派生指标，即可定量评估性能。配合**溢出中断**，还能做统计采样剖析（profiling）。
 
-PMU 是**旁路式**设计：它只监听核内各单元（IFU/IDU/LSU/MMU/RTU/BIU）广播的事件信号，不参与任何执行逻辑，因此对处理器的功能正确性和主频几乎无影响，且默认近零功耗。
+从数据流方向看，这套 PMU 主要是**观察式**设计：IFU/IDU/LSU/MMU/RTU
+提供事件，PMU 选择并累计事件。它仍然不是与处理器完全隔离的"只读探针"：
+PMU 会向各单元广播计数使能，会向 CP0 返回 CSR 数据和溢出中断，还会经 BIU
+访问 L2 计数器。RTL 可以证明这些信号不参与普通指令结果的计算，却不能仅凭
+源码保证"对主频零影响"或"动态功耗近零"；事件扇出、42 选 1 MUX、64 位加法器
+和门控时钟的实际时序、面积与功耗仍需综合和功耗分析确认。
 
 ---
 
@@ -35,7 +43,7 @@ PMU 是**旁路式**设计：它只监听核内各单元（IFU/IDU/LSU/MMU/RTU/B
 
 ```
                          ┌─────────────────── ct_hpcp_top ───────────────────┐
-  CP0 (CSR 总线) ───────►│  CSR 访问状态机 / 读写译码 / M-S-U 三视图           │
+  CP0 (CSR 总线) ───────►│  CSR 状态机 / 标准 M-U 计数器与自定义 S 别名         │
                          │  事件 rename / 42 个多 bit 事件增量                 │◄── IFU/IDU/LSU/MMU/RTU 事件
                          │  TME/TS 区间剖析 / L2 借道与 BIU 交互               │◄──► BIU (L2/time)
                          │                                                    │
@@ -47,33 +55,52 @@ PMU 是**旁路式**设计：它只监听核内各单元（IFU/IDU/LSU/MMU/RTU/B
                          │       │溢出脉冲                                    │
                          │  ┌────▼──────────┐  ┌────────────────────┐        │
                          │  │ct_hpcp_cntof_ │  │ct_hpcp_cntinten_   │        │
-                         │  │ reg ×32(sticky)│  │ reg ×32(中断使能)  │───► 溢出中断
+                         │  │ reg ×31(sticky)│  │ reg ×31(中断使能)  │───► 溢出中断
                          │  └───────────────┘  └────────────────────┘        │
                          └────────────────────────────────────────────────────┘
 ```
 
 | 子模块 | 实例数 | 职责 | 详见 |
 |--------|--------|------|------|
-| `ct_hpcp_top` | 1 | 顶层：CSR、三视图、区间剖析、L2、连接 | `03_hpcp_top.md` |
+| `ct_hpcp_top` | 1 | 顶层：CSR、标准/自定义地址视图、区间控制、L2、连接 | `03_hpcp_top.md` |
 | `ct_hpcp_cnt` | 18 | 64 位计数器主体 + 溢出脉冲 | `01_hpcp_counters.md` |
 | `ct_hpcp_event` | 16 | 可编程计数器的事件号寄存器 | `02_hpcp_events.md` |
 | `ct_hpcp_adder_sel` | 16 | 42 选 1 增量 MUX | `02_hpcp_events.md` |
-| `ct_hpcp_cntof_reg` | 32 | 单 bit sticky 溢出标志 | `01_hpcp_counters.md` |
-| `ct_hpcp_cntinten_reg` | 32 | 单 bit 溢出中断使能 | `01_hpcp_counters.md` |
+| `ct_hpcp_cntof_reg` | 31 | bit0、2~31 的 sticky 标志；bit1 在顶层 tie 0 | `01_hpcp_counters.md` |
+| `ct_hpcp_cntinten_reg` | 31 | bit0、2~31 的中断使能；bit1 在顶层 tie 0 | `01_hpcp_counters.md` |
 
 ---
 
 ## 3. 资源一览（计数器 / 事件 / CSR）
 
-### 3.1 计数器（`ct_hpcp_top.v:897` HPMCNT_NUM=42；位宽 `ct_hpcp_cnt.v:50` 64）
+### 3.1 计数器（2 个固定 + 16 个可编程，位宽 64）
 
-- **2 个固定**：`mcycle`（周期，每拍 +1）、`minstret`（退休指令，每拍 +0~6）。
+- **2 个固定**：`mcycle`（允许计数的周期事件，原始增量恒为 1）、
+  `minstret`（按三个有效且非 split 的退休槽对 `inst_num` 求和）。
 - **16 个可编程**：`mhpmcnt3`~`mhpmcnt18`，各数一种事件。
-- 全部 **64 位**。注意 RISC-V 定义 HPM3~31，但 C910 只**物理实现到 HPM18**（`ct_hpcp_top.v:4010` 例化止于 cnt18，cnt19~31 例化被注释）。
+
+`ct_hpcp_top.v` 和 `ct_hpcp_event.v` 中的 `HPMCNT_NUM=42` 命名容易误导：
+它实际用作**事件号合法上限**，并不表示实现了 42 个硬件计数器。物理计数器
+实例只到 `x_hpcp_mhpmcnt18`；HPM19~31 的实例生成指令被注释掉。
+
+- 已实现的 18 个计数器全部为 **64 位**。
+- `mcycle` 并非无条件在每个 `forever_cpuclk` 周期加一。事件先经
+  `cnt_en_ff/cnt_adder_ff` 寄存，随后还要同时满足非调试态、当前特权级未被
+  PMD 位过滤、对应 `mcountinhibit` 位为 0，以及 TME/TS 全局计数条件。
+- `minstret_adder` 是三个 2 位 `inst_num` 的和，组合表达式的数值范围为 0~9；
+  `split` 退休项被排除。是否能到达某个上限还受 RTU 合法退休组合约束，不能只
+  根据"三个退休槽"把它简化成固定的 0~3 或 0~6。
+- RISC-V 定义了 HPM3~31 的地址空间，但本 RTL 只**物理实现到 HPM18**
+  （`ct_hpcp_top.v:4010` 例化止于 cnt18，cnt19~31 仅保留参数或注释模板）。
 
 ### 3.2 事件（42 种，6 位事件号；`ct_hpcp_event.v:55` HPMCNT_NUM=42，`:56` HPMEVT_WIDTH=6）
 
-涵盖 I$/D$/L2 访问与缺失、各级 TLB 缺失、分支/BTB/BHT 预测、指令混合（ALU/访存/向量/CSR/FPU/sync/ecall）、前后端 stall、访存重放与非对齐、中断等。完整 42 项清单见 `02_hpcp_events.md` 第 8 节。其中 L2 的 4 个事件（16~19）核内增量为 0，由 BIU/CIU 维护。
+事件选择号为 1~42，号 0 表示不启用本地可编程计数。事件涵盖 I$/D$、
+TLB、分支预测、指令分类、前后端 stall、访存重放、非对齐和中断状态等。
+这里的"42 种"准确含义是 **42 个可选择编号**，不等于 42 个独立物理计数器，
+也不保证每个编号都由本地 `eventNN_adder` 累加。编号 16~19 的本地增量恒为
+0；把 `mhpmeventN` 配成这些编号时，顶层改为把该 HPM 槽映射到 BIU/CIU
+维护的四个 L2 计数器。完整定义见 `02_hpcp_events.md`。
 
 ### 3.3 CSR 地址（`ct_hpcp_top.v:902~1045`）
 
@@ -88,6 +115,17 @@ PMU 是**旁路式**设计：它只监听核内各单元（IFU/IDU/LSU/MMU/RTU/B
 | 授权位图 MCNTWEN | 0x7C9 | — | — |
 | time | — | — | 0xC01 |
 
+这张表混合了标准 RISC-V 地址和 C910 自定义地址，不能整体称为"按 RISC-V
+规范的 M/S/U 三视图"：
+
+- `mcycle/minstret/mhpmcounter*`、`cycle/time/instret/hpmcounter*` 属于
+  RISC-V 计数器框架；
+- `SCYCLE/SINSTRET/SHPMCNT*`、`SCNTINHBT/SCNTINTEN/SCNTOF`、
+  `SHPMCR/SHPMSP/SHPMEP` 以及 `MCNTWEN` 是本实现提供的 S 态别名或控制扩展；
+- 是否允许某个特权级访问，最终还要经过 CP0 的 CSR 合法性与
+  `mcounteren/scounteren/MCNTWEN/SCE` 相关检查，不能只从 PMU 顶层的读 MUX
+  推断权限。
+
 ---
 
 ## 4. 怎么用 PMU 做性能分析
@@ -98,7 +136,10 @@ PMU 是**旁路式**设计：它只监听核内各单元（IFU/IDU/LSU/MMU/RTU/B
 - 写 `mhpmevent3 = 6`（BHT 预测失误，event06）
 - 写 `mhpmevent4 = 7`（条件分支退休，event07）
 
-写入时硬件会校验事件号 ≤ 42，非法值清 0（`ct_hpcp_event.v:93`）。事件号 0 = 关闭该计数器。
+写入时硬件同时要求 `[63:6]` 全为 0、`[5:0] <= 42`；任一条件不满足都会把
+保存值写成 0（`ct_hpcp_event.v:93~94`）。事件号 0 使本地 HPM 的
+`cnt_en` 为 0，但已经进入 `cnt_en_ff/cnt_adder_ff` 的上一拍事件仍可能完成
+最后一次更新。
 
 固定计数器 mcycle/minstret 无需配置。
 
@@ -106,8 +147,20 @@ PMU 是**旁路式**设计：它只监听核内各单元（IFU/IDU/LSU/MMU/RTU/B
 
 通过 `MHPMCR.TME` 选择统计范围（`ct_hpcp_top.v:1291`）：
 
-- **全程统计**（TME=00）：清零计数器 → 运行被测代码 → 读计数器。
-- **PC 起止/范围统计**（TME=01/10）：设 `MHPMSP`=起点 PC、`MHPMEP`=终点 PC，硬件自动只在该 PC 区间内计数（`ct_hpcp_top.v:2471~2490`），无需在代码里插桩。适合分析单个函数/循环。
+- **自由计数模式**（TME=00）：TME 不再阻止更新，但 debug、PMD 和
+  `mcountinhibit` 等条件仍然有效。
+- **起止触发模式**（TME=01）：退休窗口命中 MHPMSP 后置 `TS`，命中 MHPMEP
+  后清 `TS`。停止命中先进入 `hpcp_stop_vld_ff`，因此不是一句"PC 等于终点的
+  同拍立即停计数"可以准确描述的。
+- **范围模式**（TME=10）：退休窗口存在落在所配置范围内的项时置 `TS`，存在
+  范围外的项时清 `TS`。同一拍最多有三个退休槽，`ts` 更新还有明确优先级；
+  边界拍是否计入同时受事件寄存级和计数更新级影响。若研究函数入口/出口的
+  单周期精确包含关系，应结合波形验证，不能只把它理解成软件式
+  `if (start <= pc && pc <= end) count++`。
+
+MHPMSP/MHPMEP 写入时 bit0 被丢弃，读回 bit0 恒 0；高位仅记录一个
+`high_vld` 合法性标志，要求写数据 `[63:39]` 全 0 或全 1。比较实际使用
+`hpmsp_reg[38:0]` 与退休 PC 的半字地址及槽内 offset。
 
 也可用特权过滤（MHPMCR.PMDM/S/U，`ct_hpcp_top.v:1287`）只统计某特权级，例如只数用户态。
 
@@ -120,11 +173,20 @@ PMU 是**旁路式**设计：它只监听核内各单元（IFU/IDU/LSU/MMU/RTU/B
 | IPC | minstret / mcycle | 固定计数器 |
 | I$ MPKI | icache_miss / minstret × 1000 | event02 / minstret |
 | D$ 读 MPKI | dcache_read_miss / minstret × 1000 | event13 / minstret |
-| 分支误预测率 | (bht_mispred + jmp_mispred) / 退休分支数 | event06+08 / (event07+09) |
+| 条件分支方向误预测率 | bht_mispred / 条件分支退休槽数 | event06 / event07 |
+| 跳转预测错误率 | jmp_mispred / 跳转退休槽数 | event08 / event09 |
 | 前端瓶颈占比 | frontend_stall / mcycle | event39 / mcycle |
 | 后端瓶颈占比 | backend_stall / mcycle | event40 / mcycle |
 
-由于一拍可退休多条指令，C910 用**多 bit 加法器**保证这些计数不失真（`02_hpcp_events.md` 第 5 节），派生指标才准确。
+多 bit 增量避免把同周期多个来源简单压成一个脉冲，但这只保证
+`eventNN_adder` 能表示这些来源的和。指标语义是否等于"请求数"、"命中数"、
+"退休指令数"或"停顿周期数"，仍取决于各源模块如何生成事件。例如
+event29~33/37/42 来自 IDU 的 IR 分类，不应统称为退休指令；event39/40
+也只是 IFU/IDU 给出的特定 stall 定义，二者可能重叠，不能直接相加成总停顿。
+event06/08 的误预测源都只由退休槽0相关信号形成，而 event07/09 对三个退休槽
+求和；短窗口内分子和分母的槽位口径不同，仍应结合波形和长区间稳定性解释。
+只有进一步确认 `condbr` 与 `jmp` 分类互斥且覆盖目标分支集合后，才适合把
+两对事件相加成一个总分支误预测率。
 
 ### 第 4 步：溢出中断采样剖析（profiling）
 
@@ -132,9 +194,14 @@ PMU 是**旁路式**设计：它只监听核内各单元（IFU/IDU/LSU/MMU/RTU/B
 
 1. 把目标计数器预置成"再发生 N 次事件就溢出"（软件写计数器，`ct_hpcp_cnt.v:120`）。
 2. 开该计数器的中断使能位 `mcntinten`（`ct_hpcp_cntinten_reg.v`）。
-3. 运行。第 N 次事件到来时计数器回卷，`cntof` 置 sticky（`ct_hpcp_cntof_reg.v:55`），`hpcp_cp0_int_vld` 触发 PMU 溢出中断（`ct_hpcp_top.v:3042`）。
+3. 运行。事件增量经过一拍寄存后使 64 位加法产生进位，内部 `cnt_of` 拉高；
+   顶层 `cntof` 再把它锁存为 sticky 状态。若对应 `cntinten` 位为 1，
+   `hpcp_cp0_int_vld` 才保持有效。因一次增量可大于 1，预置阈值只能保证在
+   累计跨过回卷点时触发，未必恰好对应"第 N 个单独事件"。
 4. 中断处理读 `mcntof` 确认是哪个计数器溢出、记录当前 PC，清 `cntof`、重装计数器。
-5. 多次采样后，PC 直方图就是热点剖析（perf record 的硬件原理）。
+5. 多次采样后可形成 PC 样本直方图。中断入口看到的 PC 与真正产生溢出的事件
+   之间存在事件寄存、计数更新、sticky 置位和异常响应延迟，因此这是统计性的
+   附近采样，不是精确事件 PC；完整的 perf 类工具还需要软件归因和调用栈处理。
 
 ---
 
@@ -142,17 +209,17 @@ PMU 是**旁路式**设计：它只监听核内各单元（IFU/IDU/LSU/MMU/RTU/B
 
 | 决策 | 内容 | 为什么 | 出处 |
 |------|------|--------|------|
-| 旁路式架构 | PMU 只监听事件，不在执行路径 | 对功能/主频零影响 | 全局 |
-| 2 固定 + 16 可编程 64 位计数器 | mcycle/minstret + hpmcnt3~18 | 兼顾通用与面积；64 位极少溢出 | `ct_hpcp_cnt.v:50`、`ct_hpcp_top.v:1300` |
-| 只实现 HPM3~18 | 不实现 HPM19~31 | 16 个可编程槽够用，省面积 | `ct_hpcp_top.v:4010,4026` |
-| **多 bit（4 位）事件增量** | 每拍可 +0~8 | 超标量一拍多事件，否则计数失真 | `ct_hpcp_top.v:1419,1437` |
+| 观察式数据通路 | 事件主要从执行模块流向 PMU，另有使能/CSR/中断/L2 交互 | 功能上与普通指令数据通路分离；物理影响仍需综合验证 | 全局 |
+| 2 固定 + 16 可编程 64 位计数器 | mcycle/minstret + hpmcnt3~18 | RTL 事实；面积与功耗收益不能只凭源码定量 | `ct_hpcp_cnt.v:50`、`ct_hpcp_top.v:1300` |
+| 只实现 HPM3~18 计数主体 | HPM19~31 无计数器/事件选择实例，但部分 32 位控制状态仍存在 | 必须区分数据主体与外围控制位；未命中读 MUX 默认 0，CP0 还可能先判非法 | `ct_hpcp_top.v:4010,4106` |
+| **多 bit（4 位）事件增量** | 普通事件候选增量最大 8，接口可表示 15 | 保留同一源采样周期的多槽位事件数；之后还经过计数流水 | `ct_hpcp_top.v:1419,1437` |
 | 6 位事件号 + 写时裁剪 | 非法事件号清 0 | 防 MUX default 的 x 污染计数 | `ct_hpcp_event.v:93` |
 | 溢出 sticky + 单拍脉冲分工 | cnt 出脉冲，cntof_reg 保存 | 采样剖析定位溢出源 | `ct_hpcp_cntof_reg.v:55` |
-| M/S/U 三视图 + mcntwen | 一组物理寄存器多套地址 | 合规 + 权限隔离 + 省面积 | `ct_hpcp_top.v:2619,4137` |
-| TME/TS 区间剖析 | 按 PC 起止/范围自动计数 | 函数级分析免插桩 | `ct_hpcp_top.v:2471` |
+| 标准地址加 C910 S 态扩展 | 一组物理计数器由 M/S/U 地址映射访问 | PMU 做数据映射，CP0 做访问合法性；S 态别名不能冒充全部为标准 CSR | `ct_hpcp_top.v:2619,4137` |
+| TME/TS 区间剖析 | 按退休 PC 与 offset 更新 TS，再由 TS 门控计数 | 可做硬件区间统计；边界拍受流水和优先级影响 | `ct_hpcp_top.v:2390,2471` |
 | 特权过滤 PMDM/S/U | 按特权级停计数 | 只统计目标特权级 | `ct_hpcp_top.v:1287` |
-| L2 计数借道 BIU | L2 计数器代理成普通 hpmcounter | 软件视图统一 | `ct_hpcp_top.v:4288` |
-| 逐计数器门控 + 使能广播 | 未用计数器停时钟，并通知各单元 | 默认近零功耗 | `ct_hpcp_cnt.v:91`、`ct_hpcp_top.v:4345` |
+| L2 计数借道 BIU | HPM 槽可映射四种 L2 计数 | 复用 CSR 地址，但有远端完成和一对一映射约束 | `ct_hpcp_top.v:4199,4288` |
+| 逐计数器门控 + 使能广播 | 门控条件包含当前使能、写、溢出和待处理事件 | 减少无用翻转的结构性意图；实际功耗需测量 | `ct_hpcp_cnt.v:91`、`ct_hpcp_top.v:2322` |
 
 ---
 
@@ -165,4 +232,6 @@ PMU 是**旁路式**设计：它只监听核内各单元（IFU/IDU/LSU/MMU/RTU/B
 
 ---
 
-*本总览基于对 pmu/rtl 全部 6 个 RTL 文件的通读，计数器数/位宽/事件数/CSR 地址均带源码行号，未作推测。*
+*本文把“RTL 直接可见的事实”和“体系结构用途解释”分开描述。计数器个数、
+位宽、译码和优先级来自当前 RTL；性能、功耗、面积及边界事件是否符合软件期望，
+仍应通过仿真、综合和目标软件验证。*

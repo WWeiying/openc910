@@ -153,7 +153,7 @@
 
 # 第一篇：带向量扩展的商用多核、12 级流水、乱序 64 位高性能 RISC-V 处理器
 
-## 出版信息
+## 第一篇出版信息
 
 - 英文题目：Xuantie-910: A Commercial Multi-Core 12-Stage Pipeline Out-of-Order 64-bit High Performance RISC-V Processor with Vector Extension
 - 论文类型：工业产品论文
@@ -706,7 +706,7 @@ XT-910 的研发使作者形成以下判断：
 
 # 第二篇：玄铁 910——以 RISC-V 创新云计算与边缘计算
 
-## 出版信息
+## 第二篇出版信息
 
 - 英文题目：Xuantie-910: Innovating Cloud and Edge Computing by RISC-V
 - 会议：IEEE Hot Chips 32 Symposium，2020

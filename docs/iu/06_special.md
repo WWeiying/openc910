@@ -4,7 +4,8 @@
 >
 > 挂在 Pipe0，单拍执行（EX1）。处理"不适合放进 ALU 数据通路"的杂项指令：
 > auipc、ecall/ebreak、译码期异常的占位 NOP、以及 RVV 的 vsetvl/vsetvli。
-> 它是整数管线上**异常的主要入口**。
+> 它是整数 pipe0 上执行期异常/异常占位信息的一个重要入口；但分支恢复、LSU
+> 异常、CP0 异常等还有各自来源，不能把它理解成全核唯一异常入口。
 
 ---
 
@@ -38,8 +39,9 @@ special_ex1_expt_vld/vec <= idu_iu_rf_pipe0_expt_*;      // IDU 译码期已发�
 special_ex1_pred_vl[7:0] <= idu_iu_rf_pipe0_vl;          // IFU 预译码预测的 vl
 ```
 
-- **opcode 全 32 位带下来**：非法指令异常的 mtval 要回填原始指令码（L639-640），
-  这是全 IU 唯一需要原始编码的地方；
+- **opcode 全 32 位带下来**：非法指令异常的 mtval 要回填原始指令码（L639-640）。
+  这是 SPECIAL 本地使用完整原始编码的直接原因；“全 IU 唯一”需要遍历所有版本
+  和配置才能成立，本文不作超出当前模块连接的排他性断言；
 - **PC 从 PCFIFO 拿**（`bju_special_pc`，见 03_bju_pcfifo.md 4.1 读口 1）：
   auipc 和链接计算需要 PC，而流水线里不传 PC——pid 间接寻址 PCFIFO 是统一方案。
 
@@ -58,13 +60,15 @@ MMU 开关影响 PC 的高位语义（虚拟地址符号扩展 vs 物理地址�
 
 ### 2.3 vsetvl/vsetvli：核心是"预测校验"（L366-570）
 
-背景：C910 的 IFU 对 vsetvli 做了**预译码预测**——在取指阶段就猜出新 vl，
-让后续向量指令不必等 vsetvli 执行完就能带着预测 vl 派遣（消除了 RVV 最讨厌的
-配置串行化）。SPECIAL 在执行期负责**算出真值并验证预测**：
+背景：这份 RTL 的 IFU 会对 vsetvli 形成预译码配置，后续相关指令可以携带预测
+的 `vl` 等信息继续向下游流动，不必在前端无条件等待 vsetvli 执行完成。这样做
+是在减轻向量配置指令造成的串行化，而不是保证完全消除所有配置相关停顿。
+SPECIAL 在 EX1 重新算出执行结果并校验前端预测：
 
-**算新 vl（L386-478）**：vl = min(AVL, VLMAX)，VLMAX 由 vsew/vlmul 决定
-（C910 VLEN=128：如 sew=8,lmul=8 → VLMAX=128；sew=64,lmul=1 → VLMAX=2）。
-实现上先并行算出 7 种 VLMAX 档位的结果 `vl_2/4/8/...The/128`（L403-423，
+**算新 vl（L386-478）**：vl = min(AVL, VLMAX)，VLMAX 由 vsew/vlmul 决定。
+本段逻辑的最大档位是 128 个元素，例如 sew=8、lmul=8 对应 VLMAX=128，
+sew=64、lmul=1 对应 VLMAX=2；这与 VLEN=128 的计算模型一致。实现上先并行
+形成 7 种 VLMAX 档位的结果 `vl_2/4/8/16/32/64/128`（L403-423，
 `avl >= VLMAX ? VLMAX : avl` 用前导或归约 `|avl[63:k]` 判断），再按
 {vlmul,vsew} 16 路选择（L458-477）。`rs1=x0` 表示 AVL=无穷大，恒取 VLMAX
 （L386-401 每档的 `|| rs1_x0`）。
@@ -87,12 +91,14 @@ assign special_ex1_vsetvlx_abnormal = inst_vsetvl            // vsetvl(寄存器
 - **vsetvl（源自寄存器）无法预测**——vtype 在寄存器里取指期不可知，所以一律
   按"预测失败"处理（abnormal → RTU 在它退休时 flush 重取后续指令，此时 CP0
   的 vl/vtype 已更新，IFU 按新配置重新预译码）；
-- **vsetvli（立即数 vtype）大概率预测对**：预测对则零开销直通，错了才付一次
-  flush 代价；
-- mtval 被借用来给 CP0 传递新配置（L558-564：打包 vl/vsew/vlmul/illegal/
-  mispred 进 mtval[14:0]）——**RTU flush 时 CP0 从"异常值"通道拿到新 vtype**，
-  省了一组专用总线。这是读 RTL 才能发现的"复用暗道"，看波形时注意 mtval
-  不一定是异常地址。
+- **vsetvli（立即数 vtype）具备前端预测条件**：预测正确时不需要因为配置错误
+  额外执行一次恢复 flush，但该指令本身仍占派遣/执行/退休资源，不能称为整条
+  指令“零开销”；预测错误或被配置禁止时才走退休期恢复；
+- `special_cbus_ex1_mtval` 被复用来承载新配置编码（L558-564：打包
+  vl/vsew/vlmul/illegal/mispred 到 `[14:0]`）。从 SPECIAL 发送端能够确认的是
+  “配置通过 CBUS 的 mtval 字段送入 RTU”；CP0 最终在哪个状态、哪个时钟沿采用
+  这些字段，应继续沿 RTU/CP0 接收逻辑核对。因此更准确的称呼是**字段复用**，
+  而不是暗示它在所有场景都具有架构 CSR `mtval` 的常规异常地址语义。
 
 **vstart 清零（L538-539）**：执行 vsetvl* 时若 vstart≠0 需要清零（RVV 规范），
 通过 `special_cbus_ex1_vstart_vld/vstart=0` 走 CBUS 让 RTU 退休时更新。
@@ -130,10 +136,17 @@ vsetvl* 的 rd 写回值就是新 vl（RVV 规范），ecall/ebreak/NOP 无写�
 
 ## 3. 与 CP0 的关系辨析
 
-容易混淆：**CSR 读写指令（csrrw 等）不在 SPECIAL 执行**，而是送 CP0 模块执行
-3 拍（cp0_iu_ex3_* 接口回 IU，见 00 总览 3.5）。SPECIAL 只管 auipc/ecall/
-ebreak/vsetvl* 这几个"一拍出结果或纯异常"的家伙。两者共享 pipe0 的发射端口
-（`idu_iu_rf_special_sel` vs cp0 的 sel 由 IDU 区分）。
+容易混淆：**CSR 读写指令（csrrw 等）不在 SPECIAL 执行**，而是送 CP0 模块，
+其返回接口命名为 `cp0_iu_ex3_*`（见 00 总览 3.5）。`ex3` 是本设计的流水级
+标签；若要把它换算成“从哪一拍起算的固定三周期延迟”，必须同时定义输入接受点
+并核对 CP0 内部寄存级。SPECIAL 只管 auipc/ecall/ebreak/vsetvl* 等本节操作。
+两者共享 pipe0 相关资源，但由 IDU 生成不同选择信号。
+
+还必须说明当前配置边界：SPECIAL 中的 vsetvl/vsetvli 计算与预测校验逻辑真实
+存在，可以独立研究；顶层向量 VRT/VREG PST 重命名和退休路径则包含 dummy
+常量实现，`misa.V` 也未开放。因此，本模块支持 vsetvl* 只证明配置计算数据通路
+存在，并不等于当前顶层具备完整、可提交的 RVV 端到端执行能力。学习波形时应把
+“配置计算逻辑有效”和“完整向量架构状态可用”分成两个问题。
 
 ---
 
@@ -149,5 +162,8 @@ ebreak/vsetvl* 这几个"一拍出结果或纯异常"的家伙。两者共享 pi
 | `special_cbus_ex1_mtval` | 注意 vsetvl 时它装的是新配置不是地址 |
 | `special_rbus_ex1_data_vld/data` | auipc/vsetvl 写回 |
 
-跑 ISA/ISA_THEAD 或 rvv case 时观察 vsetvli 的预测命中：mispred=0 时管线
-无任何扰动，mispred=1 时该指令退休后跟一次 `rtu_yy_xx_flush`。
+跑 ISA/ISA_THEAD 或相应向量配置 case 时，可以观察 vsetvli 的预测校验：
+`mispred=0` 只说明“没有因为 vl 预测不一致而请求该类恢复”，该指令仍会占用
+发射、执行、写回/完成和退休资源，也可能因其他 abnormal 条件触发 flush；
+`mispred=1` 则是 `special_ex1_vsetvlx_abnormal` 的一个原因，后续是否以及何时
+看到 `rtu_yy_xx_flush`，还要结合该指令到达 ROB 头和 RTU 状态机观察。

@@ -21,6 +21,7 @@
 9. [双 GHR 机制与恢复](#9-双-ghr-机制与恢复)
 10. [flush 与状态恢复](#10-flush-与状态恢复)
 11. [完整闭环全景图](#11-完整闭环全景图)
+12. [Verdi 观察指南](#12-verdi-观察指南)
 
 ---
 
@@ -51,27 +52,29 @@ IFU 内部三级流水：**PCGEN → IF → IP → IB**（IB 后进 IBUF）。�
 ```
 流水级    PCGEN          IF              IP                IB
           ─────          ──              ──                ──
-          PC 选择        I-Cache 读      预解码/分支决策    打包送出
+          PC/查找键选择   I-Cache 读      预解码/分支决策    打包送出
           ↓              ↓               ↓                 ↓
-预测器:   L0 BTB ★       BTB 读出        BTB tag 比较      Indirect BTB 检查
-          (零延迟)       BHT sel 读出    BHT pred 读出      addrgen 确认
-                                         RAS 读栈顶
+预测器:   L0 BTB 比较 ★  L0 命中结果可用  主 BTB 结果参与    Indirect BTB 检查
+                         BTB/BHT 同步读   BHT/RAS 参与决策   addrgen 确认
                                          → 形成预测跳转
 
-★ L0 BTB 在 PCGEN 当拍即可改变下一 PC，零额外延迟
+★ L0 BTB 的 16 路 tag 比较是组合逻辑，但命中向量先写入
+  `entry_hit_flop`，随后才选择目标并经 IFCTRL 请求 PCGEN 重定向。
+  它比主 BTB 的同步 SRAM 路径更早，不能描述成 PCGEN 同拍改 PC。
 ```
 
 | 预测器 | 工作流水级 | 延迟 | 容量 | 解决的问题 |
 |--------|-----------|------|------|-----------|
-| **L0 BTB** | PCGEN | 0 拍 | 16 项（寄存器） | 目标（热点） |
-| **BTB** | IF 读 / IP 用 | 1 拍 | 1024×4 路 SRAM | 目标 |
-| **BHT** | IF 读 / IP 用 | 2 拍 | 64K bits Bi-Mode | 方向 |
-| **RAS** | IP | 0 拍（栈顶寄存器） | 18 项 | 返回目标 |
+| **L0 BTB** | PCGEN 形成查找键，IF 附近使用已寄存命中 | 比主 BTB 更早；至少跨过命中向量寄存边界 | 16 项寄存器阵列 | 热点目标 |
+| **BTB** | PCGEN 发读，IF 取得 SRAM 结果，IP 使用 | 同步 SRAM 流水 | 当前生成 RTL 为 512 行×4 个固定位置槽 | 普通目标和 I-Cache way 预测 |
+| **BHT** | IF/IP 分级读取与选择 | 分级同步读 | 64 Kbit Predict + 2 Kbit Select | 条件分支方向 |
+| **RAS** | IP/IB 路径 | 组合选择与流水反馈 | 12 项投机栈 + 6 项退休恢复副本 | 返回目标 |
 | **Indirect BTB** | IP 检查 / IB | — | 独立 SRAM | 间接目标 |
 
-> 设计哲学：**分级预测**。最常用的少量分支用零延迟的 L0 BTB 覆盖；
-> 更大范围用有 1~2 拍延迟但容量大的 BTB/BHT；间接跳转和返回用专用结构。
-> 精度逐级提高，延迟逐级增加。
+> 设计哲学是**分级预测**。少量热点目标由寄存器阵列提前提供，普通目标和方向
+> 由容量更大的同步 SRAM 结构覆盖，间接跳转和返回再使用专用历史。这里的层次
+> 不是简单的“越晚越准”：不同结构解决的是目标、方向或特定控制流类型，最终还要
+> 经过流水有效、stall、reissue 和更高优先级 PC load 仲裁。
 
 ### 2.1 本文的 PC 位号约定
 
@@ -90,33 +93,47 @@ byte_pc      = {rtl_pc, 1'b0}
 
 ## 3. 五个预测器的分工
 
-### 3.1 L0 BTB（零延迟目标预测）
-- 16 项全寄存器实现，在 PCGEN 当拍并行比较 16 路 tag，命中即在下一拍改流。
-- 消除 BTB 的 1 拍 SRAM 读延迟，专门加速热点分支/小循环。
-- 由 addrgen（IB+1）更新；命中信息直接送 ifctrl 触发 IF 级 chgflw。
+### 3.1 L0 BTB（低延迟热点目标预测）
+- 16 项全部由寄存器实现，PCGEN 给出查找键后并行比较 16 路 tag。
+- 组合比较结果必须先锁存到 `entry_hit_flop`，命中项的 `cnt/target/way_pred`
+  随后才形成 IF 级候选 change-flow；IFCTRL 还会检查数据有效、stall、reissue
+  和更高优先级 PC load。因此它省掉的是主 BTB 的 SRAM 访问路径，不是端到端零周期。
+- IBDP 负责 miss 分配、完整字段写入和训练；ADDRGEN 路径只在已有 L0 项最终被判错时
+  清除该项 `vld`，不能笼统写成“ADDRGEN 更新正确目标”。
 
 ### 3.2 BTB（主目标预测）
-- 1024 项 ×4 路组相联，存 `{valid, tag, target[19:0], way_pred[1:0]}`。
-- index = `rtl_vpc[12:3]` = 字节 PC `[13:4]`，tag = `{rtl_vpc[19:13], rtl_vpc[2:0]}` = `{byte_pc[20:14],byte_pc[3:1]}`。
-- 读 2 拍：PCGEN 送 index → IF 读出 → IP 做 tag 比较定命中路。
+- 当前生成 RTL 使用两组 512 深度 SRAM，每个物理行打包 4 个固定位置槽，总计
+  2048 个物理槽；槽号由取指块内 PC 位置确定，不是四路组相联替换。
+- 逻辑 index 为 `rtl_vpc[12:3]`，但当前 512 深度 SRAM 只连接
+  `index[8:0]`，`index[9]` 未进入物理地址或 tag，因此该位不同的控制流会别名。
+  tag 为 `{rtl_vpc[19:13], rtl_vpc[2:0]}`，后级检查保证别名只影响性能。
+- PCGEN 发起同步读，IF 取得四个固定槽的
+  `{valid, tag, target[19:0], way_pred[1:0]}`，IP 再结合当前位置选择结果。
 - **Refill Buffer 延迟写**：way_pred 在 miss 时还不知道，先缓存待 2 拍后补全再写 BTB。
 
 ### 3.3 BHT（Bi-Mode 方向预测）
 - 双预测表（Taken 表 + Not-Taken 表）+ 选择表（Select Array）。
 - Select Array 用 PC 索引、在 IF 级读；Predict Array 用 VGHR 折叠索引、在 IP 级读。
 - 最终：`sel_array_result[1]` 选哪张表 → 该表 2-bit 计数器 MSB 即方向预测。
-- Bi-Mode 把"偏跳"和"偏不跳"的分支分表存放，消除别名干扰。
+- Bi-Mode 把偏 taken 和偏 not-taken 的训练分到两个逻辑侧，减少相反偏置分支
+  直接污染同一个方向计数器；同侧索引、选择表和有限容量仍会产生别名。
 
 ### 3.4 RAS（返回地址栈）
-- **双栈**：IFU 侧 12 项投机栈 + RTU 侧 6 项退休栈（又一处投机/退休双轨，见第 9 节统一模式）。
-- 每项存 `{pc, priv_mode[1:0], filled}`——存特权级，不同特权级的返回地址不可混用。
+- 主预测结构是 IFU 侧 **12 项投机栈**；另有 **6 个退休侧物理恢复副本**，
+  按 12 个逻辑位置模 6 复用。后者不是另一张完整退休栈，也不把预测深度扩成 18。
+- 投机项保存 `{pc, priv_mode[1:0], filled}`；特权级参与目标有效性判断，避免把
+  不同特权上下文中的历史无条件混用。
 - **5 位指针**：低 4 位指栈顶，最高 1 位作"圈数奇偶"标志。因为 12 项不是 2 的幂，
   不能靠低位直接比较判满/空：两指针低 4 位相同且最高位相同 → 空；最高位不同 → 满。
   环绕在 12（`top_ptr[3:0]==11` 时翻转 bit[4]、低位归 0），而非 16。
 - call（`ibctrl_ras_pcall_vld`）压栈、ret（`ibctrl_ras_preturn_vld`）弹栈；ibctrl 按
   RISC-V 的 rd/rs1 约定识别 call/ret，区别于普通 JALR。
-- IP 级提供栈顶作为 ret 的预测目标，配对正确时精度接近 100%。
-- **恢复**：误预测/flush 时，IFU 投机栈从 RTU 退休栈恢复（同 GHR、PATH 的双轨模式）。
+- IP 级提供栈顶作为 ret 的候选目标。标准 LIFO 调用返回通常容易预测，但深度超过
+  12、非标准链接寄存器、非 LIFO 控制流、异常和错误路径都会降低准确率，RTL 本身
+  不提供固定准确率保证。
+- **恢复**：误预测或 flush 时，`top_ptr` 回到计入当前退休动作后的
+  `rtu_ptr_pre`，并由 6 个退休副本修复一个有限循环窗口。它是“指针恢复 +
+  有限内容复制”，不是把 12 个投机项从完整退休栈一次性重建。
 
 ### 3.5 Indirect BTB（间接跳转目标预测）
 
@@ -131,7 +148,7 @@ byte_pc      = {rtl_pc, 1'b0}
 ```
 注意存了 `priv_mode`——不同特权级的间接目标不能混用，读出时要校验特权级。
 
-**PATH 寄存器：投机/退休双轨（与 GHR 完全对称的设计）**
+**PATH 寄存器：投机/退休双轨（与 GHR 使用同类组织思想）**
 
 间接跳转预测的"上下文"由一组**路径历史移位寄存器**表示，共 4×8 位，分两套：
 
@@ -165,7 +182,8 @@ reg1 ← 旧 reg0,  reg2 ← 旧 reg1,  reg3 ← 旧 reg2   （历史路径左�
 
 **恢复**：`path_reg_rtu_updt = rtu_ifu_retire0_mispred || rtu_ifu_flush`（:254）。
 即任何误预测退休或 flush 时，投机 `path_reg ← 退休 rtu_path_reg_pre`（:522）——
-和 BHT 的 `VGHR ← RTUGHR` 完全对称：投机路径被错误路径污染后，用退休侧的精确路径恢复。
+它与 BHT 的 `VGHR ← RTUGHR` 都使用退休侧历史恢复投机基线，但两者的历史内容、
+更新条件和 SRAM 索引方式并不相同。
 
 **INV**：`ind_btb_inv_on_reg` 拉高时用 `ind_btb_inv_cnt` 倒计数逐项清零（256 项）。
 
@@ -176,7 +194,7 @@ reg1 ← 旧 reg0,  reg2 ← 旧 reg1,  reg3 ← 旧 reg2   （历史路径左�
 ### PCGEN 级
 ```
 1. 从 10 个来源选下一 PC（pcgen 优先级 MUX）
-2. L0 BTB 并行查（零延迟）：命中则下一拍就跳到 target
+2. L0 BTB 并行比较；命中向量在时钟沿锁存，随后才可能请求跳到 target
 3. 把 PC 的 index 送 I-Cache、BTB、BHT-sel 开始读（1 拍后出结果）
 ```
 
@@ -259,16 +277,17 @@ ibctrl 通过 rd/rs1 寄存器约定识别 ret，区别于普通 JALR
 周期 N+2 (IP)   ：BTB tag 命中 → 得 target
                   BHT：sel 选表 → 2-bit 计数器 MSB = taken
                   ipctrl 决策：taken → ipctrl_pcgen_chgflw_pcload=1
-                  同拍投机更新 VGHR（左移，追加 taken）
+                  形成 VGHR 的投机更新条件（左移，追加 taken）
 
-周期 N+2 (PCGEN 同拍)：if_pc ← BTB target（chgflw 优先于顺序推进）
-                       从目标地址重新取指
+周期 N+2 末时钟沿：PCGEN 接受该 change-flow 时，if_pc 装入 BTB target
+周期 N+3          ：目标地址成为新的取指 PC
 
-→ 若预测正确：流水线无气泡继续
+→ 若预测正确：无需等待 BJU 执行后再纠错，但仍可能受 I-Cache、stall、reissue 等阻塞
 → 若后续 BJU 发现预测错：见第 7 节纠错
 ```
 
-L0 BTB 命中时更快：PCGEN 当拍就改流，省掉 N+1、N+2 的等待。
+L0 BTB 命中时，目标可绕开主 BTB 的同步 SRAM 路径而更早进入 IF 级重定向仲裁；
+它仍跨过 `entry_hit_flop`，且可能被 stall、reissue 或更高优先级 PC load 推迟。
 
 ---
 
@@ -305,7 +324,9 @@ RTU（退休）◀── pop ───────┤                           
 ```
 
 **生命周期四步**：
-1. **Create**（IFU 取指时，`ifu_iu_pcfifo_create0/1_*`）：把预测信息写入 PCFIFO，一拍最多 2 条。
+1. **Create**（IFU 取指时，`ifu_iu_pcfifo_create0/1_*`）：IFU 每拍最多提出两路
+   创建请求；带链接目的寄存器的跳转会展开成两个 PCFIFO 项，因此内部
+   `create0/1/2` 三个写口一拍最多写入三项。
 2. **Assign PID**（`:2055`）：分配 PID，随指令经 IDU dispatch（`iu_idu_pcfifo_dis_inst0~3_pid`）。
    指令此后一直带着 PID，执行时凭 PID 找回自己的预测元数据。
 3. **Read**（BJU EX1）：BJU 凭 PID 读出 `pcfifo_bju_pc / bht_pred / chk_idx / jmp_mispred`，与实际算出的比对。
@@ -345,9 +366,12 @@ assign bju_jmp_mispred = bju_inst_jump && bju_tarpc_cmp_fail
 assign bju_older_inst_vld = ex1_pipe2_inst_vld && ex1_pipe2_iid_oldest;
 assign bju_chgflw_vld = bju_mispred && !rtu_iu_flush_chgflw_mask && bju_older_inst_vld;
 ```
-- 乱序执行下可能有多条分支在飞，只有**最老的（程序序最早）误预测分支**才有资格纠错。
-- 用 IID（7 位，对应 128 项 ROB）做年龄比较，时序上把比较提前到 RF 级（:479）。
-- 这避免了一条更年轻的误预测分支错误地冲刷了它前面本应正确执行的指令。
+- 乱序执行下可能有多条分支在飞。当前分支只有比正在 EX1 报错的分支和已经记录的
+  `mispred_iid` 都更老，才有资格产生新的纠错；更年轻的分支可能位于旧错误路径上。
+- IID 为 7 位，即 1 位 wrap 加 6 位 ROB 物理索引，对应 64 个 ROB 表项的环形空间；
+  一个表项可折叠多条指令，因此不能写成“128 项 ROB”。年龄比较被提前到 RF 级（:479）。
+- 该门控避免错误路径上的年轻分支再次改写取指方向，同时允许更老分支覆盖较年轻的
+  已记录误预测。
 
 ### 7.4 纠错动作
 ```
@@ -366,7 +390,9 @@ bju_chgflw_vld=1 →
   仍需 stall。这个"IFU 早放、IDU 晚放"的拆分（:828 注释）让取指尽早重启、减少气泡，
   同时保证后端不被污染。其作用是阻止 IFU 在 PATH/RAS 恢复完成前取新的 RAS/JMP 指令（:821）。
 
-误预测代价：冲刷 IFU+IDU 前端（约 5~ 拍气泡）。这正是要把预测做准的原因。
+误预测会先触发 BJU 早重定向，再等待 RTU 在精确边界完成前后端恢复。实际损失取决于
+分支从取指到执行的距离、当时前端/后端占用、目标路径 I-Cache 状态和 flush 等待条件，
+不能从这段控制逻辑归纳成固定的“约 5 拍”。
 
 ### 7.5 EX2/EX3：写回、反馈与 bypass
 
@@ -399,13 +425,14 @@ EX3 做 bypass，保证 RTU 读到最新结果，避免 RAW 冒险。
 
 ## 8. 预测器更新闭环
 
-预测器在**三个时间点**更新，精度逐点提高：
+预测相关状态在**三个生命周期阶段**发生变化。这里的先后表示状态所依据的信息从
+投机预测走向执行结果和已退休历史，不表示三个阶段都会产生一份“越来越准”的独立预测：
 
 ### 8.1 投机更新（IP 级，最早）
-- **VGHR**：IP 级每检测到条件分支，立即把预测方向左移进 VGHR（投机，可能错）。
+- **VGHR**：IP 级在条件分支满足本拍历史更新资格时，把预测方向移入 VGHR。它记录的是尚未退休的投机路径，因此后续可能被恢复。
 - **BTB Refill Buffer**：BTB miss 时缓存目标，2 拍后补全 way_pred 再写入 BTB。
 
-### 8.2 执行反馈（BJU EX2，较准）
+### 8.2 执行反馈（BJU EX2，使用真实执行结果）
 BJU 在 EX2 算出真实方向/目标后反馈给 IFU 更新 BHT（信号见 7.5 ②）。
 BHT 收到后，决定是否经 Write Buffer 更新两张表。更新遵循两条规则（`ct_ifu_bht.v:932-954`）：
 
@@ -432,7 +459,7 @@ sel_array_check_updt_vld = !( (bju_sel_rst==2'b00 && !taken)        // 饱和一
 > Write Buffer 的作用（详见 `ifu/04_bht.md`）：SRAM 同周期不能边读边写，更新先入 4 项写缓冲，
 > 趁无读操作的空隙回写；若读地址命中写缓冲则直接旁路最新值。
 
-### 8.3 退休更新（RTU，最准）
+### 8.3 退休更新（RTU，维护已提交历史）
 - **RTUGHR**：RTU 按程序序退休条件分支，把确定的真实方向推入 RTUGHR（每拍最多 3 条）。
 - **Indirect BTB**：`rtu_ifu_retire0_jmp_mispred` 在退休确认间接跳转误预测时，
   用真实目标更新其 SRAM（`ct_ifu_ind_btb.v:207`）；退休侧 `rtu_path_reg` 同步移位推进，
@@ -450,7 +477,7 @@ VGHR（虚拟/投机）          RTUGHR（退休/精确）
 ─────────────────          ──────────────────
 IP 级每预测一条分支         RTU 每退休一条分支
 就左移追加预测方向          就左移追加真实方向
-（快，但可能含错误路径）    （慢，但绝对正确）
+（快，但可能含错误路径）    （只含已退休的真实方向）
         │                          │
         │   预测出错时             │
         └──────◀───────────────────┘
@@ -468,22 +495,24 @@ lbuf con_br   → vghr 左移（循环缓冲分支）
 IP con_br     → vghr 左移（正常投机）
 ```
 
-### 9.1 贯穿全局的"投机/退休双轨"模式（重要总纲）
+### 9.1 三类预测历史中的"投机/退休双轨"模式
 
-C910 所有**带历史状态**的预测结构都遵循同一范式——这是理解整个分支预测的总钥匙：
+C910 的 VGHR、Indirect-BTB PATH 和 RAS 都把快速投机状态与退休侧恢复依据分开，
+但三者不是同一种物理结构：
 
 | 预测结构 | 投机侧（取指时快速更新，可能被错误路径污染） | 退休侧（按程序序精确更新） | flush/误预测时恢复 |
 |----------|------------------------------|------------------------|-------------------|
 | BHT 方向历史 | VGHR | RTUGHR | VGHR ← RTUGHR |
 | Indirect BTB 路径 | path_reg | rtu_path_reg | path_reg ← rtu_path_reg |
-| RAS 返回栈 | IFU 12 项投机栈 | RTU 6 项退休栈 | IFU 栈 ← RTU 栈 |
+| RAS 返回栈 | IFU 12 项投机栈 | 6 个退休恢复副本 + 退休指针 | 指针恢复，并用有限副本修复相关内容窗口 |
 
-**为什么都这样设计？** 投机侧要快（取指当拍就更新，跟得上预测节奏），代价是会被错误路径写脏；
-退休侧慢但绝对正确（只在指令按序退休时更新）。平时用投机侧预测，一旦预测错/flush，
-就用退休侧把投机侧"擦回"正确状态。**这是用一致的范式同时拿到速度和正确性**——
-记住这条主线，三个结构的恢复逻辑就都通了。
+**为什么都这样设计？** 投机侧必须跟随取指节奏推进，代价是可能吸收错误路径；退休侧
+只由按序提交的控制流推进，因而可作为恢复基准。发生误预测或 flush 时，BHT 和
+Indirect BTB 可从退休历史重建投机历史的基线，RAS 则恢复指针并借助有限退休副本
+修复必要内容。三者都体现“投机状态 + 已提交恢复依据”的思想，但物理恢复方式并不相同。
 
-而 BTB / L0 BTB / PCFIFO 不是"历史累积"型（它们是 PC 关联的目标记忆 / 元数据队列），
+而 BTB / L0 BTB / PCFIFO 不是这类"顺序历史累积"结构（它们是 PC 关联的目标记忆 /
+元数据队列），
 所以不需要双轨，而是各自用 Refill Buffer 延迟写、IID 年龄比较等机制保证正确性。
 
 ---
@@ -493,12 +522,12 @@ C910 所有**带历史状态**的预测结构都遵循同一范式——这是�
 误预测/异常触发的冲刷与恢复链：
 
 ```
-BJU 检测最老误预测（EX1）
+BJU 检测具备年龄仲裁资格的误预测（EX1）
    │
    ├─ iu_ifu_chgflw → IFU 重定向到正确 PC
    ├─ iu_idu_mispred_stall → 暂停 IDU 前端
    │
-   └─ 错误路径指令继续流到 RTU
+   └─ 已进入后端的指令由 cancel、完成屏蔽和后续 flush 按各模块规则处理
          │
 RTU 退休到误预测分支
    │
@@ -509,8 +538,9 @@ RTU 退休到误预测分支
    └─ 重命名表（IDU）恢复到正确映射
 ```
 
-**两阶段冲刷**：BJU EX1 先做"轻量"重定向（让 IFU 尽快从正确地址取指），
-RTU 退休时做"重量"恢复（精确恢复所有预测器状态）。
+**两阶段冲刷**：BJU 在 EX1 判定错误，并在 EX2 对外发出“轻量”重定向，让 IFU
+尽快从正确地址取指；误预测分支到达退休边界后，RTU 再发出“重量”恢复，使
+投机历史、RAS/PATH 恢复基准以及重命名等状态分别按所属模块规则回到已提交路径。
 中间用 `mispred_stall` 锁住前端，并阻止 IFU 取 RAS/JMP 指令直到误预测分支退休
 （`ct_iu_bju.v:821`），避免在未恢复状态下污染 RAS/Indirect BTB。
 
@@ -522,7 +552,7 @@ RTU 退休时做"重量"恢复（精确恢复所有预测器状态）。
 ┌─────────────────────────────────────────────────────────────────────┐
 │                          IFU（预测）                                  │
 │                                                                       │
-│  PCGEN ──[L0 BTB 零延迟]──┐                                          │
+│  PCGEN ──[L0 BTB 组合比较→命中寄存→IF 级早期目标]──┐                   │
 │    │                       │                                          │
 │    ├─index→ BTB ──────────▶│                                          │
 │    ├─index→ BHT-sel ──────▶│ IP 级综合决策：                         │
@@ -543,7 +573,7 @@ RTU 退休时做"重量"恢复（精确恢复所有预测器状态）。
 │                      IU / BJU（EX1 检查纠错）                         │
 │  • 算真实方向（condbr_taken）与目标                                   │
 │  • 比对预测：bht_mispred / jmp_mispred                                │
-│  • IID 年龄比较：仅最老误预测纠错                                     │
+│  • IID 年龄比较：只允许不年轻于既有候选的误预测发起纠错                 │
 │  • bju_chgflw → iu_ifu_chgflw（重定向）                              │
 │  • iu_ifu_bht_* → 反馈更新 BHT                                        │
 └───────────────────────────────┬───────────────────────────────────┘
@@ -551,7 +581,7 @@ RTU 退休时做"重量"恢复（精确恢复所有预测器状态）。
                                  ▼
 ┌─────────────────────────────────────────────────────────────────────┐
 │                        RTU（退休/精确更新）                           │
-│  • 按序退休，更新 RTUGHR（精确历史）                                  │
+│  • 按序退休，更新 RTUGHR（已提交历史）                                │
 │  • rtu_ind_btb_mispred → 更新 Indirect BTB                            │
 │  • rtu_ifu_flush → 冲刷 + VGHR←RTUGHR + RAS/PATH 恢复                 │
 └─────────────────────────────────────────────────────────────────────┘
@@ -564,13 +594,13 @@ RTU 退休时做"重量"恢复（精确恢复所有预测器状态）。
 | 主题 | 结论 |
 |------|------|
 | 方向预测 | BHT（Bi-Mode），IP 级出结果 |
-| 目标预测 | L0 BTB（0 拍）/ BTB（2 拍）/ Ind-BTB（jalr）/ RAS（ret） |
+| 目标预测 | L0 BTB（低延迟寄存器表）/ 主 BTB（同步 SRAM）/ Ind-BTB（jalr）/ RAS（ret） |
 | 预测发生级 | PCGEN（L0 BTB）→ IF（读）→ IP（决策出 chgflw） |
 | 检查发生级 | IU/BJU 的 EX1（pipe2） |
-| 纠错正确性 | IID 年龄比较，仅最老误预测可改流 |
-| 预测更新三时点 | IP 投机 → BJU 执行反馈 → RTU 退休精确 |
+| 纠错正确性 | IID 年龄比较让不年轻于当前候选的误预测取得纠错资格，避免年轻错误覆盖更老控制流 |
+| 预测状态生命周期 | IP 维护投机历史 → BJU 反馈真实执行结果并训练方向表 → RTU 维护已提交历史与恢复基准 |
 | 历史寄存器 | VGHR（投机，索引用）/ RTUGHR（精确，恢复用） |
-| 误预测代价 | 冲刷前端约 5+ 拍气泡 |
+| 误预测代价 | 取决于发现级、重定向仲裁、前端重新供给、分支到退休的距离和后端 flush；不能由“12 级流水”换算成固定拍数 |
 | 状态恢复 | BJU 轻量重定向 + RTU 重量恢复（两阶段） |
 
 ---
@@ -607,7 +637,7 @@ RTU 退休时做"重量"恢复（精确恢复所有预测器状态）。
 | 信号名 | 位宽 | 流水级 | 功能说明 |
 |--------|------|--------|---------|
 | `vghr_reg` | [21:0] | IP 持续 | **投机全局历史寄存器**。每预测一条条件分支就左移追加预测方向（bit0=最新）。错误路径下会被污染，flush 后从 `rtughr_reg` 恢复。高位是最旧历史，低位是最新。 |
-| `rtughr_reg` | [21:0] | RTU 持续 | **退休全局历史寄存器**。只在 RTU 按程序序退休条件分支时更新，始终保存精确历史。误预测时用它恢复 `vghr_reg`。 |
+| `rtughr_reg` | [21:0] | RTU 持续 | **退休全局历史寄存器**。只在 RTU 按程序序退休条件分支时更新，保存已提交控制流历史。误预测时用它恢复 `vghr_reg`。 |
 | `bht_ipdp_vghr` | [21:0] | IP | 送给 ipdp 的当前 VGHR 值，用于 IP 级计算 Predict Array 读索引。 |
 | `bht_ipdp_sel_array_result` | [1:0] | IP | Select Array 的 2-bit 选择计数器。bit[1]=1 选 Taken 表，=0 选 Not-Taken 表；bit[0] 是选择计数器的低位，不是最终方向。最终方向来自所选 Predict Array 计数器的 MSB。 |
 | `bht_ipdp_pre_array_data_taken` | [31:0] | IP | Taken 表读出的 16 个 2-bit 计数器打包值。 |
@@ -618,28 +648,33 @@ RTU 退休时做"重量"恢复（精确恢复所有预测器状态）。
 
 **行为说明**：
 - 观察 `vghr_reg` 与 `rtughr_reg` 之差：正常预测期间两者相差 0~几位（投机超前）；误预测后立即看到 `vghr_reg` 跳变（ `← rtughr_reg`）。
-- `bht_ipdp_sel_array_result[1]` 每次 IP 级有分支就更新，0→1 或 1→0 表示同一 PC 的预测在两张表之间切换（Bi-Mode 行为）。
+- `bht_ipdp_sel_array_result[1]` 是当前 IP 分支读出的选择表 MSB；跨多次观察同一
+  分支时，0/1 的长期变化才说明选择表训练使其改选另一逻辑侧。单次 IP 读取本身
+  不是更新事件，真正更新要沿 BJU 反馈、Write Buffer 和 SRAM 回写链确认。
 
 ---
 
-### 12.2 L0 BTB（零延迟目标预测）关键信号
+### 12.2 L0 BTB（低延迟目标预测）关键信号
 
 **模块路径**：`IFU_TOP.x_ct_ifu_l0_btb`
 
 | 信号名 | 位宽 | 流水级 | 功能说明 |
 |--------|------|--------|---------|
-| `l0_btb_ifdp_hit` | 1 | PCGEN | **L0 BTB 命中标志**。=1 表示当前 PC 在 16 项 L0 BTB 中命中，下一拍直接用 L0 BTB 目标取指，无需等 BTB。 |
-| `l0_btb_ifdp_entry_hit` | [15:0] | PCGEN | 16 项 entry 各自的命中 one-hot 向量。哪一位为 1 表示哪个 entry 命中，可用来追踪是哪条热点分支在驱动 L0 BTB。 |
-| `l0_btb_ifctrl_chglfw_vld` | 1 | PCGEN | L0 BTB 触发改流有效。=1 且 hit=1 时，IF 级接受 L0 BTB 提供的目标。 |
-| `l0_btb_ifctrl_chgflw_pc` | [38:0] | PCGEN | L0 BTB 提供的半字地址目标；完整字节 PC 为 `{signal,1'b0}`。 |
-| `l0_btb_ifctrl_chgflw_way_pred` | [1:0] | PCGEN | 对应 BTB 的 way_pred，传递给 BTB 做 way 预测更新。 |
+| `l0_btb_ifdp_hit` | 1 | IF 附近 | 已寄存的 L0 tag 命中归约；它不检查命中项 `cnt`，所以不等于重定向已被接受。 |
+| `l0_btb_ifdp_entry_hit` | [15:0] | IF 附近 | `entry_hit_flop` 的 16 位命中向量，用于结果选择和后续定位训练项。 |
+| `l0_btb_ifctrl_chglfw_vld` | 1 | IF | 已寄存命中且命中项 `cnt=1` 时提出早期 change-flow；PCGEN 是否装载还由 IFCTRL 和全局优先级决定。 |
+| `l0_btb_ifctrl_chgflw_pc` | [38:0] | IF | L0 BTB 提供的半字地址候选目标；完整字节 PC 为 `{signal,1'b0}`。 |
+| `l0_btb_ifctrl_chgflw_way_pred` | [1:0] | IF | 目标取指的 I-Cache way 预测，不是主 BTB 槽号。 |
 | `entry0_vld` ~ `entry15_vld` | 1×16 | — | 每个 entry 的有效位。冷启动时全 0，热点分支 addrgen 更新后置 1。 |
 | `entry0_tag` ~ `entry15_tag` | [14:0]×16 | — | 各 entry 存储内部 PC `[14:0]`，对应架构字节 PC `[15:1]`，用于命中比对。 |
 | `entry0_target` ~ `entry15_target` | [19:0]×16 | — | 各 entry 存储内部目标 `[19:0]`，对应字节 PC `[20:1]`；高位沿用当前内部 PC `[38:20]`，不是符号扩展。 |
 | `l0_btb_update_vld_bit` | 1 | IB+1 | addrgen 触发 L0 BTB 更新有效脉冲。 |
 
 **行为说明**：
-- 对比 `l0_btb_ifdp_hit` 与 `ipctrl_ibctrl_l0_btb_miss`：hit 说明提前改流成功，miss 说明该分支还未入 L0 BTB（首次或被替换），将走 BTB 路径，多花 1 拍。
+- 同时对比 `l0_btb_ifdp_hit`、`l0_btb_ifctrl_chglfw_vld` 和
+  `ifctrl_pcgen_chgflw_vld`：三者依次表示 tag 存在、L0 项有资格提出重定向以及
+  IF 级请求真正通过本地资格。只看 hit 不能证明提前改流成功。L0 miss 后会退到
+  主 BTB/后级纠正路径，实际多出的周期还受当时 stall 和 reissue 影响。
 - 观察 `entry_hit` 的 one-hot 分布可知哪几条分支被 L0 BTB 覆盖（热点）。
 
 ---
@@ -652,7 +687,7 @@ RTU 退休时做"重量"恢复（精确恢复所有预测器状态）。
 |--------|------|--------|---------|
 | `btb_ifdp_way0_vld` ~ `way3_vld` | 1×4 | IF→IP | 4 路各自的有效位，读出后在 IP 做 tag 比较。 |
 | `btb_ifdp_way0_target` ~ `way3_target` | [19:0]×4 | IF→IP | 4 路各自的内部目标 `[19:0]`，对应字节 PC `[20:1]`。 |
-| `btb_ifdp_way0_pred` ~ `way3_pred` | [1:0]×4 | IF→IP | 4 路的 way_pred（2 位 LRU/PLRU 替换预测），用于下次命中时直接选路。 |
+| `btb_ifdp_way0_pred` ~ `way3_pred` | [1:0]×4 | IF→IP | 四个固定位置槽携带的 I-Cache way 预测；不是 BTB 的 LRU/PLRU 状态。 |
 | `refill_buf_target_pc` | [19:0] | — | **Refill Buffer**：BTB miss 时暂存目标，等 2 拍 way_pred 确定后才真正写入 SRAM。 |
 | `refill_buf_way_pred` | [1:0] | — | Refill Buffer 中等待写入的 way_pred。 |
 | `after_addrgen_btb_chgflw_first` | 1 | IB+1 | addrgen 第 1 周期更新 BTB 触发的改流标志。 |
@@ -660,7 +695,8 @@ RTU 退休时做"重量"恢复（精确恢复所有预测器状态）。
 | `btb_target_pc_record` | [19:0] | — | 暂存上一次 BTB target，用于 addrgen 写时比对是否仍需更新。 |
 
 **行为说明**：
-- 4 路 `vld/target/pred` 同时出现：用 `ipctrl_btb_way_pred` 看 IP 级最终选了哪路（即命中路的 way_pred）。
+- 四槽 `vld/target/pred` 同时读出后，槽位由当前分支在 16 字节窗口内的位置确定；
+  `ipctrl_btb_way_pred` 是所选槽携带的 I-Cache way 预测值，不是 BTB 槽号。
 - `refill_buf_target_pc` 非零时说明有 BTB miss 正在等待补全写入，此时若同一分支再次到来会从 refill buffer bypass。
 
 ---
@@ -672,7 +708,7 @@ RTU 退休时做"重量"恢复（精确恢复所有预测器状态）。
 | 信号名 | 位宽 | 流水级 | 功能说明 |
 |--------|------|--------|---------|
 | `top_ptr` | [4:0] | IB 持续 | **IFU 投机栈栈顶指针**。低 4 位是栈顶 index（0~11），bit[4] 是圈数奇偶标志（用于区分空/满，因为 12 非 2 的幂）。call 时 +1（环绕于 12），ret 时 -1。 |
-| `rtu_ptr` | [4:0] | RTU | **RTU 退休栈栈顶指针**（6 项），与投机栈对称。误预测/flush 后投机栈从这里恢复。 |
+| `rtu_ptr` | [4:0] | RTU | 退休历史的 **12 位置逻辑指针**。实际只有 6 个退休恢复副本，按逻辑位置模 6 复用；两者不能都解释成“6 项退休栈”。 |
 | `status_ptr` | [4:0] | IB | 投机栈 status 指针，用于追踪"当前最新压栈后的指针"（区别于 top_ptr 在 pop 之后的值）。 |
 | `ibctrl_ras_pcall_vld` | 1 | IB | **call 压栈有效**。=1 表示 IB 级识别到 call 指令（JAL/JALR rd=ra），触发 RAS push。 |
 | `ibctrl_ras_preturn_vld` | 1 | IB | **ret 弹栈有效**。=1 表示 IB 级识别到 ret（JALR x0,ra,0），触发 RAS pop，用栈顶值作预测目标。 |
@@ -683,7 +719,8 @@ RTU 退休时做"重量"恢复（精确恢复所有预测器状态）。
 **行为说明**：
 - 跟踪函数调用时：每次看到 `ibctrl_ras_pcall_vld=1`，`top_ptr` 应 +1（环绕）；`ibctrl_ras_preturn_vld=1` 时 -1。
 - 若 `top_ptr` 和 `rtu_ptr` 偏差超过几项，说明有大量投机 call/ret 还未退休。
-- flush 后观察 `top_ptr ← rtu_ptr` 的恢复动作（通常 1 拍内完成）。
+- flush 后观察 `top_ptr` 采用 `rtu_ptr_pre`，并同时检查 `status_ptr` 及
+  `rtu_entry*_copy`。指针在更新沿恢复不代表 12 个投机项内容全部被重建。
 
 ---
 
@@ -694,7 +731,7 @@ RTU 退休时做"重量"恢复（精确恢复所有预测器状态）。
 | 信号名 | 位宽 | 流水级 | 功能说明 |
 |--------|------|--------|---------|
 | `path_reg_0` ~ `path_reg_3` | [7:0]×4 | IB 持续 | **投机路径历史寄存器**（共 32 位有效历史）。每检测到一条间接跳转，`path_reg_0 ← ibctrl_ind_btb_path`，其余依次右移。用于计算 Indirect BTB 读索引。 |
-| `rtu_path_reg_0` ~ `rtu_path_reg_3` | [7:0]×4 | RTU | **退休路径历史寄存器**。RTU 按序退休间接跳转时移位更新。误预测/flush 时投机 `path_reg ← rtu_path_reg`（与 BHT 的 VGHR ← RTUGHR 完全对称）。 |
+| `rtu_path_reg_0` ~ `rtu_path_reg_3` | [7:0]×4 | RTU | **退休路径历史寄存器**。RTU 按序退休间接跳转时移位更新。误预测/flush 时投机 `path_reg ← rtu_path_reg`；恢复方向与 VGHR/RTUGHR 同类，但编码和更新条件不同。 |
 | `ind_btb_rd_index` | [7:0] | IP | Indirect BTB **读索引**（8 位）：`path_reg[3:0]` 各取 2 位与 `vghr[7:0]` 对应位异或折叠。决定从哪个 SRAM 行读预测目标。 |
 | `ind_btb_wr_index` | [7:0] | RTU | Indirect BTB **写索引**：用 `rtu_path_reg` 与 `rtu_ghr` 同样折叠，退休更新时写入真实目标。 |
 | `ibctrl_ind_btb_check_vld` | 1 | IB | IB 级检测到间接跳转，触发 `path_reg` 投机更新的有效脉冲。 |
@@ -703,7 +740,8 @@ RTU 退休时做"重量"恢复（精确恢复所有预测器状态）。
 
 **行为说明**：
 - `path_reg_0` 存最新一条间接跳转的历史，`path_reg_3` 存最旧。观察多条 JALR 连续执行时，`path_reg` 整体移位变化。
-- `rd_index` 与 `wr_index` 一致时，说明当前路径上下文与训练时完全一致，命中概率最高。
+- `rd_index` 与某次写入使用的 `wr_index` 相等，只能说明折叠后的 8 位索引相同；
+  不同 PATH/GHR 组合可能异或到同一索引，因此不能据此证明完整路径上下文一致。
 - `rtu_path_reg` 和 `path_reg` 偏差增大时说明有较多投机间接跳转在飞（未退休）。
 
 ---
@@ -717,20 +755,23 @@ RTU 退休时做"重量"恢复（精确恢复所有预测器状态）。
 | `ipctrl_pcgen_chgflw_pcload` | 1 | IP | **IP 级改流触发**。=1 表示 IP 级综合各预测器决策为"预测 taken"，通知 PCGEN 立即改流到 `ipctrl_pcgen_chgflw_pc`。这是分支预测改变取指流向的核心信号。 |
 | `ipctrl_pcgen_chgflw_pc` | [38:0] | IP | IP 级给出的半字地址预测目标（来自 BTB/RAS/Ind-BTB 之一）。 |
 | `ipctrl_pcgen_branch_taken` | 1 | IP | BHT 预测该条件分支为 taken（方向预测结果）。 |
-| `ipctrl_pcgen_branch_mistaken` | 1 | IP | BTB 预测的目标与 addrgen 算出的真实目标不匹配（BTB target 错误），触发目标纠正。 |
+| `ipctrl_pcgen_branch_mistaken` | 1 | IP | IP 级撤销较早的普通 L0 重定向：IF 已按非 RAS L0 项跳转，但 IP 判断当前路径不应重定向。它不是 ADDRGEN 或 BJU 的最终目标误预测信号。 |
 | `ipctrl_bht_con_br_vld` | 1 | IP | 通知 BHT "IP 级有条件分支"，触发 BHT 投机更新 VGHR。 |
 | `ipctrl_bht_con_br_taken` | 1 | IP | 告诉 BHT 本次条件分支的预测方向（taken/not-taken），BHT 据此左移 VGHR。 |
 | `ipctrl_btb_chgflw_vld` | 1 | IP | BTB 命中且改流有效。 |
-| `ipctrl_btb_way_pred` | [1:0] | IP | IP 级最终命中的 BTB way（经 tag 比较后确认）。 |
-| `ipctrl_btb_way_pred_error` | 1 | IP | BTB way_pred 预测错误（命中但选路错误），需要更新 way_pred。 |
+| `ipctrl_btb_way_pred` | [1:0] | IP | 所选 BTB/L0 信息携带并由 IP 确认的 I-Cache way 预测，不是 BTB 四槽编号。 |
+| `ipctrl_btb_way_pred_error` | 1 | IP | I-Cache way 预测失败，需要 reissue 并训练相应 BTB 字段；不是“BTB 选错组相联路”。 |
 | `ipctrl_ibctrl_l0_btb_hit` | 1 | IP | 本条分支已被 L0 BTB 处理（命中）的标志，IP 级看到时无需再触发改流。 |
 | `ipctrl_ibctrl_l0_btb_miss` | 1 | IP | 分支在 L0 BTB 中 miss，将在 IB+1 的 addrgen 后更新 L0 BTB。 |
 | `ipctrl_ipdp_chgflw_pc` | [38:0] | IP | 半字地址改流 PC（同 `ipctrl_pcgen_chgflw_pc`，送给 ipdp 做记录）。 |
 
 **行为说明**：
-- `ipctrl_pcgen_chgflw_pcload=1` 是最重要的"预测生效"信号：每次拉高说明 IP 级发出了一次跳转预测，IFU 从下一拍开始从目标地址取指。
+- `ipctrl_pcgen_chgflw_pcload=1` 表示 IP 级提出预测改流请求。还应在 PCGEN 观察
+  它是否被更高优先级 PC load 覆盖；请求在时钟沿被接受后，下一周期的 `if_pc`
+  才反映目标地址。
 - `ipctrl_bht_con_br_vld` 拉高同拍观察 `vghr_reg`（BHT 模块内），可以看到 GHR 左移追加新方向。
-- `ipctrl_btb_way_pred_error=1` 说明 BTB 命中但选错了 way，此时 addrgen 会用真实目标更新。
+- `ipctrl_btb_way_pred_error=1` 说明目标取指的 I-Cache way 预测错误；它会触发
+  重发并更新 BTB 中携带的 way 预测字段，不等于分支目标本身错误。
 
 ---
 
@@ -743,12 +784,12 @@ RTU 退休时做"重量"恢复（精确恢复所有预测器状态）。
 | `bju_bht_mispred` | 1 | EX1 | **BHT 方向预测失败**。条件分支实际方向 `condbr_taken` 与 PCFIFO 中保存的 `bht_pred` 异或为 1。这是最常见的误预测。 |
 | `bju_jmp_mispred` | 1 | EX1 | **间接跳转目标预测失败**。实际 `src0 ≠ PCFIFO.pc`（jalr 预测目标与寄存器值不符）。 |
 | `bju_tarpc_cmp_fail` | 1 | EX1 | 目标 PC 比较失败原始信号（`ex1_pipe2_pc != ex1_pipe2_src0`）。`bju_jmp_mispred` 由此派生。 |
-| `ex1_pipe2_iid_oldest` | 1 | EX1 | **IID 年龄最老标志**。=1 表示 pipe2 当前执行的分支是 ROB 中程序序最老的，才有资格触发纠错改流。乱序下保证正确性的关键。 |
+| `ex1_pipe2_iid_oldest` | 1 | EX1 | **误预测年龄仲裁资格**。它表示当前分支不年轻于正在 EX1 报错和已记录 `mispred_iid` 的候选，不表示它必然是整个 ROB 的队头或全局最老指令。 |
 | `iu_ifu_chgflw_vld` | 1 | EX2 | **BJU 纠错改流有效**。=1 说明误预测确认，IFU 收到后立即从 `iu_ifu_chgflw_pc` 重新取指。 |
 | `iu_ifu_chgflw_pc` | [62:0] | EX2 | BJU 给出的架构目标 VA `[63:1]`；完整 64 位字节地址为 `{signal,1'b0}`。 |
 | `iu_idu_mispred_stall` | 1 | EX1→清 | **IDU 误预测 stall**。误预测时拉高，直到 RTU 退休该分支（`rtu_yy_xx_flush`）才清除。期间 IDU 不接受新指令分发，防止错误路径污染后端。 |
 | `iu_ifu_mispred_stall` | 1 | EX1→清 | **IFU 误预测 stall**。与上类似但可被 `rtu_iu_flush_fe` 提前清除，让取指更早重启。 |
-| `bju_top_mispred_iid` | [6:0] | EX1 | 锁存的误预测分支 IID（ROB 入口号），供 RTU 做年龄比较（只 flush 该 IID 及以后的指令）。 |
+| `bju_top_mispred_iid` | [6:0] | EX1 | 锁存的已接受误预测分支 IID，供后续分支年龄比较和 RTU 恢复边界关联；具体各队列清除范围由各模块的 flush/cancel 逻辑决定。 |
 | `ex2_pipe2_bht_mispred` | 1 | EX2 | EX2 级寄存的 BHT 方向误预测结果（EX1 打拍）。写回 PCFIFO 和 complete bus 的值。 |
 | `ex2_pipe2_jmp_mispred` | 1 | EX2 | EX2 级寄存的 JMP 目标误预测结果。 |
 | `ex2_pipe2_chgflw_vld` | 1 | EX2 | EX2 级的改流有效（综合 bht+jmp+page_fault），驱动 `iu_ifu_chgflw_vld` 输出。 |

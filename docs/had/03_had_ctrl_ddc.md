@@ -16,14 +16,14 @@
 1. [模块概述](#1-模块概述)
 2. [端口说明](#2-端口说明)
 3. [参数与关键信号](#3-参数与关键信号)
-4. [进入 debug：四类停核请求](#4-进入-debug四类停核请求)
+4. [进入 debug：请求生成与完成边界](#4-进入-debug请求生成与完成边界)
 5. [SQC 顺序限定与断点/trace 使能](#5-sqc-顺序限定与断点trace-使能)
 6. [指令注入：go / WBBR 回写](#6-指令注入go--wbbr-回写)
 7. [退出 debug：exit / pcload](#7-退出-debugexit--pcload)
 8. [HSR 状态位更新](#8-hsr-状态位更新)
-9. [DDC 调试数据通道（搬内存）](#9-ddc-调试数据通道搬内存)
+9. [DDC 连续内存写入通道](#9-ddc-连续内存写入通道)
 10. [debug-disable 与时钟门控](#10-debug-disable-与时钟门控)
-11. [设计取舍小结](#设计取舍小结)
+11. [本章小结](#本章小结)
 
 ---
 
@@ -31,14 +31,14 @@
 
 ### 1.1 这一层做什么
 
-`ct_had_ctrl` 是 HAD 私有侧的"大脑"，把 `00_had_overview.md §2` 的四步法（停核 → 注入 → 窥探 → 恢复）真正落成 RTL。RTL 顶部注释把它的职责分成四块（`ct_had_ctrl.v:341-345`）：
+`ct_had_ctrl` 是 HAD 私有侧的控制汇聚点。它接收断点、trace、event、HCR 和外部总线请求，生成送往 RTU/CP0/IFU/寄存器组的控制信号。把它教学性地归纳成“停核 → 注入 → 读写状态 → 恢复”有助于理解，但这四步并不是一个集中式四状态 FSM：进入 debug 的最终状态转换由 RTU 完成，注入指令也要经过 IFU、IDU、执行单元和退休链路。
 
 1. 给各 HAD 功能模块（断点/trace/pcfifo/pipefifo）发使能与读写脉冲；
 2. 向 RTU 发各类停核请求（`had_rtu_*_dbgreq`）；
 3. 通知 HSR 更新对应状态位（mbo/swo/to/dro/adro…）；
 4. 退出 debug 的逻辑（`had_yy_xx_exit_dbg` / `had_ifu_pcload`）。
 
-`ct_had_ddc_ctrl` + `ct_had_ddc_dp` 实现 **DDC（Debug Data Channel，调试数据通道）**：HAD v2.3 的增量特性。它用一个状态机**硬件自动合成 `mv`/`sd` 指令序列**搬内存，免去调试器逐条手工注入搬运指令（`00_had_overview.md §3.3`）。
+`ct_had_ddc_ctrl` + `ct_had_ddc_dp` 实现 RTL 命名为 DDC 的数据写入通道。当前有效数据通路固定生成两条 `addi rd,rs1,0` 和一条 `sd x2,0(x1)`，把调试器写入的 DDATA 以 8 字节为单位存入从 DADDR 开始的连续地址。现有 RTL 没有 DDC load 指令、内存读回状态或双向流控制，所以只能称为**连续内存写入序列**，不能概括成通用双向“搬内存”引擎。
 
 ### 1.2 三者的协作
 
@@ -47,7 +47,7 @@ ct_had_bkpt/nirv/trace/event  ──(请求)──►  ct_had_ctrl ──► had
                                               │
 JTAG (go/ex via ir)  ─────────────────────────┤──► had_ifu_ir_vld（注入）/ had_ifu_pcload（恢复）
                                               │
-ct_had_ddc_ctrl (FSM) ──(addr/data/stw sel)──┤──► ct_had_ddc_dp 合成 mv/sd → ir_reg/wbbr/ffy
+ct_had_ddc_ctrl (FSM) ──(addr/data/stw sel)──┤──► ct_had_ddc_dp 合成 addi/addi/sd → IR/WBBR/FFY
                                               │       (经 ddc_xx_update_ir 触发 go_in_dbg)
 ct_had_regs (WBBR/IR/HCR/HSR) ◄──────────────┘
 ```
@@ -80,9 +80,11 @@ ct_had_regs (WBBR/IR/HCR/HSR) ◄──────────────┘
 | `had_rtu_inst_bkpt_dbgreq` / `had_rtu_data_bkpt_dbgreq` | 断点请求 | `:201,:194` |
 | `had_rtu_trace_dbgreq` | trace 计满请求 | `:204` |
 | `had_rtu_event_dbgreq` | 跨核事件请求 | `:197` |
-| `had_rtu_non_irv_bkpt_dbgreq` | 不可撤销断点请求 | `:202` |
-| `had_rtu_dbg_req_en` / `had_rtu_pop1_disa` / `had_rtu_xx_tme` | 单步退休模式 / 禁双发 / trace 模式 | `:196,:203,:207` |
-| `had_cp0_xx_dbg` | 唤醒低功耗 CPU | `:191` |
+| `had_rtu_non_irv_bkpt_dbgreq` | non-IRV 路径请求；仍需 RTU 接受并受 debug-disable 约束 | `:202` |
+| `had_rtu_dbg_req_en` | 告知 RTU“可能出现新请求”，源码注释用于启用 single-retire 并屏蔽可能被 flush 的请求 | `:196` |
+| `had_rtu_pop1_disa` | trace 或普通断点启用时限制多槽退休；具体退休控制在 RTU 实现 | `:203` |
+| `had_rtu_xx_tme` | HCR.TME 的直通状态 | `:207` |
+| `had_cp0_xx_dbg` | 汇总后的 CP0 debug 唤醒/活动请求，且在本地受 `!ctrl_xx_dbg_disable` 门控 | `:191` |
 
 #### 注入 / 退出
 
@@ -91,7 +93,7 @@ ct_had_regs (WBBR/IR/HCR/HSR) ◄──────────────┘
 | `had_ifu_ir_vld` | 注入指令有效（go）| `:192` |
 | `had_yy_xx_exit_dbg` | 退出 debug | `:209` |
 | `had_ifu_pcload` | 退出时让 IFU 从 CPUSCR.PC 取指 | `:193` |
-| `x_ir_xx_go` / `x_ir_xx_ex` | JTAG HACR 的 go/ex 位（脉冲）| `:111,:110` |
+| `x_ir_xx_go` / `x_ir_xx_ex` | 当前本地 HACR 的 go/ex **电平**并经 `core_sel` 门控；真正事务脉冲还需 `x_sm_xx_update_dr_en` | `:111,:110` |
 | `ir_ctrl_exit_dbg_reg` | 选中可退出寄存器 | `:81` |
 
 #### HSR 更新脉冲（到 regs）
@@ -104,7 +106,7 @@ ct_had_regs (WBBR/IR/HCR/HSR) ◄──────────────┘
 |------|------|------|
 | ddc_ctrl | `regs_xx_ddc_en` | HCR.DDCEN 使能，`ct_had_ddc_ctrl.v:38` |
 | ddc_ctrl | `ir_xx_daddr_reg_sel` / `ir_xx_ddata_reg_sel` | JTAG 扫入地址/数据，`:36,:37` |
-| ddc_ctrl | `rtu_yy_xx_retire0_normal` | 合成指令退休（推进 FSM），`:39` |
+| ddc_ctrl | `rtu_yy_xx_retire0_normal` | retire0 正常退休电平；FSM 把它当作当前注入步骤完成条件，但接口没有携带指令身份标签，`:39` |
 | ddc_ctrl→dp | `ddc_ctrl_dp_addr_sel/data_sel/addr_gen` | FSM 当前阶段，`:41-43` |
 | ddc_ctrl→regs | `ddc_regs_update_wbbr/csr` / `ddc_xx_update_ir` | 更新 WBBR/CSR/IR，`:44-46` |
 | ddc_dp | `daddr_reg/ddata_reg` | 64 位地址/数据寄存器，`ct_had_ddc_dp.v:49-50` |
@@ -130,9 +132,9 @@ HCR 中与 ctrl 相关的字段（`ct_had_regs.v:880-896`）：
 
 ---
 
-## 4. 进入 debug：四类停核请求
+## 4. 进入 debug：请求生成与完成边界
 
-RTL 注释把停核请求分成三大类（`ct_had_ctrl.v:448-453`），加上 non-IRV 实际是四类：
+RTL 注释沿用三类历史分法：异步 `jdbreq`、硬件同步 `hw_dbgreq`、memory/trace 同步请求。当前端口还单列 event 和 non-IRV。分类只是便于组织来源，不代表优先级，也不表示信号拉高时处理器已经停住。判断“进入 debug 完成”应继续观察 RTU 的 `rtu_had_dbgreq_ack` 和 `rtu_yy_xx_dbgon`。
 
 ### 4.1 异步请求 jdbreq
 
@@ -141,7 +143,7 @@ assign async_dbg_req     = adr_set_req && !rtu_yy_xx_dbgon;   // :553
 assign had_rtu_xx_jdbreq = async_dbg_req;                     // :487
 ```
 
-调试器随时按下"暂停"——HCR.ADR（`regs_ctrl_adr`，`:471`）置位即产生异步请求。它会立刻更新 HSR.adro（`:551`）。
+HCR.ADR 经 `adr_set_req` 直接进入 `async_dbg_req`，只用 `!rtu_yy_xx_dbgon` 屏蔽。`ctrl_regs_update_adro` 同样直接取 `async_dbg_req`，所以 HSR.adro 记录的是“异步请求已经提出”，不是 RTU 已经确认停核。`had_rtu_xx_jdbreq` 名称中的“异步”描述其请求方式；准确停在哪个指令边界仍由 RTU 控制。
 
 ### 4.2 同步请求 hw_dbgreq（DR / sdb）
 
@@ -150,7 +152,7 @@ assign sdb_req = !biu_had_sdb_req_b;                          // :473
 assign had_rtu_hw_dbgreq = (dr_set_req || sdb_req) && !rtu_yy_xx_dbgon;  // :476
 ```
 
-HCR.DR 置位（打一拍成 `dr_set_req`，`:463-469`）或总线 sdb 请求触发，是"在安全指令边界停"的同步请求。
+HCR.DR 先寄存为 `dr_set_req`，外部低有效 `biu_had_sdb_req_b` 则组合取反为 `sdb_req`；二者 OR 后产生 `had_rtu_hw_dbgreq`。本模块只提出同步请求，“安全指令边界”由 RTU 的退休/flush 条件实现，不能从这条组合赋值单独证明。
 
 ### 4.3 断点 / trace 请求
 
@@ -161,7 +163,7 @@ assign had_rtu_data_bkpt_dbgreq = (mem_bkpta_data_req_raw || mem_bkptb_data_req_
 assign had_rtu_trace_dbgreq = trace_req && !rtu_yy_xx_dbgon;  // :484
 ```
 
-注意断点请求都用 **raw 版**（`:501-505` 把 `*_raw` 与 SQC/FRZC 过滤后给 RTU），且都要 `regs_ctrl_fdb`（fdb 是内存断点总开关）。`02_had_breakpoint.md §8` 解释了为什么用 raw。
+送 RTU 的 inst/data breakpoint 信号使用 raw 版；内部 `inst_bkpt_dbgreq/data_bkpt_dbgreq` 则使用寄存版，并参与 PCFIFO、状态更新和 CP0 请求。A 请求在 SQC[1]=1 时被抑制为最终停核而用于解锁 B；B 请求在 SQC[0]=1 或 FRZC=1 时被抑制为最终停核而用于解锁 trace/冻结 PCFIFO。两条路径都受 `regs_ctrl_fdb` 和 `!dbgon` 门控。
 
 ### 4.4 跨核事件 / non-IRV
 
@@ -170,7 +172,7 @@ assign had_rtu_event_dbgreq    = event_req && !rtu_yy_xx_dbgon;   // :499（even
 assign had_rtu_non_irv_bkpt_dbgreq = non_irv_bkpt_vld && !rtu_yy_xx_dbgon;  // :510
 ```
 
-`had_rtu_dbg_req_en`（`:536-539`）在"可能有新请求"时让 RTU 进入单步退休模式并屏蔽会被 flush 的请求；`had_rtu_pop1_disa`（`:531-532`）在 trace/断点使能时禁止 RTU 双发退休，保证逐条停核精度。
+`had_rtu_dbg_req_en` 只 OR 了 DR、ADR、event-enter 和 `non_irv_bkpt_vld`，没有把所有 raw breakpoint/trace 信号都列入；它是对 RTU 的模式提示，不是“任意 debug 请求有效”的总 OR。`had_rtu_pop1_disa` 在 TME 或 NIRVEN=0 且 A/B 普通断点配置非零时有效。源码注释称其使 RTU one-by-one retire；具体如何限制第二、第三退休槽要在 RTU 侧验证，不能只按信号名理解成简单“禁双发”。
 
 ---
 
@@ -191,7 +193,7 @@ assign bkptb_sqc_en = !regs_ctrl_sqc[1]                                       //
                                                                               // :371-374
 ```
 
-含义（注释 `:363-368`）：SQC[1]=1 时，**断点 B 在断点 A 命中之前不会使能**。这样能表达"先到 A 点、再到 B 点才停"的顺序断点。`regs_ctrl_sqa`（HSR.sqa，sticky）记住 A 已经发生过。
+SQC[1]=1 时，A 的普通停核请求被 `mem_bkpta_*_req = ... && !SQC[1]` 抑制；但 A 的合格请求可以在正常 retire0 条件下置位 `sqa`，并使 `bkptb_sqc_en` 成立。换言之，A 在这种模式下主要充当“第一阶段触发器”，B 才是下一阶段。`ctrl_bkptb_en` 是寄存输出，`ctrl_bkptb_en_raw` 是同拍组合输出，波形上会相差一个寄存级。
 
 ### 5.2 trace 使能
 
@@ -202,7 +204,7 @@ assign trace_sqc_en = !regs_ctrl_sqc[0]
                    ||  regs_ctrl_sqb;                                          // :399-402
 ```
 
-对称地，SQC[0]=1 时 **trace 在断点 B 命中之前不使能**（注释 `:393-397`）。于是 SQC 串起一条 `A → B → trace` 的触发链。
+SQC[0]=1 时，B 的普通停核请求被抑制，并在合格命中后置位 `sqb`，进而使 trace 有效。只有相应 SQC 位和各功能 enable 同时配置时，才能形成教学上所说的 `A → B → trace` 链；SQC 两位不是一个自动按阶段前进的独立 FSM，而是借助 HSR sticky 位保存“前置条件已发生”。
 
 `ctrl_bkptb_en`/`ctrl_trace_en` 都打一拍后输出（`:377-385`、`:404-412`）。
 
@@ -224,11 +226,21 @@ always @(...) ctrl_go_noex <= go_in_dbg;                    // :648-654（打一
 assign had_ifu_ir_vld = ctrl_go_noex;                       // :656
 ```
 
-`had_ifu_ir_vld` 置 1 时，IFU 不从内存取指，而是执行 IR 寄存器里这条指令，执行完又停回 debug。这正是"借指令窥探/修改"的注入动作。
+`had_ifu_ir_vld` 是一拍注入有效请求，指令内容来自 `had_ifu_ir`。本模块没有“执行完成”输入，也没有在 `ctrl_go_noex` 中等待退休；完成与重新保持 debug 的行为分布在 IFU/RTU。因而看波形时应串联：
+
+```text
+x_sm_xx_update_dr_en && IR selected && go && !ex && dbgon
+    -> go_noex
+    -> 下一拍 ctrl_go_noex / had_ifu_ir_vld
+    -> IFU debug instruction path
+    -> IDU/执行/写回/RTU retirement
+```
+
+不能仅看到 `had_ifu_ir_vld` 就认为指令已执行完毕。
 
 ### 6.2 WBBR 回写：取回窥探结果
 
-注入的指令把目标值搬到 WBBR（Write-Back Bus Register）。WBBR 的写源有三个（`ct_had_regs.v:547-559`）：
+WBBR 是 HAD 与整数数据通路之间的 64 位交换寄存器。它既可作为注入指令的源操作数，也可接收 CPU 数据通路的回传值。它的三个写源有明确优先级：
 
 ```verilog
 else if (sm_xx_update_dr_en && ir_xx_wbbr_reg_sel)  wbbr_reg <= ir_xx_wdata;      // 调试器写入
@@ -236,7 +248,7 @@ else if (ddc_regs_update_wbbr)                      wbbr_reg <= ddc_regs_wbbr;  
 else if (idu_had_wb_vld)                            wbbr_reg <= idu_had_wb_data;  // CPU 执行结果回写
 ```
 
-第三条 `idu_had_wb_vld` 就是"注入的指令执行后，结果回到 WBBR"。回写阀门由 `had_idu_wbbr_vld = ffy && rtu_yy_xx_dbgon`（`ct_had_regs.v:869`）控制：CSR 的 ffy 位决定这次注入是否要把结果送回 WBBR。调试器随后用 JTAG 把 WBBR 移出（`regs_data_out` 经 serial→tdo，`ct_had_regs.v:956`）。
+`had_idu_wbbr_vld = ffy && dbgon` 实际表示 **IDU 的 pipe0 source0 改用 WBBR 数据**：`ct_idu_rf_dp.v:2232-2234` 在该信号有效时用 `had_idu_wbbr_data` 替代 PRF source0。它不是“允许结果写回 WBBR”的阀门；结果回 WBBR使用相反方向的 `idu_had_wb_vld/data`。这个双向机制解释了 DDC 为何能用编码上看似 `addi x1,x1,0` 的指令把 WBBR 内容装入 x1：指令的 source0 被 WBBR 覆盖，执行结果再写入目标物理寄存器。
 
 ---
 
@@ -254,7 +266,7 @@ assign had_yy_xx_exit_dbg = ctrl_exit_dbg;                // :625（通知 RTU �
 assign had_ifu_pcload     = ctrl_exit_dbg;                // :627（IFU 从 CPUSCR.PC 重新取指）
 ```
 
-退出条件：HACR 同时给 go+ex，且选中可退出寄存器（`ir_ctrl_exit_dbg_reg`），且当前在 debug。也可由跨核 `event_ctrl_exit_dbg` 触发（halt-all 的对称：一起退）。`had_ifu_pcload` 让 IFU 从 CPUSCR 的 PC（`pc_reg`，`ct_had_regs.v:862`）重新取指，回到用户程序——这就是四步法的"恢复"。`ctrl_regs_exit_dbg` 同时把 HSR 里所有 sticky 进入原因位清掉（`ct_had_regs.v` 各 `ctrl_regs_exit_dbg` 分支）。
+主动退出要求 go、ex、Update-DR 写脉冲、退出类寄存器选择和当前 dbgon 同时满足；event 退出只要求 `event_ctrl_exit_dbg && dbgon`。组合 `exit_dbg` 先寄存为 `ctrl_exit_dbg`，下一拍同时驱动寄存器清理、RTU 退出通知和 IFU PC load。`had_ifu_pcload` 表示请求 IFU装载 HAD 保存的 PC；“已经恢复用户程序”还需观察 IFU 接受、后续取指及 `dbgon` 清除。
 
 ---
 
@@ -278,9 +290,9 @@ ctrl 在合适时机给 regs 发脉冲，记录"为什么进 debug"（这些位�
 
 ---
 
-## 9. DDC 调试数据通道（搬内存）
+## 9. DDC 连续内存写入通道
 
-要读写内存，传统做法是调试器逐条注入 `mv`/`sd` 指令。DDC 把这套**自动化成一个状态机**：调试器只扫入"起始地址 + 一串数据"，硬件循环合成搬运指令。
+DDC 把“DADDR 装入 x1、DDATA 装入 x2、执行 64 位 store、地址加 8”固化成状态机。调试器先写起始 DADDR，再按协议提供 DDATA。当前 RTL只实现写方向，不包含 load-to-DDATA/readback 对称流程。
 
 ### 9.1 状态机（9 态）
 
@@ -289,16 +301,18 @@ ctrl 在合适时机给 regs 发脉冲，记录"为什么进 debug"（这些位�
 ```
 IDLE        : DDCEN=1 → ADDR_WATI                         (:106-110)
 ADDR_WATI   : 等调试器扫入地址(addr_ready) → ADDR_LD       (:111-115)
-ADDR_LD     : 合成 "mv x1,x1" 到 IR，并把地址送 WBBR、置 ffy → DATA_WAIT  (:116-117)
+ADDR_LD     : 合成 addi x1,x1,0，把地址送 WBBR、置 FFY → DATA_WAIT         (:116-117)
 DATA_WAIT   : 地址装载完成且数据就绪 → DATA_LD；可重装地址；DDCEN=0 → IDLE  (:118-126)
-DATA_LD     : 合成 "mv x2,x2" 到 IR，数据送 WBBR、置 ffy → STW_WAIT       (:127-128)
-STW_WAIT    : 等 "mv x2,x2" 退休(data_ld_finish) → STW_LD                (:129-133)
+DATA_LD     : 合成 addi x2,x2,0，数据送 WBBR、置 FFY → STW_WAIT           (:127-128)
+STW_WAIT    : 等任一 retire0_normal，被协议解释为 data-load 完成 → STW_LD (:129-133)
 STW_LD      : 合成 "sd x2,0(x1)" 到 IR → STW_FINISH                      (:134-135)
 STW_FINISH  : 等 sd 退休(stw_inst_retire) → ADDR_GEN                     (:136-140)
 ADDR_GEN    : 地址 +8，回 ADDR_LD（循环搬下一个 8 字节）                  (:141-142)
 ```
 
-`addr_ready`/`data_ready` 来自调试器对 DADDR/DDATA 寄存器的 Update-DR（`:149-150`）；FSM 推进靠合成指令的 `rtu_yy_xx_retire0_normal`（`:157-171`）。
+`ADDR_WATI` 是源码中的实际状态名拼写，语义是 `ADDR_WAIT`。`addr_ready/data_ready` 是对应寄存器的 Update-DR 写脉冲。FSM 没有注入指令 IID 或 opcode 回传，`addr_ld_finish`、`data_ld_finish`、`stw_inst_retire` 都只观察通用 `rtu_yy_xx_retire0_normal`；其正确性依赖 debug 注入协议保证等待期间退休的正是预期指令。
+
+DDCEN 的撤销也不是全状态异步终止：只有 IDLE/DATA_WAIT 分支检查它。若在 ADDR_LD、STW_WAIT 或 STW_FINISH 中清 DDCEN，FSM 仍按当前转移/退休条件继续，可能直到回到 DATA_WAIT 才退出。软件应在稳定等待点改变 DDCEN。
 
 ### 9.2 数据通路：地址/数据寄存器 + 指令合成
 
@@ -314,25 +328,25 @@ always @(posedge cpuclk)
 assign ddc_regs_wbbr = ddc_ctrl_dp_addr_sel ? {24'b0,daddr_reg[ADDRW-1:0]} : ddata_reg;  // :101-102
 
 // 合成指令送 IR
-assign ddc_regs_ir = ddc_ctrl_dp_addr_sel ? 32'h00008093                       // mv x1, x1  :105-106
-                   : ddc_ctrl_dp_data_sel  ? 32'h00010113                       // mv x2, x2  :107
+assign ddc_regs_ir = ddc_ctrl_dp_addr_sel ? 32'h00008093                       // addi x1,x1,0 :105-106
+                   : ddc_ctrl_dp_data_sel  ? 32'h00010113                       // addi x2,x2,0 :107
                                            : 32'h0020b023;                      // sd x2,0(x1) :108
 assign ddc_regs_ffy = ddc_ctrl_dp_addr_sel || ddc_ctrl_dp_data_sel;            // :110
 ```
 
 机制解读：
-- **ADDR_LD**：把扫入的地址放进 WBBR，注入 `mv x1,x1`（且 ffy=1），CPU 执行后把 WBBR（=地址）写进 x1。
-- **DATA_LD**：把数据放进 WBBR，注入 `mv x2,x2`，CPU 把数据写进 x2。
+- **ADDR_LD**：把 DADDR 的低 `PA_WIDTH` 位零扩展到 WBBR；当前 `PA_WIDTH=40`，故 RTL 写成 `{24'b0,daddr_reg[39:0]}`。FFY=1 使 IDU pipe0 source0 取 WBBR，`addi x1,x1,0` 的结果于是把地址装入 x1。
+- **DATA_LD**：把 DDATA 放进 WBBR并同样置 FFY，`addi x2,x2,0` 把数据装入 x2。
 - **STW_LD**：注入 `sd x2,0(x1)`，把 x2（数据）存到 x1（地址）指向的内存——一次 8 字节写完成。
 - **ADDR_GEN**：地址 +8，循环回 ADDR_LD 搬下一个字。
 
 每个 DDC 合成指令的注入复用 `ct_had_ctrl` 的 go 通道：`ddc_inst_go = regs_xx_ddc_en && ddc_xx_update_ir && rtu_yy_xx_dbgon`（`ct_had_ctrl.v:642-644`），和普通 go 一起经 `go_in_dbg`（`:646`）触发 `had_ifu_ir_vld`。WBBR/IR/CSR 的更新也走 DDC 专用通道（`ct_had_regs.v:553`,`584`,`603`）。
 
-> 注：这里的 `mv x1,x1`/`mv x2,x2` 是配合 WBBR 回写机制的"把 WBBR 写进目标寄存器"的注入指令编码；`sd x2,0(x1)` 完成实际的内存写。读内存时序对称（用 load 把内存搬进 WBBR 再移出），由调试器配合 DADDR/DDATA 协议驱动。
+> `mv` 是 `addi rd,rs,0` 的汇编伪指令。这里必须保留“编码指令”和“实际数据来源”的区别：编码中的 rs1 是 x1/x2，但 FFY 使 source0 由 WBBR 覆盖。当前 RTL没有生成 load 的分支，不能推导出对称读内存协议。
 
 ### 9.3 为什么 DDC 值得做成硬件
 
-块搬内存（dump 一段内存、灌一段代码）动辄上千字节。逐条手工注入意味着每 8 字节都要 JTAG 来回握手 3 次（mv/mv/sd），延迟巨大。DDC 把"地址自增 + 合成指令 + 等退休"做成硬件状态机后，调试器只需连续扫入数据流，吞吐大幅提升。这正是 v2.3 把 DDC 写进 ID 能力位（`id_reg[16]=1`，`ct_had_regs.v:418`）的原因。
+从体系结构意图看，硬化地址自增、IR/WBBR/CSR 更新和退休等待，可以减少调试器逐项组织注入事务的控制负担，适合连续灌入代码或数据。RTL 能确认 `id_reg[16]=1`、固定三指令序列和 +8 循环；“具体减少多少 JTAG 往返、吞吐提升多少”需要协议级实测，不能从状态数直接给出数值结论，也不能把它扩展成 dump 内存功能。
 
 ---
 
@@ -346,36 +360,20 @@ assign ctrl_xx_dbg_disable = ctrl_tee_dbg_disable || ctrl_out_dbg_disable;     /
 assign had_rtu_dbg_disable = ctrl_xx_dbg_disable;                             // :687
 ```
 
-`x_had_dbg_mask` 来自共用侧 DMS 寄存器（`sysio_had_dbg_mask`，`ct_had_common_regs.v:166-169`），允许系统级把某核的调试整体关闭（安全/量产场景）。本配置中 TEE 的 `ctrl_tee_dbg_disable` 接 0（`:667`）。被 disable 时所有停核请求不会唤醒 CPU（`had_cp0_xx_dbg` 末项 `&& !ctrl_xx_dbg_disable`，`:522`）。
+`x_had_dbg_mask` 在 `forever_coreclk` 上采样成 `ctrl_out_dbg_disable`，再与当前固定为 0 的 `ctrl_tee_dbg_disable` 合并。本地明确受 disable 门控的是 `had_cp0_xx_dbg`，同时 `had_rtu_dbg_disable` 把禁用状态送给 RTU；各个 `had_rtu_*_dbgreq` 输出本身并非全部在 `ct_had_ctrl` 内直接与 disable 相与。因此正确判断是“请求可能仍在 HAD→RTU 接口出现，但 RTU 同时收到禁止标志”，而不是“所有请求信号都变成 0”。私有 IR 的 Update 动作也在 `ct_had_private_ir` 中被 `ctrl_xx_dbg_disable` 屏蔽。
 
 ### 10.2 顶层 ICG
 
 ```verilog
 assign had_clk_en = ir_ctrl_had_clk_en | event_ctrl_had_clk_en;   // :693
-always @(...) // had_clk_en_ff：有事置 1，PM=11(全空闲)才清          :695-703
+always @(...) // had_clk_en_ff：有事置 1，PM=11(reset-on)才清       :695-703
 assign had_xx_clk_en = had_clk_en | had_clk_en_ff;                // :704
 ```
 
-HAD 绝大多数时间空闲，时钟门控贯穿全模块。只有 JTAG 有动作或跨核事件来时才开时钟；当 PM 指示 CPU 完全空闲（`regs_ctrl_pm==2'b11`）才关回。
+`had_clk_en_ff` 是一个粘滞保持位：IR/DR raw 同步活动或 event 活动会置 1；只有当前无新活动且 `regs_ctrl_pm==2'b11` 时清 0。`PM=11` 在现行寄存器逻辑中只由复位或 `ifu_had_reset_on` 产生，普通 pipeline idle 是 HSR.PS，而不会清这个 sticky。因此它可能在首次调试活动后长期保持，不能理解为“事务结束或 CPU 空闲就关 HAD 时钟”。`had_xx_clk_en` 只是顶层门控请求；默认行为级 `gated_clk_cell` 可能直通时钟，真实物理门控和功耗效果取决于工艺宏/编译配置。
 
----
+## 本章小结
 
-## 设计取舍小结
+HAD 控制层把调试器写入的 HACR 电平、Update-DR 事件、断点、trace、event、non-IRV 请求和 RTU 确认组织成一条有明确边界的调试生命周期。HACR 表达持续控制意图，Update-DR 提供一次事务脉冲，控制器据此分别形成 jdbreq、硬件请求、断点、trace、event 和 non-IRV 接口；其中断点使用 raw 组合路径尽早通知 RTU。SQC 可以把 A、B 和 trace 组织为顺序触发链，同周期出现多类事件时，内存断点相关更新又通过 `!update_mbo` 条件优先于软件断点和 trace 状态更新。`go` 表示请求注入执行，`go+ex` 表示退出请求，但只有 RTU 接受后，处理器才真正进入可安全注入、交换状态或恢复执行的阶段。
 
-| 决策 | 内容 | 出处 | 为什么 |
-|------|------|------|--------|
-| 四类停核请求统一汇聚 | jdbreq/hw/bkpt/trace/event/non-IRV | `ct_had_ctrl.v:476-510` | 不同来源、统一接口送 RTU，RTU 只需一套停核机制 |
-| 断点请求用 raw 路径 | `*_raw` 组合早一拍送 RTU | `:507-508` | RTU 越早收到越能精确在指令边界停 |
-| SQC 触发链 | A→B→trace 顺序限定 | `:371-374,:399-402` | 表达"先 A 后 B 再 trace"复杂断点 |
-| 内存断点优先于软件断点/trace | swo/to 带 `!update_mbo` | `:576,:581` | 同周期多事件时给出确定优先级 |
-| go/ex 复用 HACR 位 | go=注入执行，go+ex=退出 | `:638,:609` | 一个 IR 编码覆盖注入与退出，协议简洁 |
-| WBBR 三写源 | 调试器/DDC/CPU 回写 | `ct_had_regs.v:547-559` | 一个寄存器同时服务"写入参数"与"取回结果" |
-| DDC 硬件搬内存 | 9 态 FSM 合成 mv/mv/sd，地址 +8 循环 | `ct_had_ddc_ctrl.v:78-145`,`ct_had_ddc_dp.v:92-108` | 块搬运免去逐条 JTAG 握手，吞吐高 |
-| debug-disable | DMS 掩码可整体关核调试 | `ct_had_ctrl.v:675-687` | 安全/量产场景禁用调试 |
-| 顶层 ICG | 空闲不翻转，PM=11 才关 | `ct_had_ctrl.v:693-704` | 调试单元长期空闲，省功耗 |
-
----
-
-## 覆盖声明
-
-本篇覆盖 `ct_had_ctrl.v`（四类停核请求、SQC 顺序限定、go 注入、WBBR 回写、退出/pcload、HSR 状态更新、debug-disable、ICG）与 DDC 通道 `ct_had_ddc_ctrl.v`（9 态状态机）/`ct_had_ddc_dp.v`（地址自增、mv/mv/sd 指令合成）。所有状态名、指令编码、信号与行号均按 RTL 实读标注，未对行为虚构。断点请求的产生见 `02_had_breakpoint.md`，寄存器字段对齐见 `05_had_regs.md`。
+WBBR 同时接收调试器写入、DDC 写入和 CPU 回写，FFY 打开时则在 IDU RF 级把 WBBR 数据覆盖到 source0。DDC 的九态状态机通过 WBBR 依次准备地址和数据，注入 `addi/addi/sd` 序列，并在每次 64 位 store 后把地址增加 8；当前 RTL 没有对应 load/readback 状态，因此它是连续写内存通道，不是双向 DMA。外部 `x_had_dbg_mask` 经 coreclk 采样后形成 debug-disable，并分别送往 CP0、RTU 和私有 IR 门控；请求接口本身不一定全部在 HAD 内被直接拉低，所以必须与 RTU 的 disable 输入合看。IR/DR 或 event 活动还会置位顶层时钟请求的 sticky 状态，普通 pipeline idle 不会清除它，只有 PM=11 的 reset-on 状态才清零；物理门控效果仍由 `gated_clk_cell` 实现决定。将请求、优先级、确认、寄存器方向和注入指令按时间顺序连接起来，能够避免把任一控制位误当成已经完成的调试动作。

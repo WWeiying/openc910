@@ -36,12 +36,14 @@ LSIQ（Load/Store Issue Queue，访存发射队列）是 IDU 中专门服务于 
 | 执行流水线 | pipe0/pipe1（2 拍完成） | pipe3（load）/ pipe4（store 地址）|
 | 地址计算 | 无 | AG 级（地址生成，base + offset） |
 | Cache 访问 | 无 | DC 级（D-Cache 访问，可能 miss） |
-| 延迟 | 固定 1–2 拍 | load hit=3 拍，miss 可能几十拍 |
-| 顺序约束 | 可乱序 | load/store 之间有严格顺序语义 |
+| 延迟 | 短整数路径通常较固定，但应先定义起止级 | 访存延迟受地址生成、TLB、Cache、转发、miss/replay 影响，不是单一固定拍数 |
+| 顺序约束 | 就绪后可乱序选择 | 允许受控乱序，依靠年龄、barrier、no-spec、LSU 队列和违例恢复共同满足内存模型 |
 | 向量掩码 | 无 | 向量访存需要额外 srcvm 寄存器 |
 | 后端反馈 | 无 | LSU 多流水级均会向 IDU 反馈 |
 
 因此 LSIQ 相比 AIQ 拥有更多的**反压（back-pressure）状态位**、**推测唤醒与 replay 机制**，以及**向量掩码寄存器依赖追踪**。
+
+> **当前配置边界**：LSIQ 数据结构和 `dep_vreg_entry` 保留了向量访存所需的 VL/VSEW/VLMUL、VREG、srcvm 和多级向量唤醒接口，但当前 `x_vec_inst=0`、`misa_vector=0`。下文向量段落解释的是保留 RTL 机制；当前有效程序主要走标量 load/store、浮点 store 借用通道及其相应依赖路径。
 
 ### 1.2 上下游关系
 
@@ -62,7 +64,9 @@ LSU 流水线（pipe3）：
           └─ wb_pipe3_wb_preg_vld (最终写回)
 ```
 
-- **load** 指令发射到 **pipe3**；LSU AG 级即向 IDU 广播推测唤醒（preg），供依赖 load 结果的后续指令提前就绪。
+- **load** 指令发射到 **pipe3**；LSU AG 级向 IDU 提供 load 目的 preg，依赖项据此记录 `lsu_match`
+  预匹配。真正参与 `rdy` 或 `rdy_for_issue` 的还包括 DC load-valid、DC forward 和已保存的匹配状态，
+  不能把 AG 有效本身等同于依赖已经 ready。
 - **store 地址计算** 发射到 **pipe4**；store 还需要从 SDIQ（Store Data Issue Queue）获取数据。
 - **barrier（fence/memory order）** 也经由 pipe4 发射。
 
@@ -192,7 +196,12 @@ bit  87  86      79  78  77  76      69  68  67  66      59  58  57      51  50 
 | `lsu_idu_ag_pipe3_vload_inst_vld` | 1 | AG 级有向量 load 在执行 |
 | `lsu_idu_ag_pipe3_vreg_dupx` | 7 | 向量 load 的目的向量寄存器 |
 
-**意义**：load 指令在 AG 级（地址生成后、Cache 访问前）即向 IDU 广播其目的寄存器，允许依赖该 load 结果的后续指令**提前唤醒**（推测性地认为 load 会 hit）。若 load 实际 miss，则会触发 replay。
+**精确含义**：AG 级的目的寄存器比较生成 `lsu_match`，为后续 DC forward 快速判断预存匹配关系；
+`dep_reg_entry` 中 AG 条件本身不进入 `rdy_update`。DC 的
+`load_inst_vld && preg_match` 可更新 `rdy`，而
+`load_fwd_inst_vld && lsu_match` 直接参与 `rdy_for_issue`。若后续 RF launch 失败，队列通过
+`rdy_clr/frz_clr` 清除相应就绪并重调度。是否由 cache miss 触发某个具体 replay 条件，应结合 LSU
+对应控制信号判断，不能只从 AG 接口推断。
 
 #### DC 级（D-Cache 访问级）确认/取消
 
@@ -283,7 +292,7 @@ always @(...) begin
 end
 ```
 
-**为什么两路方向相反？** 这样可以保证 create0 和 create1 不会选到同一个 entry（互补分布），无需额外的互斥逻辑。
+**为什么两路方向相反？** 两个优先编码器从相反方向寻找空项，使存在至少两个可用 entry 时 create0/create1 选择不同位置。只剩一个空项时仍需上游 `1_left/full_updt` 控制禁止双创建，不能仅靠扫描方向无条件保证。
 
 分配的最终 entry 通过 `lsiq_entry_create_sel[11:0]` 判断：低半部分（entry 0~5）用 `~create0_in` 标记，高半部分（entry 6~11）用 `create1_in` 标记，二者互斥。
 
@@ -310,7 +319,7 @@ end
 
 每个 entry 存储两套年龄向量：
 
-1. **`agevec[10:0]`**（同类型年龄）：仅记录**同类型**（load vs store/bar）中比自己老的 entry 集合，用于同类型指令之间的**顺序发射**约束。
+1. **`agevec[10:0]`**（同类型年龄）：仅记录同类型（load 一组，store/bar 一组）中比自己老的 entry 集合，用于在多个同类型**已就绪**候选间选择最老者。
 2. **`agevec_all[10:0]`**（全类型年龄）：记录所有类型中比自己老的 entry，用于 barrier、no_spec、wait_old 等全局顺序判断。
 
 注意每个 entry 的 agevec 是 11 位（而非 12 位），这是因为每个 entry 不记录自己，通过循环移位的方式排除自身：
@@ -326,7 +335,7 @@ assign lsiq_entry_create0_agevec[11:0] =
     & ~lsu_idu_lsiq_pop_entry[11:0]; // 同周期弹出的不计入
 ```
 
-**为什么这么做？** 通过 agevec 的"位与"操作，每个 entry 可以快速判断是否有同类型的更老指令也已就绪（`|(agevec & other_raw_rdy)`），若有则压制自己发射，保证按序发射。
+**为什么这么做？** 通过 agevec 的位与归约，每个 entry 可以判断是否存在同类型、比自己更老且也 `raw_rdy` 的候选；有则压制自己。这保证的是“同类型 ready 集合中的最老者优先”，并不阻止年轻的 ready load/store 越过一个尚未 ready 的同类型老项。
 
 ### 4.4 分配时的冻结（create frz）
 
@@ -404,17 +413,17 @@ ct_idu_dep_vreg_entry x_ct_idu_is_lsiq_srcvm_entry(...);  // srcvm：向量掩�
 
 ### 5.3 srcvm 唤醒来源（dep_vreg_entry）
 
-向量掩码寄存器的唤醒比标量简单——**不接受 VFPU 的推测唤醒**（注释说明是时序优化）：
+保留的向量掩码寄存器路径没有连接 VFPU EX1/EX2/EX3 中间级唤醒，相关输入在该实例处接 0；RTL 注释将其标为 timing optimization：
 
 ```verilog
-// ct_idu_is_lsiq_entry.v L:1253–1258（关键差异：VFPU 唤醒全部接 0）
+// ct_idu_is_lsiq_entry.v L:1253–1258（关键差异：VFPU EX1/EX2/EX3 中间级唤醒接 0）
 .vfpu_idu_ex1_pipe6_data_vld_dupx (1'b0),
 .vfpu_idu_ex2_pipe6_data_vld_dupx (1'b0),
 .vfpu_idu_ex3_pipe6_data_vld_dupx (1'b0),
 // ... 同样 pipe7 也全接 0
 ```
 
-srcvm 只通过 LSU 自身的向量 load 写回唤醒（vload ag/dc/wb 级）。这是因为向量 load 掩码寄存器来自向量 load 结果，其 load 流水线与 LSIQ 在同一 LSU 内，链路简单。
+srcvm 仍可由 LSU 向量 load 的 AG/DC/WB 事件以及 VFPU EX5 写回接口唤醒；它不接受 VFPU EX1/2/3 中间级事件。RTL 能证明连接取舍，但“因为链路简单”或“中间级一定太紧”属于设计动机推断，需结合时序报告验证。当前 RVV 关闭时，这些向量事件通常不构成有效工作负载活动。
 
 ### 5.4 发射失败时的就绪位清除
 
@@ -425,7 +434,7 @@ assign lsiq_entry0_rdy_clr[2:0] =
   | {3{lsiq_entry_pipe4_frz_clr[0]}} & dp_lsiq_rf_pipe4_rdy_clr[2:0];
 ```
 
-当 pipe3/pipe4 发射失败（`lch_fail_vld`），对应 entry 的 `rdy_clr[2:0]`（bit0=src0, bit1=src1, bit2=srcvm）会被置位，强制清除之前的推测就绪状态，等待重新唤醒。
+当 pipe3/pipe4 的 RF launch 失败且相应 entry 被 `frz_clr` 命中时，`rdy_clr[2:0]` 逐位指定哪些源依赖状态需要撤销（bit0=src0、bit1=src1、bit2=srcvm）。清除发生在依赖跟踪模块的有效时钟沿；不是 `lch_fail_vld` 一出现所有 ready 位就组合清零。
 
 ---
 
@@ -460,7 +469,7 @@ assign older_entry_rdy_mask = |(agevec[10:0] & x_other_raw_rdy[10:0]);
 assign x_rdy = x_raw_rdy && !older_entry_rdy_mask;
 ```
 
-**为什么这么做？** load 之间、store 之间必须按程序序发射，否则会产生 WAR/WAW 危险，或者违反内存序模型。通过年龄向量保证了同类型指令严格按程序序发射，而 load 和 store 之间通过 barrier/no_spec 机制额外约束。
+**精确语义**：`older_entry_rdy_mask` 只检查“更老且同类型且当前 `raw_rdy`”的项。因此，多个 ready load 中选最老 load，多个 ready store/bar 中选最老 store/bar；若一个更老同类型项因源未就绪或冻结而不属于 `raw_rdy`，年轻 ready 项仍可先发射。这正是乱序发射能力的一部分。内存相关、地址别名、load-store 顺序、barrier 与违例恢复由 `agevec_all`、no-spec/bar 检查及 LSU 的 LQ/SQ/WMB 等机制继续约束，而不是由这条 agevec 逻辑单独实现严格程序序。
 
 ### 6.3 发射选择与类型分流
 
@@ -475,7 +484,7 @@ assign lsiq_pipe4_entry_ready[11:0] = lsiq_entry_ready[11:0]
                                         | lsiq_entry_bar[11:0]);
 ```
 
-由年龄仲裁保证每次最多只有一个 load 就绪、一个 store 就绪，因此 `lsiq_pipe3_entry_ready` 和 `lsiq_pipe4_entry_ready` 均为 one-hot（或全 0）。
+由于同一类型的两个 `raw_rdy` 候选之间必有年龄关系，年轻者会被 `older_entry_rdy_mask` 压制；在 agevec 维护一致的前提下，最终每组至多留下一个 ready 候选。因此 `lsiq_pipe3_entry_ready` 与 `lsiq_pipe4_entry_ready` 各自应为 one-hot-or-zero。load 组和 store/bar 组彼此独立，所以同周期可以各有一个候选。
 
 ### 6.4 Bypass 路径
 
@@ -496,7 +505,7 @@ assign lsiq_bypass_en = lsiq_create_bypass_empty  // 队列（含非 frz 项）�
                        && lsiq_create0_rdy_bypass;
 ```
 
-注意 `lsiq_create_bypass_empty` 检查的是**非冻结的有效项**是否为空（而非 `lsiq_ctrl_empty`），保证 bypass 指令不会越过正在等待的指令。
+注意 `lsiq_create_bypass_empty` 汇总的是 entry 的 `vld_with_frz`，而该值为 `vld && (!frz || bar)`：冻结的普通 load/store 不计入，bar 即使冻结仍计入。因此它并不保证 bypass 不越过所有正在等待的普通冻结项；正确性要依赖 no-spec、barrier、LSU 相关检查和 replay 机制。这里的 bypass 只跳过 LSIQ 驻留/仲裁，不代表访存已完成。
 
 **为什么 bypass 时也设置 frz？**
 
@@ -505,7 +514,7 @@ assign lsiq_bypass_en = lsiq_create_bypass_empty  // 队列（含非 frz 项）�
 assign lsiq_entry_create0_frz = lsiq_bar_mode || lsiq_bypass_dp_en || ...
 ```
 
-bypass 指令虽然跳过了发射选择流程，但它仍然写入了一个 entry（create 逻辑还是执行的）。为防止后续指令在 bypass 完成前误认为可以发射（oldest 判断），写入的 entry 先设 frz=1，待 bypass 发射成功后通过 latch 信号清除。
+bypass 指令虽然同时从 create 数据通路送往 issue，但仍分配一个 entry。该 entry 创建时置 `frz=1`，避免它在旁路尝试尚未由后续阶段确认时再次参与普通 ready 仲裁；之后由 pop 或失败/唤醒路径处理。这里是“防止重复调度”的生命周期保护，不应概括为旁路完成后必然立即清除。
 
 ---
 
@@ -718,7 +727,7 @@ assign sq_full_wakeup = lsu_idu_sq_not_full || old;
 assign rb_full_wakeup = lsu_idu_rb_not_full || old;
 ```
 
-**为什么最老指令要强制唤醒？** 最老的指令没有更老的访存在前面，即使队列满，它也应该是优先被处理的，不应该永远等待。当它是最老时，强制解除阻塞，让它再次尝试。
+**`old` 项的准确作用**：`old = !(|agevec_all)` 时，`lq_full/sq_full/rb_full/wait_old` 的本地锁存阻塞可被清除，使该项重新尝试进入 LSU。它没有修改 LSU 实时的 full 状态，也不保证重试一定被接受；若资源仍不可用，LSU 可以再次返回相应阻塞。该机制避免本地历史状态永久抑制最老项，而不是越过容量约束。
 
 ---
 
@@ -764,14 +773,14 @@ ct_idu_dep_vreg_entry x_ct_idu_is_lsiq_srcvm_entry (
 );
 ```
 
-srcvm（向量掩码寄存器）的唤醒来源：
+在保留向量配置中，srcvm 的唤醒来源包括：
 1. 向量 load AG 级推测（`ag_vload_inst_vld`）
 2. 向量 load DC 级确认/转发（`dc_vload_inst_vld` / `dc_vload_fwd_inst_vld`）
 3. 向量 load WB 级写回（`wb_vreg_vld`）
 4. VFPU EX5 级写回（向量运算最终写回）
-5. **不接 VFPU EX1/EX2/EX3 级前向**（注释：timing optimization，时序太紧）
+5. **不接 VFPU EX1/EX2/EX3 级前向**（对应输入接 0；注释标为 timing optimization）
 
-**设计原则**：srcvm 是掩码寄存器，通常来自前一条向量 load 或向量运算结果。由于向量 load 在 LSU 内部执行，LSU 的各级反馈信号可以及时唤醒 srcvm；VFPU 的中间流水线唤醒则被放弃（时序不允许），只保留最终写回唤醒。
+**实现取舍**：该网络保留 LSU 多级事件与 VFPU EX5 写回，却省略 VFPU EX1～EX3 中间级连接，因此来自 VFPU 的依赖可能只能等到更晚的写回点才被标记 ready。注释给出 timing optimization 方向，但没有 STA 数据时，不把它进一步写成“时序不允许”。当前 RVV 关闭时，这一差异主要是保留结构说明。
 
 ---
 
@@ -885,18 +894,18 @@ else if(rtu_idu_flush_fe || rtu_idu_flush_is || rtu_yy_xx_flush)
 
 ## 13. 时钟门控
 
-LSIQ 大量使用门控时钟（ICG cell）来降低功耗，每种功能有对应的门控时钟：
+LSIQ 为不同状态组生成多组局部时钟请求，每种功能有对应的 `*_clk_en`：
 
 ```verilog
 // ct_idu_is_lsiq_entry.v L:486–617（门控时钟定义）
 
-// entry 级总门控：有效或有新指令进入时才开
+// entry 级局部请求：entry 有效或有新指令进入
 assign entry_clk_en = x_create_gateclk_en || vld;
 
-// 创建路径门控：仅在新指令写入时开
+// 创建路径局部请求：有新指令写入
 assign create_clk_en = x_create_gateclk_en;
 
-// 目的物理寄存器门控：仅在有目的寄存器时开
+// 目的物理寄存器局部请求：创建且有目的寄存器
 assign create_preg_clk_en = x_create_gateclk_en && x_create_data[LSIQ_DST_VLD];
 
 // 向量目的寄存器门控：仅在有向量目的时开
@@ -924,7 +933,13 @@ assign unalign_clk_en = x_create_gateclk_en || x_unalign_gateclk_en;
 | `wait_fence_clk` | `lsu_idu_wait_fence_gateclk_en \|\| any_entry_wait_fence` | 所有 entry 的 wait_fence |
 | `bar_clk` | `lsiq_bar_mode \|\| bar_inst_vld` | lsiq_bar_mode 寄存器 |
 
-这些共享时钟被广播到所有 12 个 entry 实例，而非每个 entry 独立。这样时钟树更简单，功耗更低。
+这些 `clk_out` 被连接到全部 12 个 entry 的对应状态更新逻辑，而非为每个 entry 各实例化一套该类共享门控。
+RTL 能证明共享连接和局部使能方程；时钟树复杂度、插入延迟、面积与功耗是否更优仍由物理实现决定。
+
+还需注意公共 `gated_clk_cell` 的边界：局部请求不是唯一使能源，功能使能为
+`global_en && (module_en || local_en)`，扫描使能可打开工艺 ICG；未定义
+`C910_USE_TSMC28_ICG` 时当前 RTL 模型直接 `clk_out = clk_in`。因此本文中的“请求”均不应读成
+“`local_en=0` 时物理时钟必然停止”。
 
 ---
 

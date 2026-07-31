@@ -14,6 +14,11 @@
 
 VIQ（Vector Issue Queue）是 C910 IDU 中专门服务向量/浮点指令的发射队列。它与整数发射队列（AIQ）的核心区别在于：
 
+> **当前配置边界**：公开 RTL 保留了完整的 VIQ、向量源依赖、VL/VSEW/VLMUL 和向量执行接口结构，
+> 但当前总译码把 `x_vec_inst` 固定为 0，CP0 的 `misa_vector` 也固定为 0。当前可达工作负载主要是
+> VIQ 承载的标量浮点路径；下文涉及 RVV 指令、向量 mask、split、vdiv/vmla/vmul 的内容用于解释保留结构，
+> 不能表述成当前配置下可由软件直接执行的完整 RVV 功能。
+
 | 特性 | AIQ（整数） | VIQ（向量） |
 |------|-------------|-------------|
 | 源操作数类型 | 1–2 个标量寄存器 | 最多 4 个：srcv0、srcv1、srcv2、srcvm |
@@ -87,10 +92,10 @@ VIQ0 比 VIQ1 多 1 bit，原因是 VIQ0 携带 `vdiv` 标志（位 135），用
 | [95:85] | VIQ0_SRCV2_DATA/RDY | 11 | 第三向量源 srcv2 依赖信息 |
 | [84:75] | VIQ0_SRCV1_DATA/RDY | 10 | 向量源 srcv1 依赖信息 |
 | [74:65] | VIQ0_SRCV0_DATA/RDY | 10 | 向量源 srcv0 依赖信息 |
-| [64:60] | VIQ0_DST_EREG | 5 | 目标浮点寄存器号 |
+| [64:60] | VIQ0_DST_EREG | 5 | 目标物理 EREG 编号，用于 `fflags` 等状态贡献；不是浮点数据寄存器号 |
 | [59:53] | VIQ0_DST_VREG | 7 | 目标向量寄存器号 |
 | [52:46] | VIQ0_DST_PREG | 7 | 目标物理寄存器号 |
-| [45] | VIQ0_DSTE_VLD | 1 | 浮点目标有效 |
+| [45] | VIQ0_DSTE_VLD | 1 | EREG 状态贡献目标有效 |
 | [44] | VIQ0_DSTV_VLD | 1 | 向量目标有效 |
 | [43] | VIQ0_DST_VLD | 1 | 通用目标有效 |
 | [42] | VIQ0_SRCVM_VLD | 1 | srcvm 有效（使用掩码）|
@@ -367,10 +372,12 @@ assign srcvm_rdy_clr = x_frz_clr && dp_viq0_rf_rdy_clr[3];
 
 ### 6.1 掩码寄存器的特殊性
 
-RVV 规范规定，向量掩码操作数**固定为 v0 寄存器**（物理上是向量寄存器 0）。因此：
+RVV 规范规定，向量掩码操作数在**架构上**使用 v0，但重命名之后不能把它长期等同
+于物理寄存器 0。因此：
 
-- `srcvm_vld = 1` 表示该指令使用掩码，此时 srcvm 对应的向量寄存器号固定（v0 的物理寄存器号）
-- 与 srcv0/v1/v2 相同，srcvm 也通过 `ct_idu_dep_vreg_entry` 追踪写 v0 的 VFPU 指令
+- `srcvm_vld = 1` 表示该指令使用架构掩码源 v0；完整重命名实现应携带 v0 当前映射的物理号。
+- 与 srcv0/v1/v2 相同，srcvm 通过 `ct_idu_dep_vreg_entry` 按传入的物理号追踪生产者。
+- 当前公开配置的 `ct_idu_ir_vrt.v` 是占位实现，srcvm 返回的是物理编码 64 的哨兵和常量就绪状态。因此这些 VIQ 结构展示了预留的依赖机制，却不能证明完整 RVV 重命名数据通路已启用。
 
 ### 6.2 在分配时的 bypass 检测
 
@@ -386,18 +393,26 @@ assign viq0_create0_rdy_bypass = ctrl_viq0_create0_en
     && dp_viq0_create_srcvm_rdy_for_bypass;  // 掩码就绪也是 bypass 条件之一
 ```
 
-只有**全部四个源**都在入队时就绪，且队列为空，才能走 bypass 路径直接发射，跳过写入 entry 的过程。
+只有四个 `*_rdy_for_bypass` 都为 1、控制条件允许，并且后续
+`viq0_create_bypass_empty` 判定没有 `vld && !frz` 候选项时，才形成最终 bypass。这里四路 ready
+信号即使某个架构源无效也必须由上游编码为可通过状态；最终空条件不在本段方程中。
 
 ### 6.3 `srcvm_vld` 为 0 时的处理
 
-当 `srcvm_vld = 0`（指令不使用掩码，如无掩码的向量加法）时，`ct_idu_dep_vreg_entry` 内部的相关比较逻辑应当永远输出就绪（ready），避免因为 v0 的写指令阻塞不使用掩码的指令。这由 `create_srcvm_gateclk_en` 控制初始化是否有效来保证：
+当 `srcvm_vld = 0` 时，需要区分“源是否参与指令语义”和“依赖子模块哪些字段更新”。RTL 中
+`srcvm_vld` 作为独立指令字段照常写入，`ct_idu_dep_vreg_entry` 也仍由 `x_create_dp_en`
+写入其 `rdy/wb/lsu_match` 状态；只有物理 `vreg` 编号寄存器的局部时钟请求受
+`create_srcvm_gateclk_en` 限定：
 
 ```verilog
 // ct_idu_is_viq0_entry.v，第 969 行
 assign create_srcvm_gateclk_en = x_create_gateclk_en && x_create_data[VIQ0_SRCVM_VLD];
 ```
 
-即只有 srcvm_vld 为 1 时，才更新掩码依赖的寄存器索引；否则 dep_vreg_entry 内部不写入有效 vreg，始终保持就绪。
+因此可以准确断言的是：`srcvm_vld=0` 时不请求更新 srcvm 的物理 vreg 编号。不能仅由这条方程推出
+“整个 dep entry 不写入”或“旧 vreg 编号使其自然 ready”；ready 初值来自 create 数据中的
+`IS_SRCVM_RDY/BP_RDY` 编码，并且最终 `x_rdy` 仍无条件与
+`srcvm_rdy_for_issue` 相与。无效源能够通过，依赖的是上游把无效源编码成 ready 的跨模块协议。
 
 ---
 
@@ -456,7 +471,7 @@ assign viq0_dp_issue_entry[7:0] = (viq0_create_bypass_empty)
 
 ### 7.3 bypass 路径
 
-**条件**：队列为空 + 新 create0 指令全部四源在入队时就绪 + 无 stall + 无 vdiv 忙
+**条件**：没有非冻结有效候选 + 新 create0 的四路 bypass-ready 为真 + 无 stall + 无 vdiv busy
 
 ```verilog
 // ct_idu_is_viq0.v，第 619–626、699–700 行
@@ -464,9 +479,13 @@ assign viq0_create_bypass_empty = !(viq0_entry0_vld_with_frz || ... || viq0_entr
 assign viq0_bypass_en = viq0_create_bypass_empty && viq0_create0_rdy_bypass;
 ```
 
-`vld_with_frz = vld && !frz`，即 frz（发射但尚未 launch 确认）的 entry 也会阻塞 bypass，防止结构冒险。
+`vld_with_frz = vld && !frz`。因此 `create_bypass_empty` 的准确含义是“没有未冻结的有效候选”，
+不是物理队列 `vld` 全零；冻结 entry 会被该检测排除，而不是阻塞 bypass。是否允许新的 bypass 还同时受
+stall、源 bypass-ready、vdiv busy 和上游 create 控制约束。
 
-bypass 路径使指令不写入任何 entry 而直接发射，可消除一拍延迟。
+bypass 会在创建周期直接选择 `dp_viq0_bypass_data` 作为 issue 数据，同时仍把 create0 写入所分配 entry，
+并以 `create_frz=bypass_dp_en` 预置冻结状态。launch 成功后该 entry 被 pop；launch 失败时解除冻结后重发。
+它省去的是“先驻留、下一轮再参加常规仲裁”的等待，不能笼统承诺端到端固定减少一拍。
 
 ---
 
@@ -708,17 +727,22 @@ else if(rtu_idu_flush_fe || rtu_idu_flush_is)
     vld <= 1'b0;
 ```
 
-`rtu_yy_xx_flush` 不直接清 vld，因为此时 RF launch 可能已在途，但 entry_cnt 需要归零，防止后续分配逻辑错误。
+从本模块可直接确认：`rtu_yy_xx_flush` 被计数器清零条件使用，却不在单 entry 的 `vld` 清零条件中。
+这形成了不同 flush 信号的作用域差异；其系统级时序理由需要结合 RTU flush 协议和上下游波形验证，
+不能只凭本地条件断言“此时 RF launch 必然在途”。
 
-### 12.2 flush 不影响 dep_vreg_entry
+### 12.2 flush 对依赖状态与索引的不同作用
 
-依赖追踪子模块（`dep_vreg_entry`）响应 `rtu_idu_flush_fe` 和 `rtu_idu_flush_is`，将内部的寄存器号和就绪位清零。这是因为 flush 后所有向量依赖均需重新建立。
+依赖追踪子模块响应 `rtu_idu_flush_fe/is` 时把 `rdy` 和 `wb` 置为中性的 1，把 `lsu_match`
+清为 0；它不是把就绪位“清零”。物理 `vreg` 编号寄存器由另一条 `write_clk` 更新，其 always 块没有
+flush 分支，因此 flush 不会清除旧编号。由于 entry 的 `vld` 已被清零，旧索引不再参与有效发射；
+后续创建会按源有效条件更新需要的索引，并用 create 数据重建依赖状态。
 
 ---
 
 ## 13. 时钟门控（ICG）优化
 
-每个 entry 和子模块使用细粒度门控时钟，以降低空闲时的动态功耗：
+每个 entry 和子模块按状态组生成细粒度局部时钟请求：
 
 | 门控时钟 | 使能条件 | 保护的寄存器 |
 |----------|----------|-------------|
@@ -727,10 +751,12 @@ else if(rtu_idu_flush_fe || rtu_idu_flush_is)
 | `create_vreg_clk` | `x_create_gateclk_en && dstv_vld` | dst_vreg |
 | `create_ereg_clk` | `x_create_gateclk_en && dste_vld` | dst_ereg |
 | `create_preg_clk` | `x_create_gateclk_en && dst_vld` | dst_preg |
-| `lch_rdy_viq0_clk` | `create_gateclk_en \|\| (vld && create_gateclk_en)` | lch_rdy VIQ0 |
-| `lch_rdy_viq1_clk` | 同上，VIQ1 版 | lch_rdy VIQ1 |
+| `lch_rdy_viq0_clk` | `x_create_gateclk_en \|\| (vld && (ctrl_viq0_create0_gateclk_en \|\| ctrl_viq0_create1_gateclk_en))` | 本 entry 创建，或本 entry 有效时 VIQ0 有新 create，更新相对依赖位 |
+| `lch_rdy_viq1_clk` | `x_create_gateclk_en \|\| (vld && (ctrl_viq1_create0_gateclk_en \|\| ctrl_viq1_create1_gateclk_en))` | 本 entry 创建，或本 entry 有效时 VIQ1 有新 create，更新相对依赖位 |
 
-顶层 `cnt_clk` 在 entry_cnt 非零或有新指令入队时开启，保护计数器和 full/empty 逻辑。
+顶层 `cnt_clk_en` 在 entry_cnt 非零或有 create gateclk 请求时提出局部请求。公共门控单元还受
+`global_en/module_en/scan_en` 影响，并且未定义 `C910_USE_TSMC28_ICG` 时当前 RTL 模型直接透传时钟；
+所以本表描述的是局部请求条件，不是物理时钟必停条件，实际功耗效果需由实现结果确认。
 
 ---
 
@@ -801,8 +827,8 @@ per-entry vmla vreg fwd ─────────► dep_vreg_srcv2_entry（�
 |------|------|
 | srcv2 使用专用 `dep_vreg_srcv2_entry` | FMA 的 accumulator 有特殊的 vmla 前向路径，普通 dep_vreg_entry 不支持 fmla_data_vld 和 vfpu_fwd_vld 输入 |
 | lch_rdy 位图嵌入数据字 | 避免 CAM 查找，直接在新指令入队时计算依赖关系，随数据一起触发就绪位更新 |
-| create0 从低到高，create1 从高到低 | 最大化两个分配指针的分散性，减少同周期两条指令争用同一 entry 的概率 |
+| create0 从低到高，create1 从高到低 | 至少两个空项时分别选择最低/最高空项；只剩一个空项仍依赖上游容量控制禁止双创建 |
 | VIQ0 保存 vdiv 而 VIQ1 不保存 | 向量除法在设计上只走 pipe6，VIQ1 不处理 vdiv，节省 1 bit |
-| bypass 通道要求四源全就绪 | 向量指令不允许投机发射时只有部分源就绪，四源全就绪是硬性约束 |
-| 年龄向量动态更新（pop 时清除被弹出项） | 保证年龄向量始终反映队列的真实新旧顺序，pop 后已发射的 entry 不再影响其他 entry 的仲裁 |
-| `vld_with_frz`（vld && !frz）用于 bypass 空检测 | 已发射未确认的 entry 虽然在等待 launch 结果，但也算占用资源，不能允许 bypass 穿越 |
+| bypass 通道要求四路 `*_rdy_for_bypass` 全为 1 | 最终方程无条件相与四路信号；无效源必须由上游编码为 ready，不能只按源数量理解 |
+| 年龄向量动态更新（pop 时清除被弹出项） | 按设计维持有效项的年龄关系并移除 pop 项；正确性仍依赖 create/pop/flush 协议和 age 不变量 |
+| `vld_with_frz`（实际为 `vld && !frz`）用于 bypass 空检测 | 检测的是可见的未冻结候选，不是物理占用；冻结项被排除，其他条件负责约束新的 bypass |

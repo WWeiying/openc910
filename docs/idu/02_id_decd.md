@@ -20,7 +20,7 @@
    - 6.4 [Cache 扩展指令译码（decd_cache）](#64-cache-扩展指令译码decd_cache)
    - 6.5 [性能扩展指令译码（decd_perf）](#65-性能扩展指令译码decd_perf)
    - 6.6 [向量指令译码（decd_v / decd_vec）](#66-向量指令译码decd_v--decd_vec)
-7. [功能单元归属（inst_type 编码）](#7-功能单元归属inst_type-编码)
+7. [执行类别与队列路由（inst_type 位图）](#7-执行类别与队列路由inst_type-位图)
 8. [源/目的寄存器提取](#8-源目的寄存器提取)
 9. [特殊信号：mov/fmov/mla/fmla/vmla](#9-特殊信号movfmovmlafmlavmla)
 10. [非法指令检测](#10-非法指令检测)
@@ -40,13 +40,15 @@
 
 1. **识别指令类型**：通过分析 32 位（或 16 位压缩）指令字的各个字段，判断该指令属于哪一大类（整数 ALU、乘法、除法、分支、访存、浮点、向量等）。
 2. **提取操作数信息**：确定源寄存器（rs1/rs2/rs3）和目的寄存器（rd）的编号，以及各寄存器类型（整数/浮点/向量）是否有效。
-3. **产生功能单元路由标记**（`x_inst_type`）：告知后续重命名/发射阶段，这条指令应当进入哪个发射队列（AIQ），最终由哪个执行单元处理。
+3. **产生执行类别路由位图**（`x_inst_type`）：供后续 IR 预分发逻辑判断指令应进入 AIQ、BIQ、LSIQ/SDIQ 或 VIQ。该字段大多数类别为单 bit，但 store 类 `LSU_P5` 同时置两位，因此不是严格 one-hot 编码。
 4. **生成非法指令标志**（`x_illegal`）：供异常处理使用。
 5. **生成拆分/fence 类型标志**：供 id_split 和 id_fence 子模块使用，决定该指令是否需要被拆成多条微操作，或者是否会产生流水线刷新。
 
 ### 1.2 为什么实例化 3 份
 
-C910 是**3 发射超标量处理器**，IF 阶段每周期可以向 ID 阶段发送多达 3 条指令（inst0、inst1、inst2）。为了在单个时钟周期内**同时译码 3 条指令**，`ct_idu_id_dp`（ID 数据通路）实例化了 3 个完全相同的 `ct_idu_id_decd`：
+当前 ID 数据通路具有 **3 个原始指令槽**（inst0、inst1、inst2），因此
+`ct_idu_id_dp` 实例化 3 个同一模块类型的 `ct_idu_id_decd`，使三个有效槽可以在
+同一 ID 组合阶段分别产生译码结果：
 
 ```verilog
 // ct_idu_id_dp.v，第 749~858 行
@@ -55,7 +57,13 @@ ct_idu_id_decd  x_ct_idu_id_decd1 ( .x_inst(id_inst1_inst), ... );
 ct_idu_id_decd  x_ct_idu_id_decd2 ( .x_inst(id_inst2_inst), ... );
 ```
 
-三个实例共享所有来自 CP0 的控制输入（`cp0_idu_fs`、`cp0_idu_frm`、`cp0_idu_vill` 等），分别接受独立的指令字输入，独立产生译码结果。这是**并行译码（parallel decode）**的标准实现方式：面积增加约 3 倍，但完全消除了串行译码的延迟。
+三个实例共享来自 CP0 的配置/状态输入（如 `cp0_idu_fs`、`cp0_idu_frm`、
+`cp0_idu_vill`），但各自连接不同的 `x_inst` 和输出网络。这可以直接证明
+**最多三槽并行组合译码的结构宽度**，不能仅由译码器实例数进一步推出整个核心
+每周期一定发射三条、执行三条或退休三条；后续 IR 可形成四个微操作槽，实际
+dispatch/issue/retire 宽度还受拆分、队列端口、源就绪、执行资源和退休协议限制。
+三个实例在 RTL 上属于同一模块定义的结构复制，但综合后的面积并不必然严格等于
+单实例面积乘三；常量传播、层次打平、缓冲和布线都会改变物理结果。
 
 ### 1.3 在流水线中的位置
 
@@ -87,7 +95,7 @@ ct_idu_id_decd  x_ct_idu_id_decd2 ( .x_inst(id_inst2_inst), ... );
 | `cp0_idu_vill` | 1 | CP0 vtype | 向量非法配置标志 |
 | `cp0_idu_vstart` | 7 | CP0 vstart | 向量起始元素号（非零则大多数向量指令非法） |
 | `cp0_idu_cskyee` | 1 | CP0 | T-Head 厂商扩展使能（XuanTie 自定义指令集） |
-| `cp0_idu_zero_delay_move_disable` | 1 | CP0 | 禁止零延迟 MOV 优化 |
+| `cp0_idu_zero_delay_move_disable` | 1 | CP0 | 禁止 RTL 所称的 zero-delay move 候选识别；该优化的准确边界见 9.1 节 |
 | `cp0_yy_hyper` | 1 | CP0 | Hypervisor 模式使能 |
 | `x_vl` | 8 | 向量状态 | 当前向量长度（用于 vl==0 时的 NOP 处理） |
 | `x_vlmul` | 2 | 向量状态 | 向量寄存器组长度乘子 |
@@ -97,7 +105,7 @@ ct_idu_id_decd  x_ct_idu_id_decd2 ( .x_inst(id_inst2_inst), ... );
 
 | 端口名 | 宽度 | 含义 |
 |--------|------|------|
-| `x_inst_type` | 10 | **功能单元路由编码**，one-hot，见第 7 节 |
+| `x_inst_type` | 10 | **执行类别路由位图**；通常单 bit，store 的 `LSU_P5` 为 bit4+bit5，见第 7 节 |
 | `x_length` | 1 | 指令长度：`1` = 32 位，`0` = 16 位 |
 | `x_illegal` | 1 | 非法指令标志（触发非法指令异常） |
 | `x_dst_reg` | 5 | 整数目的寄存器编号（rd，inst[11:7]） |
@@ -126,8 +134,8 @@ ct_idu_id_decd  x_ct_idu_id_decd2 ( .x_inst(id_inst2_inst), ... );
 | `x_srcv2_vld` | 1 | 向量源 2（累积目的/旧值）有效 |
 | `x_srcvm_vld` | 1 | 向量掩码寄存器（v0）有效 |
 | `x_vmb` | 1 | 向量 load 带 mask 且目的更新掩码 |
-| `x_mov` | 1 | 零延迟 MOV 标志（整数） |
-| `x_fmov` | 1 | 零延迟 FMV 标志（浮点） |
+| `x_mov` | 1 | 整数 move 同包依赖穿透候选标志；并不表示 RAT 复用源物理号 |
+| `x_fmov` | 1 | 浮点 move 同包依赖穿透候选标志；并不表示 RAT 复用源物理号 |
 | `x_mla` | 1 | T-Head 乘加指令（mla） |
 | `x_fmla` | 1 | 浮点乘加类指令（fmadd/fmsub 等） |
 | `x_vmla` | 1 | 向量乘加指令（vmacc/vfmacc） |
@@ -581,9 +589,9 @@ assign decd_v_illegal = decd_code_illegal     // 指令编码本身非法
 
 ---
 
-## 7. 功能单元归属（inst_type 编码）
+## 7. 执行类别与队列路由（inst_type 位图）
 
-### 7.1 inst_type 编码定义
+### 7.1 inst_type 位定义
 
 ```verilog
 // decd.v 第759~770行
@@ -600,24 +608,30 @@ parameter PIPE7   = 10'b0100000000;  // bit 8：浮点 pipe7（fcvt）
 parameter SPECIAL = 10'b1000000000;  // bit 9：特殊处理单元（AUIPC/ecall/vsetvl 等）
 ```
 
-注意 `LSU_P5 = 10'b0000110000` 同时置位了 bit5 和 bit4，表示 Store 类指令需要占用 LSU 的一个特定端口（称为 Port 5），与纯 Load 的 LSU（只有 bit4）区分。
+`LSU_P5 = 10'b0000110000` 同时置 bit4 和 bit5，因此 `x_inst_type` 应称为
+**类别位图**，而不是无例外的 one-hot 编码。沿当前 `ir_dp`/`ir_ctrl` 连接，
+bit4 使 store 地址部分进入 LSIQ，bit5 同时使 store 数据部分进入 SDIQ。这里的
+“P5”是 RTL 类别名；不能仅凭名字把它解释成一个独立的 load/store 执行端口。
 
 ### 7.2 inst_type 与发射队列映射
 
-| inst_type | 功能单元 | 发射队列（AIQ）| 说明 |
-|-----------|----------|----------------|------|
-| ALU | 整数 ALU（EXU0~EXU1）| AIQ0/AIQ1 | 最基础的整数运算 |
-| BJU | 分支/跳转单元 | AIQ0（通常）| 分支预测修正也在这里 |
-| MULT | 乘法器 | AIQ0/AIQ1 | MUL 指令，延迟高于 ALU |
-| DIV | 除法器 | AIQ0（独占）| DIV 多周期，需要单独端口 |
-| LSU | 访存 Load 端口 | AIQ_LSU | Load 指令 |
-| LSU_P5 | 访存 Store 端口 | AIQ_LSU | Store 指令（不同端口）|
-| PIPE67 | FP 双通道（FPU6/FPU7）| AIQ_FP | 大多数浮点指令 |
-| PIPE6 | FP 单通道 6 | AIQ_FP | fdiv/fsqrt 及部分向量 |
-| PIPE7 | FP 单通道 7 | AIQ_FP | fcvt 等格式转换 |
-| SPECIAL | 特殊执行单元 | AIQ_SPECIAL | 需要特殊流水线处理 |
+| inst_type 位 | IR 中的控制位 | 当前 RTL 队列路由 | 精确说明 |
+|--------------|---------------|------------------|----------|
+| ALU / bit0 | `IS_CTRL_ALU` | AIQ0/AIQ1 动态选择 | 先形成 `aiq01` 类，再受整数 DLB 控制选择队列 |
+| BJU / bit1 | `IS_CTRL_BJU` | BIQ | 分支/跳转进入独立 Branch IQ，不是 AIQ0 |
+| MULT / bit2 | `IS_CTRL_MULT` | AIQ1 | 当前 `ir_ctrl` 将乘法类固定归入 AIQ1 |
+| DIV / bit3 | `IS_CTRL_DIV` | AIQ0 | 当前 `ir_ctrl` 将除法类固定归入 AIQ0 |
+| LSU / bit4 | `IS_CTRL_LSU` | LSIQ | load 以及 store 的地址/LSU 部分进入 LSIQ |
+| LSU_P5 的 bit5 | `IS_CTRL_STADDR` | SDIQ | store 类还创建 SDIQ 项，用于独立跟踪 store data |
+| PIPE67 / bit6 | `IS_CTRL_PIPE67` | VIQ0/VIQ1 动态选择 | 可由两条 VFPU 路径承载的类别，经 VIQ DLB 选择 |
+| PIPE6 / bit7 | `IS_CTRL_PIPE6` | VIQ0 | 固定归入面向 pipe6 的 VIQ0 |
+| PIPE7 / bit8 | `IS_CTRL_PIPE7` | VIQ1 | 固定归入面向 pipe7 的 VIQ1 |
+| SPECIAL / bit9 | `IS_CTRL_SPECIAL` | AIQ0，并保留 special 属性 | `ir_ctrl` 的 AIQ0 条件是 `DIV \|\| SPECIAL`；不存在名为 `AIQ_SPECIAL` 的独立队列 |
 
-**设计哲学**：one-hot 编码的 `x_inst_type` 让重命名器和发射逻辑可以用简单的位检测（`|`, `&`）来判断一条指令能否进入某个发射队列，避免了优先级编码器，降低了关键路径延迟。
+这种按位表示使 `ir_dp` 可以把各 bit 直接展开成 `IS_CTRL_*` 控制位，随后由
+`ir_ctrl` 组合出队列选择。RTL 能证明的是“字段到控制位的直接连接”和上述队列
+方程；是否因此减少了多少优先编码级数、扇出或关键路径延迟，仍需综合网表与 STA
+报告，而不能由编码形式单独定量。
 
 ---
 
@@ -683,7 +697,12 @@ assign decd_dst_reg =
 assign x_dst_x0 = (decd_dst_reg == 5'd0);  // 写 x0 标志
 ```
 
-`x_dst_x0` 是专门检测目的寄存器为 x0 的信号。在重命名器中，向 x0 写入时不需要分配物理寄存器，也不需要更新 RAT（Register Alias Table），`x_dst_x0` 使这一优化可以在重命名阶段的关键路径上提前判断。
+`x_dst_x0` 只比较译码得到的整数目的号是否为 0。到 IR 阶段，
+`idu_rtu_ir_pregN_alloc_vld` 显式包含 `!dp_ctrl_ir_instN_dst_x0`，因此写 x0 的
+指令不发出正常整数物理寄存器分配请求；`ir_instN_dst_preg` 也被按
+`!IR_DST_X0` 屏蔽为 0。整数 RAT 对 reg0 使用专门的常量读出语义，而不是把 x0
+当作普通可重命名寄存器更新。提前生成该标志让后续控制可直接使用，但它是否位于
+物理关键路径、节省多少延迟或功耗，需要 STA/功耗结果证明。
 
 ### 8.4 浮点源寄存器提取
 
@@ -724,7 +743,7 @@ end
 
 这些信号用于流水线的特殊优化：
 
-### 9.1 零延迟 MOV（x_mov / x_fmov）
+### 9.1 RTL 所称的“零延迟 MOV”（x_mov / x_fmov）
 
 ```verilog
 // decd.v 第412~427行
@@ -739,16 +758,37 @@ assign x_mov =
       && (x_inst[11:7] != x_inst[19:15])); //dest != src
 
 assign x_fmov = !cp0_idu_zero_delay_move_disable
-             && (x_inst[31:25] == 7'b0010001)  //fsgnjx.d（fsgnj.d rd,rs1,rs1 = fmv.d）
+             && (x_inst[31:25] == 7'b0010001)  //fsgnj.d（fsgnj.d rd,rs1,rs1 = fmv.d）
              && (x_inst[14:12] == 3'b000)
              && (x_inst[6:0]   == 7'b1010011)
              && (x_inst[24:20] == x_inst[19:15]) //rs1 == rs2（伪指令 fmv）
              && (x_inst[11:7]  != x_inst[19:15]); //dst != src
 ```
 
-**零延迟 MOV 的原理**：当一条 MOV 指令（包括 `mv rd, rs1` 即 `addi rd, rs1, 0` 和 `c.mv`）的目的和源不同时，C910 在重命名阶段直接将物理寄存器号"复制"给目的，而不需要真正执行 ALU 操作。条件"dest != src"是避免循环依赖的必要保障——注释也明确说明：若 dst == src，则零延迟 mov 可能在消费者读到值之前就释放 preg，导致数据损坏。
+这里的“零延迟”是 RTL 信号命名，准确含义是**同一个重命名包内的 move
+依赖穿透**，不能扩展解释成“目的不分配物理寄存器”“RAT 目的表项直接等于源
+表项”或“该指令一定不进入执行流水线”。
 
-对于浮点 `fmv.d rd, rs1`（汇编伪指令，真实编码为 `fsgnj.d rd, rs1, rs1`，即两个源相同的 fsgnj），同样用 `x_fmov` 标记后在重命名阶段实现零延迟传播。
+以 `inst0: mv x3,x7` 和同包较年轻的 `inst1: add x5,x3,x2` 为例：
+
+1. `inst0` 的 `x3` 仍取得 RTU 分配的新目的物理号，整数 RAT 也仍以这个新物理号
+   更新 `x3` 的映射。
+2. 因为 move 的数值语义是 `x3=x7`，整数 RAT 的组合旁路可让 `inst1` 直接继承
+   `x7` 当前物理映射的 `preg/rdy/wb` 信息，不必把 `inst1` 建成对 `inst0`
+   新目的物理号的同包 RAW 依赖。
+3. 这只消除了特定同包消费者依赖 move 的等待边；仅凭 `x_mov=1` 不能证明
+   move 本身不分配、不发射或不执行。当前 IR 数据通路仍把新分配的
+   `dp_rt_instN_dst_preg` 写入 RAT，并随指令送往后续结构。
+
+浮点 `fmv.d rd,rs1` 是 `fsgnj.d rd,rs1,rs1` 的汇编伪指令。`x_fmov` 采用相同
+思想：FRT 仍写入新分配的目的浮点物理号，但同包较年轻消费者可以从
+`srcf0` 的旧映射与就绪状态取得等价的数据依赖信息。
+
+`rd!=rs` 条件也应按代码注释的生命周期问题理解，而不只是笼统称为“防止组合
+环”。如果目的和源是同一逻辑寄存器，继续把 move 的旧源物理项透传给较年轻
+消费者，会与覆盖旧映射后的物理寄存器释放时序发生冲突；因此当前 RTL 不把这种
+自 move 标成 zero-delay 候选。跨过包内另一条同名目的写时，RT/FRT 还会使用
+`*_mov_bypass_over_inst1` 一类条件阻止透传过时版本。
 
 ### 9.2 乘加（x_mla）
 
@@ -889,7 +929,11 @@ assign x_split_short_type[0] = ({x_inst[15:12],x_inst[6:0]}==11'b1001_0000010)
                                 && (x_inst[11:7]!=5'd0); //jalr
 ```
 
-**JAL 写返回地址的特殊处理**：主译码器中 JAL/JALR 的 `dst_vld = 0`，写返回地址的能力通过 `split_short_type[0]` 单独标记，交由 `id_split_short` 处理，生成一个向 rd 写入 PC+4 的微操作。
+**JAL/JALR 写链接地址的特殊处理**：主译码器中跳转检查微操作的
+`dst_vld = 0`，写链接寄存器的能力通过 `split_short_type[0]` 单独标记，交由
+`id_split_short` 处理。后者生成一条 `PSEUDO_AUIPC` 微操作：32 位 jal/jalr
+向 rd 写入 `PC+4`，压缩 `C.JALR` 向 x1 写入 `PC+2`；另一条微操作只负责跳转
+与目标检查。
 
 #### split_long_type（10 位，长拆分）
 
@@ -930,13 +974,22 @@ assign x_fence_type[2] = ({x_inst[14:12],x_inst[6:0]}==10'b001_0001111) //fence.
                       || hfence_inst;
 ```
 
-| fence_type[2:0] | 含义 | 引起的流水线行为 |
-|-----------------|------|-----------------|
-| `[0]` | XuanTie Cache/Sync 指令 | 通过 LSU 执行，不会刷新流水线 |
-| `[1]` | CSR 指令、mret/sret/wfi | 会在 CP0 单元执行，通常需要刷新后续流水线 |
-| `[2]` | fence.i、sfence.vma | 需要刷新 I-Cache（fence.i）或 TLB（sfence.vma），最严格的序列化 |
+| fence_type 位 | 当前译码集合 | `ct_idu_id_fence` 中可直接确认的区别 |
+|---------------|--------------|---------------------------------------|
+| `[0]` | XuanTie sync/cache 操作 | ISSUE 时只产生 inst0；POP_INST 时计入 `idu_hpcp_fence_sync_vld` |
+| `[1]` | CSR、mret/sret、wfi 等 | ISSUE 时只产生 inst0；非 WFI 时 `idu_rtu_fence_idle` 在非 IDLE 状态也可为 1 |
+| `[2]` | fence.i、sfence.vma、hfence | ISSUE 时同时产生 inst0/inst1/inst2；POP_INST 时计入 fence/sync 事件 |
 
-**为什么 CSR 指令需要 fence 处理**：CSR 读写可能改变处理器状态（如浮点模式、向量配置、中断使能等），影响后续指令的译码和执行语义。将 CSR 指令标记为 fence[1] 类型，使得流水线控制器能够在其通过后刷新相关状态，保证后续指令看到正确的 CSR 值。
+三位是分类位，不是“序列化强度从低到高”的数值编码。`ct_idu_id_fence` 对这些
+类别都先等待它所观察的后端空条件，再在 ISSUE 状态下发相应微操作，并在
+WAIT_CMPLT 再次等待本地 `fence_pipeline_empty`。具体是 I-cache 失效、TLB
+失效、CSR 写入、返回还是低功耗等待，由生成的 opcode 和下游 LSU/CP0/MMU/RTU
+处理；不能只由 `fence_type` 位断言“必然刷新整条流水线”或“绝不刷新”。
+
+从体系结构上，把 CSR/return/WFI 送入 fence FSM 可以防止其状态变化与周围指令
+无约束交叠。例如部分 CSR 会影响后续译码、异常、特权或执行环境。但并非每条 CSR
+都修改同一类状态，精确副作用应按 opcode 和 CP0 实现判断。RTL 在这里能证明的
+是该类指令经过统一的 ID fence 状态机，而不是译码器自身执行了刷新。
 
 ---
 
@@ -1018,15 +1071,20 @@ x_inst_type[9] = SPECIAL→ 特殊指令队列
 
 | 信号 | 重命名阶段操作 |
 |------|---------------|
-| `src0_vld = 1` | 在整数 RAT 中查找 src0_reg 对应的物理寄存器（prs1）|
-| `src1_vld = 1` | 在整数 RAT 中查找 src1_reg 对应的物理寄存器（prs2）|
-| `dst_vld = 1, !dst_x0` | 从空闲物理寄存器堆中分配一个新 preg，更新整数 RAT |
-| `dstf_vld = 1` | 从浮点空闲堆中分配 preg，更新浮点 RAT |
-| `dstv_vld = 1` | 从向量空闲堆中分配 preg，更新向量 RAT |
-| `dste_vld = 1` | 分配 fcsr.fflags 的"目的"物理寄存器（用于写 fflags）|
-| `dst_x0 = 1` | 不分配物理寄存器，直接将目的映射到"零寄存器"物理入口 |
+| `src0_vld = 1` | `src0_reg` 的 RAT 读出结果是本指令的真实源依赖；无效时下游 ready/wb 被置为无依赖状态 |
+| `src1_vld = 1` | `src1_reg` 的 RAT 读出结果是本指令的真实源依赖；无效时下游 ready/wb 被置为无依赖状态 |
+| `dst_vld = 1, !dst_x0` | 指令存在有效整数目的；RTU 分配端提供新 preg，整数 RAT 在有效写条件下更新 |
+| `dstf_vld = 1` | 指令存在有效标量浮点目的；对应分配与 FRT 更新协议生效 |
+| `dstv_vld = 1` | 接口语义上存在有效向量目的；当前开源 VRT 的实际实现边界还需结合 `10_ir_vrt.md` 阅读 |
+| `dste_vld = 1` | 指令会产生浮点异常标志目的版本，参与异常标志重命名协议 |
+| `dst_x0 = 1` | 目的在体系结构上是 x0；当前 IR 数据通路把目的 preg 数据屏蔽为 0，不能把它描述成一次普通 RAT 重命名 |
 
-这一机制是 Tomasulo 算法的现代超标量实现核心：**只有 `*_vld` 为 1 的操作数才进入 RAT 查找流程**，不相关的寄存器文件（例如整数指令不查浮点 RAT）完全不涉及，节约能量并减少关键路径。
+需要区分**组合读出**和**语义有效**。例如 `ct_idu_ir_rt` 的源端先按
+`dp_rt_instN_srcM_reg` 经过 `case` MUX 读出表项；当 `srcM_vld=0` 时，再把送往
+下游的 ready/wb 置成“无需等待”。所以不能说无效源“完全不进入 RAT 查找电路”。
+有效位的 RTL 可证明作用，是限定该读出是否构成本指令的真实依赖，并参与目的
+更新、分配和后续控制。它是否因综合优化或时钟门控降低了多少动态功耗，必须以
+门级网表和功耗分析为准，不能仅由功能 RTL 断言。
 
 ### 13.4 译码信号与 illegal 的优先级
 
@@ -1059,7 +1117,7 @@ x_inst_type[9] = SPECIAL→ 特殊指令队列
 | `x_dste_vld` | 需要写 fcsr.fflags（浮点/向量异常标志）|
 | `x_fmla` | 三源浮点乘加，占用 srcf0/srcf1/srcf2 三个浮点读端口 |
 | `x_vmla` | 向量乘加，dst 既是目的也是源（读-改-写语义）|
-| `x_mov / x_fmov` | 零延迟传播，重命名阶段直接复制 RAT 表项 |
+| `x_mov / x_fmov` | 同包 move 依赖穿透候选；RAT 目的仍写入新分配物理号，详见 9.1 节 |
 | `x_split` | 需要长拆分（如 AMO），由 id_split_long 处理 |
 | `x_split_short` | 需要短拆分（如 JAL 写 ra），由 id_split_short 处理 |
 | `x_fence` | 需要 fence/序列化处理，由 id_fence 处理 |

@@ -2,7 +2,7 @@
 
 本文用于给 OpenC910 / 玄铁 C910 的 benchmark 结果找参照系。重点不是做绝对排名，而是把公开可查的微结构参数、benchmark 指标、来源强度和可比性风险放到同一套表里。
 
-更新时间：2026-06-30。
+更新时间：2026-07-28。
 
 ## 0. 读表口径
 
@@ -10,7 +10,10 @@
 - **Benchmark 不天然可比**：Dhrystone、CoreMark、SPEC 的分数强依赖编译器、flags、库、内存系统、频率、电源策略、benchmark 版本和是否遵守发布规则。
 - **Dhrystone 规范重点**：Dhrystone 2.1 的可发布结果应说明优化选项；默认口径是不使用 `register`，并避免过程合并 / 内联把 `Proc_*`、`Func_*` 直接消掉。
 - **SPEC 口径**：SPEC CPU2006 / CPU2017 必须区分 speed / rate、base / peak、单核 / 多核、编译器版本和系统配置。本文不把某个服务器 SKU 的 SPEC rate 当成“微结构单核分数”。
-- **本仓库实测**：本文中的 OpenC910 Dhrystone 标准配置来自 `smart_run` RTL 仿真，不是 FPGA / ASIC 上板结果。
+- **CPU2026 新边界**：SPECspeed 2026 仍是每个 benchmark 运行一份，但 26 个 speed
+  benchmark 中有 22 个允许使用并行机制。它不再天然等于 CPU2017 时代常见的
+  “单副本、单线程”口径，必须同时报告线程数和 OpenMP/并行配置。
+- **本仓库实测**：本文中的 OpenC910 Dhrystone clean baseline 来自 `smart_run` RTL 仿真，不是 FPGA / ASIC 上板结果；它允许普通过程优化，不能替代 no-inline 发布口径。
 
 来源强度：
 
@@ -42,7 +45,7 @@
 | CVA6 / Ariane | RV64GC | 开源 Linux 应用核 | 6-stage，in-order | single-issue，scoreboard | 无 ROB | 常见 16KB I$ + 32KB D$ 量级，L2 由 SoC 决定 | 动态预测，BTB/BHT/RAS 依版本 | FPU 可配 | A/B: OpenHW + Ariane paper | 比 Rocket 更偏应用核，但仍无法隐藏长延迟 |
 | Berkeley BOOM | RV64GC | 可配置 OoO 研究核 | OoO superscalar | 2-4 wide 典型配置 | ROB/issue queue 可配，约 64-160+ 常见 | Chipyard cache 子系统 | BTB/BHT/RAS/TAGE 依版本 | F/D 可配，vector 依集成 | A/B: BOOM docs/papers | 不是固定 SKU，必须报告 BOOM config |
 | SonicBOOM | RV64GC | BOOM 后续高性能版本 | OoO superscalar | 3-wide 量级 | 160+ 量级，依配置 | Chipyard cache 子系统 | 更强前端 / 预测 | F/D 可配 | B: 论文/项目报告 | 公开论文常用 SPEC CPU2006 做 IPC/性能评估 |
-| OpenC910 / 玄铁 C910 | RV64GC + XTheadC / XIE / XMAE | 开源高性能应用处理器核 | 9-12 stage，OoO superscalar | 3 发射 / 8 执行；本仓库文档拆为 3 decode / 4 dispatch / 8 ports | ROB 64；integer PRF 96；FP/vector PRF 64 | 64KB I$ + 64KB D$，2-way，64B line；L2 1MB | L0-BTB 16，BTB 1024x4，Bi-Mode BHT 64Kb，RAS 18，Loop Buffer | 128-bit 玄铁早期向量扩展，非 RVV 1.0 | A: 本仓库文档 + C910 手册 | 本仓库重点对象；ROB 比 A72/A76/Skylake 等小 |
+| OpenC910 / 玄铁 C910 | RV64GC + XTheadC / XIE / XMAE | 开源高性能应用处理器核 | 官方产品口径 12 stage，OoO superscalar | 3 decode / 最多 4 µop dispatch / 8 execution pipes | 64 个物理 ROB 项，每项最多折叠 3 条；integer PRF 96；scalar FP PRF 64 | 64KB I$ + 64KB D$，2-way，64B line；L2 1MB | L0-BTB 16；当前生成 RTL 的主 BTB 为 512 行×4 固定位置槽；Bi-Mode BHT 64Kbit+2Kbit；RAS 12 项投机栈+6 项恢复副本 | 产品论文为 Vector 0.7.1；当前开放 RTL `misa.V=0`，向量重命名/PST 为 dummy 边界 | A: 本仓库 RTL/文档 + C910 手册 | 物理 ROB 项数不能直接与其他核“可容纳指令数”横比；主 BTB 物理组织也应与产品资料口径分开 |
 | XiangShan Nanhu | RV64GC + RVV 方向 | 高性能开源 OoO 核 | OoO superscalar | 4-wide 量级 | 公开资料常见 192-entry ROB 量级 | 64KB 级 L1，完整 cache 子系统 | TAGE/ITTAGE/RAS 等现代预测器 | RVV 方向 | B: 项目/论文/Hot Chips | 面向 SPEC 的开源高性能路线，版本要绑定 commit |
 | XiangShan Kunminghu | RV64GC + RVV 方向 | 下一代高性能开源 OoO 核 | 更宽 OoO superscalar | 6-wide 量级公开目标 | 更大窗口，版本变化快 | 更强 memory hierarchy | 更强 TAGE-like predictor | RVV 方向 | B: 项目报告 | 演进快，应引用具体阶段文档 |
 
@@ -71,12 +74,9 @@
 
 | 处理器 | Dhrystone DMIPS/MHz | CoreMark/MHz | 来源强度 | 条件 / 备注 |
 |---|---:|---:|---|---|
-| OpenC910 / 当前仓库标准配置 | **4.204** | — | A: measured here | RTL 仿真，Dhrystone 2.1，1000 runs，`-O3`，禁用内联/过程合并，不使用 `register`；适合作为本文主引用口径 |
-| OpenC910 / 当前仓库 C910-tuned 配置 | 4.353 | — | A: measured here, non-standard | RTL 仿真，1000 runs，使用 CoreMark-like C910 调优 flags，允许普通过程内联；只能作为优化实验口径 |
-| OpenC910 / 当前仓库 O3 性能配置 | 5.188 | — | A: measured here, non-standard | RTL 仿真，1000 runs，纯 `-O3`，允许普通过程内联；当前最高本地结果，但不符合 Dhrystone 2.1 no procedure merging 默认发布口径 |
-| OpenC910 / 当前仓库 CoreMark C910-tuned 配置 | — | **6.590** | A: measured here | RTL 仿真，CoreMark 1.0，10 iterations，C910 调优 flags，验证通过；结果目录 `smart_run/results/coremark_c910_tuned_10/` |
-| OpenC910 / 当前仓库激进优化旧结果 | 4.900 | — | A: measured here, non-standard | 100 runs 旧结果，允许 Dhrystone 子程序内联/合并；迭代次数较少，不建议作为正式口径 |
-| 玄铁 C910 / 集成手册公开口径 | 6.0 | 7.0 | A: 本地官方手册 | `doc/玄铁C910集成手册_20240627.pdf` 写明，属于厂商公开优化口径 |
+| OpenC910 / 当前 clean baseline | **5.188** | **6.677975** | A: measured here | RTL 仿真；Dhrystone 2.1 为 1000 runs 的 O3 性能口径，CoreMark 1.0 为 30 iterations 且校验通过。结果见 `smart_run/results/baseline_full_8c63d9db639d_clean/`；Dhrystone 允许过程优化，不能冒充 no-inline 标准发布口径 |
+| OpenC910 / 历史标准 Dhrystone 记录 | 4.204 | — | 历史本地记录 | 曾按 1000 runs、禁用内联/过程合并口径得到；原结果目录已清理，当前不应作为唯一可复查主引用 |
+| 玄铁 C910 / 集成手册公开口径 | 6.0 | 7.0 | A: 本地官方手册 | [玄铁 C910 集成手册](./玄铁C910集成手册_20240627.pdf)写明，属于厂商公开优化口径 |
 | lowRISC Ibex | — | 约 2.4-3.1 | A: Ibex docs | 取决于 small / maxperf 配置、乘除法、branch target ALU、编译器 |
 | VexRiscv | 约 1.4-1.8 | 约 2-3 | C: 项目/FPGA报告 | 插件化软核，数据只适合看量级 |
 | Rocket | — | 约 2-3 | B/C: 学术/项目报告 | SoC/cache/DRAM 配置影响很大，无单一官方口径 |
@@ -93,7 +93,7 @@
 
 | 处理器 / 平台 | SPECint2006/GHz 或等价摘录 | SPEC CPU2017 摘录 | 来源强度 | 条件 / 备注 |
 |---|---:|---:|---|---|
-| OpenC910 / 当前仓库 | — | — | — | RTL 仿真跑完整 SPEC 成本很高；当前已正式跑出 Dhrystone 和 CoreMark 小规模迭代结果 |
+| OpenC910 / 当前仓库 | — | 无可发布 SPEC 分数 | A: local artifacts | 已构建并运行 benchmark-specific 的 SPEC2017 representative/composite RTL kernels，并保存 43 个 benchmark 映射结果；它们用于微结构归因，不是真实 checkpoint/restore 的完整 SPEC 区间，也不能按 SPEC speed/rate 分数发布 |
 | BOOM / SonicBOOM | 约 4-6+ 到更高，依配置 | — | B: academic reported | 不同 BOOM 配置差异极大，应引用具体 BOOM config 和论文版本 |
 | XiangShan Nanhu | 约 10 SPECint2006/GHz 量级 | — | B: project / paper | 项目常用 SPECint2006/GHz 跟踪迭代，需绑定 commit / tapeout |
 | XiangShan Kunminghu | 高于 Nanhu，阶段值变化快 | — | B: project roadmap / Hot Chips | 最好引用官方阶段报告，不要写成固定最终值 |
@@ -111,15 +111,15 @@
 | 指标 | C910 | Cortex-A72 | Cortex-A76 / N1 | SiFive P550 | 解读 |
 |---|---|---|---|---|---|
 | ISA | RV64GC + XTheadC | Armv8-A | Armv8.2-A | RV64GBC / RV64GC 系列 | ISA 影响编译器、代码密度和 benchmark 可比性 |
-| 流水线 | 9-12 stage | 约 15-stage 量级 | 更深/更高频移动 OoO | 13-stage | A72/P550 与 C910 属同级 OoO 应用核 |
+| 流水线 | 官方产品口径 12 stage | 约 15-stage 量级 | 更深/更高频移动 OoO | 13-stage | A72/P550 与 C910 属同级 OoO 应用核 |
 | 前端 | 128-bit fetch，3 decode | 3-wide decode | 4-wide decode 量级 | triple-issue 公开描述 | C910 前端宽度接近 A72，但低于 A76 量级 |
 | Dispatch / Issue | 4 dispatch，8 execution ports | 5 µop dispatch，8-wide issue | 8-wide issue 量级 | triple-issue OoO | 只看端口数不够，还要看 issue queue 和窗口 |
-| ROB / 窗口 | ROB 64 | 公开资料常见 128 量级 | 128 量级 | 未完整公开 | C910 最大短板之一是窗口相对小 |
+| ROB / 窗口 | 64 个物理项，理想最多折叠约 192 条指令 | 公开资料常见 128 量级 | 128 量级 | 未完整公开 | 各核“entry、µop、instruction”口径不同，必须统一单位后再比较 |
 | L1 I/D | 64KB / 64KB | 48KB / 32KB | 64KB / 64KB 常见 | 依 core complex | C910 L1 容量不小，但替换、预取、miss handling 同样关键 |
 | 分支预测 | L0-BTB + BTB + Bi-Mode BHT + RAS + Loop Buffer | Arm 官方称新高效预测器 | 更强前端预测 | 动态预测，未完整公开 | Dhrystone/CoreMark 对前端预测敏感 |
-| 公开 Dhrystone | 手册 6.0；本仓库标准 4.204；本仓库 O3 优化 5.188 | 约 4.7-5.8 | 较少用 Dhrystone | 较少用 Dhrystone | C910 标准实测低于厂商优化口径；允许过程内联后已接近 A72 常见公开区间 |
+| 公开 Dhrystone | 手册 6.0；本仓库当前 O3 性能口径 5.188；历史 no-inline 记录 4.204 | 约 4.7-5.8 | 较少用 Dhrystone | 较少用 Dhrystone | 4.204 的原归档已清理，不能称为当前可复查标准结果；5.188 允许过程优化，接近 A72 常见公开区间但规则不同 |
 | 公开 CoreMark | 手册 7.0 | 约 6-7+ | 平台差异大 | 约 8.6-8.7 | CoreMark 比 Dhrystone 更适合宣传，但仍小工作集 |
-| SPEC | 当前未跑 | 约 6-8/GHz 量级 | 更高 | 约 8.6/GHz | 若要论文级对比，SPEC kernel 或完整 SPEC 才更有意义 |
+| SPEC | 已跑 representative RTL kernels，尚无合规完整 SPEC 分数 | 约 6-8/GHz 量级 | 更高 | 约 8.6/GHz | kernel 适合机制研究；论文级产品性能对比仍需真实区间或完整 SPEC 规则 |
 
 ## 5. 按处理器类型解读
 
@@ -143,10 +143,10 @@
 
 | 指标 | 为什么重要 | 对 C910 的含义 |
 |---|---|---|
-| ROB / load queue / store queue | 决定能隐藏多少 miss / 长延迟 | C910 ROB 64，比 A72/A76/Skylake 这类商业 OoO 核小 |
+| ROB / load queue / store queue | 决定能隐藏多少 miss / 长延迟 | C910 是 64 个可折叠物理 ROB 项，比较时要同时报告折叠后指令容量、LQ16、SQ12 和可用 preg |
 | 分支预测器 | 决定前端有效供给 | C910 有 L0-BTB + BTB + Bi-Mode BHT + RAS + Loop Buffer，结构完整 |
 | 取指/译码宽度 | 决定前端峰值吞吐 | C910 128-bit fetch、3 decode，接近 A72 的 3-wide decode |
-| dispatch / issue / retire | 决定后端吞吐上限 | C910 4 dispatch、8 exec ports、3 retire entry/cycle |
+| dispatch / issue / retire | 决定后端吞吐上限 | C910 最多 4 个内部派遣槽、8 条执行管线、3 个 ROB 项退休槽；折叠后 `instret` 单拍增量可大于 3，持续吞吐仍受三路译码等前级限制 |
 | cache hierarchy | Dhrystone/CoreMark 受影响较小，SPEC/应用受影响很大 | C910 L1 I/D 都是 64KB，容量不小，但 miss handling 和 prefetch 同样重要 |
 
 ### 5.4 商业高性能 Arm / x86 核
@@ -166,42 +166,46 @@
 
 ## 6. C910 当前 benchmark 位置
 
-当前本仓库已经正式跑出的可引用结果：
+当前本仓库仍保留完整归档、可以直接复查的结果为：
 
 | Benchmark | 配置 | 结果 | 归档 |
 |---|---|---:|---|
-| Dhrystone 2.1 | 1000 runs，`-O3`，禁用 Dhrystone 子程序内联/过程合并，不使用 `register` | **4.204 DMIPS/MHz** | `smart_run/results/dhrystone_std_1000/` |
-| CoreMark 1.0 | 10 iterations，C910 调优 flags，`DUMP=off` RTL 仿真，验证通过 | **6.590 CoreMark/MHz** | `smart_run/results/coremark_c910_tuned_10/` |
+| Dhrystone 2.1 | 1000 runs，O3 性能配置，允许过程优化，`TEST PASS` | **5.188 DMIPS/MHz** | `smart_run/results/baseline_full_8c63d9db639d_clean/` |
+| CoreMark 1.0 | 30 iterations，RTL 仿真，`Correct operation validated` | **6.677975 CoreMark/MHz** | `smart_run/results/baseline_full_8c63d9db639d_clean/` |
 
 ### 6.1 Dhrystone 本仓库实测记录
 
-| 结果目录 | 编译 / 运行口径 | runs | cycles/run | Dhrystones/MHz | DMIPS/MHz | 总 cycles | retired inst | IPC | 是否适合作标准口径 |
+| 结果或记录 | 编译 / 运行口径 | runs | cycles/run | Dhrystones/MHz | DMIPS/MHz | 总 cycles | retired inst | IPC | 证据状态 |
 |---|---|---:|---:|---:|---:|---:|---:|---:|---|
-| `smart_run/results/dhrystone_std_1000/` | `-O3`，禁用普通 Dhrystone 子程序内联/过程合并，不使用 `register` | 1000 | 135.4 | 7385.6 | **4.204** | 150107 | 293442 | 1.955 | 是，本文主引用口径 |
-| `smart_run/results/dhrystone_c910_tuned_1000/` | CoreMark-like C910 调优 flags，允许普通函数内联 | 1000 | 130.7 | 7648.9 | 4.353 | 146757 | 212600 | 1.449 | 否，优化实验 |
-| `smart_run/results/dhrystone_perf_o3_1000/` | 纯 `-O3`，允许普通函数内联 | 1000 | 109.7 | 9114.5 | 5.188 | 123758 | 213168 | 1.722 | 否，性能调优口径 |
+| `baseline_full_8c63d9db639d_clean` | O3 性能配置，允许普通函数过程优化 | 1000 | 109.7 | 9114.5 | **5.188** | 123758 | 213168 | 1.722 | 当前归档完整，`TEST PASS`；不是 no-inline 标准发布口径 |
+| 历史标准记录 | 禁用 Dhrystone 子程序内联/过程合并，不使用 `register` | 1000 | 135.4 | 7385.6 | 4.204 | 150107 | 293442 | 1.955 | 原结果目录已清理，仅保留历史对照值，需复跑后才能重新作为主引用 |
+| 历史 C910-tuned 记录 | CoreMark-like 调优 flags，允许普通函数内联 | 1000 | 130.7 | 7648.9 | 4.353 | 146757 | 212600 | 1.449 | 原结果目录已清理，属于优化实验 |
 
-这三组结果都通过了 Dhrystone 程序内置状态校验并输出 `TEST PASS`。区别主要不在 RTL 是否正确，而在 Dhrystone 2.1 发布规则：ground rules 要求 separate compilation，并明确不使用 procedure merging；因此 `dhrystone_std_1000` 更适合写入正式报告，`dhrystone_perf_o3_1000` 更适合作为“允许编译器内联后的本地性能上限”。
-
-从性能差距看，标准配置到纯 `-O3` 配置从 `4.204` 提升到 `5.188 DMIPS/MHz`，提升约 `23.4%`。这主要来自编译器把短小 `Proc_*` / `Func_*` 调用折叠后减少动态控制流和调用开销，而不是单纯来自分支预测预热。1000 runs 已经基本摊薄冷启动，预热影响应小于编译规则差异。
+Dhrystone 2.1 的正式比较必须披露 separate compilation、procedure merging/inline、
+`register` 关键字、编译器和 flags。当前 clean baseline 的 5.188 可以稳定表示本仓库
+O3 性能配置，不能替代已清理的 no-inline 标准口径。历史 4.204 到 5.188 的差值说明
+过程优化会显著改变小函数调用和动态控制流，但因为两套二进制并非只改变一个变量，也不能
+把 23.4% 全部归因于某一种编译器变换或分支预测预热。
 
 ### 6.2 CoreMark 本仓库实测记录
 
 | 结果目录 | 编译 / 运行口径 | iterations | cycles/iter | CoreMark/MHz | 总 cycles | retired inst | IPC | 备注 |
 |---|---|---:|---:|---:|---:|---:|---:|---|
-| `smart_run/results/coremark_c910_tuned_10/` | `-O3 -mtune=c910`，C910 调优 flags，`DUMP=off` VCS RTL 仿真 | 10 | 151755 | **6.590** | 1554229 | 2341965 | 1.507 | `Correct operation validated` |
-| `smart_run/perf/run.vcs.log` | 历史性能日志，硬编码 2 iterations | 2 | 162188 | 6.166 | 360545 | 486620 | 1.350 | 旧日志，不作为正式主引用 |
-| `smart_run/results/baseline/coremark.build.log` | 历史 baseline 日志，硬编码 2 iterations | 2 | 226794 | 4.409 | 489757 | 622801 | 1.272 | 旧 baseline，不作为正式主引用 |
+| `baseline_full_8c63d9db639d_clean` | clean commit 基线，VCS RTL 仿真 | 30 | 149746 | **6.677975** | 4529201 | 6980729 | 1.541 | `Correct operation validated` |
+| 历史 10 次记录 | C910 调优配置 | 10 | 151755 | 6.590 | 1554229 | 2341965 | 1.507 | 原独立目录已清理，仅作趋势对照 |
+| 历史 2 次性能记录 | 主程序曾硬编码 2 iterations | 2 | 162188 | 6.166 | 360545 | 486620 | 1.350 | 迭代过少，不作为主引用 |
 
-本次复跑前发现 `CoreMark` 主程序把 `results[0].iterations` 硬编码为 `2`，导致 Makefile 中的 `-DITERATIONS=...` 不生效。当前已经改为从 `get_seed(4)` 读取迭代次数，并在 Makefile 中通过 `COREMARK_ITERATIONS ?= 10` 控制。10 次迭代结果达到官方 `7.0 CoreMark/MHz` 的约 `94.1%`，官方仍高约 `6.2%`。
+CoreMark 主程序现从 `get_seed(4)` 取得迭代次数，30 次结果已经摊薄固定启动开销，并达到
+手册 7.0 CoreMark/MHz 的约 95.4%，仍低约 4.6%。这个差距只能在确认官方编译器、
+flags、内存映射和计时边界后继续归因，不能单独解释为 RTL 分支预测或某个执行单元性能。
 
 与同类公开指标的大致位置：
 
 | 对比对象 | 大致范围 | C910 当前结果怎么理解 |
 |---|---:|---|
-| Cortex-A53 / U74 这类 in-order 应用核 | 约 2-3 DMIPS/MHz | C910 标准实测明显高一档，符合 OoO 应用核定位 |
-| Cortex-A72 这类同级 OoO Arm 核 | 约 4.7-5.8 DMIPS/MHz | C910 标准 Dhrystone 低于部分 A72 公开平台；允许 `-O3` 内联后达到 5.188，进入 A72 常见公开区间 |
-| C910 厂商公开优化口径 | 6.0 DMIPS/MHz / 7.0 CoreMark/MHz | 手册口径通常使用更适合宣传的编译器/flags，不能直接等同于本仓库 no-inline 标准 Dhrystone；本仓库纯 `-O3` Dhrystone 仍低于官方 6.0，CoreMark 10-iteration 结果已接近官方 7.0 |
+| Cortex-A53 / U74 这类 in-order 应用核 | 约 2-3 DMIPS/MHz | 当前 5.188 O3 性能口径高一档，但仍需统一编译规则后比较 |
+| Cortex-A72 这类同级 OoO Arm 核 | 约 4.7-5.8 DMIPS/MHz | 当前 5.188 落入常见公开区间；这不是相同编译器和平台下的严格对照 |
+| C910 厂商公开优化口径 | 6.0 DMIPS/MHz / 7.0 CoreMark/MHz | 当前 Dhrystone O3 仍低于 6.0；30 次 CoreMark 为 6.677975，已接近但未达到 7.0 |
 | x86 Skylake / Zen | 不常用 Dhrystone/MHz 作正式指标 | 不建议用 Dhrystone 对比，应看 SPEC/真实应用 |
 
 ## 7. 后续建议：应该补哪些 benchmark
@@ -222,9 +226,9 @@
 
 | 日期 | 事件 | 关键信息 | 对 C910 benchmark 对比的影响 | 来源强度 |
 |---|---|---|---|---|
-| 2026-05-05 | SPEC CPU 2026 发布 | SPEC CPU 2026 包含 52 个 benchmark，分为 SPECspeed / SPECrate 的 Integer / Floating Point 四套；SPEC 强调它更新了 CPU、内存和编译器技术覆盖，并引入更多现代软件工作负载 | 未来论文/商业宣传会逐步从 CPU2017 转向 CPU2026；C910 若规划 SPEC，不应只考虑 CPU2006/2017 | A: SPEC 官方 |
+| 2026-05-05 | SPEC CPU 2026 发布 | 52 个 benchmark 分成四套：SPECspeed Integer/FP 各 13 个，SPECrate Integer 14 个、FP 12 个。speed 每个 benchmark 仍只跑一份，但其中 22/26 可使用并行机制 | CPU2026 speed 不能默认解释成单线程；C910 若只研究单核微结构，应固定一核/线程并披露这不是默认利用整机资源的可发布最优配置 | A: SPEC 官方 |
 | 2026-06-10 | AWS Graviton5 / EC2 M9g、M9gd GA | AWS 官方称 Graviton5 M9g 相比 Graviton4 M8g 有最高 25% compute uplift，web / ML inference 最高 35%，database 最高 30%；Amazon News 写明 Graviton5 有 192 cores 和 33% lower inter-core latency | Arm Neoverse 服务器生态继续强化，商业对比会越来越关注 cloud instance 性价比、内存/IO 带宽和 rate 类 benchmark，而不只是单核 IPC | A: AWS 官方 |
-| 2024-08-14 | SiFive P870-D 发布 | P870-D 面向 data center / AI infrastructure，支持 CHI，可扩展到 256 cores，支持 RVA23、Sv57、AIA、IOMMU 等，SiFive 称 final production release by end of 2024 | 高性能 RISC-V IP 已经从 embedded/edge 扩展到 datacenter 叙事；C910 作为早期开源 OoO 核，比较对象应区分“同代应用核”和“新一代数据中心核” | A: SiFive 官方 |
+| 2024-08-14 | SiFive P870-D 发布 | P870-D 面向 data center / AI infrastructure，采用 AMBA CHI，可扩展到 256 cores，并面向 CHI/C2C 与 CXL 系统集成 | 高性能 RISC-V IP 已经从 embedded/edge 扩展到 datacenter 叙事；C910 作为早期开源 OoO 核，比较对象应区分“同代应用核”和“新一代数据中心核” | A: SiFive 官方 |
 | 2024-2026 | SiFive P800/P870/P570/P550 Gen 3 产品线更新 | SiFive P800 页面称 P870/P870-A 是其最高性能 RISC-V core；P500 页面描述 P550 Gen 3 / P570 Gen 3，P550 Gen 1 已不再作为新授权主推 | 文档中 P550/P670/P870 的 CoreMark/SPEC 不能混为一个固定代际，必须写明 Gen / product brief / 日期 | A: SiFive 官方 |
 | 2024-2026 | Arm Neoverse CSS V3/N3 与 V3/N3 IP | Arm newsroom 称 CSS V3 相比 CSS N2 有 50% performance-per-socket uplift，CSS N3 相比 CSS N2 有 20% performance-per-watt uplift；Arm 产品页写 Neoverse V3 支持最高 3MB private L2，N3 有 2MB L2 option | A72/A76 已不是最新 Arm 服务器对标物；若对比“当前商业高性能”，应加入 Neoverse V2/V3/N3 或云实例 | A: Arm 官方 |
 | 2024-10-21 | RISC-V RVA23 Profile ratified | RISC-V International 称 RVA23 面向能运行 rich OS stacks 的 64-bit application processors，目标是减少软件生态碎片化 | 后续商用 RISC-V 应用核会更强调 RVA23 compatibility；C910 的 XThead 私有扩展与 RVA profile 的关系需要单独说明 | A: RISC-V International |
@@ -238,7 +242,7 @@
 
 | 趋势 | 说明 | 对本文后续维护的影响 |
 |---|---|---|
-| SPEC CPU 2026 成为新主线 | CPU2006 已很旧，CPU2017 仍常用，但 2026 会逐步进入服务器和论文评测 | 后续 benchmark 计划应新增 CPU2026 适配/抽核研究 |
+| SPEC CPU 2026 进入官方结果过渡期 | SPEC 说明：发布三个月后，提交 CPU2017 结果须同时提交 CPU2026；六个月后停止接收新的 CPU2017 官方结果。CPU2017 历史结果仍有参照价值，但新提交主线正在切换 | 后续 benchmark 计划应新增 CPU2026 适配/抽核研究，并把 speed 的线程并行口径单列 |
 | RISC-V 高性能 IP 从 edge 进入 datacenter | SiFive P870-D、Ventana、Andes Cuzco、XiangShan KMH 都在强化 data center / AI / chiplet 叙事 | C910 对标时要分清“同代应用核”和“新一代高性能 IP” |
 | 云厂商自研 Arm CPU 继续推进 | Graviton5 说明 cloud CPU 的核心数、cache、内存和 IO 扩展比单核 IPC 更受重视 | C910 若做系统级对比，不能只看 Dhrystone/CoreMark |
 | Profile / platform 标准越来越重要 | RVA23、AIA、Sv57、IOMMU、CHI/CXL 等频繁出现在新 IP 发布中 | 对 OpenC910 需要单列 ISA/profile/platform 兼容性差距 |
@@ -248,21 +252,18 @@
 
 ### 9.1 本仓库 / 本地结果
 
-- `doc/C910_体系结构总览.md`
-- `doc/idu/00_idu_overview.md`
-- `doc/iu/00_iu_overview.md`
-- `doc/rtu/00_rtu_overview.md`
-- `doc/openc910_datasheet.pdf`
-- `doc/玄铁C910用户手册_20240627.pdf`
-- `doc/玄铁C910集成手册_20240627.pdf`
-- `smart_run/results/coremark_c910_tuned_10/coremark.summary.txt`
-- `smart_run/results/coremark_c910_tuned_10/coremark.run.vcs.log`
-- `smart_run/results/dhrystone_std_1000/dhrystone.summary.txt`
-- `smart_run/results/dhrystone_std_1000/dhrystone.run.vcs.log`
-- `smart_run/results/dhrystone_c910_tuned_1000/dhrystone.summary.txt`
-- `smart_run/results/dhrystone_c910_tuned_1000/dhrystone.run.vcs.log`
-- `smart_run/results/dhrystone_perf_o3_1000/dhrystone.summary.txt`
-- `smart_run/results/dhrystone_perf_o3_1000/dhrystone.run.vcs.log`
+- [C910 体系结构总览](./C910_体系结构总览.md)
+- [IDU 总览](./idu/00_idu_overview.md)
+- [IU 总览](./iu/00_iu_overview.md)
+- [RTU 总览](./rtu/00_rtu_overview.md)
+- [OpenC910 datasheet](./openc910_datasheet.pdf)
+- [玄铁 C910 用户手册](./玄铁C910用户手册_20240627.pdf)
+- [玄铁 C910 集成手册](./玄铁C910集成手册_20240627.pdf)
+- `smart_run/results/baseline_full_8c63d9db639d_clean/coremark.summary.txt`
+- `smart_run/results/baseline_full_8c63d9db639d_clean/coremark.run.vcs.log`
+- `smart_run/results/baseline_full_8c63d9db639d_clean/dhrystone.summary.txt`
+- `smart_run/results/baseline_full_8c63d9db639d_clean/dhrystone.run.vcs.log`
+- `smart_run/results/baseline_full_8c63d9db639d_clean/SPEC_RTL_PROFILE_VALIDATION.md`
 
 ### 9.2 Benchmark 标准
 
@@ -333,4 +334,9 @@
 | Intel / AMD ROB 等内部队列 | 写成优化手册 + 第三方量级 | 对应优化手册章节或高可信反向分析来源 |
 | Apple M1 微结构参数 | 明确标 third-party | 不能当官方规格；只可作为第三方性能参考 |
 
-对 C910 当前最可靠的闭环仍是：本仓库 RTL/文档结构参数 + `smart_run/results/dhrystone_std_1000/` 标准口径实测日志 + `smart_run/results/dhrystone_perf_o3_1000/` 性能调优口径实测日志 + `smart_run/results/coremark_c910_tuned_10/` CoreMark 实测日志 + `doc/玄铁C910集成手册_20240627.pdf` 公开性能口径。后续若继续追官方 `7.0 CoreMark/MHz`，应优先复跑更长 iterations 或对比官方同款 compiler / flags。
+对 C910 当前最可靠的闭环是：本仓库 RTL/模块文档的结构参数 +
+`smart_run/results/baseline_full_8c63d9db639d_clean/` 的 30 次 CoreMark、1000 次
+Dhrystone 与完整细粒度计数日志 + [玄铁 C910 集成手册](./玄铁C910集成手册_20240627.pdf)
+的公开性能口径。当前 Dhrystone baseline 是允许过程优化的性能配置，不替代 no-inline
+标准口径；若要重新建立正式标准结果，应在同一 clean commit 下固定编译器、flags、迭代、
+计时区间和验证输出后复跑。

@@ -29,14 +29,14 @@
 
 C910 是一款超标量乱序执行处理器。在乱序核中，指令在发射队列（Issue Queue）中按操作数就绪情况乱序发射，访存操作可以在 Store Buffer、Load Queue 中等待，与程序顺序不同的实际完成顺序对性能有利，但对正确性构成威胁。
 
-屏障指令（fence/fence.i/sfence.vma 等）要求：
-- **fence**：屏障之前的所有内存访问（load/store），对屏障之后的内存访问具有可见性顺序保证（基于 pred/succ 字段）。
-- **fence.i**：指令流同步，保证取指不会看到旧的指令缓存内容——在写入自修改代码后必须执行。
-- **sfence.vma**：TLB 同步，保证 satp/页表写入对后续地址转换可见。
+屏障指令（fence/fence.i/sfence.vma 等）的体系结构语义需要精确区分：
+- **FENCE**：按 `pred/succ` 集合约束本 hart 上指定类别的前序与后继内存或设备 I/O 访问的观察顺序；它不是“等待全系统所有内存访问物理完成”的同义词。
+- **FENCE.I**：使本 hart 后续的取指与此前对指令存储区的写入同步，是自修改代码常用的本地指令流同步操作；多 hart 可见性还需要相应的数据同步与跨 hart 协调。
+- **SFENCE.VMA**：按 `rs1/rs2` 指定的虚拟地址和 ASID 范围同步当前 hart 的地址翻译状态，并对相关页表更新建立规定的顺序；它不等价于笼统的“所有 TLB 和页表全局完成”。
 
 乱序核不能像顺序核那样简单地"等当前指令完成后再取下一条"，必须有专门的机制：
 1. **阻止新指令越过屏障**：在屏障到达 ID 阶段后，立刻 stall 住流水线，不让后续指令进入 IS/RF 阶段。
-2. **等待已在管线中的指令全部完成**：等 ROB 空、PST 空、除法器空、IR 队列空、IS 队列空。
+2. **等待 RTL 定义的本地排空条件成立**：等 IR/IS 流水寄存级为空、ROB/退休通路为空、PST 写回条件成立且除法器不忙。
 3. **派发屏障对应的内部微操作**：将屏障编码为内部 barrier/sync 操作送入 LSU 或 CSR 执行单元。
 4. **等待微操作执行完毕**：再次等流水线空。
 5. **恢复取指**：弹出屏障指令，流水线恢复正常。
@@ -147,11 +147,11 @@ C910 实现了玄铁自定义扩展（需 `cp0_idu_cskyee` 使能）：
 | `dp_fence_id_vsew[2:0]` | 3 | id_dp | 向量 SEW |
 | `forever_cpuclk` | 1 | 全局 | 主时钟 |
 | `iu_idu_div_busy` | 1 | IU | 整数除法单元忙碌 |
-| `iu_yy_xx_cancel` | 1 | IU | 分支预测取消（冲刷信号） |
+| `iu_yy_xx_cancel` | 1 | IU | IU 产生的取消/重定向信号；误预测是典型来源，但信号名本身不限定唯一原因 |
 | `pad_yy_icg_scan_en` | 1 | PAD | 扫描模式时钟强制打开 |
 | `rtu_idu_flush_fe` | 1 | RTU retire | 退休阶段触发前端冲刷（异常/中断） |
 | `rtu_idu_pst_empty` | 1 | RTU PST | 物理寄存器状态表（写回追踪）为空 |
-| `rtu_idu_rob_empty` | 1 | RTU ROB | 重排序缓冲区为空 |
+| `rtu_idu_rob_empty` | 1 | RTU ROB/retire | ROB 项数为零，且 LSU 已提交 store 数据全部有效 |
 
 ### 3.2 输出端口
 
@@ -166,7 +166,7 @@ C910 实现了玄铁自定义扩展（需 `cp0_idu_cskyee` 使能）：
 | `fence_dp_inst2_data[177:0]` | 178 | id_dp | inst2 微操作数据包 |
 | `fence_top_cur_state[2:0]` | 3 | idu_top | 当前 FSM 状态（供外部观测） |
 | `idu_had_pipeline_empty` | 1 | HAD | 流水线已空（调试模块感知 CPU 空闲） |
-| `idu_hpcp_fence_sync_vld` | 1 | HPCP | fence/sync 类完成脉冲（硬件性能计数） |
+| `idu_hpcp_fence_sync_vld` | 1 | HPCP | POP_INST 状态下 type[0]/type[2] 的完成阶段组合电平 |
 | `idu_rtu_fence_idle` | 1 | RTU rob_rt | fence 模块空闲（退休模块判断是否可无限制退休） |
 
 ---
@@ -233,7 +233,11 @@ gated_clk_cell  x_fence_gated_clk (
 );
 ```
 
-**为什么这么做**：`fence_clk` 是 `fence_cur_state` 状态寄存器的时钟。当没有屏障指令（状态为 IDLE 且 `fence_sm_start == 0`）时，关闭时钟门控，节约动态功耗。
+`fence_clk_en` 是状态机的本地活动请求：状态为 IDLE 且没有 `fence_sm_start` 时，
+`local_en=0`；开始事件或非 IDLE 状态使其为 1。最终门控单元还计算
+`global_en && (module_en || local_en) || external_en` 并接收扫描使能。未定义
+`C910_USE_TSMC28_ICG` 时公开 RTL 直接让 `fence_clk` 跟随主时钟，因此不能把
+`fence_clk_en=0` 等同于所有配置下物理停钟。该结构的功耗收益需实现后验证。
 
 `fence_clk_en` 的两个条件：
 - `fence_sm_start`：屏障指令刚进入 ID 阶段，FSM 即将离开 IDLE，需要在当前周期打开时钟。
@@ -252,17 +256,17 @@ assign fence_pipeline_empty   = ctrl_fence_ir_pipe_empty
                                 && rtu_idu_pst_empty;
 ```
 
-这是 fence 机制最核心的条件之一：**"后端流水线已经全部排空"**。
+这是 fence 机制最核心的条件之一：**“本模块观察的排空条件全部成立”**。该名称比“整个后端已经全部排空”更准确，因为其中两个输入只观察 IR/IS 流水寄存级，而不是逐项检查所有发射队列。
 
 | 信号 | 来源模块 | 含义 | 为什么需要它 |
 |------|----------|------|--------------|
-| `ctrl_fence_ir_pipe_empty` | ir_ctrl：`!ir_inst0_vld` | IR（寄存器读取）级没有指令 | 确保没有指令卡在 IR 级等待寄存器 |
-| `ctrl_fence_is_pipe_empty` | is_ctrl：`!is_inst0_vld` | IS（发射队列）级没有指令 | 确保发射队列中没有未发射的指令 |
-| `rtu_idu_rob_empty` | RTU ROB：`rob_empty && retire_rob_retire_empty` | 重排序缓冲区完全为空 | 所有已派发的指令都已退休 |
-| `!iu_idu_div_busy` | IU 除法单元 | 除法器不忙 | 除法器是非流水化的，ROB 退休了不代表除法完成 |
+| `ctrl_fence_ir_pipe_empty` | ir_ctrl：`!ir_inst0_vld` | IR 流水寄存级的 inst0 无效 | 观察 IR 级当前没有有效指令包；不等价于所有后端队列为空 |
+| `ctrl_fence_is_pipe_empty` | is_ctrl：`!is_inst0_vld` | IS 派遣流水寄存级的 inst0 无效 | 观察 IS 级当前没有待派遣指令包；不等价于 AIQ/BIQ/LSIQ 等发射队列全部为空 |
+| `rtu_idu_rob_empty` | RTU ROB：`rob_empty && retire_rob_retire_empty`；后者在 retire 中等于 `lsu_rtu_all_commit_data_vld` | ROB 项数为零，且已提交 store 数据就绪 | 不仅等待已派发指令退出 ROB，也等待 committed store data 满足退休侧条件 |
+| `!iu_idu_div_busy` | IU 除法单元 | 除法器不忙 | 对 ROB/PST 条件之外的长周期执行资源再做显式静止检查 |
 | `rtu_idu_pst_empty` | RTU PST：`pst_retired_reg_wb` | 物理寄存器状态表写回完毕 | 确保所有寄存器写回动作都完成，消除写回延迟的隐患 |
 
-**体系结构原理**：只有当 IR、IS、ROB、PST 全部为空且除法器不忙，才能确保屏障之前的所有指令已经完成了包括内存写入在内的全部副作用。此后向 LSU 派发 barrier 微操作，才能保证严格的 before-after 顺序关系。
+**准确边界**：该与式是 fence FSM 采用的**本地推进条件**。它能证明 RTL 所观察的 IR/IS 流水级、ROB/退休通路、PST 写回状态和除法器均达到指定状态；它本身不能证明所有外部总线事务已经取得全系统可见性，也不能替代 LSU、Cache、MMU 和一致性互联对具体 barrier 微操作的实现。体系结构顺序语义由“前置排空条件 + 后续生成并执行的 LSU/特殊微操作 + 各下游模块的完成规则”共同实现。
 
 ---
 
@@ -367,15 +371,20 @@ end
 
 触发条件：`fence_sm_start = ctrl_fence_id_inst_vld && !ctrl_fence_id_stall`
 
-即：ID 阶段 inst0 是一条有效的 fence 类指令，且当前周期没有通用 stall（下游不反压）。
+即：ID 阶段 inst0 是一条有效 fence 类指令，并且输入 `ctrl_fence_id_stall` 为 0。这里容易混淆两个方向相反、前缀次序不同的信号：
 
-进入 WAIT_ISSUE 后，`fence_ctrl_id_stall` 拉高，阻止 ID 阶段的 fence 指令向下流动，同时阻止后续指令进入 ID 阶段。这是"屏障之后的指令不得越过屏障"的保证。
+- 输入 `ctrl_fence_id_stall` 来自 `id_ctrl`，实际连接的是 IR 下游反压 `ctrl_ir_stall`；
+- 输出 `fence_ctrl_id_stall` 是本 fence FSM 返回给 `id_ctrl` 的保持请求。
+
+因此 `fence_sm_start` 表示 fence 在一个 **IR 未反压** 的 ID 周期被 FSM 接受启动，并不存在用本模块输出 stall 反过来阻止自身启动的组合环。
+
+进入 WAIT_ISSUE 后，`fence_ctrl_id_stall` 保持为高，使原始 fence 留在 ID，并阻止后续原始指令从该处越过。完整的屏障顺序还依赖后端微操作、LSU/MMU 和退休逻辑；本 stall 解决的是 ID 边界上的前后隔离。
 
 **WAIT_ISSUE：等待管线排空**
 
 停在此状态，直到 `fence_pipeline_empty` 为真。此时：
 - 屏障指令锁存在 ID 寄存器中不动（stall）
-- 屏障之前的所有指令逐渐在 IR、IS 中向前推进，进入 EXU/LSU 执行，退休，最终 ROB/PST 清空
+- 屏障之前已经进入后端的指令继续推进；FSM 等待其所观察的 IR/IS 级、ROB/退休、PST 和除法器条件全部满足
 
 等待时长视当时管线中已有多少未完成指令而定，可能 1 周期也可能数十周期。
 
@@ -385,22 +394,22 @@ end
 - `fence_ctrl_inst0_vld` 拉高：通知 id_ctrl，inst0（屏障微操作）可以 pipedown
 - 对于 type[2] 类屏障：`fence_ctrl_inst1_vld` 和 `fence_ctrl_inst2_vld` 也拉高，三条微操作同时派发
 
-**为什么需要 ISSUE 只占一个周期**？因为派发是一次性的"推入"动作，微操作进入 IR→IS→RF→EXU 之后，ISSUE 状态本身的任务就结束了，后续跟踪执行完成是 WAIT_CMPLT 的职责。
+**为什么 ISSUE 结构上只占一个状态周期**？`ISSUE` 的 next-state 无条件指向 `WAIT_CMPLT`，所以在 fence 状态时钟正常推进且没有复位/冲刷覆盖时，它只保持一个 `fence_clk` 周期。该周期通过 valid 向 ID/IR 提交候选微操作；“进入 ISSUE”是内部状态事件，不应直接等同于执行单元已经完成该操作。
 
 **WAIT_CMPLT：等待微操作完成**
 
-与 WAIT_ISSUE 使用相同的 `fence_pipeline_empty` 判断，但语义不同：此时等待的是刚刚派发出去的 barrier 微操作本身执行完成并退休。
+与 WAIT_ISSUE 使用同一个 `fence_pipeline_empty` 组合条件，但所处时间位置不同：此时新派发的 barrier/特殊微操作也已经计入后端状态，FSM 等待这些微操作使所观察条件再次回到空闲。该条件主要通过 ROB/退休、PST、IR/IS 级和 div_busy 间接观察完成，而不是接收一个来自总线的逐事务 completion。
 
-**为什么还需要二次 pipeline_empty**？barrier 微操作进入 LSU 后，需要实际发出 fence 操作到互联网络/总线。只有当 LSU 执行完毕，ROB 退休，PST 写回，才能确认屏障已经生效。
+**为什么还需要二次 `pipeline_empty`**？第一次排空隔离屏障之前的在途工作；ISSUE 又向后端注入了屏障内部微操作，所以必须等待后端再次达到同一组静止条件，才能释放 ID 中的原始 fence。至于 LSU 是否需要互联请求、Cache/TLB 操作或其他内部确认，取决于具体微操作类型，不能仅由本模块统一推断为“已发总线且全局生效”。
 
 **POP_INST：恢复流水线（单周期）**
 
 在此周期：
 - `fence_ctrl_id_stall` 变为低（因为 `fence_cur_state[2]` 为高，见第 10 节）
 - ID 阶段的 fence 指令被弹出（不再有效）
-- `idu_hpcp_fence_sync_vld` 脉冲（性能计数）
+- `idu_hpcp_fence_sync_vld` 在符合类型的 POP_INST 状态为高（性能计数观测）
 
-次个周期回到 IDLE，流水线恢复正常取指/译码。
+若没有复位或冲刷覆盖，下一次 fence 状态时钟沿把状态更新为 IDLE。上游实际何时写入新 ID 数据，还取决于 ID 时钟、IBUF valid 和其他 stall。
 
 ---
 
@@ -499,7 +508,7 @@ begin
 end
 ```
 
-**为什么需要 inst2 = sync.is**：fence.i 和 sfence.vma 都需要让指令缓存中已有的旧内容失效，`sync.is`（sync + I-cache invalidation）正是实现 I-Cache 同步的内部操作。这条微操作在 inst1 的 fence/sfence 操作完成之后执行，确保后续取指拿到最新内容。
+**inst2 = `sync.is` 的作用边界**：type[2] 展开中还生成一条内部 `sync.is` 微操作，用于触发实现所需的后续同步/取指侧动作。FENCE.I 与 SFENCE.VMA 的体系结构目标不同，不能都简化为“必须让 I-Cache 旧内容失效”；应结合 pipe4/LSU/MMU 对 inst1 和 inst2 功能码的译码分别判断。三条微操作在同一 ISSUE 状态通过不同 IR 槽下发，其先后效果由内部依赖、队列和执行语义保证，不是本 FSM 在三个不同 ISSUE 周期串行发送。
 
 ### 8.3 Type[1]：CSR/特权类
 
@@ -579,7 +588,7 @@ end
 | `IR_VL_PRED` | 177 | 向量断言 |
 | `IR_BKPTA_INST`, `IR_BKPTB_INST` | 128, 129 | 断点命中标志 |
 
-**为什么需要 VL/VSEW/VLMUL 字段**：即使是 fence 类指令，IR 数据通路是统一的 178 位格式，向量状态字段在非向量指令中虽不使用，但保留携带是为了 hazard 检测的完整性（后端 issue 队列需要一致的格式处理）。
+**VL/VSEW/VLMUL 字段为何仍出现**：fence 数据包沿用统一的 178 位 IR 格式，因此这些位置仍被赋值。RTL 能证明的是“统一格式保留并传递字段”；不能据此断言 fence 功能依赖向量 hazard 检测。当前配置还关闭了 RVV 总译码，这些字段对标量 fence 通常只是格式占位或旁带透传。
 
 ---
 
@@ -599,7 +608,12 @@ assign fence_ctrl_id_stall = ctrl_fence_id_inst_vld
 - 状态机中 `fence_cur_state[2]` 仅在 `POP_INST`（3'b100）时为 1
 - 因此：从 IDLE→WAIT_ISSUE 开始，stall 一直有效，直到 POP_INST 状态才松开
 
-这是一个"全程 stall"设计：屏障指令在 ID 级锁定，后续指令无法进入，直到屏障完全处理完毕。
+这可以称为“当前 fence 驻留期间的 ID stall”：只要
+`ctrl_fence_id_inst_vld=1` 且状态不是 `POP_INST`，本模块就向 ID 请求保持；到
+`POP_INST` 时 bit2=1，stall 组合释放，使该 fence 可以从 ID 槽弹出。这里的
+“完成”边界是 FSM 已经历 WAIT_CMPLT 并再次观察到本模块定义的
+`fence_pipeline_empty`，不是笼统的“所有外部 cache/互联事务已达到全系统可见”。
+后者还取决于所发微操作在 LSU/CP0/MMU/Cache 中的具体完成协议。
 
 ### 10.2 fence_ctrl_inst{0,1,2}_vld（微操作派发有效）
 
@@ -631,9 +645,9 @@ assign idu_rtu_fence_idle = (fence_cur_state[2:0] == IDLE)
 1. FSM 处于 IDLE（最简单情况）
 2. FSM 不在 IDLE，但当前是 CSR 类（type[1]）且**不是 wfi**
 
-**为什么 wfi 不算 idle**：wfi（Wait For Interrupt，0x10500073）是一条等待中断的指令，处理器进入低功耗等待状态。RTU 在判断是否可以无限期等待退休（`rtu_cpu_no_retire`）时，需要知道 IDU 没有在处理 wfi——否则处理器应该等待中断而不是主动退休。其他 CSR 类指令在 fence 处理期间虽然流水线 stall，但 RTU 仍可以照常退休已有指令，所以这些情况都标记为 idle。
+该输出的精确分类是：IDLE 一定为 1；非 IDLE 时，只有 type[1] 且 opcode 不是 WFI 才为 1。它向 RTU 暴露的是设计定义的“fence 不构成非空闲阻塞”分类，而不是本 FSM 状态等于 IDLE 的直接镜像。WFI 被单独排除的更深层低功耗/退休策略需要结合 RTU 和 CP0 使用端分析；仅凭这一等式不应推导“RTU 会主动退休”之类未直接编码的行为。
 
-### 10.4 idu_hpcp_fence_sync_vld（性能计数脉冲）
+### 10.4 idu_hpcp_fence_sync_vld（性能计数状态事件）
 
 ```verilog
 // 行 339-341
@@ -642,7 +656,7 @@ assign idu_hpcp_fence_sync_vld = (fence_cur_state[2:0] == POP_INST)
                                   || dp_fence_id_fence_type[2]);
 ```
 
-在 POP_INST 状态（屏障完成的最后一拍），对 type[0]（sync 类）和 type[2]（fence/fence.i/sfence.vma）产生一个单周期脉冲，送给硬件性能计数器（HPCP），用于统计屏障指令完成次数。type[1]（CSR 类）不计入，因为 CSR 操作不归为"内存同步屏障"范畴。
+该信号是一个**组合电平**：当前状态等于 `POP_INST` 且类型为 type[0] 或 type[2] 时为 1。按正常状态序列，`POP_INST` 的 next-state 无条件回到 IDLE，因此通常表现为一个 `fence_clk` 周期宽的事件；严格说脉宽服从状态寄存器实际停留时间及复位/冲刷行为。它适合作为 HPCP 的 fence/sync 完成阶段事件，但并非外部互联事务的 completion 回应。type[1] 不满足该 RTL 计数条件。
 
 ### 10.5 idu_had_pipeline_empty（调试流水线空标志）
 
@@ -658,7 +672,7 @@ assign idu_had_pipeline_empty = fence_pipeline_empty;
 assign cpu_idle = idu_had_pipeline_empty && ...;
 ```
 
-在调试暂停（halt）时，等待此信号为真后再进入调试状态，确保所有内存操作都已提交。
+在调试控制中，该信号可作为本模块定义的流水线静止条件之一。它复用了 `fence_pipeline_empty`，因此其证明范围仍是前述本地观察项；“所有内存操作均已取得系统级提交/可见性”需要额外的 LSU、Cache 和互联条件，不能由该位单独保证。
 
 ---
 
@@ -692,7 +706,16 @@ assign cpu_idle = idu_had_pipeline_empty && ...;
 ```verilog
 assign rtu_idu_rob_empty = rob_empty && retire_rob_retire_empty;
 ```
-两个条件：ROB 本身为空，且退休流水内没有正在退休的条目。
+这里不能按 `retire_rob_retire_empty` 的名字解释成“退休流水没有条目”。当前
+`ct_rtu_retire.v` 的有效赋值是：
+
+```verilog
+assign retire_rob_retire_empty = lsu_rtu_all_commit_data_vld;
+```
+
+因此两个真实条件是：`rob_entry_num==0`，以及 LSU 已提交 store 所需的数据全部
+有效。该组合让 fence 不会只因 ROB 已弹空，就忽略仍在等待数据就绪的 committed
+store。
 
 **rtu_idu_pst_empty** 来自 `ct_rtu_pst_preg.v`：
 ```verilog
@@ -709,13 +732,13 @@ PST（Physical register Status Table）跟踪每个物理寄存器是否已经�
 assign rtu_idu_flush_fe = retire_flush_fe;
 ```
 
-当退休阶段检测到异常或中断需要冲刷前端（fetch + decode 级）时，`rtu_idu_flush_fe` 拉高一个周期，fence FSM 立即复位到 IDLE。这确保了异常/中断的处理不受正在执行的 fence 序列干扰——旧的 fence 序列被丢弃，处理器进入异常处理流程。
+当 RTU 请求前端冲刷时，`rtu_idu_flush_fe` 在 fence 状态寄存器的同步更新分支中具有清状态作用：在相应 `fence_clk` 有效上升沿后，FSM 变为 IDLE。它不是组合意义上的“信号一变就立即复位”。该输入可能由异常、中断或其他退休重定向原因产生，具体来源应以 RTU 文档和波形为准。
 
 ### 11.4 IU 的 div_busy 与 cancel
 
-**iu_idu_div_busy**：整数除法是不可中断的长周期操作，在 ROB 中可能已经退休但除法器仍在运行（C910 的除法指令设计允许非阻塞分派），因此需要额外等待除法完成。
+**`iu_idu_div_busy`**：这是 IU 明确提供的长周期除法资源忙信号。fence 条件将其单独纳入，说明 ROB/PST/流水级空闲判定之外还要确认除法器静止；RTL 在此处并不能证明“除法指令已经退休但单元仍在运行”，因此不作这种生命周期推断。
 
-**iu_yy_xx_cancel**：当分支预测错误发生，IU 广播取消信号，所有正在飞行的指令被撤销，fence FSM 同样必须复位。这防止了一种危险情况：基于错误预测路径上的 fence 指令影响了真实执行路径的内存顺序。
+**`iu_yy_xx_cancel`**：IU 取消/重定向有效时，fence 状态寄存器在相应有效时钟沿回到 IDLE。误预测是典型使用场景，但本模块只消费统一 cancel，不在这里辨别原因；各流水级和队列是否、如何清除由各自的 cancel/flush 逻辑决定，不能由 fence 模块概括为“所有在途指令均被撤销”。
 
 ### 11.5 微操作到 LSU/CP0 的路径
 
@@ -731,7 +754,7 @@ id_fence ──► fence_dp_inst{0,1,2}_data
       AIQ（ALU/Integer Issue Queue）   ← SPECIAL 类微操作（CP0 接收 CSR）
 ```
 
-在 ISSUE 状态的那一拍，`fence_ctrl_inst{0,1,2}_vld` 脉冲通知 `id_ctrl`，后者允许 fence 相关的 pipedown，将 178 位 IR 数据包推入 IR 级寄存器。后续各级正常流水，最终由 LSU 执行 barrier/sync/sfence 操作，或由 CP0 执行 CSR 读写。
+在 ISSUE 状态期间，`fence_ctrl_inst{0,1,2}_vld` 作为组合 valid 通知 `id_ctrl` 哪些 178 位包可进入 IR。正常状态推进下 ISSUE 仅持续一拍，所以这些 valid 通常也呈单周期事件；它们表示 ID→IR 的有效提交资格，不表示 LSU/CP0 已执行完成。后续仍需经过 IR、IS、RF 和对应执行单元。
 
 ---
 
@@ -739,11 +762,11 @@ id_fence ──► fence_dp_inst{0,1,2}_data
 
 ### 12.1 POP_INST 状态的关键动作
 
-POP_INST 持续一个周期，在此周期内：
+正常无冲刷、状态时钟持续推进时，POP_INST 持续一个 `fence_clk` 周期。在该状态期间：
 
 1. `fence_ctrl_id_stall` 变为低（`fence_cur_state[2]=1`，stall 条件不满足）
 2. ID 阶段 fence 指令被 id_ctrl 弹出（标记为已处理）
-3. `idu_hpcp_fence_sync_vld` 脉冲（若为 type[0]/[2]）
+3. `idu_hpcp_fence_sync_vld` 组合电平为高（若为 type[0]/[2]）
 4. 下一拍 FSM 回到 IDLE
 
 ### 12.2 流水线恢复时序
@@ -756,7 +779,7 @@ inst_vld: 1     1      1      1         1      1          1     1     0（fence 
 后续inst: 停在IF/ID               不能进入ID              可以进入ID
 ```
 
-POP_INST 的下一拍（Tn+4），stall 释放，流水线上游（IFU）可以推送 fence 之后的指令进入 ID 阶段，处理器恢复正常工作。
+`fence_ctrl_id_stall` 在**进入 POP_INST 的该周期**已经因 `fence_cur_state[2]=1` 而释放；在允许 ID 数据更新的有效时钟沿，原始 fence 被消耗，随后 FSM 回到 IDLE。波形分析时应把“状态组合输出变低”和“上游数据在时钟沿真正写入 ID”分开，不笼统称为同一个“下一拍恢复”事件。
 
 ### 12.3 异常/中断打断 fence 的处理
 

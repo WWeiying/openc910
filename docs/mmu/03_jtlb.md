@@ -12,12 +12,12 @@
 2. [端口说明](#2-端口说明)
 3. [参数与关键寄存器](#3-参数与关键寄存器)
 4. [1024 = 256×4 的 SRAM 组织](#4-1024--2564-的-sram-组织)
-5. [tag 内容：ASID 16 位只存这里](#5-tag-内容asid-16-位只存这里)
+5. [tag 内容：JTLB 翻译项保存 ASID](#5-tag-内容jtlb-翻译项保存-asid)
 6. [global 位与命中逻辑](#6-global-位与命中逻辑)
 7. [4K/2M/1G 页与读 FSM](#7-4k2m1g-页与读-fsm)
-8. [FIFO 替换](#8-fifo-替换)
+8. [FIFO-like one-hot 轮转替换](#8-fifo-like-one-hot-轮转替换)
 9. [miss 触发 PTW 与回填 uTLB](#9-miss-触发-ptw-与回填-utlb)
-10. [设计取舍小结](#设计取舍小结)
+10. [本章小结](#本章小结)
 
 ---
 
@@ -29,7 +29,10 @@ JTLB（Joint TLB，联合 TLB）是 MMU 存储层次的**二级、大容量 TLB*
 
 ### 1.2 位置
 
-它的所有访问都经 arb 串行进来（指令侧、数据侧、预取、sfence、PTW 回填共享同一个 JTLB），输出回 uTLB（`jtlb_utlb_ref_*`）、回 PTW（`jtlb_ptw_req`）、回 tlboper/regs（probe/read 结果）。
+它的外部访问都经 arb 串行进入（指令侧、数据侧、预取、sfence、PTW 回填
+共享同一个 JTLB 端口）；4KB miss 后的 2MB/1GB 重查和 parity-clear 则由
+JTLB 反馈给 arb 形成内部请求。结果回 uTLB（`jtlb_utlb_ref_*`）、回 PTW
+（`jtlb_ptw_req`）或回 tlboper/regs（probe/read 结果）。
 
 ---
 
@@ -78,7 +81,7 @@ JTLB（Joint TLB，联合 TLB）是 MMU 存储层次的**二级、大容量 TLB*
 | `PPN_WIDTH` | 28 | 物理页号 |
 | `FLG_WIDTH` | 14 | 属性标志 |
 | `PGS_WIDTH` | 3 | 页大小 |
-| `ASID_WIDTH` | **16** | 地址空间标识（**只在此存**） |
+| `ASID_WIDTH` | **16** | 地址空间标识；翻译缓存项中仅 JTLB tag 保存 |
 | `PTE_LEVEL` | 3 | 页表级数 |
 | `VPN_PERLEL` | 27/3 = 9 | 每级 VPN 位数 |
 | `TAG_WIDTH` | 1+27+16+3+1 = **48** | 每路 tag 位宽（`:531`） |
@@ -101,9 +104,16 @@ PFU（预取）FSM（`:1281-1284`）：`PFU_IDLE/CHK/DENY/OK`。
 
 ### 4.1 索引与路数
 
-- **索引 8 位** → 256 组（`:588-589` `jtlb_tag_idx[7:0] = arb_jtlb_idx[7:0]`）。
+- **物理 SRAM 索引 8 位** → 256 组（`jtlb_tag_idx/jtlb_data_idx =
+  arb_jtlb_idx[7:0]`）。
 - **4 路**（way0~way3）。
 - 256 × 4 = **1024 项**。
+
+arb 会先按候选页大小生成 9-bit `arb_va_index`：4KB 取 VPN[8:0]、2MB 取
+VPN[17:9]、1GB 取 VPN[26:18]。但 JTLB SRAM 实际只使用该索引的低 8 位；
+第 9 位仍保留在完整 27-bit VPN tag 中参与比较。以 4KB 为例，set 由
+VPN[7:0]选择，VPN[8]不是丢失，而是 tag 的一部分。因而“9-bit 候选页段”
+和“8-bit 物理 set index”必须分开描述。
 
 ### 4.2 tag 阵列：256×196 SRAM
 
@@ -118,19 +128,32 @@ assign jtlb_tag_bwen[195:0] = {
     {48{jtlb_tag_wen[0]}}};  // way0
 ```
 
-注意：**fifo 指针存在 tag 阵列里**，和 tag 同读同写 —— 这是 FIFO 替换"省存储"的关键（见第 8 节）。
+注意：轮转指针存在 tag 阵列里，可与 tag 同读、在回填时同写。这节省的是
+独立状态阵列/端口和普通 hit 更新控制，不是指针 bit 数本身。
 
 ### 4.3 data 阵列：2 bank × 256×84 SRAM
 
 `ct_mmu_jtlb_data_array.v` 用**两个** `ct_spsram_256x84`（bank0 `:179`、bank1 `:158`），每 bank 84 位 = 2 路 × 42 位（28 PPN + 14 flg）。bank0 装 way0/way1，bank1 装 way2/way3。两 bank 独立的 cen0/cen1 允许按需激活以省功耗。
 
-### 4.4 顶层例化
+### 4.4 顶层例化与实际流水阶段
 
 `ct_mmu_jtlb.v` 例化 tag_array（`:609` 附近）和 data_array（`:622` 附近），读出后解包成 4 路 tag/data。
 
+一次 JTLB 查找不是组合 SRAM 查表。RTL 注释和寄存器将它分成三段：
+
+1. **RB/arb 输入段**：`arb_jtlb_req`驱动 SRAM 的 CEN、index 和 bank select；
+2. **TA（TLB Access）段**：SRAM 输出被解包，按当前页大小形成 VPN/ASID/G
+   子比较条件；`ta_vld`和请求控制在时钟沿登记；
+3. **TC（TLB Compare）段**：比较子条件、四路 data、原 VPN 和访问类型再次
+   登记，随后形成 `tc_tlb_hit/miss/hit_mult`与返回数据。
+
+若 4KB 候选 miss，TC 结果使 arb 以 2MB 候选 index 再发一轮 SRAM 访问；
+再 miss 才查 1GB。因此“JTLB 命中延迟”至少要区分首次 4KB 命中和经过一到
+两轮重查的大页命中，不能只给一个脱离接口参考点的固定周期数。
+
 ---
 
-## 5. tag 内容：ASID 16 位只存这里
+## 5. tag 内容：JTLB 翻译项保存 ASID
 
 ### 5.1 每路 48 位 tag 的结构
 
@@ -143,19 +166,24 @@ assign {ta_way3_vld, ta_way3_vpn[26:0], ta_way3_asid[15:0],
 
 即每路 tag = `{valid(1), VPN(27), ASID(16), pagesize(3), global(1)}` = 48 位。way0~way2 同构（`:701-708`）。
 
-### 5.2 为什么 ASID 只存 JTLB（核心教学点）
+### 5.2 为什么 JTLB 翻译项保存 ASID
 
-回顾存储层次：uTLB（iuTLB/duTLB）**不存 ASID**，每项隐含等于当前 satp.ASID，进程切换写 satp 时整表清空。而 **JTLB 存 16 位 ASID + global 位**，进程切换**不清空**，靠 ASID 区分新旧进程的项。
+回顾存储层次：uTLB（iuTLB/duTLB）表项不存 ASID，写 satp 时整表清空。
+JTLB tag 保存 16 位 ASID + global 位，普通 satp 写不会逐项清 JTLB，后续
+命中靠当前 ASID 或 G 位区分。这里的“只存 JTLB”仅限定**翻译缓存项**；
+satp、MEH/MCIR 等控制寄存器当然也保存或传递 ASID。
 
 这背后是清晰的成本权衡：
 
 | | uTLB（小，32/16 项） | JTLB（大，1024 项） |
 |--|--|--|
-| 存 ASID 的存储代价 | 32×16=512 bit / 16×16=256 bit | 1024×16=16384 bit（已在 SRAM，边际成本低） |
+| 存 ASID 的字段代价 | iuTLB 32×16 / duTLB 17×16 可省去 | JTLB 1024×16 已包含在 tag SRAM |
 | 切换时清空的代价 | 很小（几十项重新暖机即可） | 巨大（清 1024 项 = 抹掉好不容易暖好的大表） |
 | 决策 | **不存 ASID，切换时清空** | **存 ASID，切换时保留** |
 
-**一句话：小表清得起，省掉 ASID 硬件；大表清不起，才值得花 ASID 来保命。** ASID 机制的全部价值——避免进程切换全清 TLB——正是落在这张大表上。
+这体现了“小表写 satp 后重新暖机、大表保留不同地址空间翻译”的策略。至于
+该选择的面积和性能净收益，属于设计取舍，需要 workload 与综合数据验证，
+不是仅凭 RTL 容量就能量化的结论。
 
 ASID 比较源由 tlboper 或 regs 提供（`:718-720`）：
 
@@ -195,10 +223,13 @@ assign tc_way3_hit = kid0 && kid1 && kid2
 assign tc_hit_sum[2:0] = way3_hit + way2_hit + way1_hit + way0_hit;
 assign tc_tlb_miss     = (tc_hit_sum == 0);
 assign tc_tlb_hit      = (tc_hit_sum == 1) && !tc_par_fail;
-assign tc_tlb_hit_mult = !miss && !hit && !par_fail;   // 多路命中（错误，报 tfatal）
+assign tc_tlb_hit_mult = !miss && !hit && !par_fail;   // 同一候选有多于一路命中
 ```
 
-命中路号 `tc_hit_idx[1:0]`（`:926-929`）。注：parity 当前置 0（`:786 tc_par_fail=1'b0`），是预留的奇偶校验钩子。
+命中路号 `tc_hit_idx[1:0]`（`:926-929`）。多命中在 I/D 请求路径被映射到
+`jtlb_*utlb_pgflt`，TLBP 则通过 `jtlb_regs_hit_mult`写入 MIR 的
+`tlbp_tfatal`；它不是普通的“任选一路继续”。注：parity 当前置 0
+（`:786 tc_par_fail=1'b0`），是预留的奇偶校验钩子。
 
 ---
 
@@ -206,9 +237,15 @@ assign tc_tlb_hit_mult = !miss && !hit && !par_fail;   // 多路命中（错误�
 
 ### 7.1 一项可能是任意页大小，所以要逐尺寸试
 
-JTLB 一项可缓存 4K/2M/1G 任一页（tag 里有 3 位 pagesize）。问题是：**索引和比较位数随页大小而变**。4K 用 VPN[8:0] 做 index、比全 27 位；2M 用 VPN[17:9] 做 index、比高 18 位；1G 用 VPN[26:18] 做 index、比高 9 位。所以一次查找可能要**依次试 4K、2M、1G 三种索引**。
+JTLB 一项可缓存 4KB/2MB/1GB 任一页。候选页段分别取 VPN[8:0]、
+VPN[17:9]、VPN[26:18]；每段的低 8 位选择物理 set，第 9 位留在完整 VPN
+tag 中。比较时再按页大小把 VPN 低 0/9/18 位清零，并要求 tag 的 `pgs`
+等于当前候选。一次查找因此可能依次访问三个不同 set。
 
-read FSM（`:1036-1107`）正是干这个：`READ_4K`（命中或失败）→ `READ_2M` → `READ_1G`，逐级降尺寸搜索；三者都 miss 才算真 miss。状态解码（`:1110-1112`）：
+read FSM 正是干这个：先按 4KB 候选 set 读并比较，miss 后经
+`arb_read_huge`重新发起 2MB 候选 set，再 miss 才发起 1GB 候选 set。页覆盖
+范围是逐步增大，不应写成“降尺寸”。命中任一层即结束；三种页大小都 miss
+才是真正 JTLB miss。
 
 ```verilog
 assign read_cur_4k = read_cur_st == READ_4K;
@@ -216,16 +253,21 @@ assign read_cur_2m = read_cur_st == READ_2M;
 assign read_cur_1g = read_cur_st == READ_1G;
 ```
 
-### 7.2 VPN 掩码
+### 7.2 主命中比较的 VPN 对齐
 
-比较前按当前尝试的页大小对 VPN 掩码（TC 级 `:1203-1208`）：
+TA 段按当前尝试的页大小把请求 VPN 的页内 VPN 低位清零，再与 tag 中按页
+大小对齐保存的 VPN 比较：
 
 ```verilog
-tc_vpn_4k = tc_vpn;
-tc_vpn_2m = {9'b0, tc_vpn[26:9]};    // 抹低 9 位
-tc_vpn_1g = {18'b0, tc_vpn[26:18]};  // 抹低 18 位
-tc_vpn_masked = pgs[0]?4k : pgs[1]?2m : pgs[2]?1g;
+ta_vpn_4k = ta_vpn;
+ta_vpn_2m = {ta_vpn[26:9],  9'b0};   // 2MB：低 9 位清零
+ta_vpn_1g = {ta_vpn[26:18],18'b0};   // 1GB：低 18 位清零
 ```
+
+源码后部另有名称相近的 `tc_vpn_2m={9'b0,tc_vpn[26:9]}`和
+`tc_vpn_1g={18'b0,tc_vpn[26:18]}`。那两条逻辑是把页大小对应的 9-bit
+物理 set index **右对齐**，用于组装 `jtlb_regs_tlbp_hit_index`，不是主
+命中比较的掩码。两组逻辑方向相反、用途不同。
 
 ### 7.3 真 miss 的判定
 
@@ -237,23 +279,41 @@ assign tc_tlb_miss_fin = (tc_vld && tc_cmp_va && tc_tlb_miss || tc_par_fail) && 
 
 ---
 
-## 8. FIFO 替换
+## 8. FIFO-like one-hot 轮转替换
 
-### 8.1 为什么 JTLB 用 FIFO 而不是 PLRU（核心教学点）
+### 8.1 准确定性：它简单在更新，不是简单在位数
 
-uTLB 用 tree-PLRU 拼命中率（小表，命中率敏感、状态位代价小）；**JTLB 用 FIFO（轮转指针）省存储**：
+每个物理 set 保存一个 4-bit one-hot 指针。普通命中不会根据被命中的 way
+更新它；PTW refill 或 TLBWR 使用当前 one-hot 选择牺牲 way，随后按
+`{fifo[2:0],fifo[3]}`旋转。因此它既可称 FIFO-like，也可称 4-way
+round-robin replacement，但不记录严格的时间队列。
 
-- 大表本身命中率已很高，替换策略的边际收益小；
-- 给 256 组各做 per-set tree-PLRU 要额外维护状态并和 SRAM 同步读改写，代价不划算；
-- FIFO 每组只需 **4 位指针**（4 路轮转），还能塞进 tag SRAM 跟着一起读写，几乎零额外面积。
+不能再说它“比 PLRU 省状态位”：4-way tree-PLRU 通常需要 3 bit/set，而这里
+是 4 bit/set。当前 RTL 可直接证明的优势是：
 
-**用一点命中率换大量存储与复杂度** —— 这是大表的正确选择。
+- one-hot 指针可直接作为 `bank_sel[3:0]`，无需再解码路号；
+- 普通 hit 不更新替换状态，避免 hit 路径上的状态写回；
+- 指针与 tag 共用 SRAM 行和写端口，回填时可同时写 tag 与旋转后的指针。
+
+这些会简化控制，但面积、时序和命中率优劣仍需综合与性能测试，不能从源码
+直接下结论。
 
 ### 8.2 fifo 指针的存储与轮转
 
-4 位 fifo 指针随 tag 一起存在 256×196 SRAM 里（见 4.2 节）。读出后在 TC 级寄存为 12 位 `tc_jtlb_fifo`（4K/2M/1G 各 4 位，`:429`），输出给 PTW 的 `jtlb_xx_fifo[11:0]`（`:933`）。
+物理上，每个 SRAM set 只存 4 bit。一次普通 VA 查找可能依次访问三个不同
+set；JTLB 在 4KB、2MB、1GB 三次候选访问之间把每次读到的 4 bit 累积到
+`tc_jtlb_fifo[11:0]`：
 
-回填一项时，指针轮转一格指向下一个将被替换的 way。轮转模式 `{fifo[2:0], fifo[3]}`（在 PTW 侧 `ct_mmu_ptw.v:791` 生成 `ptw_arb_fifo_din = {ptw_ref_fifo[2:0], ptw_ref_fifo[3]}`；JTLB 内 `:889-902` 也据当前页大小把新指针拼回 12 位写回 tag）。one-hot 的 fifo 位即指明"下一个被覆盖的 way"，相当于一个 4 路 round-robin 计数器。
+```text
+[3:0]   = 4KB 候选 set 的指针
+[7:4]   = 2MB 候选 set 的指针
+[11:8]  = 1GB 候选 set 的指针
+```
+
+这 12 bit 是**本次查找的临时汇总**，不是每个 set 存了 12 bit。三种索引若
+碰巧落到同一物理 set，也只是多次读取同一行。最终 PTW 根据实际叶子页大小
+选择对应 4-bit slice 作为 `ptw_arb_bank_sel`，并把旋转后的 one-hot 值写回
+该页大小对应的 set。
 
 ---
 
@@ -270,7 +330,8 @@ assign jtlb_ptw_vpn      = tc_vpn;
 assign jtlb_ptw_type[2:0]= tc_acc_type;   // I / D-load / D-store / PFU
 ```
 
-同时把 `jtlb_xx_fifo`（当前组的 fifo 指针）一并交给 PTW，PTW 回填时据此选 way。
+同时把三次候选 set 累积的 `jtlb_xx_fifo[11:0]`交给 PTW。PTW 发现实际叶子
+页大小后，从对应 slice 取 4-bit 指针选择 way。
 
 ### 9.2 PTW 回填进 JTLB
 
@@ -278,17 +339,25 @@ PTW 遍历完成后，经 arb 把结果写回 JTLB（输入 `ptw_jtlb_ref_ppn/pg
 
 ### 9.3 回填 uTLB
 
-JTLB 命中（或 PTW 刚回填）后，把整项经 `jtlb_utlb_ref_vpn/ppn/pgs/flg` 回填给发起请求的 uTLB（iuTLB 或 duTLB），并拉 `jtlb_iutlb_ref_pavld`/`jtlb_dutlb_ref_pavld`。uTLB 看到的就是这组信号，对 PTW 是否介入无感。
+JTLB 命中时，`tc_pa_vld`与访问类型共同产生对应
+`jtlb_*utlb_ref_pavld`；PTW 完成时则由 `ptw_jtlb_ref_data_vld`旁路提供同一
+组 refill 数据。`ref_cmplt`表示这次查找已结束，`ref_pavld`表示有可写入的
+翻译，两者不能互换：page fault、access fault或禁用 PTW后的最终 miss 可以
+完成，但没有有效 PA refill。
+
+### 9.4 PFU 是直接查 JTLB，不经过 duTLB
+
+`lsu_mmu_va2[27:0]`是一条独立页号接口。MMU 开启时，arb 以低 27 位 VPN
+直接查询 JTLB；命中或 PTW 成功后，JTLB 根据页大小把请求 VPN 的低位补入
+PPN，再进入 `PFU_CHK`检查页权限/PMA和 PMP 读许可，最终用
+`mmu_lsu_pa2_vld/err`返回 28-bit PPN。MMU 关闭时则把 28 位输入直接当 PPN，
+属性来自 sysmap。该通道只返回 PFU 需要的 `sec/share`，不是 duTLB
+`ca/buf/so`接口的第三份副本。
 
 ---
 
-## 设计取舍小结
+## 本章小结
 
-- **SRAM 组相联（256×4=1024）**：比全相联省面积，容量大，作为 uTLB 的后备 L2 层。
-- **ASID 只存这里 + 不清空**：进程切换清小表保大表，ASID 机制的价值全落在这张大表上。
-- **global 位旁路 ASID**：内核共享页跨进程复用、按 ASID 清时不被误清。
-- **FIFO 替换（4 位/组，塞进 tag SRAM）**：大表用最简策略省存储，用一点命中率换面积与复杂度。
-- **read FSM 逐尺寸搜索（4K→2M→1G）**：一项可任意页大小，靠状态机依次试不同索引/比较位数，直到 1G 才判真 miss。
-- **fifo 指针随 tag 同读同写**：零额外 SRAM 端口，回填时轮转一格即完成替换。
+JTLB 用 256 组 4 路 SRAM 保存 1024 项翻译，作为 iuTLB/duTLB miss 后的共享后备层。tag 中保存 VPN、ASID、global 和页尺寸等匹配信息，data 中保存 PPN、权限与属性。写 satp 会清 uTLB，但不会直接扫描 JTLB；普通项依靠 ASID 匹配隔离地址空间，global 项旁路 ASID，并在按 ASID 维护时保留。由于不同页尺寸使用不同 VPN 索引和比较位数，read FSM 按 4KB、2MB、1GB 顺序逐级搜索，只有最后一级也未命中才形成真实 miss；因此一次请求可能产生多次 SRAM 访问，不能把首拍未命中当成 JTLB 最终 miss。
 
-*文档覆盖 ct_mmu_jtlb.v / _tag_array.v / _data_array.v 及 SRAM 封装的全部关键逻辑（jtlb.v 约 1456 行）。*
+每组替换状态是 4 位 one-hot 轮转指针，普通命中不更新，只有成功回填时选中当前路并旋转。指针随 tag 一同读写，`jtlb_xx_fifo[11:0]` 只是一次多页尺寸查找过程中的临时汇总，不是 12 项请求 FIFO。维护、正常查找和 PTW 回填共享 SRAM 端口，实际接受还受仲裁和状态机约束。波形分析应区分外部 request、arb grant、各页尺寸 SRAM read、tag compare、最终 hit/miss、PTW 完成以及 refill grant；只有 refill grant 才真正写入新项并推进轮转指针。替换策略的命中率和 SRAM 实现的面积、时序收益仍需测量结果支持。

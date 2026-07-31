@@ -16,7 +16,7 @@
 6. [tree-PLRU 替换（ct_mmu_iplru.v）](#6-tree-plru-替换ct_mmu_iplruv)
 7. [miss → JTLB → 回填 流程](#7-miss--jtlb--回填-流程)
 8. [异常生成](#8-异常生成)
-9. [设计取舍小结](#设计取舍小结)
+9. [本章小结](#本章小结)
 
 ---
 
@@ -24,11 +24,19 @@
 
 ### 1.1 职责
 
-iuTLB 是**取指侧的一级微 TLB**：IFU 发来取指虚拟地址，iuTLB 在当拍内并行比较 32 个表项，命中则立刻给出物理页号 + 取指权限（X/U）+ PMA 属性。它是 MMU 存储层次里最快最小的一层（类比 L1 I-Cache）。miss 时它启动 refill 状态机，经 arb 去查 JTLB，拿到结果回填后重试。
+iuTLB 是**取指侧的一级微 TLB**：IFU 发来取指虚拟地址，32 个表项并行比较
+以判断“翻译是否存在于 iuTLB”。但是，直接生成最终 PA/PGS/flag 的快速读出
+只连接 entry 0/8/16/24 四个 fast slot。其余 28 项命中时不会发起 JTLB
+访问，而是先与一个 fast slot 交换；随后 IFU 保持或重提该 VA，才从 fast
+slot 完成翻译。miss 时才启动 refill 状态机，经 arb 查询 JTLB。
 
 ### 1.2 位置
 
-上游是 IFU（`ifu_mmu_va`/`ifu_mmu_va_vld`），下游命中给 IFU（`mmu_ifu_pa`/`mmu_ifu_pavld`），miss 时下游是 arb→JTLB。它**不存 ASID**，进程切换写 satp 时由 `regs_utlb_clr` 整表清空。
+上游是 IFU（`ifu_mmu_va`/`ifu_mmu_va_vld`），下游命中给 IFU
+（`mmu_ifu_pa`/`mmu_ifu_pavld`），miss 时下游是 arb→JTLB。它**不存
+ASID**，进程切换写 satp 时由 `regs_utlb_clr`整表清空。这里还有一项接口
+约定：IFU 已省略恒为 0 的取指地址 bit0，所以 `ifu_mmu_va[n]`表示体系结构
+`VA[n+1]`。
 
 ---
 
@@ -38,9 +46,9 @@ iuTLB 是**取指侧的一级微 TLB**：IFU 发来取指虚拟地址，iuTLB �
 
 | 信号 | 方向 | 含义 |
 |------|------|------|
-| `ifu_mmu_va` / `ifu_mmu_va_vld` | in | 取指 VA 及有效 |
+| `ifu_mmu_va[62:0]` / `ifu_mmu_va_vld` | in | 取指 VA[63:1] 及有效；最低地址位未在总线上传输 |
 | `ifu_mmu_abort` | in | IFU 撤销 |
-| `mmu_ifu_pa` / `mmu_ifu_pavld` | out | 翻译结果 PA / 有效 |
+| `mmu_ifu_pa[27:0]` / `mmu_ifu_pavld` | out | 翻译结果 PPN / 有效，不是完整 40-bit 字节地址 |
 | `mmu_ifu_pgflt` | out | page fault（`ct_mmu_iutlb.v:607`） |
 | `mmu_ifu_deny` | out | access fault（`:611-614`） |
 
@@ -115,7 +123,23 @@ reg [13:0] utlb_flg;        // 14 位属性（5 PMA + 9 权限）
 
 每项隐含等于 satp 当前 ASID，因此进程切换写 satp（`regs_utlb_clr`）就整表清掉，无需逐项比 ASID。
 
-表项内部还实现三处清除条件（`ct_mmu_iutlb_entry.v:164-171`）：satp 写（`regs_utlb_clr`）、sfence 全清（`tlboper_utlb_clr`）、按 VA 清且 VA 命中（`ctc_inv_va_hit_clr`，比较 `lsu_mmu_tlb_va[7:0]==utlb_vpn[7:0]`）。
+表项内部有三类清除条件（`ct_mmu_iutlb_entry.v:164-171`）：satp 写
+（`regs_utlb_clr`）、维护操作整清（`tlboper_utlb_clr`），以及按 VA 维护时
+低 8 位相等：
+
+```verilog
+ctc_inv_va_hit_clr = tlboper_utlb_inv_va_req
+                   && (lsu_mmu_tlb_va[7:0] == utlb_vpn[7:0]);
+```
+
+这里不是 27-bit VPN 的精确相等比较，而是只比较低 8 位。对 4KB 项而言，
+不同高位 VPN 只要低 8 位相同就会一起失效，属于过度失效；但对 2MB/1GB
+项，覆盖判断本应按页大小忽略请求 VPN 的部分低位，当前清除表达式却没有
+使用 `utlb_pgs`。此外，大页 refill 进入 uTLB 时保存的低位可能来自触发
+refill 的具体请求。仅凭这条低 8 位比较，不能证明“任意落在同一大页内的
+SFENCE.VMA 地址都必然清到该项”；这是需要用不同页内地址做定向仿真的
+RTL 边界。`tlboper_utlb_inv_va_req=1`触发组合比较，`utlb_vld`在对应门控
+时钟上升沿才真正清零。
 
 ---
 
@@ -134,7 +158,10 @@ assign utlb_hit = utlb_pgs[0] && vpn2_hit && vpn1_hit && vpn0_hit  // 4K：比�
                || utlb_pgs[2] && vpn2_hit;                         // 1G：比高 9 位
 ```
 
-iuTLB 的普通项**就地支持 4K/2M/1G**（这点与 duTLB 不同，duTLB 把大页隔离到 huge 项 —— 因为取指流的大页比较没有数据侧那两个高频比较器的时序压力大）。
+iuTLB 的 fast/slow 两类项都保存 `pgs`，因此每项都能直接缓存
+4KB/2MB/1GB 翻译。duTLB 则采用另一种非对称组织：2MB 翻译专门化为普通项
+中的 4KB 子页，1GB 翻译进入唯一专用项。两种组织差异是 RTL 事实；将差异
+归因于取指/数据关键路径压力只是设计动机推断，需时序报告佐证。
 
 ### 5.2 32 项命中归约
 
@@ -154,24 +181,37 @@ assign iutlb_addr_hit = iutlb_entry_hit[0]  || iutlb_entry_hit[8]
                      || iutlb_entry_hit[16] || iutlb_entry_hit[24];
 ```
 
-**`iutlb_addr_hit`（单周期快命中）只看 4 个 fast entry（0/8/16/24）**，而 `iutlb_addr_hit_vld`（全表命中）看全部 32 项。它们的物理含义是：
+`iutlb_addr_hit`只看 4 个 fast entry（0/8/16/24），而
+`iutlb_addr_hit_vld`看全部 32 项。两者不是同义的“hit”：
 
-- **fast entry 是最近被命中的"热项"**：命中它们时，PA/flg/pgs 走专门的快路 mux（`:2047-2063`，只在 4 项里选），关键路径短，当拍出结果。
-- 若命中的是某个普通项（非 fast），则触发 **swap（交换/提升）**：把命中的普通项内容提升到对应的 fast entry 槽，下次访问同一页就能走快路。swap 使能在 `:2038-2039`：
+- fast slot 命中时，PA/flg/pgs 由只含四路的快路 mux 选出；最终
+  `pa_fin/pgs_fin/flg_fin`也只接受 `iutlb_addr_hit`或 MMU-off 路径；
+- slow entry 命中时，`iutlb_addr_hit_vld=1`阻止真正 miss FSM 启动，但
+  `iutlb_addr_hit=0`，所以本周期不会把 slow entry 的 PA 宣告为
+  `iutlb_hit_vld`；相反会触发 swap：
 
 ```verilog
 assign iutlb_swp_en = ifu_mmu_va_vld && iutlb_addr_hit_vld
                    && !iutlb_addr_hit && !iutlb_off_hit;
 ```
 
-即"全表命中但不是 fast 命中"时提升。被提升到哪个 fast 槽由一个 4 项轮转寄存器决定（`:2182-2188`）：
+被提升到哪个 fast slot 由一个 4-bit one-hot 轮转寄存器决定：
 
 ```verilog
 if (!cpurst_b)         iutlb_fst_wen <= 4'b0001;
 else if(iutlb_swp_en)  iutlb_fst_wen <= {iutlb_fst_wen[2:0], iutlb_fst_wen[3]};
 ```
 
-**fast entry 的本质是一个 4 路 MRU（most-recently-used）缓存层**，把"最近命中"集中到 4 个时序优化过的槽里，让稳态下的取指翻译走最短关键路径，而把全 32 项的全相联比较作为"慢但全"的后备。这是在全相联表内部再做一次"小快表挡大慢表"的层次化思想。
+这一步是**真正的数据交换**，不只是复制：被命中的 slow entry 写入所选 fast
+slot 的 VPN/PGS/PPN/flag；该 slow entry 同时接收被替换 fast slot 的原内容，
+若 fast slot 原来无效则 slow entry 也变为无效。交换在
+`iutlb_swp_en`有效的时钟沿发生。
+
+因此不能把四个 fast slot 称为严格“4-way MRU”。slow hit 的确会把当前
+命中项带入 fast 集合，但牺牲哪个 fast slot由固定 round-robin 顺序决定，
+普通 fast hit不会重排四个 slot。准确说法是：**四个固定快速读出槽，加上
+slow-hit 驱动的轮转交换机制**。其目标很可能是缩短常见取指翻译的数据 mux
+路径，但实际时序收益应由综合报告确认。
 
 ---
 
@@ -214,7 +254,9 @@ assign p00_write_updt_val = !refill_num_index[4];                  // :538
 assign p00_read_updt_val  = !hit_num_index[4];                     // :539
 ```
 
-只更新 log2(32)=5 个节点，远小于真 LRU 需要的 O(N·logN) 状态。
+一次命中或回填只需要更新从叶到根的 5 个节点；整个树保存 31 bit。真 LRU
+需要维护更完整的项间次序，不能仅由这里的 RTL推导出一个固定
+`O(N·logN)`硬件实现，因此不使用该复杂度表述。
 
 > 这是 tree-PLRU（伪 LRU），不是真 LRU、也不是随机：用 31 位状态近似 32 项的最近最少使用，硬件代价远低于真 LRU 而命中率接近。
 
@@ -224,7 +266,10 @@ assign p00_read_updt_val  = !hit_num_index[4];                     // :539
 
 refill FSM（`:761-778`）驱动整个 miss 处理：
 
-1. **IDLE → WFG**：检测到 iuTLB miss（全表未命中且 MMU 开启），向 arb 发请求 `iutlb_arb_req=(ref_cur_st==WFG)`（`:851`），VPN 取自 `ifu_mmu_va[VPN_WIDTH+10:11]`（`:852`/`:891`）。
+1. **IDLE → WFG**：检测到 iuTLB miss（全表未命中且 MMU 开启），向 arb
+   发请求 `iutlb_arb_req=(ref_cur_st==WFG)`（`:851`）。VPN 取
+   `ifu_mmu_va[37:11]`；由于这条总线表示体系结构 `VA[63:1]`，该切片实际
+   对应体系结构 `VA[38:12]`，正是 27-bit Sv39 VPN。
 2. **WFG → WFC**：拿到 `arb_iutlb_grant` 后进入等回填。
 3. **WFC**：`iutlb_refill_vld = iutlb_wfc && jtlb_iutlb_ref_pavld`（`:862`）。回填数据来自 JTLB（`:1906-1909`）：
 
@@ -236,9 +281,20 @@ assign utlb_upd_flg = jtlb_utlb_ref_flg;
 ```
 
    被写入的项由 `plru_iutlb_ref_num`（PLRU 牺牲者）与 `iutlb_refill_vld` 相与选中（`:1901`）。
-4. **完成**：`iutlb_arb_cmplt`（`:867-868`）在 `jtlb_iutlb_ref_cmplt` 时拉高，回 IDLE。请求重查 uTLB，这次命中。
+4. **完成**：`iutlb_arb_cmplt`在 WFC/ABT 状态收到
+   `jtlb_iutlb_ref_cmplt`时拉高，通知 arb 结束这一占用窗口。只有
+   `jtlb_iutlb_ref_pavld`才会写入 PLRU 选中的表项；page fault/access fault
+   只有完成通知，不会写入有效翻译。正常回填后，IFU 后续保持或重提请求才
+   命中新项。
 
 若 JTLB 进一步 miss 触发 PTW，PTW 的结果会先回填 JTLB，再由 JTLB 回填 uTLB —— iuTLB 看到的始终是 `jtlb_utlb_ref_*` 这一组信号，对 PTW 是否介入无感。
+
+`mmu_hpcp_iutlb_miss`也在这条回填路径上产生：源条件是
+`iutlb_refill_vld && hpcp_mmu_cnt_en`，随后经过一个“源条件为 1 则置位、
+下一空闲拍自清零”的寄存器。正常单次 refill 表现为一个周期事件，但这不是
+通用上升沿检测器，解释波形时仍应同时看源条件。它统计的是得到有效
+JTLB/PTW 翻译并写 uTLB 的 miss，不包括 slow-entry swap，也不包括最终以
+page/access fault 结束而没有 `ref_pavld`的 miss。
 
 ---
 
@@ -246,7 +302,7 @@ assign utlb_upd_flg = jtlb_utlb_ref_flg;
 
 ### 8.1 page fault（缺页/权限）
 
-`:2593-2604` 汇聚取指页的所有缺页条件（用回填后的 14 位 flag）：
+`ct_mmu_iutlb.v:596-605`汇聚取指页的 page-fault 条件：
 
 ```verilog
 assign iutlb_page_fault = (!flg[0]                               // V=0 无效
@@ -262,18 +318,18 @@ assign iutlb_page_fault = (!flg[0]                               // V=0 无效
 
 输出 `mmu_ifu_pgflt = iutlb_page_fault`（`:607`）。
 
+当前表达式对 S-mode 取指 U 页也使用 `SUM`门控，没有把 fetch 从 SUM 逻辑
+单独排除。本文记录的是 RTL 行为；与目标 RISC-V 特权规范版本的一致性应由
+取指权限定向用例验证。
+
 ### 8.2 access fault（PMP/总线）
 
 `:611-614`：JTLB/PTW 阶段的 access fault（`jtlb_acc_fault_flop`）或 PMP 拒绝取指权限（`!pmp_mmu_flg2[2]`），生成 `mmu_ifu_deny`。
 
 ---
 
-## 设计取舍小结
+## 本章小结
 
-- **全相联 + 寄存器**：32 项每项独立比较，命中当拍出 PA，把命中速度做到极致；容量小所以拼命中率。
-- **fast entry 是表内再分层**：4 个 MRU 快项走短关键路径单周期命中，普通项命中后被提升进快项，稳态下取指翻译走最短路。
-- **tree-PLRU**：31 位状态近似 32 项 LRU，只翻转 5 个路径节点，硬件代价低、命中率高 —— 小表值得为命中率投入。
-- **不存 ASID**：每项隐含 satp ASID，进程切换整表清空，省 16 位/项的 ASID 存储与比较器（保命的活交给 JTLB）。
-- **就地支持大页**：iuTLB 普通项按 pgs 比较不同位数，无需像 duTLB 那样单列 huge 项。
+iuTLB 用 32 项全相联比较判断当前取指 VPN 是否已经缓存，但最终 PA 并不是由 32 项同时直接驱动。表内另设四个 fast slot 连接快速 PA 选择路径；当命中其余 slow 项时，命中项会与 round-robin 选中的 fast slot 在时钟沿交换，使后续相同翻译进入快速路径。该机制是固定 fast 层与 slow 层之间的交换，不是严格 MRU。全表替换状态由 31 位 tree-PLRU 保存，一次访问只更新命中叶到根路径上的五个节点；它近似记录使用关系，实际命中率仍需由工作负载量化。
 
-*文档覆盖 ct_mmu_iutlb.v / _entry.v / _fst_entry.v / _iplru.v 的全部关键逻辑（iutlb.v 约 2340 行）。*
+iuTLB 项不保存 ASID，每项都隐含属于当前 satp 地址空间，因此 satp 切换或相关维护会清空整张小表，跨地址空间保留能力由带 ASID/G 的 JTLB 提供。4KB、2MB 和 1GB 页通过 pgs 决定参与比较的 VPN 位数与 PA 拼接方式，均可在 fast/slow 项中表达，这一点与 duTLB 的独立 1GB 项结构不同。观察波形时，应把请求 valid、全相联 hit 向量、fast/slow 选择、交换写入、PA valid、JTLB miss 请求以及后续 PMP 结果放在同一条时间线上；“表内存在命中”“快速 PA 已选出”和“取指访问获准”是三个不同阶段。
