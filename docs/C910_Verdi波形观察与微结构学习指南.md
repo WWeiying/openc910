@@ -124,16 +124,29 @@ byte_va64 = {rtl_va63[62:0], 1'b0}
 不能按位宽机械处理所有信号：`rtu_cp0_epc[63:0]`、`rtu_pad_retire*_pc[39:0]`
 和 IU PCFIFO 的 `pc[39:0]` 已经是完整字节地址，不需要再左移。
 
+`smart_run/config/coremark_signal.rc` 同时保留原始半字 PC 和在原名称后添加 `_1` 的 Verdi 表达式信号。
+例如 `if_pc_1 = if_pc << 1`；后缀 `_1` 表示这是一份“左移 1 位后用于对照软件地址”的
+显示信号，并不是 RTL 中的位编号或新增寄存器。与 ELF/反汇编对照时直接查看 `_pc_1`，
+不要再乘 2；分析 PCGEN 内部编码和位切片时则查看原始 PC。
+
+RC 中出现的完整半字地址均配有对应表达式，包括 `if_pc`、`ifpc_chgflw_pre`、`inc_pc`、
+`retire_inst0_cur_pc`、`rob_cur_pc`、`rtu_ifu_chgflw_pc`、`iu_ifu_chgflw_pc`、
+`ibctrl_pcgen_pc`、`ipctrl_pcgen_chgflw_pc` 和 `ipctrl_pcgen_reissue_pc`。
+`if_pc_high_spe[23:0]` 只是高位切片，不单独生成 `_1`；已经是完整字节地址的
+`core0_pad_retire*_pc[39:0]` 与 `rtu_cp0_epc[63:0]` 也不左移。
+
 ---
 
 ## 3. 第一组：全局架构骨架
 
-建议把以下信号保存为 `00_arch_anchor`。后续每个局部机制组都保留其中的退休、
-ROB 和 flush 信号。
+建议把以下信号保存为 `00_arch_anchor`。`smart_run/config/coremark_signal.rc` 的每个局部机制组只重复
+加入 `clk` 和 `mcycle_value`，便于独立查看时对齐时钟边沿和架构周期；退休、ROB 和
+flush 等骨架信号集中保留在 `00_arch_anchor`，需要跨模块判断时同时打开该组即可。
 
 | 位置 | 信号 | 作用 | 如何看 |
 |---|---|---|---|
 | `TB` | `clk`、`rst_b` | 仿真时钟和复位 | 所有时序均按有效上升沿判断 |
+| `HPCP` | `mcycle_value[63:0]` | 架构周期计数 | 与 `clk` 配合给事件标定周期；它不是仿真器时间戳 |
 | `RTU` | `rtu_yy_xx_retire0/1/2` | 三个退休槽 | 每拍置位数反映退休带宽，但折叠会使“ROB 项数”和“架构指令数”不同 |
 | `RTU.x_ct_rtu_rob` | `rob_entry_num[6:0]` | ROB 占用 | 上升表示进入多于退休，下降表示后端正在排空 |
 | 同上 | `rob_full`、`rob_empty` | ROB 满/空 | full 可反压派发；empty 时无退休通常是前端断供 |
@@ -935,7 +948,7 @@ PST 是重命名系统的精确状态基础。RAT 面向快速投机查询，PST
 当前 bare-metal CoreMark 通常不会充分激活分页翻译。观察 MMU 应运行 `MMU` case
 或未来的操作系统环境。
 
-建立 `13_mmu_ptw`：
+建立 `13_mmu_ptw_pmp`：
 
 | 路径 | 信号 |
 |---|---|
@@ -1002,7 +1015,7 @@ sub-bank 1 使用同名信号。`l2c_cache_miss` 是 `!hit` 类组合结果，�
 
 ### 11.4 BIU 读事务
 
-建立 `14_biu_axi`：
+L2 与 BIU 信号共同放在 `14_l2_biu_axi`：
 
 ```text
 BIU.x_ct_biu_read_channel.biu_pad_arvalid
@@ -1299,15 +1312,15 @@ ROB 高占用
 | `06_decode_rename` | ID/IR、split、preg 分配 | CoreMark、bench_ilp |
 | `07_issue_queues` | 七个 IQ 的 cnt/vld/ready/issue | CoreMark、SPEC kernel |
 | `08_issue_execute` | RF、IID、ALU/MUL/DIV、前递 | bench_ilp、CoreMark |
-| `09_load_pipeline` | Load AG/DC/DA/WB | bench_mem、SPEC memory kernel |
+| `09_load_pipeline` | Load/Store AG/DC/DA/WB | bench_mem、SPEC memory kernel |
 | `10_memory_ordering` | LQ/SQ/WMB、forward/replay | bench_mem、ISA_AMO |
 | `11_rob_retire` | create/complete/commit/retire | 所有程序 |
 | `12_exception_flush` | exception、CP0、flush FSM | exception/csr case |
-| `13_mmu_ptw` | TLB/JTLB/PTW/PMP | MMU |
-| `14_biu_axi` | AR/R/AW/W/B | Cache miss、MMU |
+| `13_mmu_ptw_pmp` | TLB/JTLB/PTW/PMP | MMU |
+| `14_l2_biu_axi` | L2 sub-bank、AR/R/AW/W/B | Cache miss、MMU |
 | `15_trap_privilege` | 中断、异常、mret/sret | interrupt、csr、OS |
 | `16_vfpu` | VIQ、pipe6/7、forward/writeback | 当前配置用 bench_fp、ISA_FP；RVV 仅适用于完整向量通路配置 |
-| `17_coherence` | AC/CR/CD、SNQ、CIU/L2 | 双核一致性测试 |
+| `17_coherence` | BIU 的 AC/CR/CD snoop 通道 | 双核一致性测试 |
 
 第一次学习不要同时打开 18 组。推荐顺序是：
 

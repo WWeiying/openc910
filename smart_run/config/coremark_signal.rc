@@ -1,0 +1,706 @@
+Magic 271485
+Revision Verdi_V-2023.12-SP1
+
+; Window Layout <x> <y> <width> <height> <signalwidth> <valuewidth>
+viewPort 0 25 1920 364 388 173
+
+; File list:
+; openDirFile [-d delimiter] [-s time_offset] [-rf auto_bus_rule_file] path_name file_name
+openDirFile -d / "" "/home/wangwy/openproject/openc910/smart_run/work/novas.fsdb"
+
+; file time scale:
+; fileTimeScale ### s|ms|us|ns|ps
+
+; signal spacing:
+signalSpacing 5
+
+; windowTimeUnit is used for zoom, cursor & marker
+; waveform viewport range
+zoom 3996175554.180064 3998398519.763173
+cursor 3997950000.000000
+marker 0.000000
+
+; user define markers
+; userMarker time_pos marker_name color linestyle
+userMarker 3996749574.792 M5 ID_GREEN5 long_dashed
+userMarker 3998650000 M4 ID_GREEN5 long_dashed
+
+; stick cursor/marker on waveform
+stickMarker off
+; visible top row signal index
+top 9
+; marker line index
+markerPos 0
+
+; logical expression list
+; addExprSig expr_name expression_string
+activeDirFile "" "/home/wangwy/openproject/openc910/smart_run/work/novas.fsdb"
+
+addExprSig -b 39 -n U if_pc_1[38:0] "/tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_\
+ct_top_0/x_ct_core/x_ct_ifu_top/x_ct_ifu_pcgen/if_pc[38:0]"<<1
+
+; logical expression list
+; addExprSig expr_name expression_string
+
+addExprSig -b 39 -n U ifpc_chgflw_pre_1[38:0] "/tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_\
+ct_top_0/x_ct_core/x_ct_ifu_top/x_ct_ifu_pcgen/ifpc_chgflw_pre[38:0]"<<1
+
+; logical expression list
+; addExprSig expr_name expression_string
+
+addExprSig -b 39 -n U inc_pc_1[38:0] "/tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_\
+ct_top_0/x_ct_core/x_ct_ifu_top/x_ct_ifu_pcgen/inc_pc[38:0]"<<1
+
+; logical expression list
+; addExprSig expr_name expression_string
+
+addExprSig -b 39 -n U retire_inst0_cur_pc_1[38:0] "/tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_\
+ct_top_0/x_ct_core/x_ct_rtu_top/x_ct_rtu_rob/x_ct_rtu_rob_rt/retire_in\
+st0_cur_pc[38:0]"<<1
+
+; logical expression list
+; addExprSig expr_name expression_string
+
+addExprSig -b 39 -n U rob_cur_pc_1[38:0] "/tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_\
+ct_top_0/x_ct_core/x_ct_rtu_top/x_ct_rtu_rob/x_ct_rtu_rob_rt/rob_cur_p\
+c[38:0]"<<1
+
+; logical expression list
+; addExprSig expr_name expression_string
+
+addExprSig -b 39 -n U rtu_ifu_chgflw_pc_1[38:0] "/tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_\
+ct_top_0/x_ct_core/x_ct_ifu_top/x_ct_ifu_pcgen/rtu_ifu_chgflw_pc[38:0]\
+"<<1
+
+; logical expression list
+; addExprSig expr_name expression_string
+
+addExprSig -b 63 -n U iu_ifu_chgflw_pc_1[62:0] "/tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_\
+ct_top_0/x_ct_core/x_ct_ifu_top/x_ct_ifu_pcgen/iu_ifu_chgflw_pc[62:0]"\
+<<1
+
+; logical expression list
+; addExprSig expr_name expression_string
+
+addExprSig -b 39 -n U ibctrl_pcgen_pc_1[38:0] "/tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_\
+ct_top_0/x_ct_core/x_ct_ifu_top/x_ct_ifu_pcgen/ibctrl_pcgen_pc[38:0]"<\
+<1
+
+; logical expression list
+; addExprSig expr_name expression_string
+
+addExprSig -b 39 -n U ipctrl_pcgen_chgflw_pc_1[38:0] "/tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_\
+ct_top_0/x_ct_core/x_ct_ifu_top/x_ct_ifu_pcgen/ipctrl_pcgen_chgflw_pc[\
+38:0]"<<1
+
+; logical expression list
+; addExprSig expr_name expression_string
+
+addExprSig -b 39 -n U ipctrl_pcgen_reissue_pc_1[38:0] "/tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_\
+ct_top_0/x_ct_core/x_ct_ifu_top/x_ct_ifu_pcgen/ipctrl_pcgen_reissue_pc\
+[38:0]"<<1
+
+; event list
+; addEvent event_name event_expression
+; curEvent event_name
+
+
+
+COMPLEX_EVENT_BEGIN
+
+
+COMPLEX_EVENT_END
+
+
+
+; toolbar current search type
+; curSTATUS search_type
+curSTATUS ByValue
+
+
+addGroup "00_arch_anchor"
+activeDirFile "" "/home/wangwy/openproject/openc910/smart_run/work/novas.fsdb"
+addSignal -h 20 /tb/clk
+addSignal -h 20 -UNSIGNED -UDEC /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_hpcp_top/mcycle_value[63:0]
+addSignal -h 20 /tb/rst_b
+addSignal -h 20 -UNSIGNED -HEX /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_hpcp_top/minstret_value[63:0]
+addSignal -h 20 /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/core0_pad_retire0
+addSignal -h 20 -UNSIGNED -HEX -holdScope core0_pad_retire0_pc[39:0]
+addSignal -h 20 -holdScope core0_pad_retire1
+addSignal -h 20 -UNSIGNED -HEX -holdScope core0_pad_retire1_pc[39:0]
+addSignal -h 20 -holdScope core0_pad_retire2
+addSignal -h 20 -UNSIGNED -HEX -holdScope core0_pad_retire2_pc[39:0]
+addSignal -h 20 /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_rtu_top/rtu_yy_xx_retire0
+addSignal -h 20 -holdScope rtu_yy_xx_retire1
+addSignal -h 20 -holdScope rtu_yy_xx_retire2
+addSignal -h 20 -UNSIGNED -HEX /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_rtu_top/x_ct_rtu_rob/rob_entry_num[6:0]
+addSignal -h 20 -holdScope rob_full
+addSignal -h 20 -holdScope rob_empty
+addSignal -h 20 -UNSIGNED -HEX /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_rtu_top/x_ct_rtu_rob/x_ct_rtu_rob_rt/retire_inst0_cur_pc[38:0]
+addSignal -h 20 /retire_inst0_cur_pc_1[38:0]
+addSignal -h 20 -UNSIGNED -HEX /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_rtu_top/x_ct_rtu_rob/x_ct_rtu_rob_rt/rob_cur_pc[38:0]
+addSignal -h 20 /rob_cur_pc_1[38:0]
+addSignal -h 20 /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_rtu_top/rtu_yy_xx_flush
+addSignal -h 20 -holdScope rtu_idu_flush_fe
+addSignal -h 20 -holdScope rtu_idu_flush_is
+addSignal -h 20 -UNSIGNED -HEX /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_rtu_top/x_ct_rtu_retire/flush_cur_state[4:0]
+addGroup "01_ifu_flow"
+addSignal -h 20 /tb/clk
+addSignal -h 20 -UNSIGNED -UDEC /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_hpcp_top/mcycle_value[63:0]
+addSignal -h 20 -UNSIGNED -HEX /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_ifu_top/x_ct_ifu_pcgen/if_pc[38:0]
+addSignal -h 20 -UNSIGNED -HEX /if_pc_1[38:0]
+addSignal -h 20 /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_ifu_top/x_ct_ifu_pcgen/pcgen_chgflw
+addSignal -h 20 -holdScope rtu_ifu_chgflw_vld
+addSignal -h 20 -UNSIGNED -HEX -holdScope rtu_ifu_chgflw_pc[38:0]
+addSignal -h 20 /rtu_ifu_chgflw_pc_1[38:0]
+addSignal -h 20 /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_ifu_top/x_ct_ifu_pcgen/iu_ifu_chgflw_vld
+addSignal -h 20 -UNSIGNED -HEX -holdScope iu_ifu_chgflw_pc[62:0]
+addSignal -h 20 /iu_ifu_chgflw_pc_1[62:0]
+addSignal -h 20 /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_ifu_top/x_ct_ifu_pcgen/ibctrl_pcgen_pcload
+addSignal -h 20 -UNSIGNED -HEX -holdScope ibctrl_pcgen_pc[38:0]
+addSignal -h 20 /ibctrl_pcgen_pc_1[38:0]
+addSignal -h 20 /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_ifu_top/x_ct_ifu_pcgen/ipctrl_pcgen_chgflw_pcload
+addSignal -h 20 -UNSIGNED -HEX -holdScope ipctrl_pcgen_chgflw_pc[38:0]
+addSignal -h 20 /ipctrl_pcgen_chgflw_pc_1[38:0]
+addSignal -h 20 /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_ifu_top/x_ct_ifu_pcgen/ipctrl_pcgen_reissue_pcload
+addSignal -h 20 -UNSIGNED -HEX -holdScope ipctrl_pcgen_reissue_pc[38:0]
+addSignal -h 20 /ipctrl_pcgen_reissue_pc_1[38:0]
+addSignal -h 20 /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_ifu_top/x_ct_ifu_ifctrl/if_vld
+addSignal -h 20 -holdScope if_self_stall
+addSignal -h 20 -holdScope if_frontend_stall
+addSignal -h 20 -holdScope ifctrl_ipctrl_vld
+addSignal -h 20 /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_ifu_top/x_ct_ifu_ipctrl/ip_vld
+addSignal -h 20 -holdScope ipctrl_ibctrl_vld
+addSignal -h 20 /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_ifu_top/ifu_idu_ib_inst0_vld
+addSignal -h 20 -holdScope ifu_idu_ib_inst1_vld
+addSignal -h 20 -holdScope ifu_idu_ib_inst2_vld
+addSignal -h 20 -UNSIGNED -HEX /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_ifu_top/x_ct_ifu_pcgen/ifpc_chgflw_pre[38:0]
+addSignal -h 20 -UNSIGNED -HEX /ifpc_chgflw_pre_1[38:0]
+addSignal -h 20 -UNSIGNED -HEX /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_ifu_top/x_ct_ifu_pcgen/inc_pc[38:0]
+addSignal -h 20 -UNSIGNED -HEX /inc_pc_1[38:0]
+addSignal -h 20 -UNSIGNED -HEX /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_ifu_top/x_ct_ifu_pcgen/if_pc_high_spe[23:0]
+addSignal -h 20 -holdScope lbuf_pcgen_active
+addSignal -h 20 -holdScope ipctrl_pcgen_branch_taken
+addSignal -h 20 -holdScope ipctrl_pcgen_branch_mistaken
+addGroup "02_ibuf"
+addSignal -h 20 /tb/clk
+addSignal -h 20 -UNSIGNED -UDEC /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_hpcp_top/mcycle_value[63:0]
+addSignal -h 20 /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_ifu_top/x_ct_ifu_ibuf/ibuf_empty
+addSignal -h 20 -UNSIGNED -HEX -holdScope ibuf_create_num[4:0]
+addSignal -h 20 -UNSIGNED -HEX -holdScope ibuf_retire_num[4:0]
+addSignal -h 20 /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_ifu_top/x_ct_ifu_ibctrl/ibctrl_debug_ibuf_full
+addSignal -h 20 -holdScope ibctrl_debug_fifo_full_stall
+addSignal -h 20 -holdScope ibctrl_ibuf_create_vld
+addSignal -h 20 -holdScope ibctrl_ibuf_retire_vld
+addSignal -h 20 -holdScope bypass_inst_vld
+addSignal -h 20 -holdScope merge_inst_vld
+addGroup "03_icache_refill"
+addSignal -h 20 /tb/clk
+addSignal -h 20 -UNSIGNED -UDEC /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_hpcp_top/mcycle_value[63:0]
+addSignal -h 20 /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_ifu_top/x_ct_ifu_ipctrl/ip_refill_pre
+addSignal -h 20 -holdScope icache_refill_reissue
+addSignal -h 20 -holdScope l1_refill_ipctrl_busy
+addSignal -h 20 -holdScope miss_under_refill_stall
+addSignal -h 20 -holdScope way_mispred_reissue
+addSignal -h 20 -holdScope bry_missigned_stall
+addSignal -h 20 -holdScope br_more_than_one_stall
+addSignal -h 20 /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_ifu_top/x_ct_ifu_l1_refill/l1_refill_ifctrl_start
+addSignal -h 20 -holdScope l1_refill_ifctrl_trans_cmplt
+addSignal -h 20 /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_ifu_top/ipb_l1_refill_data_vld
+addSignal -h 20 -holdScope ipb_l1_refill_trans_err
+addGroup "04_branch_predictor"
+addSignal -h 20 /tb/clk
+addSignal -h 20 -UNSIGNED -UDEC /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_hpcp_top/mcycle_value[63:0]
+addSignal -h 20 /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_ifu_top/x_ct_ifu_l0_btb/l0_btb_ifdp_hit
+addSignal -h 20 /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_ifu_top/x_ct_ifu_ibctrl/ibctrl_ibdp_l0_btb_hit
+addSignal -h 20 -holdScope ibctrl_ibdp_l0_btb_miss
+addSignal -h 20 -holdScope ibctrl_ibdp_l0_btb_mispred
+addSignal -h 20 -holdScope ibctrl_ibdp_l0_btb_wait
+addSignal -h 20 -holdScope ibctrl_ind_btb_check_vld
+addSignal -h 20 -holdScope ibctrl_ind_btb_fifo_stall
+addSignal -h 20 -UNSIGNED -HEX /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_ifu_top/x_ct_ifu_bht/vghr_reg[21:0]
+addSignal -h 20 -UNSIGNED -HEX -holdScope rtughr_reg[21:0]
+addSignal -h 20 -UNSIGNED -HEX -holdScope bht_ipdp_sel_array_result[1:0]
+addSignal -h 20 -holdScope bht_pred_array_rd
+addSignal -h 20 -holdScope bht_sel_array_rd
+addSignal -h 20 -holdScope bht_wr_buf_create_vld
+addSignal -h 20 -holdScope bht_wr_buf_retire_vld
+addSignal -h 20 -holdScope buf_full
+addSignal -h 20 -holdScope wr_buf_hit
+addSignal -h 20 /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_ifu_top/x_ct_ifu_ras/ras_push
+addSignal -h 20 -holdScope ras_pop
+addSignal -h 20 -holdScope ras_empty
+addSignal -h 20 -holdScope ras_full
+addGroup "05_branch_recovery"
+addSignal -h 20 /tb/clk
+addSignal -h 20 -UNSIGNED -UDEC /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_hpcp_top/mcycle_value[63:0]
+addSignal -h 20 /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_rtu_top/rtu_yy_xx_flush
+addSignal -h 20 -holdScope rtu_idu_flush_fe
+addSignal -h 20 -holdScope rtu_idu_flush_is
+addSignal -h 20 /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_iu_top/x_ct_iu_bju/ex1_pipe2_inst_vld
+addSignal -h 20 -holdScope ex1_pipe2_bht_pred
+addSignal -h 20 -holdScope condbr_taken
+addSignal -h 20 -holdScope bju_bht_mispred
+addSignal -h 20 -holdScope bju_jmp_mispred
+addSignal -h 20 -holdScope bju_tarpc_cmp_fail
+addSignal -h 20 -holdScope ex1_pipe2_jmp_mispred
+addSignal -h 20 -holdScope bju_br_page_fault
+addSignal -h 20 -holdScope bju_jump_page_fault
+addSignal -h 20 -holdScope bju_chgflw_vld
+addSignal -h 20 -holdScope ex2_pipe2_bht_mispred
+addSignal -h 20 -holdScope ex2_pipe2_jmp_mispred
+addSignal -h 20 -holdScope ex2_pipe2_conbr_vld
+addSignal -h 20 -holdScope ex2_pipe2_jmp
+addSignal -h 20 -holdScope ex2_pipe2_pcall
+addSignal -h 20 -holdScope ex2_pipe2_pret
+addSignal -h 20 -holdScope ex2_pipe2_conbr_taken
+addSignal -h 20 -holdScope ex2_pipe2_bht_pred
+addSignal -h 20 -UNSIGNED -UDEC -holdScope ex2_pipe2_iid[6:0]
+addSignal -h 20 -holdScope iu_ifu_chgflw_vld
+addSignal -h 20 -UNSIGNED -HEX -holdScope iu_ifu_chgflw_pc[62:0]
+addSignal -h 20 /iu_ifu_chgflw_pc_1[62:0]
+addSignal -h 20 /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_iu_top/x_ct_iu_bju/iu_yy_xx_cancel
+addSignal -h 20 -holdScope iu_idu_mispred_stall
+addSignal -h 20 -holdScope iu_ifu_mispred_stall
+addSignal -h 20 /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_rtu_top/x_ct_rtu_retire/retire_inst0_mispred
+addSignal -h 20 -UNSIGNED -HEX -holdScope flush_cur_state[4:0]
+addGroup "06_decode_rename"
+addSignal -h 20 /tb/clk
+addSignal -h 20 -UNSIGNED -UDEC /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_hpcp_top/mcycle_value[63:0]
+addSignal -h 20 /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_idu_top/x_ct_idu_id_ctrl/id_inst0_vld
+addSignal -h 20 -holdScope id_inst1_vld
+addSignal -h 20 -holdScope id_inst2_vld
+addSignal -h 20 -holdScope ctrl_id_pipedown_1_inst
+addSignal -h 20 -holdScope ctrl_id_pipedown_2_inst
+addSignal -h 20 -holdScope ctrl_id_pipedown_3_inst
+addSignal -h 20 -holdScope ctrl_id_stall
+addSignal -h 20 -holdScope ctrl_id_split_long_stall
+addSignal -h 20 /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_idu_top/fence_ctrl_id_stall
+addSignal -h 20 /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_idu_top/x_ct_idu_ir_ctrl/ir_inst0_vld
+addSignal -h 20 -holdScope ir_inst1_vld
+addSignal -h 20 -holdScope ir_inst2_vld
+addSignal -h 20 -holdScope ir_inst3_vld
+addSignal -h 20 -holdScope ir_pipedown_inst0_vld
+addSignal -h 20 -holdScope ir_pipedown_inst1_vld
+addSignal -h 20 -holdScope ir_pipedown_inst2_vld
+addSignal -h 20 -holdScope ir_pipedown_inst3_vld
+addSignal -h 20 -holdScope ctrl_ir_stall
+addSignal -h 20 -holdScope idu_rtu_ir_preg0_alloc_vld
+addSignal -h 20 -holdScope idu_rtu_ir_preg1_alloc_vld
+addSignal -h 20 -holdScope idu_rtu_ir_preg2_alloc_vld
+addSignal -h 20 -holdScope idu_rtu_ir_preg3_alloc_vld
+addSignal -h 20 -holdScope rtu_idu_alloc_preg0_vld
+addSignal -h 20 -holdScope rtu_idu_alloc_preg1_vld
+addSignal -h 20 -holdScope rtu_idu_alloc_preg2_vld
+addSignal -h 20 -holdScope rtu_idu_alloc_preg3_vld
+addSignal -h 20 -holdScope ctrl_top_ir_preg_not_vld
+addSignal -h 20 /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_idu_top/x_ct_idu_is_ctrl/ctrl_is_dis_stall
+addSignal -h 20 -holdScope ctrl_top_is_iq_full
+addSignal -h 20 -holdScope ctrl_top_is_vmb_full
+addSignal -h 20 -UNSIGNED -HEX /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_idu_top/x_ct_idu_ir_rt/dp_rt_inst0_dst_preg[6:0]
+addSignal -h 20 -UNSIGNED -HEX -holdScope rt_dp_inst0_src0_data[8:0]
+addSignal -h 20 -UNSIGNED -HEX -holdScope rt_dp_inst0_src1_data[8:0]
+addSignal -h 20 -UNSIGNED -HEX -holdScope rt_dp_inst0_src2_data[9:0]
+addSignal -h 20 -UNSIGNED -HEX -holdScope rt_dp_inst0_rel_preg[6:0]
+addSignal -h 20 -UNSIGNED -HEX -holdScope rt_dp_inst01_src_match[2:0]
+addSignal -h 20 -holdScope rt_recover_updt_vld
+addGroup "07_issue_queues"
+addSignal -h 20 /tb/clk
+addSignal -h 20 -UNSIGNED -UDEC /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_hpcp_top/mcycle_value[63:0]
+addSignal -h 20 -UNSIGNED -HEX /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_idu_top/x_ct_idu_is_aiq0/aiq0_entry_cnt[3:0]
+addSignal -h 20 -holdScope aiq0_ctrl_empty
+addSignal -h 20 -holdScope aiq0_ctrl_full
+addSignal -h 20 -UNSIGNED -HEX -holdScope aiq0_entry_vld[7:0]
+addSignal -h 20 -UNSIGNED -HEX -holdScope aiq0_entry_ready[7:0]
+addSignal -h 20 -UNSIGNED -HEX -holdScope aiq0_entry_issue_en[7:0]
+addSignal -h 20 -UNSIGNED -HEX -holdScope aiq0_older_entry_ready[7:0]
+addSignal -h 20 -UNSIGNED -HEX /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_idu_top/x_ct_idu_is_aiq1/aiq1_entry_cnt[3:0]
+addSignal -h 20 -holdScope aiq1_ctrl_empty
+addSignal -h 20 -holdScope aiq1_ctrl_full
+addSignal -h 20 -UNSIGNED -HEX -holdScope aiq1_entry_vld[7:0]
+addSignal -h 20 -UNSIGNED -HEX -holdScope aiq1_entry_ready[7:0]
+addSignal -h 20 -UNSIGNED -HEX -holdScope aiq1_entry_issue_en[7:0]
+addSignal -h 20 -UNSIGNED -HEX -holdScope aiq1_older_entry_ready[7:0]
+addSignal -h 20 -UNSIGNED -HEX /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_idu_top/x_ct_idu_is_biq/biq_entry_cnt[3:0]
+addSignal -h 20 -holdScope biq_ctrl_empty
+addSignal -h 20 -holdScope biq_ctrl_full
+addSignal -h 20 -UNSIGNED -HEX -holdScope biq_entry_vld[11:0]
+addSignal -h 20 -UNSIGNED -HEX -holdScope biq_entry_ready[11:0]
+addSignal -h 20 -UNSIGNED -HEX -holdScope biq_entry_issue_en[11:0]
+addSignal -h 20 -UNSIGNED -HEX -holdScope biq_older_entry_ready[11:0]
+addSignal -h 20 -UNSIGNED -HEX /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_idu_top/x_ct_idu_is_lsiq/lsiq_entry_cnt[3:0]
+addSignal -h 20 -holdScope lsiq_ctrl_empty
+addSignal -h 20 -holdScope lsiq_ctrl_full
+addSignal -h 20 -UNSIGNED -HEX -holdScope lsiq_entry_vld[11:0]
+addSignal -h 20 -UNSIGNED -HEX -holdScope lsiq_entry_ready[11:0]
+addSignal -h 20 -UNSIGNED -HEX -holdScope lsiq_entry_issue_en[11:0]
+addSignal -h 20 -holdScope lsiq_xx_pipe3_issue_en
+addSignal -h 20 -holdScope lsiq_xx_pipe4_issue_en
+addSignal -h 20 -UNSIGNED -HEX /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_idu_top/x_ct_idu_is_sdiq/sdiq_entry_cnt[3:0]
+addSignal -h 20 -holdScope sdiq_ctrl_empty
+addSignal -h 20 -holdScope sdiq_ctrl_full
+addSignal -h 20 -UNSIGNED -HEX -holdScope sdiq_entry_vld[11:0]
+addSignal -h 20 -UNSIGNED -HEX -holdScope sdiq_entry_ready[11:0]
+addSignal -h 20 -UNSIGNED -HEX -holdScope sdiq_entry_issue_en[11:0]
+addSignal -h 20 -UNSIGNED -HEX -holdScope sdiq_older_entry_ready[11:0]
+addSignal -h 20 -UNSIGNED -HEX /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_idu_top/x_ct_idu_is_viq0/viq0_entry_cnt[3:0]
+addSignal -h 20 -holdScope viq0_ctrl_empty
+addSignal -h 20 -holdScope viq0_ctrl_full
+addSignal -h 20 -UNSIGNED -HEX -holdScope viq0_entry_vld[7:0]
+addSignal -h 20 -UNSIGNED -HEX -holdScope viq0_entry_ready[7:0]
+addSignal -h 20 -UNSIGNED -HEX -holdScope viq0_entry_issue_en[7:0]
+addSignal -h 20 -UNSIGNED -HEX -holdScope viq0_older_entry_ready[7:0]
+addSignal -h 20 -UNSIGNED -HEX /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_idu_top/x_ct_idu_is_viq1/viq1_entry_cnt[3:0]
+addSignal -h 20 -holdScope viq1_ctrl_empty
+addSignal -h 20 -holdScope viq1_ctrl_full
+addSignal -h 20 -UNSIGNED -HEX -holdScope viq1_entry_vld[7:0]
+addSignal -h 20 -UNSIGNED -HEX -holdScope viq1_entry_ready[7:0]
+addSignal -h 20 -UNSIGNED -HEX -holdScope viq1_entry_issue_en[7:0]
+addSignal -h 20 -UNSIGNED -HEX -holdScope viq1_older_entry_ready[7:0]
+addSignal -h 20 /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_idu_top/lsu_idu_lsiq_pop0_vld
+addSignal -h 20 -holdScope lsu_idu_lsiq_pop1_vld
+addSignal -h 20 /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_idu_top/x_ct_idu_is_aiq0/x_ct_idu_is_aiq0_entry0/vld
+addSignal -h 20 -UNSIGNED -HEX -holdScope iid[6:0]
+addSignal -h 20 -UNSIGNED -HEX -holdScope opcode[31:0]
+addSignal -h 20 -UNSIGNED -HEX -holdScope dst_preg[6:0]
+addSignal -h 20 -UNSIGNED -HEX -holdScope read_src0_data[11:0]
+addSignal -h 20 -UNSIGNED -HEX -holdScope read_src1_data[11:0]
+addSignal -h 20 -UNSIGNED -HEX -holdScope read_src2_data[11:0]
+addSignal -h 20 -holdScope x_rdy
+addGroup "08_issue_execute"
+addSignal -h 20 /tb/clk
+addSignal -h 20 -UNSIGNED -UDEC /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_hpcp_top/mcycle_value[63:0]
+addSignal -h 20 /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_idu_top/x_ct_idu_rf_ctrl/rf_pipe0_inst_vld
+addSignal -h 20 -holdScope rf_pipe1_inst_vld
+addSignal -h 20 -holdScope rf_pipe2_inst_vld
+addSignal -h 20 -holdScope rf_pipe3_inst_vld
+addSignal -h 20 -holdScope rf_pipe4_inst_vld
+addSignal -h 20 -holdScope rf_pipe5_inst_vld
+addSignal -h 20 -holdScope rf_pipe6_inst_vld
+addSignal -h 20 -holdScope rf_pipe7_inst_vld
+addSignal -h 20 -holdScope ctrl_rf_pipe0_inst_vld
+addSignal -h 20 -holdScope ctrl_rf_pipe1_inst_vld
+addSignal -h 20 -holdScope ctrl_rf_pipe2_inst_vld
+addSignal -h 20 -holdScope ctrl_rf_pipe3_inst_vld
+addSignal -h 20 -holdScope ctrl_rf_pipe4_inst_vld
+addSignal -h 20 -holdScope ctrl_rf_pipe5_inst_vld
+addSignal -h 20 -holdScope ctrl_rf_pipe6_inst_vld
+addSignal -h 20 -holdScope ctrl_rf_pipe7_inst_vld
+addSignal -h 20 -holdScope dp_ctrl_rf_pipe0_src_no_rdy
+addSignal -h 20 -holdScope dp_ctrl_rf_pipe1_src_no_rdy
+addSignal -h 20 -holdScope dp_ctrl_rf_pipe2_src_no_rdy
+addSignal -h 20 -holdScope dp_ctrl_rf_pipe3_src_no_rdy
+addSignal -h 20 -holdScope dp_ctrl_rf_pipe4_src_no_rdy
+addSignal -h 20 -holdScope dp_ctrl_rf_pipe5_src_no_rdy
+addSignal -h 20 -holdScope dp_ctrl_rf_pipe6_src_no_rdy
+addSignal -h 20 -holdScope dp_ctrl_rf_pipe7_src_no_rdy
+addSignal -h 20 /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_idu_top/idu_hpcp_rf_pipe0_lch_fail_vld
+addSignal -h 20 -holdScope idu_hpcp_rf_pipe1_lch_fail_vld
+addSignal -h 20 -holdScope idu_hpcp_rf_pipe2_lch_fail_vld
+addSignal -h 20 -holdScope idu_hpcp_rf_pipe3_lch_fail_vld
+addSignal -h 20 -holdScope idu_hpcp_rf_pipe4_lch_fail_vld
+addSignal -h 20 -holdScope idu_hpcp_rf_pipe5_lch_fail_vld
+addSignal -h 20 -holdScope idu_hpcp_rf_pipe6_lch_fail_vld
+addSignal -h 20 -holdScope idu_hpcp_rf_pipe7_lch_fail_vld
+addSignal -h 20 -UNSIGNED -HEX /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_idu_top/x_ct_idu_rf_dp/idu_iu_rf_pipe0_iid[6:0]
+addSignal -h 20 -UNSIGNED -HEX -holdScope idu_iu_rf_pipe1_iid[6:0]
+addSignal -h 20 -UNSIGNED -HEX -holdScope idu_iu_rf_pipe2_iid[6:0]
+addSignal -h 20 -UNSIGNED -HEX -holdScope idu_lsu_rf_pipe3_iid[6:0]
+addSignal -h 20 -UNSIGNED -HEX -holdScope idu_lsu_rf_pipe4_iid[6:0]
+addSignal -h 20 -UNSIGNED -HEX -holdScope idu_vfpu_rf_pipe6_iid[6:0]
+addSignal -h 20 -UNSIGNED -HEX -holdScope idu_vfpu_rf_pipe7_iid[6:0]
+addSignal -h 20 /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_iu_top/x_ct_iu_alu0/alu_ex1_inst_vld
+addSignal -h 20 -UNSIGNED -HEX -holdScope alu_ex1_dst_preg[6:0]
+addSignal -h 20 -UNSIGNED -HEX -holdScope alu_ex1_fwd_data[63:0]
+addSignal -h 20 -holdScope alu_ex1_alu_short
+addSignal -h 20 /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_iu_top/x_ct_iu_alu1/alu_ex1_inst_vld
+addSignal -h 20 /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_iu_top/x_ct_iu_rbus/iu_idu_ex1_pipe0_fwd_preg_vld
+addSignal -h 20 -holdScope iu_idu_ex1_pipe1_fwd_preg_vld
+addSignal -h 20 -holdScope iu_idu_ex2_pipe0_wb_preg_vld
+addSignal -h 20 -holdScope iu_idu_ex2_pipe1_wb_preg_vld
+addSignal -h 20 /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_iu_top/x_ct_iu_mult/mult_rbus_ex3_data_vld
+addSignal -h 20 -holdScope mult_rbus_ex4_data_vld
+addSignal -h 20 -holdScope mult_rf_mla_match_ex1
+addSignal -h 20 -holdScope mult_rf_mla_match_ex2
+addSignal -h 20 -holdScope mult_rf_mla_match_ex3
+addSignal -h 20 /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_iu_top/x_ct_iu_div/iu_idu_div_busy
+addSignal -h 20 -holdScope iu_idu_div_wb_stall
+addSignal -h 20 -holdScope div_ex1_special_result
+addSignal -h 20 -holdScope x_srt_finish
+addSignal -h 20 -holdScope div_rbus_pipe0_data_vld
+addGroup "09_load_pipeline"
+addSignal -h 20 /tb/clk
+addSignal -h 20 -UNSIGNED -UDEC /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_hpcp_top/mcycle_value[63:0]
+addSignal -h 20 /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_lsu_top/x_ct_lsu_ld_ag/ld_ag_inst_vld
+addSignal -h 20 -holdScope ld_ag_dc_inst_vld
+addSignal -h 20 -UNSIGNED -HEX -holdScope ld_ag_iid[6:0]
+addSignal -h 20 -UNSIGNED -HEX -holdScope ld_ag_va[63:0]
+addSignal -h 20 -UNSIGNED -HEX -holdScope ld_ag_pa[39:0]
+addSignal -h 20 /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_lsu_top/x_ct_lsu_ld_dc/ld_dc_inst_vld
+addSignal -h 20 -holdScope ld_dc_da_inst_vld
+addSignal -h 20 -UNSIGNED -HEX -holdScope ld_dc_iid[6:0]
+addSignal -h 20 /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_lsu_top/x_ct_lsu_ld_da/ld_da_inst_vld
+addSignal -h 20 -UNSIGNED -HEX -holdScope ld_da_iid[6:0]
+addSignal -h 20 -holdScope ld_da_dcache_miss
+addSignal -h 20 -holdScope ld_da_wb_cmplt_req
+addSignal -h 20 -holdScope ld_da_wb_data_req
+addSignal -h 20 /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_lsu_top/x_ct_lsu_ld_wb/ld_wb_inst_vld
+addSignal -h 20 -holdScope lsu_rtu_wb_pipe3_cmplt
+addSignal -h 20 -UNSIGNED -HEX -holdScope lsu_rtu_wb_pipe3_iid[6:0]
+addSignal -h 20 /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_lsu_top/x_ct_lsu_st_ag/st_ag_inst_vld
+addSignal -h 20 -holdScope st_ag_dc_inst_vld
+addSignal -h 20 /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_lsu_top/x_ct_lsu_st_dc/st_dc_da_inst_vld
+addSignal -h 20 /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_lsu_top/x_ct_lsu_st_da/st_da_inst_vld
+addSignal -h 20 -holdScope st_da_dcache_miss
+addSignal -h 20 /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_lsu_top/x_ct_lsu_st_wb/lsu_rtu_wb_pipe4_cmplt
+addSignal -h 20 -UNSIGNED -HEX -holdScope lsu_rtu_wb_pipe4_iid[6:0]
+addGroup "10_memory_ordering"
+addSignal -h 20 /tb/clk
+addSignal -h 20 -UNSIGNED -UDEC /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_hpcp_top/mcycle_value[63:0]
+addSignal -h 20 /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_lsu_top/x_ct_lsu_lq/lq_empty
+addSignal -h 20 -holdScope lq_full
+addSignal -h 20 /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_lsu_top/x_ct_lsu_sq/sq_empty
+addSignal -h 20 -holdScope sq_full
+addSignal -h 20 -holdScope sq_create_success
+addSignal -h 20 -UNSIGNED -HEX -holdScope sq_create_vld[11:0]
+addSignal -h 20 -holdScope sq_ld_dc_newest_fwd_data_vld_req
+addSignal -h 20 -holdScope sq_ld_dc_data_discard_req
+addSignal -h 20 -holdScope sq_ld_dc_other_discard_req
+addSignal -h 20 /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_lsu_top/x_ct_lsu_wmb/wmb_ld_dc_fwd_req
+addSignal -h 20 -holdScope wmb_empty
+addSignal -h 20 -holdScope wmb_create_vld
+addSignal -h 20 -holdScope wmb_biu_aw_req
+addSignal -h 20 -holdScope wmb_biu_w_req
+addSignal -h 20 -UNSIGNED -HEX -holdScope wmb_entry_pop_vld[7:0]
+addSignal -h 20 /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_lsu_top/lsu_idu_dc_pipe3_load_fwd_inst_vld_dup1
+addSignal -h 20 /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_lsu_top/x_ct_lsu_ld_da/ld_da_sq_data_discard_vld
+addSignal -h 20 -holdScope ld_da_sq_global_discard_vld
+addSignal -h 20 -holdScope ld_da_wmb_discard_vld
+addSignal -h 20 -holdScope ld_da_wb_spec_fail
+addSignal -h 20 -holdScope lsu_rtu_da_pipe3_split_spec_fail_vld
+addSignal -h 20 /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_lsu_top/x_ct_lsu_st_da/st_da_wb_spec_fail
+addSignal -h 20 -holdScope lsu_rtu_da_pipe4_split_spec_fail_vld
+addSignal -h 20 /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_rtu_top/rtu_lsu_spec_fail_flush
+addSignal -h 20 -UNSIGNED -HEX -holdScope rtu_lsu_spec_fail_iid[6:0]
+addSignal -h 20 /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_lsu_top/x_ct_lsu_dcache_arb/ag_dcache_arb_ld_tag_req
+addSignal -h 20 -UNSIGNED -HEX -holdScope ag_dcache_arb_ld_data_req[7:0]
+addSignal -h 20 -holdScope lfb_dcache_arb_ld_req
+addSignal -h 20 -holdScope vb_dcache_arb_ld_req
+addSignal -h 20 -holdScope snq_dcache_arb_ld_req
+addSignal -h 20 -holdScope wmb_dcache_arb_ld_req
+addSignal -h 20 -holdScope dcache_arb_ag_ld_sel
+addSignal -h 20 -holdScope dcache_arb_lfb_ld_grnt
+addSignal -h 20 -holdScope dcache_arb_vb_ld_grnt
+addSignal -h 20 -holdScope dcache_arb_snq_ld_grnt
+addSignal -h 20 -holdScope dcache_arb_wmb_ld_grnt
+addSignal -h 20 -holdScope ag_dcache_arb_st_tag_req
+addSignal -h 20 -holdScope ag_dcache_arb_st_dirty_req
+addSignal -h 20 -holdScope lfb_dcache_arb_st_req
+addSignal -h 20 -holdScope vb_dcache_arb_st_req
+addSignal -h 20 -holdScope wmb_dcache_arb_st_req
+addSignal -h 20 -holdScope dcache_arb_ag_st_sel
+addSignal -h 20 -holdScope dcache_arb_lfb_st_sel
+addSignal -h 20 -holdScope dcache_arb_vb_st_grnt
+addSignal -h 20 -holdScope dcache_arb_wmb_st_sel
+addSignal -h 20 /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_lsu_top/x_ct_lsu_rb/rb_empty
+addSignal -h 20 -holdScope rb_full
+addSignal -h 20 -holdScope rb_create_ld_success
+addSignal -h 20 -holdScope rb_biu_ar_req
+addSignal -h 20 -holdScope rb_lfb_create_vld
+addSignal -h 20 -holdScope rb_ld_wb_cmplt_req
+addSignal -h 20 /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_lsu_top/x_ct_lsu_lfb/lfb_empty
+addSignal -h 20 -holdScope lfb_addr_full
+addSignal -h 20 -UNSIGNED -HEX -holdScope lfb_addr_entry_rb_create_vld[7:0]
+addSignal -h 20 -holdScope lfb_data_create_vld
+addSignal -h 20 -holdScope lfb_biu_r_id_hit
+addSignal -h 20 -UNSIGNED -HEX -holdScope lfb_depd_wakeup[11:0]
+addSignal -h 20 /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_lsu_top/x_ct_lsu_vb/vb_empty
+addSignal -h 20 -holdScope lfb_vb_create_req
+addSignal -h 20 -holdScope lfb_vb_create_vld
+addGroup "11_rob_retire"
+addSignal -h 20 /tb/clk
+addSignal -h 20 -UNSIGNED -UDEC /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_hpcp_top/mcycle_value[63:0]
+addSignal -h 20 /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_rtu_top/rtu_yy_xx_retire0
+addSignal -h 20 -holdScope rtu_yy_xx_retire1
+addSignal -h 20 -holdScope rtu_yy_xx_retire2
+addSignal -h 20 -holdScope idu_rtu_rob_create0_en
+addSignal -h 20 -holdScope idu_rtu_rob_create1_en
+addSignal -h 20 -holdScope idu_rtu_rob_create2_en
+addSignal -h 20 -holdScope idu_rtu_rob_create3_en
+addSignal -h 20 -holdScope rtu_yy_xx_flush
+addSignal -h 20 -UNSIGNED -HEX /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_rtu_top/x_ct_rtu_rob/rob_entry_num[6:0]
+addSignal -h 20 -holdScope rob_full
+addSignal -h 20 -holdScope rob_empty
+addSignal -h 20 -UNSIGNED -HEX /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_rtu_top/x_ct_rtu_rob/x_ct_rtu_rob_rt/rob_cur_pc[38:0]
+addSignal -h 20 /rob_cur_pc_1[38:0]
+addSignal -h 20 /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_rtu_top/x_ct_rtu_rob/x_ct_rtu_rob_rt/rob_read0_inst_vld
+addSignal -h 20 -holdScope rob_read0_cmplted
+addSignal -h 20 -holdScope rob_read0_commit
+addSignal -h 20 -holdScope rob_read0_expt_entry_vld
+addSignal -h 20 -UNSIGNED -HEX -holdScope rob_read0_iid[6:0]
+addSignal -h 20 -holdScope rob_commit0
+addSignal -h 20 -holdScope rob_commit1
+addSignal -h 20 -holdScope rob_commit2
+addSignal -h 20 -holdScope rob_read0_pipe0_cmplt
+addSignal -h 20 -holdScope rob_read0_pipe1_cmplt
+addSignal -h 20 -holdScope rob_read0_pipe2_cmplt
+addSignal -h 20 -holdScope rob_read0_pipe3_cmplt
+addSignal -h 20 -holdScope rob_read0_pipe4_cmplt
+addSignal -h 20 -holdScope rob_read0_pipe6_cmplt
+addSignal -h 20 -holdScope rob_read0_pipe7_cmplt
+addSignal -h 20 -holdScope rob_read0_cmplted_no_spec_hit
+addSignal -h 20 -holdScope rob_read0_cmplted_no_spec_miss
+addSignal -h 20 -holdScope rob_read0_cmplted_no_spec_mispred
+addSignal -h 20 /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_iu_top/iu_rtu_pipe0_cmplt
+addSignal -h 20 -UNSIGNED -HEX -holdScope iu_rtu_pipe0_iid[6:0]
+addSignal -h 20 -holdScope iu_rtu_pipe1_cmplt
+addSignal -h 20 -UNSIGNED -HEX -holdScope iu_rtu_pipe1_iid[6:0]
+addSignal -h 20 -holdScope iu_rtu_pipe2_cmplt
+addSignal -h 20 -UNSIGNED -HEX -holdScope iu_rtu_pipe2_iid[6:0]
+addSignal -h 20 /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_lsu_top/lsu_rtu_wb_pipe3_cmplt
+addSignal -h 20 -UNSIGNED -HEX -holdScope lsu_rtu_wb_pipe3_iid[6:0]
+addSignal -h 20 -holdScope lsu_rtu_wb_pipe4_cmplt
+addSignal -h 20 -UNSIGNED -HEX -holdScope lsu_rtu_wb_pipe4_iid[6:0]
+addSignal -h 20 /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_vfpu_top/vfpu_rtu_pipe6_cmplt
+addSignal -h 20 -UNSIGNED -HEX -holdScope vfpu_rtu_pipe6_iid[6:0]
+addSignal -h 20 -holdScope vfpu_rtu_pipe7_cmplt
+addSignal -h 20 -UNSIGNED -HEX -holdScope vfpu_rtu_pipe7_iid[6:0]
+addGroup "12_exception_flush"
+addSignal -h 20 /tb/clk
+addSignal -h 20 -UNSIGNED -UDEC /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_hpcp_top/mcycle_value[63:0]
+addSignal -h 20 /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_rtu_top/rtu_yy_xx_flush
+addSignal -h 20 -holdScope rtu_cp0_expt_vld
+addSignal -h 20 -UNSIGNED -HEX -holdScope rtu_cp0_epc[63:0]
+addSignal -h 20 -UNSIGNED -HEX -holdScope rtu_cp0_expt_mtval[63:0]
+addSignal -h 20 -UNSIGNED -HEX -holdScope rtu_yy_xx_expt_vec[5:0]
+addSignal -h 20 -holdScope rtu_ifu_chgflw_vld
+addSignal -h 20 -UNSIGNED -HEX -holdScope rtu_ifu_chgflw_pc[38:0]
+addSignal -h 20 /rtu_ifu_chgflw_pc_1[38:0]
+addSignal -h 20 /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_rtu_top/x_ct_rtu_rob/x_ct_rtu_rob_expt/expt_entry_vld
+addSignal -h 20 -UNSIGNED -HEX -holdScope expt_entry_iid[6:0]
+addSignal -h 20 /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_rtu_top/x_ct_rtu_rob/x_ct_rtu_rob_rt/rob_read0_expt_entry_vld
+addSignal -h 20 /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_rtu_top/x_ct_rtu_retire/retire_inst0_flush
+addSignal -h 20 -holdScope retire_rob_flush
+addSignal -h 20 -UNSIGNED -HEX -holdScope flush_cur_state[4:0]
+addGroup "13_mmu_ptw_pmp"
+addSignal -h 20 /tb/clk
+addSignal -h 20 -UNSIGNED -UDEC /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_hpcp_top/mcycle_value[63:0]
+addSignal -h 20 /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_mmu_top/ifu_mmu_va_vld
+addSignal -h 20 -holdScope mmu_ifu_pavld
+addSignal -h 20 -holdScope mmu_hpcp_iutlb_miss
+addSignal -h 20 -holdScope lsu_mmu_va0_vld
+addSignal -h 20 -holdScope lsu_mmu_va1_vld
+addSignal -h 20 -holdScope mmu_lsu_pa0_vld
+addSignal -h 20 -holdScope mmu_lsu_pa1_vld
+addSignal -h 20 -holdScope mmu_lsu_stall0
+addSignal -h 20 -holdScope mmu_lsu_stall1
+addSignal -h 20 -holdScope mmu_lsu_tlb_busy
+addSignal -h 20 -holdScope iutlb_arb_req
+addSignal -h 20 -holdScope iutlb_arb_cmplt
+addSignal -h 20 -holdScope dutlb_arb_req
+addSignal -h 20 -holdScope dutlb_arb_cmplt
+addSignal -h 20 -holdScope jtlb_ptw_req
+addSignal -h 20 -holdScope mmu_hpcp_jtlb_miss
+addSignal -h 20 -holdScope ptw_arb_req
+addSignal -h 20 -holdScope mmu_lsu_data_req
+addSignal -h 20 -holdScope lsu_mmu_data_vld
+addSignal -h 20 -holdScope ptw_jtlb_ref_data_vld
+addSignal -h 20 -holdScope ptw_jtlb_ref_cmplt
+addSignal -h 20 -holdScope mmu_lsu_page_fault0
+addSignal -h 20 -holdScope mmu_lsu_page_fault1
+addSignal -h 20 -UNSIGNED -HEX /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_mmu_top/x_ct_mmu_ptw/ptw_cur_st[4:0]
+addSignal -h 20 -UNSIGNED -HEX /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_pmp_top/mmu_pmp_pa0[27:0]
+addSignal -h 20 -UNSIGNED -HEX -holdScope mmu_pmp_pa1[27:0]
+addSignal -h 20 -UNSIGNED -HEX -holdScope mmu_pmp_pa2[27:0]
+addSignal -h 20 -UNSIGNED -HEX -holdScope mmu_pmp_pa3[27:0]
+addSignal -h 20 -UNSIGNED -HEX -holdScope mmu_pmp_pa4[27:0]
+addSignal -h 20 -UNSIGNED -HEX -holdScope pmp_mmu_flg0[3:0]
+addSignal -h 20 -UNSIGNED -HEX -holdScope pmp_mmu_flg1[3:0]
+addSignal -h 20 -UNSIGNED -HEX -holdScope pmp_mmu_flg2[3:0]
+addSignal -h 20 -UNSIGNED -HEX -holdScope pmp_mmu_flg3[3:0]
+addSignal -h 20 -UNSIGNED -HEX -holdScope pmp_mmu_flg4[3:0]
+addGroup "14_l2_biu_axi"
+addSignal -h 20 /tb/clk
+addSignal -h 20 -UNSIGNED -UDEC /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_hpcp_top/mcycle_value[63:0]
+addSignal -h 20 /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_l2c_top/x_ct_l2c_sub_bank_0/cmp_stage_vld
+addSignal -h 20 -UNSIGNED -HEX -holdScope cmp_stage_addr[32:0]
+addSignal -h 20 -holdScope tag_stage_vld
+addSignal -h 20 -holdScope data_stage_vld
+addSignal -h 20 -holdScope l2c_pipeline_rdy
+addSignal -h 20 /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_l2c_top/x_ct_l2c_sub_bank_0/x_ct_l2c_cmp/l2c_cache_hit
+addSignal -h 20 -holdScope l2c_cache_miss
+addSignal -h 20 /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_l2c_top/x_ct_l2c_sub_bank_1/cmp_stage_vld
+addSignal -h 20 /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_l2c_top/x_ct_l2c_sub_bank_1/x_ct_l2c_cmp/l2c_cache_hit
+addSignal -h 20 /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_biu_top/x_ct_biu_read_channel/biu_pad_arvalid
+addSignal -h 20 -holdScope pad_biu_arready
+addSignal -h 20 -UNSIGNED -HEX -holdScope biu_pad_araddr[39:0]
+addSignal -h 20 -UNSIGNED -HEX -holdScope biu_pad_arid[4:0]
+addSignal -h 20 -UNSIGNED -HEX -holdScope biu_pad_arlen[1:0]
+addSignal -h 20 -UNSIGNED -HEX -holdScope biu_pad_arsize[2:0]
+addSignal -h 20 -holdScope pad_biu_rvalid
+addSignal -h 20 -holdScope biu_pad_rready
+addSignal -h 20 -UNSIGNED -HEX -holdScope pad_biu_rid[4:0]
+addSignal -h 20 -UNSIGNED -HEX -holdScope pad_biu_rdata[127:0]
+addSignal -h 20 -holdScope pad_biu_rlast
+addSignal -h 20 -UNSIGNED -HEX -holdScope pad_biu_rresp[3:0]
+addSignal -h 20 /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_biu_top/x_ct_biu_write_channel/biu_pad_awvalid
+addSignal -h 20 -holdScope pad_awready
+addSignal -h 20 -UNSIGNED -HEX -holdScope biu_pad_awaddr[39:0]
+addSignal -h 20 -UNSIGNED -HEX -holdScope biu_pad_awid[4:0]
+addSignal -h 20 -holdScope biu_pad_wvalid
+addSignal -h 20 -holdScope pad_wready
+addSignal -h 20 -UNSIGNED -HEX -holdScope biu_pad_wdata[127:0]
+addSignal -h 20 -holdScope biu_pad_wlast
+addSignal -h 20 -holdScope pad_biu_bvalid
+addSignal -h 20 -holdScope biu_pad_bready
+addSignal -h 20 -UNSIGNED -HEX -holdScope pad_biu_bid[4:0]
+addSignal -h 20 -UNSIGNED -HEX -holdScope pad_biu_bresp[1:0]
+addGroup "15_trap_privilege"
+addSignal -h 20 /tb/clk
+addSignal -h 20 -UNSIGNED -UDEC /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_hpcp_top/mcycle_value[63:0]
+addSignal -h 20 -UNSIGNED -HEX /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_cp0_top/cp0_yy_priv_mode[1:0]
+addSignal -h 20 -holdScope cp0_mret
+addSignal -h 20 -holdScope cp0_sret
+addSignal -h 20 -holdScope hpcp_cp0_int_vld
+addSignal -h 20 /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_rtu_top/rtu_cp0_expt_vld
+addSignal -h 20 -UNSIGNED -HEX -holdScope rtu_cp0_epc[63:0]
+addSignal -h 20 -UNSIGNED -HEX -holdScope rtu_cp0_expt_mtval[63:0]
+addSignal -h 20 -UNSIGNED -HEX -holdScope rtu_yy_xx_expt_vec[5:0]
+addSignal -h 20 -holdScope rtu_idu_retire_int_vld
+addSignal -h 20 -holdScope rtu_ifu_chgflw_vld
+addSignal -h 20 -UNSIGNED -HEX -holdScope rtu_ifu_chgflw_pc[38:0]
+addSignal -h 20 /rtu_ifu_chgflw_pc_1[38:0]
+addSignal -h 20 /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_cp0_top/cp0_yy_clk_en
+addSignal -h 20 /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/forever_cpuclk
+addGroup "16_vfpu"
+addSignal -h 20 /tb/clk
+addSignal -h 20 -UNSIGNED -UDEC /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_hpcp_top/mcycle_value[63:0]
+addSignal -h 20 /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_vfpu_top/idu_vfpu_rf_pipe6_sel
+addSignal -h 20 -holdScope idu_vfpu_rf_pipe7_sel
+addSignal -h 20 -UNSIGNED -HEX -holdScope idu_vfpu_rf_pipe6_iid[6:0]
+addSignal -h 20 -UNSIGNED -HEX -holdScope idu_vfpu_rf_pipe7_iid[6:0]
+addSignal -h 20 -holdScope vfpu_rtu_pipe6_cmplt
+addSignal -h 20 -UNSIGNED -HEX -holdScope vfpu_rtu_pipe6_iid[6:0]
+addSignal -h 20 -holdScope vfpu_rtu_pipe7_cmplt
+addSignal -h 20 -UNSIGNED -HEX -holdScope vfpu_rtu_pipe7_iid[6:0]
+addSignal -h 20 -holdScope vfpu_idu_ex3_pipe6_fwd_vreg_vld
+addSignal -h 20 -holdScope vfpu_idu_ex3_pipe7_fwd_vreg_vld
+addSignal -h 20 -holdScope vfpu_idu_ex5_pipe6_wb_vreg_vld_dup0
+addSignal -h 20 -holdScope vfpu_idu_ex5_pipe7_wb_vreg_vld_dup0
+addSignal -h 20 /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_vfpu_top/x_ct_vfpu_rbus/rbus_pipe6_vreg_wb_vld
+addSignal -h 20 -holdScope rbus_pipe7_vreg_wb_vld
+addGroup "17_coherence"
+addSignal -h 20 /tb/clk
+addSignal -h 20 -UNSIGNED -UDEC /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_hpcp_top/mcycle_value[63:0]
+addSignal -h 20 /tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_biu_top/x_ct_biu_snoop_channel/pad_biu_acvalid
+addSignal -h 20 -holdScope biu_pad_acready
+addSignal -h 20 -UNSIGNED -HEX -holdScope pad_biu_acaddr[39:0]
+addSignal -h 20 -holdScope biu_pad_crvalid
+addSignal -h 20 -holdScope pad_biu_crready
+addSignal -h 20 -holdScope biu_pad_cdvalid
+addSignal -h 20 -holdScope pad_biu_cdready
+addSignal -h 20 -UNSIGNED -HEX -holdScope biu_pad_cddata[127:0]
+addSignal -h 20 -holdScope biu_pad_cdlast
+
+; getSignalForm Scope Hierarchy Status
+; active file of getSignalForm
