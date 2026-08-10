@@ -2,7 +2,7 @@
 
 本目录收录分支预测发展主线论文，以及 CBP2025、CBP-NG 2026 的公开论文集。文件均在 2026-08-10 下载，并已检查为可解析的 PDF；共 35 份。
 
-中文教学资料：[Branch Prediction Papers Chinese Guide](branch_prediction_papers_chinese_guide.md)。该文档按 35 份 PDF 逐篇整理，每篇独立保留原文问题、机制、实验、图表、结论、从业者评论与技术演进位置。
+中文教学资料：[Branch Prediction Papers Chinese Guide](branch_prediction_papers_chinese_guide.md)。该文档按 35 份 PDF 逐篇、依原文章节顺序展开，每篇独立保留问题设定、机制、公式、参数、实验、图表数据、结论、教学解析与技术演进位置。重要图表均以中文说明标题、坐标、数据和体系结构含义，不直接嵌入 PDF 页面或页面截图。
 
 ## Foundations
 
@@ -65,6 +65,6 @@ CBP-NG explicitly evaluates accuracy, throughput, latency, energy, and implement
 ## Validation
 
 - Every local file was recognized as PDF and parsed by `pdfinfo`; the 35 PDFs contain 339 pages in total. The scanned Lee–Smith technical report was checked page by page from rendered images; the other papers were checked against full-document text extraction and original-page rendering.
-- The Chinese guide contains 35 independent paper chapters, 35 expanded body sections, 35 key-chart explanations, and 35 embedded original-page images. Its local PDF/image links were resolved against the repository and the Markdown was parsed successfully.
+- The Chinese guide contains 35 independent paper chapters with section-ordered body coverage, text explanations of important figures and tables, clearly separated teaching commentary, and no embedded PDF-page images. Its local PDF links were resolved against the repository and the Markdown was parsed successfully.
 - The collection contains 35 PDFs: 12 foundational papers, 5 O-GEHL/TAGE papers, 1 modern motivation paper, 9 CBP2025 papers, 7 CBP-NG papers, and 1 CBP-NG scoring document.
 - Only publicly reachable author, university, conference, arXiv, workshop, or proceedings links were used.
