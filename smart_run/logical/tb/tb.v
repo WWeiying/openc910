@@ -5490,6 +5490,62 @@ module tb();
   reg [63:0] value0;
   reg [63:0] value1;
   reg [63:0] value2;
+
+  // Export the committed logical GPR view after the PASS/FAIL writeback has
+  // reached the PRF.  reg_trace.log is sampled on retirement and is not a
+  // reliable terminal snapshot when several instructions retire together.
+  task automatic dump_rtl_arch_state(input string terminal_status);
+    integer state_file;
+    begin
+      state_file = $fopen("rtl_arch_state.json", "w");
+      if (state_file == 0) begin
+        $display("ERROR: cannot create rtl_arch_state.json");
+      end
+      else begin
+        $fdisplay(state_file, "{");
+        $fdisplay(state_file, "  \"format\": \"openc910-rtl-arch-state-v1\",");
+        $fdisplay(state_file, "  \"status\": \"%s\",", terminal_status);
+        $fdisplay(state_file, "  \"detection_cycle\": %0d,", `mcycle_value);
+        $fdisplay(state_file, "  \"retired_instructions\": %0d,", `minstret_value);
+        $fdisplay(state_file, "  \"registers\": {");
+        $fdisplay(state_file, "    \"zero\": \"0x%016h\",", 64'b0);
+        $fdisplay(state_file, "    \"ra\": \"0x%016h\",", get_preg_value(`lpreg1_id));
+        $fdisplay(state_file, "    \"sp\": \"0x%016h\",", get_preg_value(`lpreg2_id));
+        $fdisplay(state_file, "    \"gp\": \"0x%016h\",", get_preg_value(`lpreg3_id));
+        $fdisplay(state_file, "    \"tp\": \"0x%016h\",", get_preg_value(`lpreg4_id));
+        $fdisplay(state_file, "    \"t0\": \"0x%016h\",", get_preg_value(`lpreg5_id));
+        $fdisplay(state_file, "    \"t1\": \"0x%016h\",", get_preg_value(`lpreg6_id));
+        $fdisplay(state_file, "    \"t2\": \"0x%016h\",", get_preg_value(`lpreg7_id));
+        $fdisplay(state_file, "    \"s0\": \"0x%016h\",", get_preg_value(`lpreg8_id));
+        $fdisplay(state_file, "    \"s1\": \"0x%016h\",", get_preg_value(`lpreg9_id));
+        $fdisplay(state_file, "    \"a0\": \"0x%016h\",", get_preg_value(`lpreg10_id));
+        $fdisplay(state_file, "    \"a1\": \"0x%016h\",", get_preg_value(`lpreg11_id));
+        $fdisplay(state_file, "    \"a2\": \"0x%016h\",", get_preg_value(`lpreg12_id));
+        $fdisplay(state_file, "    \"a3\": \"0x%016h\",", get_preg_value(`lpreg13_id));
+        $fdisplay(state_file, "    \"a4\": \"0x%016h\",", get_preg_value(`lpreg14_id));
+        $fdisplay(state_file, "    \"a5\": \"0x%016h\",", get_preg_value(`lpreg15_id));
+        $fdisplay(state_file, "    \"a6\": \"0x%016h\",", get_preg_value(`lpreg16_id));
+        $fdisplay(state_file, "    \"a7\": \"0x%016h\",", get_preg_value(`lpreg17_id));
+        $fdisplay(state_file, "    \"s2\": \"0x%016h\",", get_preg_value(`lpreg18_id));
+        $fdisplay(state_file, "    \"s3\": \"0x%016h\",", get_preg_value(`lpreg19_id));
+        $fdisplay(state_file, "    \"s4\": \"0x%016h\",", get_preg_value(`lpreg20_id));
+        $fdisplay(state_file, "    \"s5\": \"0x%016h\",", get_preg_value(`lpreg21_id));
+        $fdisplay(state_file, "    \"s6\": \"0x%016h\",", get_preg_value(`lpreg22_id));
+        $fdisplay(state_file, "    \"s7\": \"0x%016h\",", get_preg_value(`lpreg23_id));
+        $fdisplay(state_file, "    \"s8\": \"0x%016h\",", get_preg_value(`lpreg24_id));
+        $fdisplay(state_file, "    \"s9\": \"0x%016h\",", get_preg_value(`lpreg25_id));
+        $fdisplay(state_file, "    \"s10\": \"0x%016h\",", get_preg_value(`lpreg26_id));
+        $fdisplay(state_file, "    \"s11\": \"0x%016h\",", get_preg_value(`lpreg27_id));
+        $fdisplay(state_file, "    \"t3\": \"0x%016h\",", get_preg_value(`lpreg28_id));
+        $fdisplay(state_file, "    \"t4\": \"0x%016h\",", get_preg_value(`lpreg29_id));
+        $fdisplay(state_file, "    \"t5\": \"0x%016h\",", get_preg_value(`lpreg30_id));
+        $fdisplay(state_file, "    \"t6\": \"0x%016h\"", get_preg_value(`lpreg31_id));
+        $fdisplay(state_file, "  }");
+        $fdisplay(state_file, "}");
+        $fclose(state_file);
+      end
+    end
+  endtask
   
   
   always @(posedge clk)
@@ -5510,6 +5566,8 @@ module tb();
   begin
     if(value0 == 64'h444333222 || value1 == 64'h444333222 || value2 == 64'h444333222)
     begin
+      #1;
+      dump_rtl_arch_state("PASS");
       cpi = real'(`mcycle_value) / `minstret_value;
       main_cpi = real'($signed(main_cycle_count_end - main_cycle_count_start)) / ($signed(main_retire_inst_count_end - main_retire_inst_count_start));
       kernel_cpi = real'($signed(kernel_cycle_count_end - kernel_cycle_count_start)) / ($signed(kernel_retire_inst_count_end - kernel_retire_inst_count_start));
@@ -5848,6 +5906,8 @@ module tb();
     end
     else if (value0 == 64'h2382348720 || value1 == 64'h2382348720 || value2 == 64'h2382348720)
     begin
+      #1;
+      dump_rtl_arch_state("FAIL");
       $display("*********************************************************************************");
       $display("*                        simulation finished with error                         *");
       $display("*********************************************************************************");

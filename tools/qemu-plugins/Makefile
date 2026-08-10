@@ -5,7 +5,7 @@ GLIB_LIBS := $(shell pkg-config --libs glib-2.0)
 
 .PHONY: all check check-exact check-fork clean
 
-all: simple_bbv.so simpoint_probe.so restore_replay.so kernel_trace.so
+all: simple_bbv.so simpoint_probe.so restore_replay.so kernel_trace.so arch_state.so
 
 check: check-fork check-exact
 
@@ -31,5 +31,10 @@ kernel_trace.so: kernel_trace.c
 	  $(CC) $(PLUGIN_CFLAGS) -I$(QEMU_ROOT)/include $(GLIB_CFLAGS) $< -o "$$tmp" $(GLIB_LIBS) && \
 	  mv -f "$$tmp" "$@"
 
+arch_state.so: arch_state.c
+	@tmp="$@.tmp.$$$$"; trap 'rm -f "$$tmp"' EXIT; \
+	  $(CC) $(PLUGIN_CFLAGS) -I$(QEMU_ROOT)/include $(GLIB_CFLAGS) $< -o "$$tmp" $(GLIB_LIBS) && \
+	  mv -f "$$tmp" "$@"
+
 clean:
-	rm -f simple_bbv.so simpoint_probe.so restore_replay.so kernel_trace.so
+	rm -f simple_bbv.so simpoint_probe.so restore_replay.so kernel_trace.so arch_state.so

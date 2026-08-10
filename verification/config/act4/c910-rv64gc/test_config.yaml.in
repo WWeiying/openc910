@@ -1,0 +1,10 @@
+# ACT4 uses Sail/Spike here to generate expected signatures. The XuanTie QEMU
+# terminal-state backend is invoked later by c910_verify.py regress-diff.
+name: c910-rv64gc-unpriv
+compiler_exe: @RISCV_GCC@
+objdump_exe: @RISCV_OBJDUMP@
+ref_model_exe: @REFERENCE_MODEL@
+udb_config: c910-rv64gc.yaml
+linker_script: link.ld
+dut_include_dir: .
+include_priv_tests: false

@@ -1,0 +1,18 @@
+{
+  "riscv-arch-test": {
+    "url": "https://github.com/riscv/riscv-arch-test.git",
+    "commit": "1aea60c2b3c4b65537714d5b3a23587def2c2600",
+    "group": "standard"
+  },
+  "riscv-tests": {
+    "url": "https://github.com/riscv-software-src/riscv-tests.git",
+    "commit": "447a5fcb8253627ddb5f6a226f64e43463afcdd5",
+    "group": "standard",
+    "submodules": true
+  },
+  "riscv-dv": {
+    "url": "https://github.com/chipsalliance/riscv-dv.git",
+    "commit": "b7a0b4b0b51346a3c64f159f81ea262d867c14a9",
+    "group": "random"
+  }
+}

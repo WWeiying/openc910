@@ -1,0 +1,6 @@
+.deps/
+.venv-act4/
+.venv-riscv-dv/
+out/
+__pycache__/
+*.pyc
