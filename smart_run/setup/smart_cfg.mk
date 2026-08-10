@@ -13,6 +13,12 @@
 #limitations under the License.
 #*/
 CPU_ARCH_FLAG_0 := c910
+BP_BRANCHES ?= 1
+BP_PATTERN_LENGTH ?= 2
+BP_RANDOM_MODE ?= 0
+BP_SEED ?= 910
+BP_WARMUP_ITERATIONS ?= 256
+BP_MEASURE_ITERATIONS ?= 512
 SPEC_SPEED_INDEPENDENT_CASES := \
       spec_600_perlbench_speed_kernel \
       spec_602_gcc_speed_kernel \
@@ -59,6 +65,7 @@ CASE_LIST := \
       bench_br_ras \
       bench_br_indirect \
       bench_br_corr \
+      bench_br_pattern \
       bench_cache_stride \
       spec_perlbench_regex_kernel \
       spec_gcc_compile_kernel \
@@ -246,6 +253,27 @@ bench_br_corr_build:
 	@cp -f ./tests/lib/clib/* ./work
 	@cp -f ./tests/lib/newlib_wrap/* ./work
 	@cd ./work && make -s clean && make -s all CPU_ARCH_FLAG_0=c910 COMPILER=${COMPILER} ENDIAN_MODE=little-endian CASENAME=bench_br_corr FILE=${CASE} >& bench_br_corr_build.case.log
+
+
+bench_br_pattern_build:
+	@cp -f ./tests/cases/bench_br_pattern/main.c ./work
+	@python3 ./tests/cases/bench_br_pattern/generate_branch_sites.py \
+		--branches ${BP_BRANCHES} \
+		--pattern-length ${BP_PATTERN_LENGTH} \
+		--output ./work/generated_branch_sites.inc
+	@find ./tests/lib/ -maxdepth 1 -type f -exec cp {} ./work/ \;
+	@cp -f ./tests/lib/clib/* ./work
+	@cp -f ./tests/lib/newlib_wrap/* ./work
+	@cd ./work && make -s clean && make -s all \
+		CPU_ARCH_FLAG_0=c910 COMPILER=${COMPILER} \
+		ENDIAN_MODE=little-endian CASENAME=bench_br_pattern FILE=${CASE} \
+		BP_BRANCHES=${BP_BRANCHES} \
+		BP_PATTERN_LENGTH=${BP_PATTERN_LENGTH} \
+		BP_RANDOM_MODE=${BP_RANDOM_MODE} \
+		BP_SEED=${BP_SEED} \
+		BP_WARMUP_ITERATIONS=${BP_WARMUP_ITERATIONS} \
+		BP_MEASURE_ITERATIONS=${BP_MEASURE_ITERATIONS} \
+		>& bench_br_pattern_build.case.log
 
 
 bench_cache_cap_build:

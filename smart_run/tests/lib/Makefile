@@ -810,6 +810,21 @@ else ifeq (${CASENAME}, spec_638_imagick_speed_kernel)
     -DSPEC_638_COLOR_EXTRA_ROUNDS=${SPEC_638_COLOR_EXTRA_ROUNDS} \
     -DSPEC_638_FILTER_EXTRA_ROUNDS=${SPEC_638_FILTER_EXTRA_ROUNDS}
   SFLAGS = -march=rv64imafdcvxtheadc -mabi=lp64d -c -O2
+else ifeq (${CASENAME}, bench_br_pattern)
+  BP_BRANCHES ?= 1
+  BP_PATTERN_LENGTH ?= 2
+  BP_RANDOM_MODE ?= 0
+  BP_SEED ?= 910
+  BP_WARMUP_ITERATIONS ?= 256
+  BP_MEASURE_ITERATIONS ?= 512
+  CFLAGS += -c -O2 -fno-unroll-loops \
+    -DBP_BRANCHES=${BP_BRANCHES} \
+    -DBP_PATTERN_LENGTH=${BP_PATTERN_LENGTH} \
+    -DBP_RANDOM_MODE=${BP_RANDOM_MODE} \
+    -DBP_SEED=${BP_SEED} \
+    -DBP_WARMUP_ITERATIONS=${BP_WARMUP_ITERATIONS} \
+    -DBP_MEASURE_ITERATIONS=${BP_MEASURE_ITERATIONS}
+  SFLAGS = -march=rv64imafdcvxtheadc -mabi=lp64d -c -O2
 else
   CFLAGS += -c -O2
   SFLAGS = -march=rv64imafdcvxtheadc -mabi=lp64d -c -O2
