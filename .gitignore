@@ -31,6 +31,10 @@
 __pycache__/
 *.py[cod]
 
+# Locally archived source webpages and their downloaded assets
+/article/chipsandcheese/input/
+/article/chipsandcheese/download_logs/
+
 # SimPoint build/install artifacts
 /tools/*
 /tools/SimPoint.3.2/
