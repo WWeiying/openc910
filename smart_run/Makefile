@@ -25,6 +25,9 @@ UPF = off
 THREADS = 4
 COREMARK_ITERATIONS ?= 30
 COREMARK_WAVE_ITERATIONS ?= 1
+ARCHIVE_FSDB ?= auto
+WAVEFORM_ARCHIVE_ROOT ?= $(CURDIR)/results/waveform_runs
+WAVEFORM_LABEL ?= $(CASE)
 export COMPILER = gcc
 
 CODE_BASE_PATH ?= $(abspath ../C910_RTL_FACTORY)
@@ -231,6 +234,7 @@ endif
 ifeq ($(findstring ${CASE}, ${CASE_LIST}), ${CASE})
 	@make -s buildcase CASE=${CASE}
 ifeq (${SIM}, vcs)
+	@rm -f ./work/novas.fsdb
 	@cd ./work && "${SIMV_BINARY}" -l run.vcs.log ${SIMV_POWER_OPT} $$(cat symbols.args) && \
 	  if [ -f ${CASE}.asm ]; then \
 	    ./gen_dyn_inst_trace.py pc_trace.log ${CASE}.asm || echo "WARN: dynamic instruction trace generation failed for ${CASE}"; \
@@ -248,6 +252,11 @@ else
 	        cd ./work && vvp xuantie_core.vvp
             endif
         endif
+endif
+ifneq (${ARCHIVE_FSDB}, off)
+	@bash ./archive_waveform.sh --mode "${ARCHIVE_FSDB}" \
+	  --case "${CASE}" --label "${WAVEFORM_LABEL}" \
+	  --source-dir ./work --output-root "${WAVEFORM_ARCHIVE_ROOT}"
 endif
 else
 	$(error Argument CASE=xxx is not valid)
@@ -274,6 +283,7 @@ ifeq ($(findstring ${CASE}, ${CASE_LIST}), ${CASE})
 	@make -s buildcase CASE=${CASE}
 ifeq (${SIM}, vcs)
 	@make -s compile
+	@rm -f ./work/novas.fsdb
 	@cd ./work && "${SIMV_BINARY}" -l run.vcs.log ${SIMV_POWER_OPT} $$(cat symbols.args) && \
 	  if [ -f ${CASE}.asm ]; then \
 	    ./gen_dyn_inst_trace.py pc_trace.log ${CASE}.asm || echo "WARN: dynamic instruction trace generation failed for ${CASE}"; \
@@ -292,6 +302,11 @@ else
             endif
         endif
 endif
+ifneq (${ARCHIVE_FSDB}, off)
+	@bash ./archive_waveform.sh --mode "${ARCHIVE_FSDB}" \
+	  --case "${CASE}" --label "${WAVEFORM_LABEL}" \
+	  --source-dir ./work --output-root "${WAVEFORM_ARCHIVE_ROOT}"
+endif
 else
 	$(error Argument CASE=xxx is not valid: \
         $(newline)   The list of valid cases can be obtained by executing: \
@@ -301,14 +316,15 @@ endif
 coremark-wave:
 	@$(MAKE) -s runcase CASE=coremark \
 		COREMARK_ITERATIONS=$(COREMARK_WAVE_ITERATIONS) \
-		DUMP=on PERF_DETAIL=on
+		DUMP=on PERF_DETAIL=on ARCHIVE_FSDB=on \
+		WAVEFORM_LABEL=coremark_iter-$(COREMARK_WAVE_ITERATIONS)
 
 # Execute all cases
 regress:
 	rm -rf ./tests/regress/regress_result/*
 	@(for case in ${CASE_LIST} ; do \
 	 rm -rf ./work/* ; \
-	 make -s runcase CASE=$$case; \
+	 make -s runcase CASE=$$case ARCHIVE_FSDB=off; \
 	 cp ./work/run_case.report ./tests/regress/regress_result/$$case.report; \
 	 done)
 	cd ./tests/regress && perl report_gen.pl
@@ -415,6 +431,8 @@ help:
 	@echo "    DUMP=                           : options: on / off";
 	@echo "    PERF_DETAIL=                    : options: on / off, enable detailed microarchitecture perf counters";
 	@echo "    COREMARK_WAVE_ITERATIONS=       : CoreMark iterations for coremark-wave, default: $(COREMARK_WAVE_ITERATIONS)";
+	@echo "    ARCHIVE_FSDB=                   : off / auto / on, default auto; coremark-wave forces on";
+	@echo "    WAVEFORM_ARCHIVE_ROOT=          : default: $(WAVEFORM_ARCHIVE_ROOT)";
 	@echo "    DOCKER_IMAGE=                   : default: $(DOCKER_IMAGE)";
 	@echo "    DOCKER_CONTAINER=               : default: $(DOCKER_CONTAINER)";
 	@echo "  Examples:";

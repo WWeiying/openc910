@@ -25,6 +25,7 @@ fi
 rm -f \
   "${CASE_DIR}/run.vcs.log" \
   "${CASE_DIR}/run_case.report" \
+  "${CASE_DIR}/novas.fsdb" \
   "${CASE_DIR}/simv.console.log" \
   "${CASE_DIR}/pc_trace.log" \
   "${CASE_DIR}/reg_trace.log"

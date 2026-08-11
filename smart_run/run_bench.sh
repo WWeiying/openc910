@@ -23,6 +23,7 @@ SPEC_COMPOSITE_PROFILE="${SPEC_KERNEL_PROFILE}"
 RTL_RETIRED_TOLERANCE="${RTL_RETIRED_TOLERANCE:-6}"
 RTL_WORKERS="${RTL_WORKERS:-1}"
 BENCH_SUITE="${BENCH_SUITE:-default}"
+ARCHIVE_FSDB="${ARCHIVE_FSDB:-auto}"
 REPLACE_RESULTS=off
 RESUME_RESULTS=off
 BASELINE_MODE=off
@@ -45,6 +46,8 @@ Options:
   --characterize-profile MODE rtl (default) or representative
   --profile MODE               SPEC kernel workload profile: quick or full
   --rtl-workers N              isolated concurrent VCS cases, default 1
+  --archive-fsdb               require and archive each case's novas.fsdb
+  --no-archive-fsdb            do not archive FSDB files
   --tag NAME                   set result tag; positional TAG remains supported
   --list-cases                 print the effective case list and exit
   --resume-results             reuse only strictly valid completed cases from
@@ -60,6 +63,7 @@ Environment equivalents:
   SPEC_COMPOSITE_PROFILE=quick|full  (legacy alias)
   RTL_RETIRED_TOLERANCE=N           default 6
   RTL_WORKERS=N                     isolated VCS workers, 1..8
+  ARCHIVE_FSDB=auto|on|off          default auto: archive when FSDB exists
   BENCH_CASES="case1 case2 ..."
 EOF
 }
@@ -88,6 +92,10 @@ while (($#)); do
             SPEC_KERNEL_PROFILE="$2"; SPEC_COMPOSITE_PROFILE="$2"; shift 2 ;;
         --rtl-workers)
             RTL_WORKERS="$2"; shift 2 ;;
+        --archive-fsdb)
+            ARCHIVE_FSDB=on; shift ;;
+        --no-archive-fsdb)
+            ARCHIVE_FSDB=off; shift ;;
         --tag)
             if ((TAG_SEEN)); then
                 echo "ERROR: tag specified more than once" >&2
@@ -129,6 +137,11 @@ if [ "${PROGRAM_FEATURES}" != on ] && [ "${PROGRAM_FEATURES}" != off ]; then
 fi
 if ! [[ "${RTL_WORKERS}" =~ ^[1-8]$ ]]; then
     echo "ERROR: RTL_WORKERS/--rtl-workers must be an integer from 1 to 8" >&2
+    exit 2
+fi
+if [ "${ARCHIVE_FSDB}" != auto ] && [ "${ARCHIVE_FSDB}" != on ] && \
+        [ "${ARCHIVE_FSDB}" != off ]; then
+    echo "ERROR: ARCHIVE_FSDB must be auto, on, or off" >&2
     exit 2
 fi
 if [ "${RESUME_RESULTS}" = on ] && [ "${REPLACE_RESULTS}" = on ]; then
@@ -312,6 +325,7 @@ if [ "${RESUMING}" = on ]; then
     check_resume_field kernel_profile "${SPEC_KERNEL_PROFILE}"
     check_resume_field composite_profile "${SPEC_COMPOSITE_PROFILE}"
     check_resume_field rtl_retired_tolerance "${RTL_RETIRED_TOLERANCE}"
+    check_resume_field archive_fsdb "${ARCHIVE_FSDB}"
     check_resume_field simv_sha256 "${SIMV_SHA256}"
     check_resume_field simv_daidir_manifest_sha256 \
         "${SIMV_DAIDIR_MANIFEST_SHA256}"
@@ -372,6 +386,7 @@ echo "Results -> ${RESULTS_DIR}"
 echo "Git     -> ${GIT_COMMIT} (${GIT_DIRTY}, ${GIT_BRANCH})"
 echo "Resume  -> ${RESUMING}"
 echo "Workers -> ${RTL_WORKERS}"
+echo "FSDB    -> ${ARCHIVE_FSDB} archive policy"
 echo ""
 
 if [ "${RESUMING}" = on ]; then
@@ -398,6 +413,7 @@ else
         echo "composite_profile=${SPEC_COMPOSITE_PROFILE}"
         echo "rtl_retired_tolerance=${RTL_RETIRED_TOLERANCE}"
         echo "rtl_workers=${RTL_WORKERS}"
+        echo "archive_fsdb=${ARCHIVE_FSDB}"
         echo "simv_sha256=${SIMV_SHA256}"
         echo "simv_daidir_manifest_sha256=${SIMV_DAIDIR_MANIFEST_SHA256}"
         echo "compile_log_sha256=${COMPILE_LOG_SHA256}"
@@ -466,6 +482,57 @@ if [ "${PROGRAM_FEATURES}" = on ]; then
     echo ""
 fi
 
+write_waveform_status() {
+    local case="$1"
+    local status="$2"
+    local archive_path="${3:-}"
+    local status_dir="${RESULTS_DIR}/waveforms"
+    local status_path="${status_dir}/${case}.status"
+    local temporary
+
+    mkdir -p "${status_dir}"
+    temporary="$(mktemp "${status_dir}/.${case}.status.XXXXXX")"
+    {
+        echo "case=${case}"
+        echo "archive_mode=${ARCHIVE_FSDB}"
+        echo "status=${status}"
+        echo "archive_path=${archive_path}"
+    } > "${temporary}"
+    mv "${temporary}" "${status_path}"
+}
+
+archive_case_waveform() {
+    local case="$1"
+    local source_dir="${2:-${SCRIPT_DIR}/work}"
+    local source_fsdb="${source_dir}/novas.fsdb"
+    local archive_dir="${RESULTS_DIR}/waveforms/${case}"
+
+    if [ "${ARCHIVE_FSDB}" = off ]; then
+        write_waveform_status "${case}" disabled
+        return 0
+    fi
+    if [ ! -s "${source_fsdb}" ]; then
+        if [ "${ARCHIVE_FSDB}" = on ]; then
+            write_waveform_status "${case}" missing
+            echo "ERROR: ${case}: ARCHIVE_FSDB=on but no non-empty novas.fsdb was produced" >&2
+            return 1
+        fi
+        write_waveform_status "${case}" not-generated
+        return 0
+    fi
+
+    bash "${SCRIPT_DIR}/archive_waveform.sh" \
+        --mode on \
+        --case "${case}" \
+        --label "${case}" \
+        --tag "${TAG}" \
+        --git-commit "${GIT_COMMIT_FULL}" \
+        --git-state "${GIT_DIRTY}" \
+        --source-dir "${source_dir}" \
+        --output-dir "${archive_dir}"
+    write_waveform_status "${case}" archived "${archive_dir}"
+}
+
 archive_case_outputs() {
     local case="$1"
     local source_dir="${2:-${SCRIPT_DIR}/work}"
@@ -482,6 +549,8 @@ archive_case_outputs() {
     cp -f "${source_dir}/run_case.report" "${RESULTS_DIR}/${case}.run_case.report" 2>/dev/null || true
     cp -f "${source_dir}/simv.console.log" \
         "${RESULTS_DIR}/${case}.simv.console.log" 2>/dev/null || true
+
+    archive_case_waveform "${case}" "${source_dir}"
 
     if [ -f "${log}" ]; then
         grep -A 200 "Performance Statistics" "${log}" \
@@ -526,8 +595,25 @@ archived_case_complete() {
     if [ -n "${FEATURE_DIR}" ]; then
         args+=(--features-dir "${FEATURE_DIR}")
     fi
-    python3 "${REPO_ROOT}/spec_flow/check_rtl_evidence_case.py" \
-        "${args[@]}" >/dev/null 2>&1
+    if ! python3 "${REPO_ROOT}/spec_flow/check_rtl_evidence_case.py" \
+            "${args[@]}" >/dev/null 2>&1; then
+        return 1
+    fi
+
+    local status_file="${RESULTS_DIR}/waveforms/${case}.status"
+    local expected_status
+    [ -s "${status_file}" ] || return 1
+    expected_status="$(sed -n 's/^status=//p' "${status_file}" | tail -n 1)"
+    case "${expected_status}" in
+        archived)
+            [ -s "${RESULTS_DIR}/waveforms/${case}/novas.fsdb" ] &&
+                [ -s "${RESULTS_DIR}/waveforms/${case}/waveform.info" ] ;;
+        not-generated)
+            [ "${ARCHIVE_FSDB}" = auto ] ;;
+        disabled)
+            [ "${ARCHIVE_FSDB}" = off ] ;;
+        *) return 1 ;;
+    esac
 }
 
 clear_archived_case() {
@@ -539,6 +625,8 @@ clear_archived_case() {
         .simv.console.log; do
         rm -f "${RESULTS_DIR}/${case}${suffix}"
     done
+    rm -rf "${RESULTS_DIR}/waveforms/${case}"
+    rm -f "${RESULTS_DIR}/waveforms/${case}.status"
 }
 
 run_sequential_cases() {
@@ -560,12 +648,14 @@ run_sequential_cases() {
       CASE_LOG="${RESULTS_DIR}/${CASE}.build.log"
       rm -f "${LOG}" \
             "${SCRIPT_DIR}/work/run_case.report" \
+            "${SCRIPT_DIR}/work/novas.fsdb" \
             "${SCRIPT_DIR}/work/${CASE}.asm" \
             "${SCRIPT_DIR}/work/${CASE}_build.case.log"
 
       # Build and simulate; save full output for post-mortem on failure.
       if make -s simcase CASE="${CASE}" \
               SPEC_COMPOSITE_PROFILE="${SPEC_COMPOSITE_PROFILE}" \
+              ARCHIVE_FSDB=off \
               SIMV_BINARY="${SIMV_PATH}" \
               -C "${SCRIPT_DIR}" > "${CASE_LOG}" 2>&1; then
 
