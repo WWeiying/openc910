@@ -1,8 +1,10 @@
 # Branch Prediction Papers
 
-本目录收录分支预测发展主线论文，以及 CBP2025、CBP-NG 2026 的公开论文集。文件均在 2026-08-10 下载，并已检查为可解析的 PDF；共 35 份。
+本目录收录分支预测发展主线论文，以及 CBP2025、CBP-NG 2026 的公开论文集。2026-08-11 按扩展后的 55 篇目标清单完成去重补充后，目录共有 59 份可解析 PDF：52 份精确目标全文、2 份明确标注的替代/代理材料，以及 5 份清单外补充材料。ISCA 2026 RUNLTS 正式稿是唯一没有公开全文的目标项。
 
-中文教学资料：[Branch Prediction Papers Chinese Guide](branch_prediction_papers_chinese_guide.md)。该文档按 35 份 PDF 逐篇、依原文章节顺序展开，每篇独立保留问题设定、机制、公式、参数、实验、图表数据、结论、教学解析与技术演进位置。重要图表均以中文说明标题、坐标、数据和体系结构含义，不直接嵌入 PDF 页面或页面截图。
+55 篇逐项路径、来源、版本边界和缺失说明见 [Target 55 Download Index](target_55_download_index.md)。
+
+中文教学资料：[Branch Prediction Papers Chinese Guide](branch_prediction_papers_chinese_guide.md)。该文档仍对应最初的 35 份 PDF，按原文章节顺序逐篇展开；本轮新增 PDF 尚未并入教学文档。重要图表均以中文说明标题、坐标、数据和体系结构含义，不直接嵌入 PDF 页面或页面截图。
 
 ## Foundations
 
@@ -64,7 +66,8 @@ CBP-NG explicitly evaluates accuracy, throughput, latency, energy, and implement
 
 ## Validation
 
-- Every local file was recognized as PDF and parsed by `pdfinfo`; the 35 PDFs contain 339 pages in total. The scanned Lee–Smith technical report was checked page by page from rendered images; the other papers were checked against full-document text extraction and original-page rendering.
-- The Chinese guide contains 35 independent paper chapters with section-ordered body coverage, text explanations of important figures and tables, clearly separated teaching commentary, and no embedded PDF-page images. Its local PDF links were resolved against the repository and the Markdown was parsed successfully.
-- The collection contains 35 PDFs: 12 foundational papers, 5 O-GEHL/TAGE papers, 1 modern motivation paper, 9 CBP2025 papers, 7 CBP-NG papers, and 1 CBP-NG scoring document.
-- Only publicly reachable author, university, conference, arXiv, workshop, or proceedings links were used.
+- Every local file was recognized as PDF and parsed by `pdfinfo`; the 59 PDFs contain 776 pages in total. SHA-256 validation found no byte-identical duplicate files.
+- The 55-item target list has 52 exact public full-text PDFs. Lee–Smith 1984 is represented by the same authors' 1983 Berkeley technical report; ISCA 2026 Squashed-Branch Reuse is represented by the first author's public dissertation; ISCA 2026 RUNLTS remains closed with no public full text.
+- The scanned Lee–Smith technical report was checked page by page from rendered images. The remaining PDFs expose extractable title/body text, except for the known font-map issue in the old L-TAGE PDF, whose rendered title page was checked separately.
+- The Chinese guide contains 35 independent chapters for the original collection; newly downloaded papers are indexed but have not been silently folded into that guide.
+- Only publicly reachable author, university, conference, arXiv, workshop, institutional-repository, or archived original-proceedings links were used.
