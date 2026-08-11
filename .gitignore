@@ -35,6 +35,10 @@ __pycache__/
 /article/chipsandcheese/input/
 /article/chipsandcheese/download_logs/
 
+# Generated WeMD publishing copies and local COS upload cache
+/article/chipsandcheese/output/*_wemd.md
+/article/chipsandcheese/output/.wemd-cos-manifest.json
+
 # SimPoint build/install artifacts
 /tools/*
 /tools/SimPoint.3.2/
