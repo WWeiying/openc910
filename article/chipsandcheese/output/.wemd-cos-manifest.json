@@ -1272,5 +1272,264 @@
     "sha256": "701e698e24c760986687332d62f3699ef8326d332a684cc0fca5093bbb7a2975",
     "size": 16905,
     "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|f4d89387c4da2089c2f2184460cafcececf68daff4f8d0d224a52e7bcce66502|01_centriq_2400_launch_slide.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/qualcomm_centriq_2400_falkor_wechat_article_zh/f4d89387c4da2089_01_centriq_2400_launch_slide.jpg",
+    "objectKey": "wechat/articles/qualcomm_centriq_2400_falkor_wechat_article_zh/f4d89387c4da2089_01_centriq_2400_launch_slide.jpg",
+    "sha256": "f4d89387c4da2089c2f2184460cafcececf68daff4f8d0d224a52e7bcce66502",
+    "size": 141816,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|5e071411658a75af3e369bbcf83be316e644311bd1b1084ccc4f5ca7aea4b0cd|02_cloud_processor_architecture_goals.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/qualcomm_centriq_2400_falkor_wechat_article_zh/5e071411658a75af_02_cloud_processor_architecture_goals.jpg",
+    "objectKey": "wechat/articles/qualcomm_centriq_2400_falkor_wechat_article_zh/5e071411658a75af_02_cloud_processor_architecture_goals.jpg",
+    "sha256": "5e071411658a75af3e369bbcf83be316e644311bd1b1084ccc4f5ca7aea4b0cd",
+    "size": 82035,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|63c832fd7def095f4562e2d67dd57d33407828c24f2330c69b8a783d54f3354e|03_falkor_microarchitecture_overview.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/qualcomm_centriq_2400_falkor_wechat_article_zh/63c832fd7def095f_03_falkor_microarchitecture_overview.png",
+    "objectKey": "wechat/articles/qualcomm_centriq_2400_falkor_wechat_article_zh/63c832fd7def095f_03_falkor_microarchitecture_overview.png",
+    "sha256": "63c832fd7def095f4562e2d67dd57d33407828c24f2330c69b8a783d54f3354e",
+    "size": 69496,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|76a97435a5c1883e8643e1ffe7222a16d8aa23ff57d1e50382ade7728f9ef327|04_centriq_2400_sku_comparison.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/qualcomm_centriq_2400_falkor_wechat_article_zh/76a97435a5c1883e_04_centriq_2400_sku_comparison.jpg",
+    "objectKey": "wechat/articles/qualcomm_centriq_2400_falkor_wechat_article_zh/76a97435a5c1883e_04_centriq_2400_sku_comparison.jpg",
+    "sha256": "76a97435a5c1883e8643e1ffe7222a16d8aa23ff57d1e50382ade7728f9ef327",
+    "size": 68125,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|c4ebecb4ccc73af4699ba7187a814b482553eae1ebe322a0b17b6a1e78057f13|05_frontend_cache_comparison.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/qualcomm_centriq_2400_falkor_wechat_article_zh/c4ebecb4ccc73af4_05_frontend_cache_comparison.png",
+    "objectKey": "wechat/articles/qualcomm_centriq_2400_falkor_wechat_article_zh/c4ebecb4ccc73af4_05_frontend_cache_comparison.png",
+    "sha256": "c4ebecb4ccc73af4699ba7187a814b482553eae1ebe322a0b17b6a1e78057f13",
+    "size": 27242,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|c62188142c10cb87b76fab3b0ca855eac0d13820e8ec7ae3fbe1f436725ff60b|06_instruction_fetch_bandwidth.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/qualcomm_centriq_2400_falkor_wechat_article_zh/c62188142c10cb87_06_instruction_fetch_bandwidth.jpg",
+    "objectKey": "wechat/articles/qualcomm_centriq_2400_falkor_wechat_article_zh/c62188142c10cb87_06_instruction_fetch_bandwidth.jpg",
+    "sha256": "c62188142c10cb87b76fab3b0ca855eac0d13820e8ec7ae3fbe1f436725ff60b",
+    "size": 65583,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|d502458b4b63f9b163c61ce413c811bf20ad67eff1aa2289b35a1d6ed4bfe899|07_taken_branch_latency.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/qualcomm_centriq_2400_falkor_wechat_article_zh/d502458b4b63f9b1_07_taken_branch_latency.jpg",
+    "objectKey": "wechat/articles/qualcomm_centriq_2400_falkor_wechat_article_zh/d502458b4b63f9b1_07_taken_branch_latency.jpg",
+    "sha256": "d502458b4b63f9b163c61ce413c811bf20ad67eff1aa2289b35a1d6ed4bfe899",
+    "size": 74116,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|674f911374d3072aaabfb70d46854e344e6a1ddabb1ec144170370b565e0c325|08_falkor_kryo_branch_target_latency.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/qualcomm_centriq_2400_falkor_wechat_article_zh/674f911374d3072a_08_falkor_kryo_branch_target_latency.png",
+    "objectKey": "wechat/articles/qualcomm_centriq_2400_falkor_wechat_article_zh/674f911374d3072a_08_falkor_kryo_branch_target_latency.png",
+    "sha256": "674f911374d3072aaabfb70d46854e344e6a1ddabb1ec144170370b565e0c325",
+    "size": 23660,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|38678ff8b17623a446a4df0a45bcd830e28dda5f3e160925240221822e2eb70c|09_falkor_direction_predictor_pattern.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/qualcomm_centriq_2400_falkor_wechat_article_zh/38678ff8b17623a4_09_falkor_direction_predictor_pattern.jpg",
+    "objectKey": "wechat/articles/qualcomm_centriq_2400_falkor_wechat_article_zh/38678ff8b17623a4_09_falkor_direction_predictor_pattern.jpg",
+    "sha256": "38678ff8b17623a446a4df0a45bcd830e28dda5f3e160925240221822e2eb70c",
+    "size": 47781,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|0b254d441f5c38e27d58c7945a368effae82f0131e239517d2fae44b9935b69d|10_kryo_direction_predictor_pattern.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/qualcomm_centriq_2400_falkor_wechat_article_zh/0b254d441f5c38e2_10_kryo_direction_predictor_pattern.jpg",
+    "objectKey": "wechat/articles/qualcomm_centriq_2400_falkor_wechat_article_zh/0b254d441f5c38e2_10_kryo_direction_predictor_pattern.jpg",
+    "sha256": "0b254d441f5c38e27d58c7945a368effae82f0131e239517d2fae44b9935b69d",
+    "size": 69801,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|14564edbb3a2b83bdea469aa85aec698aa9534cc9eaa082f4c7b4392b91e120b|11_indirect_branch_prediction.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/qualcomm_centriq_2400_falkor_wechat_article_zh/14564edbb3a2b83b_11_indirect_branch_prediction.jpg",
+    "objectKey": "wechat/articles/qualcomm_centriq_2400_falkor_wechat_article_zh/14564edbb3a2b83b_11_indirect_branch_prediction.jpg",
+    "sha256": "14564edbb3a2b83bdea469aa85aec698aa9534cc9eaa082f4c7b4392b91e120b",
+    "size": 40632,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|a7f54aad42b45c61ec9d8fcddf230a33192b3140cbdd97a7986419559b09c6e3|12_return_stack_test.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/qualcomm_centriq_2400_falkor_wechat_article_zh/a7f54aad42b45c61_12_return_stack_test.png",
+    "objectKey": "wechat/articles/qualcomm_centriq_2400_falkor_wechat_article_zh/a7f54aad42b45c61_12_return_stack_test.png",
+    "sha256": "a7f54aad42b45c61ec9d8fcddf230a33192b3140cbdd97a7986419559b09c6e3",
+    "size": 14005,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|d87943bdd759bedaf4b433626c9067cc8ed91476fd0b1863ba0c105305c78a30|13_rename_allocate_hot_chips.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/qualcomm_centriq_2400_falkor_wechat_article_zh/d87943bdd759beda_13_rename_allocate_hot_chips.png",
+    "objectKey": "wechat/articles/qualcomm_centriq_2400_falkor_wechat_article_zh/d87943bdd759beda_13_rename_allocate_hot_chips.png",
+    "sha256": "d87943bdd759bedaf4b433626c9067cc8ed91476fd0b1863ba0c105305c78a30",
+    "size": 96329,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|ee5049c8d7329a2523253c97cf1506925df4c5ae9b0ab123b028e23a696f6712|14_reordering_capacity.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/qualcomm_centriq_2400_falkor_wechat_article_zh/ee5049c8d7329a25_14_reordering_capacity.png",
+    "objectKey": "wechat/articles/qualcomm_centriq_2400_falkor_wechat_article_zh/ee5049c8d7329a25_14_reordering_capacity.png",
+    "sha256": "ee5049c8d7329a2523253c97cf1506925df4c5ae9b0ab123b028e23a696f6712",
+    "size": 10717,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|4f2cb2332c2edf11a9c623122c4f24bdd3cd7e4b319201b3f1a0000ab2a8b38a|15_backend_resource_comparison.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/qualcomm_centriq_2400_falkor_wechat_article_zh/4f2cb2332c2edf11_15_backend_resource_comparison.jpg",
+    "objectKey": "wechat/articles/qualcomm_centriq_2400_falkor_wechat_article_zh/4f2cb2332c2edf11_15_backend_resource_comparison.jpg",
+    "sha256": "4f2cb2332c2edf11a9c623122c4f24bdd3cd7e4b319201b3f1a0000ab2a8b38a",
+    "size": 41275,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|ab64a8dfe92ada85d4ceb5b03f312aa99bbb7d1ddfca05c898e64b00f9ac3563|16_fp_vector_execution_comparison.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/qualcomm_centriq_2400_falkor_wechat_article_zh/ab64a8dfe92ada85_16_fp_vector_execution_comparison.jpg",
+    "objectKey": "wechat/articles/qualcomm_centriq_2400_falkor_wechat_article_zh/ab64a8dfe92ada85_16_fp_vector_execution_comparison.jpg",
+    "sha256": "ab64a8dfe92ada85d4ceb5b03f312aa99bbb7d1ddfca05c898e64b00f9ac3563",
+    "size": 79638,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|33c5e251a4fdb275257dfded57b9353a9bb09c6c05b660546e65a6f5ae4f3565|17_load_store_execution_hot_chips.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/qualcomm_centriq_2400_falkor_wechat_article_zh/33c5e251a4fdb275_17_load_store_execution_hot_chips.png",
+    "objectKey": "wechat/articles/qualcomm_centriq_2400_falkor_wechat_article_zh/33c5e251a4fdb275_17_load_store_execution_hot_chips.png",
+    "sha256": "33c5e251a4fdb275257dfded57b9353a9bb09c6c05b660546e65a6f5ae4f3565",
+    "size": 120964,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|d98ad5291fdd606e25c5e498f5a672af11d7fe5fd5e058612a730e50a04df5ec|18_write_combining_cache_bandwidth.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/qualcomm_centriq_2400_falkor_wechat_article_zh/d98ad5291fdd606e_18_write_combining_cache_bandwidth.png",
+    "objectKey": "wechat/articles/qualcomm_centriq_2400_falkor_wechat_article_zh/d98ad5291fdd606e_18_write_combining_cache_bandwidth.png",
+    "sha256": "d98ad5291fdd606e25c5e498f5a672af11d7fe5fd5e058612a730e50a04df5ec",
+    "size": 22617,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|3e6b02fa01edbb4818a2a8e4cdcded44936ff32634a2dca7fa86a51c088d98b8|19_store_forwarding_matrix.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/qualcomm_centriq_2400_falkor_wechat_article_zh/3e6b02fa01edbb48_19_store_forwarding_matrix.jpg",
+    "objectKey": "wechat/articles/qualcomm_centriq_2400_falkor_wechat_article_zh/3e6b02fa01edbb48_19_store_forwarding_matrix.jpg",
+    "sha256": "3e6b02fa01edbb4818a2a8e4cdcded44936ff32634a2dca7fa86a51c088d98b8",
+    "size": 332533,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|f7542a9f7cfa60a0db7d9c01eba39a45291e49e89319f60268d1f22cf2b7ddaa|20_virtualization_tlb_structure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/qualcomm_centriq_2400_falkor_wechat_article_zh/f7542a9f7cfa60a0_20_virtualization_tlb_structure.png",
+    "objectKey": "wechat/articles/qualcomm_centriq_2400_falkor_wechat_article_zh/f7542a9f7cfa60a0_20_virtualization_tlb_structure.png",
+    "sha256": "f7542a9f7cfa60a0db7d9c01eba39a45291e49e89319f60268d1f22cf2b7ddaa",
+    "size": 21315,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|c92262b33848f96c8b03aa737c989383ff0acff69c9bd4a43e5a2132d24c8cc4|21_l2_cache_hot_chips.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/qualcomm_centriq_2400_falkor_wechat_article_zh/c92262b33848f96c_21_l2_cache_hot_chips.png",
+    "objectKey": "wechat/articles/qualcomm_centriq_2400_falkor_wechat_article_zh/c92262b33848f96c_21_l2_cache_hot_chips.png",
+    "sha256": "c92262b33848f96c8b03aa737c989383ff0acff69c9bd4a43e5a2132d24c8cc4",
+    "size": 76565,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|df6e5f381ad2b89dc9ecf73c19307146fbcee50117f90bd081840786a6365efb|22_cache_memory_latency.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/qualcomm_centriq_2400_falkor_wechat_article_zh/df6e5f381ad2b89d_22_cache_memory_latency.png",
+    "objectKey": "wechat/articles/qualcomm_centriq_2400_falkor_wechat_article_zh/df6e5f381ad2b89d_22_cache_memory_latency.png",
+    "sha256": "df6e5f381ad2b89dc9ecf73c19307146fbcee50117f90bd081840786a6365efb",
+    "size": 21913,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|b3ec582bf265124cdf9f4e6c5829a83e18600e1f6c563a97988c53d1b1ce22f4|23_single_core_read_bandwidth.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/qualcomm_centriq_2400_falkor_wechat_article_zh/b3ec582bf265124c_23_single_core_read_bandwidth.jpg",
+    "objectKey": "wechat/articles/qualcomm_centriq_2400_falkor_wechat_article_zh/b3ec582bf265124c_23_single_core_read_bandwidth.jpg",
+    "sha256": "b3ec582bf265124cdf9f4e6c5829a83e18600e1f6c563a97988c53d1b1ce22f4",
+    "size": 65971,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|a0e41659068b240f823a97089c6dbf0df61dc362b3c9cb5a63b7eb1b801d8e0d|24_on_chip_interconnect_hot_chips.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/qualcomm_centriq_2400_falkor_wechat_article_zh/a0e41659068b240f_24_on_chip_interconnect_hot_chips.jpg",
+    "objectKey": "wechat/articles/qualcomm_centriq_2400_falkor_wechat_article_zh/a0e41659068b240f_24_on_chip_interconnect_hot_chips.jpg",
+    "sha256": "a0e41659068b240f823a97089c6dbf0df61dc362b3c9cb5a63b7eb1b801d8e0d",
+    "size": 65773,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|52d5e0eb828c11863186bb8ff12deadffac6d19d34d41e908908ad58856c2d84|25_ring_interface_comparison.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/qualcomm_centriq_2400_falkor_wechat_article_zh/52d5e0eb828c1186_25_ring_interface_comparison.png",
+    "objectKey": "wechat/articles/qualcomm_centriq_2400_falkor_wechat_article_zh/52d5e0eb828c1186_25_ring_interface_comparison.png",
+    "sha256": "52d5e0eb828c11863186bb8ff12deadffac6d19d34d41e908908ad58856c2d84",
+    "size": 30711,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|154d3dd6502ba2717004c4d7663f15769b15d9e87ab401c68cdb08d1e9356fc5|26_distributed_llc_ddr_hot_chips.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/qualcomm_centriq_2400_falkor_wechat_article_zh/154d3dd6502ba271_26_distributed_llc_ddr_hot_chips.jpg",
+    "objectKey": "wechat/articles/qualcomm_centriq_2400_falkor_wechat_article_zh/154d3dd6502ba271_26_distributed_llc_ddr_hot_chips.jpg",
+    "sha256": "154d3dd6502ba2717004c4d7663f15769b15d9e87ab401c68cdb08d1e9356fc5",
+    "size": 70910,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|a807125d65830b9550e6bc5bb465af2cac64ec459ea840b82f7ebf95ff4f4ede|27_l3_capacity_latency_comparison.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/qualcomm_centriq_2400_falkor_wechat_article_zh/a807125d65830b95_27_l3_capacity_latency_comparison.jpg",
+    "objectKey": "wechat/articles/qualcomm_centriq_2400_falkor_wechat_article_zh/a807125d65830b95_27_l3_capacity_latency_comparison.jpg",
+    "sha256": "a807125d65830b9550e6bc5bb465af2cac64ec459ea840b82f7ebf95ff4f4ede",
+    "size": 39179,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|c8dab2fdc046df2655b36c91574708a9fe1ea08a16c42ef6a3588b21d078caf5|28_loaded_l3_latency.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/qualcomm_centriq_2400_falkor_wechat_article_zh/c8dab2fdc046df26_28_loaded_l3_latency.png",
+    "objectKey": "wechat/articles/qualcomm_centriq_2400_falkor_wechat_article_zh/c8dab2fdc046df26_28_loaded_l3_latency.png",
+    "sha256": "c8dab2fdc046df2655b36c91574708a9fe1ea08a16c42ef6a3588b21d078caf5",
+    "size": 18759,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|9adb8c187d20b26a47e741e9ed62fa676e83a0afaa8ad829889c84196256509d|29_core_to_core_latency.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/qualcomm_centriq_2400_falkor_wechat_article_zh/9adb8c187d20b26a_29_core_to_core_latency.jpg",
+    "objectKey": "wechat/articles/qualcomm_centriq_2400_falkor_wechat_article_zh/9adb8c187d20b26a_29_core_to_core_latency.jpg",
+    "sha256": "9adb8c187d20b26a47e741e9ed62fa676e83a0afaa8ad829889c84196256509d",
+    "size": 450855,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|ea23c21a9b0a3e1eec800ed1c2e92d3f55b0e4ef6426e7465f48f6bf80906613|30_distributed_poc_snoop_filter.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/qualcomm_centriq_2400_falkor_wechat_article_zh/ea23c21a9b0a3e1e_30_distributed_poc_snoop_filter.jpg",
+    "objectKey": "wechat/articles/qualcomm_centriq_2400_falkor_wechat_article_zh/ea23c21a9b0a3e1e_30_distributed_poc_snoop_filter.jpg",
+    "sha256": "ea23c21a9b0a3e1eec800ed1c2e92d3f55b0e4ef6426e7465f48f6bf80906613",
+    "size": 88515,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|28506012b392f471136dba18e53b0e9fdaae684ead2926464092a38ed844e589|31_loaded_memory_latency.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/qualcomm_centriq_2400_falkor_wechat_article_zh/28506012b392f471_31_loaded_memory_latency.png",
+    "objectKey": "wechat/articles/qualcomm_centriq_2400_falkor_wechat_article_zh/28506012b392f471_31_loaded_memory_latency.png",
+    "sha256": "28506012b392f471136dba18e53b0e9fdaae684ead2926464092a38ed844e589",
+    "size": 18661,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|d61c8198ba43ba583d9f5ed4077abe72726c9534b9c9e84d8c33ee53494e50f4|32_spec_cpu2017_summary.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/qualcomm_centriq_2400_falkor_wechat_article_zh/d61c8198ba43ba58_32_spec_cpu2017_summary.png",
+    "objectKey": "wechat/articles/qualcomm_centriq_2400_falkor_wechat_article_zh/d61c8198ba43ba58_32_spec_cpu2017_summary.png",
+    "sha256": "d61c8198ba43ba583d9f5ed4077abe72726c9534b9c9e84d8c33ee53494e50f4",
+    "size": 8285,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|cd26feb0873221ce095bf4278f589f21b02dcf6e7ac220157f074b5b9228c79d|33_spec_cpu2017_subtests.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/qualcomm_centriq_2400_falkor_wechat_article_zh/cd26feb0873221ce_33_spec_cpu2017_subtests.jpg",
+    "objectKey": "wechat/articles/qualcomm_centriq_2400_falkor_wechat_article_zh/cd26feb0873221ce_33_spec_cpu2017_subtests.jpg",
+    "sha256": "cd26feb0873221ce095bf4278f589f21b02dcf6e7ac220157f074b5b9228c79d",
+    "size": 36712,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|012e606a290996e7b4eba544a2fca9662b250911a9ff24307989da4f46c18635|34_spec_cpu2017_ipc.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/qualcomm_centriq_2400_falkor_wechat_article_zh/012e606a290996e7_34_spec_cpu2017_ipc.png",
+    "objectKey": "wechat/articles/qualcomm_centriq_2400_falkor_wechat_article_zh/012e606a290996e7_34_spec_cpu2017_ipc.png",
+    "sha256": "012e606a290996e7b4eba544a2fca9662b250911a9ff24307989da4f46c18635",
+    "size": 22524,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|b4bc6da336fecffa0303cbe500129b8bb904a3e47cd026fbe307672b71595900|35_four_core_benchmarks.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/qualcomm_centriq_2400_falkor_wechat_article_zh/b4bc6da336fecffa_35_four_core_benchmarks.png",
+    "objectKey": "wechat/articles/qualcomm_centriq_2400_falkor_wechat_article_zh/b4bc6da336fecffa_35_four_core_benchmarks.png",
+    "sha256": "b4bc6da336fecffa0303cbe500129b8bb904a3e47cd026fbe307672b71595900",
+    "size": 9814,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|08b478f755e4af86315fab3ab6c05f42465ea4afb14e0de0d8b8eb16d0601da9|36_kryo_memory_power.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/qualcomm_centriq_2400_falkor_wechat_article_zh/08b478f755e4af86_36_kryo_memory_power.png",
+    "objectKey": "wechat/articles/qualcomm_centriq_2400_falkor_wechat_article_zh/08b478f755e4af86_36_kryo_memory_power.png",
+    "sha256": "08b478f755e4af86315fab3ab6c05f42465ea4afb14e0de0d8b8eb16d0601da9",
+    "size": 8300,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|21c92ae581518cde895a33894912cb873e3af05255de1f35969dea088cbc485f|37_centriq_roadmap.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/qualcomm_centriq_2400_falkor_wechat_article_zh/21c92ae581518cde_37_centriq_roadmap.jpg",
+    "objectKey": "wechat/articles/qualcomm_centriq_2400_falkor_wechat_article_zh/21c92ae581518cde_37_centriq_roadmap.jpg",
+    "sha256": "21c92ae581518cde895a33894912cb873e3af05255de1f35969dea088cbc485f",
+    "size": 53561,
+    "storageClass": "STANDARD"
   }
 }
