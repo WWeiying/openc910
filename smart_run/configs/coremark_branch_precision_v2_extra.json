@@ -1,0 +1,110 @@
+{
+  "sample": {
+    "begin": "5ns",
+    "end": null,
+    "period": "10ns"
+  },
+  "cycle_signal": {
+    "alias": "cycle",
+    "path": "/tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_hpcp_top/mcycle_value",
+    "radix": "u",
+    "description": "HPCP mcycle"
+  },
+  "signals": [
+    {
+      "alias": "ifu_idu_pc0_low_halfword",
+      "path": "/tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_ifu_top/x_ct_ifu_ibdp/inst0_pc",
+      "radix": "h"
+    },
+    {
+      "alias": "ifu_idu_pc1_low_halfword",
+      "path": "/tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_ifu_top/x_ct_ifu_ibdp/inst1_pc",
+      "radix": "h"
+    },
+    {
+      "alias": "ifu_idu_pc2_low_halfword",
+      "path": "/tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_ifu_top/x_ct_ifu_ibdp/inst2_pc",
+      "radix": "h"
+    },
+    {
+      "alias": "rtu_retire0_condbr",
+      "path": "/tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_rtu_top/x_ct_rtu_retire/rtu_ifu_retire0_condbr",
+      "radix": "b"
+    },
+    {
+      "alias": "rtu_retire1_condbr",
+      "path": "/tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_rtu_top/x_ct_rtu_retire/rtu_ifu_retire1_condbr",
+      "radix": "b"
+    },
+    {
+      "alias": "rtu_retire2_condbr",
+      "path": "/tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_rtu_top/x_ct_rtu_retire/rtu_ifu_retire2_condbr",
+      "radix": "b"
+    },
+    {
+      "alias": "rtu_retire0_condbr_taken_raw",
+      "path": "/tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_rtu_top/x_ct_rtu_retire/rtu_ifu_retire0_condbr_taken",
+      "radix": "b"
+    },
+    {
+      "alias": "rtu_retire1_condbr_taken_raw",
+      "path": "/tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_rtu_top/x_ct_rtu_retire/rtu_ifu_retire1_condbr_taken",
+      "radix": "b"
+    },
+    {
+      "alias": "rtu_retire2_condbr_taken_raw",
+      "path": "/tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_rtu_top/x_ct_rtu_retire/rtu_ifu_retire2_condbr_taken",
+      "radix": "b"
+    },
+    {
+      "alias": "rtu_retire0_bht_mispred_raw",
+      "path": "/tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_rtu_top/x_ct_rtu_retire/rob_retire_inst0_bht_mispred",
+      "radix": "b"
+    },
+    {
+      "alias": "rtu_retire0_jump_mispred_raw",
+      "path": "/tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_rtu_top/x_ct_rtu_retire/rob_retire_inst0_jmp_mispred",
+      "radix": "b"
+    },
+    {
+      "alias": "rtu_retire0_return_raw",
+      "path": "/tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_rtu_top/x_ct_rtu_retire/rob_retire_inst0_pret",
+      "radix": "b"
+    },
+    {
+      "alias": "rtu_retire0_return",
+      "path": "/tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_rtu_top/x_ct_rtu_retire/rtu_ifu_retire0_preturn",
+      "radix": "b"
+    },
+    {
+      "alias": "rtu_retire0_jump_nonreturn",
+      "path": "/tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_rtu_top/x_ct_rtu_retire/rtu_ifu_retire0_jmp",
+      "radix": "b"
+    },
+    {
+      "alias": "rtu_retire1_jump",
+      "path": "/tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_rtu_top/x_ct_rtu_retire/rtu_ifu_retire1_jmp",
+      "radix": "b"
+    },
+    {
+      "alias": "rtu_retire2_jump",
+      "path": "/tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_rtu_top/x_ct_rtu_retire/rtu_ifu_retire2_jmp",
+      "radix": "b"
+    },
+    {
+      "alias": "rtu_retire0_changeflow",
+      "path": "/tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_rtu_top/x_ct_rtu_retire/rtu_hpcp_trace_inst0_chgflow",
+      "radix": "b"
+    },
+    {
+      "alias": "rtu_retire1_changeflow",
+      "path": "/tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_rtu_top/x_ct_rtu_retire/rtu_hpcp_trace_inst1_chgflow",
+      "radix": "b"
+    },
+    {
+      "alias": "rtu_retire2_changeflow",
+      "path": "/tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_rtu_top/x_ct_rtu_retire/rtu_hpcp_trace_inst2_chgflow",
+      "radix": "b"
+    }
+  ]
+}
