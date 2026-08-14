@@ -1423,6 +1423,234 @@ def stall_summary(frame: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+def multi_branch_throughput_analysis(
+    frame: pd.DataFrame,
+    disassembly: dict[int, dict[str, str]],
+) -> tuple[
+    pd.DataFrame,
+    pd.DataFrame,
+    pd.DataFrame,
+    pd.DataFrame,
+    pd.DataFrame,
+    pd.DataFrame,
+]:
+    """Separate raw multi-branch stall residency from real serial replay.
+
+    ``br_more_than_one_stall`` remains asserted while IB backpressure holds the
+    IP item.  Only cycles without ``ibctrl_ipctrl_stall`` consume a conditional
+    prediction and advance the IFDP masks.  Width modeling must use those
+    effective replay events; treating every asserted cycle as another branch
+    overstates both branch count and removable time.
+    """
+    mask = flag(frame, "ifu_multi_branch_stall").to_numpy(dtype=bool)
+    ib_blocked = flag(frame, "ifu_ip_pipeline_stall").to_numpy(dtype=bool)
+    effective_replay = mask & ~ib_blocked
+    transitions = np.diff(np.r_[False, mask, False].astype(np.int8))
+    starts = np.flatnonzero(transitions == 1)
+    stops = np.flatnonzero(transitions == -1)
+
+    pc_halfword = pd.to_numeric(frame["ifu_ip_vpc_halfword"], errors="coerce")
+    block_pc = ((pc_halfword * 2) // 16 * 16).astype("Int64")
+    detail_columns = [
+        "episode_id", "start_cycle", "stop_cycle_exclusive",
+        "raw_stall_cycles", "effective_replay_events", "ib_blocked_cycles",
+        "minimum_serial_predictions", "block_pc_byte",
+    ]
+    detail_rows = []
+    for episode_id, (start, stop) in enumerate(zip(starts, stops)):
+        replay_events = int(effective_replay[start:stop].sum())
+        blocked_cycles = int((mask[start:stop] & ib_blocked[start:stop]).sum())
+        pc = block_pc.iloc[start]
+        detail_rows.append({
+            "episode_id": episode_id,
+            "start_cycle": int(frame.cycle.iloc[start]),
+            "stop_cycle_exclusive": int(frame.cycle.iloc[stop - 1]) + 1,
+            "raw_stall_cycles": int(stop - start),
+            "effective_replay_events": replay_events,
+            "ib_blocked_cycles": blocked_cycles,
+            "minimum_serial_predictions": replay_events + 1 if replay_events else 0,
+            "block_pc_byte": int(pc) if pd.notna(pc) else np.nan,
+        })
+    episode_detail = pd.DataFrame(detail_rows, columns=detail_columns)
+    active_cycles = int(mask.sum())
+    effective_cycles = int(effective_replay.sum())
+    blocked_overlap_cycles = int((mask & ib_blocked).sum())
+
+    histogram = (
+        episode_detail.groupby("effective_replay_events", dropna=False)
+        .agg(
+            episodes=("episode_id", "size"),
+            raw_stall_cycles=("raw_stall_cycles", "sum"),
+            ib_blocked_cycles=("ib_blocked_cycles", "sum"),
+            raw_duration_mean=("raw_stall_cycles", "mean"),
+            raw_duration_max=("raw_stall_cycles", "max"),
+        )
+        .reset_index()
+    )
+    histogram["episode_pct"] = (
+        100.0 * histogram.episodes / len(episode_detail)
+        if len(episode_detail) else np.nan
+    )
+    histogram["effective_replay_event_pct"] = (
+        100.0
+        * histogram.effective_replay_events
+        * histogram.episodes
+        / effective_cycles
+        if effective_cycles else np.nan
+    )
+
+    width_rows = []
+    for width in (1, 2, 3, 4, 8):
+        residual = sum(
+            max(int(np.ceil((int(events) + 1) / width)) - 1, 0)
+            if events else 0
+            for events in episode_detail.effective_replay_events
+        )
+        removed = effective_cycles - residual
+        model_cycles = len(frame) - removed
+        width_rows.append({
+            "prediction_width": width,
+            "raw_stall_active_cycles": active_cycles,
+            "ib_blocked_overlap_cycles": blocked_overlap_cycles,
+            "effective_serial_replay_cycles": effective_cycles,
+            "residual_serial_replay_cycles": residual,
+            "removed_serial_replay_cycles": removed,
+            "removed_effective_replay_pct": (
+                100.0 * removed / effective_cycles if effective_cycles else np.nan
+            ),
+            "removed_roi_cycle_pct": 100.0 * removed / len(frame),
+            "serial_deletion_model_gain_pct": (
+                100.0 * (len(frame) / model_cycles - 1.0)
+                if model_cycles else np.nan
+            ),
+        })
+    width_model = pd.DataFrame(width_rows)
+
+    idu_width = sum(flag(frame, f"ifu_idu_valid{slot}") for slot in range(3))
+    rob_width = sum(flag(frame, f"rob_create{slot}") for slot in range(4))
+    retire_width = sum(flag(frame, f"retire{slot}") for slot in range(3))
+    widths = {
+        "idu_accept_width": idu_width,
+        "rob_create_width": rob_width,
+        "retire_width": retire_width,
+    }
+    start_mask = np.zeros(len(frame), dtype=bool)
+    stop_mask = np.zeros(len(frame), dtype=bool)
+    start_mask[starts] = True
+    stop_mask[stops - 1] = True
+    populations = [
+        ("multi_branch_active", mask),
+        ("effective_serial_replay", effective_replay),
+        ("multi_branch_held_by_ib", mask & ib_blocked),
+        ("multi_branch_inactive", ~mask),
+        ("episode_start", start_mask),
+        ("episode_end", stop_mask),
+    ]
+    activity_rows = []
+    for name, population in populations:
+        row = {"population": name, "samples": int(population.sum())}
+        for metric, values in widths.items():
+            selected = values.loc[population]
+            row[f"{metric}_mean"] = selected.mean()
+            row[f"{metric}_nonzero_pct"] = 100.0 * selected.gt(0).mean()
+            row[f"{metric}_zero_pct"] = 100.0 * selected.eq(0).mean()
+        activity_rows.append(row)
+    activity = pd.DataFrame(activity_rows)
+
+    first_effective_positions = []
+    for start, stop in zip(starts, stops):
+        local = np.flatnonzero(effective_replay[start:stop])
+        if len(local):
+            first_effective_positions.append(start + int(local[0]))
+    first_effective_positions = np.asarray(first_effective_positions, dtype=int)
+    aligned_rows = []
+    for offset in range(7):
+        positions = first_effective_positions + offset
+        positions = positions[positions < len(frame)]
+        row = {
+            "cycles_after_first_effective_replay": offset,
+            "samples": len(positions),
+        }
+        for metric, values in widths.items():
+            selected = values.iloc[positions]
+            row[f"{metric}_mean"] = selected.mean()
+            row[f"{metric}_nonzero_pct"] = 100.0 * selected.gt(0).mean()
+        aligned_rows.append(row)
+    aligned = pd.DataFrame(aligned_rows)
+
+    active_blocks = (
+        pd.DataFrame({"block_pc_byte": block_pc.loc[mask]})
+        .dropna()
+        .groupby("block_pc_byte")
+        .size()
+        .rename("active_cycles")
+        .to_frame()
+    )
+    effective_blocks = (
+        pd.DataFrame({"block_pc_byte": block_pc.loc[effective_replay]})
+        .dropna()
+        .groupby("block_pc_byte")
+        .size()
+        .rename("effective_replay_events")
+    )
+    blocked_blocks = (
+        pd.DataFrame({"block_pc_byte": block_pc.loc[mask & ib_blocked]})
+        .dropna()
+        .groupby("block_pc_byte")
+        .size()
+        .rename("ib_blocked_cycles")
+    )
+    start_blocks = (
+        pd.DataFrame({"block_pc_byte": block_pc.loc[start_mask]})
+        .dropna()
+        .groupby("block_pc_byte")
+        .size()
+        .rename("episodes")
+    )
+    hotspots = (
+        active_blocks.join(effective_blocks, how="left")
+        .join(blocked_blocks, how="left")
+        .join(start_blocks, how="left")
+        .fillna({"effective_replay_events": 0, "ib_blocked_cycles": 0, "episodes": 0})
+    )
+    instruction_pcs = sorted(disassembly)
+
+    def annotate(pc: int) -> str:
+        at = bisect_right(instruction_pcs, pc) - 1
+        if at < 0:
+            return ""
+        return disassembly[instruction_pcs[at]].get("function", "")
+
+    if not hotspots.empty:
+        hotspots["episodes"] = hotspots.episodes.astype(int)
+        hotspots["effective_replay_events"] = (
+            hotspots.effective_replay_events.astype(int)
+        )
+        hotspots["ib_blocked_cycles"] = hotspots.ib_blocked_cycles.astype(int)
+        hotspots["active_cycle_pct"] = 100.0 * hotspots.active_cycles / active_cycles
+        hotspots["effective_replay_pct"] = (
+            100.0 * hotspots.effective_replay_events / effective_cycles
+        )
+        hotspots["block_pc"] = [f"0x{int(pc):x}" for pc in hotspots.index]
+        hotspots["function"] = [annotate(int(pc)) for pc in hotspots.index]
+        hotspots = (
+            hotspots.reset_index()
+            .sort_values(
+                ["effective_replay_events", "active_cycles", "episodes"],
+                ascending=False,
+            )
+            .reset_index(drop=True)
+        )
+
+    if effective_cycles + blocked_overlap_cycles != active_cycles:
+        raise ValueError(
+            "multi-branch replay accounting mismatch: "
+            f"active={active_cycles}, effective={effective_cycles}, "
+            f"ib_blocked={blocked_overlap_cycles}"
+        )
+    return episode_detail, histogram, width_model, activity, aligned, hotspots
+
+
 def component_summary(frame: pd.DataFrame) -> pd.DataFrame:
     l0_gate = ~flag(frame, "ifu_ip_pipeline_stall")
     rows = [
@@ -1592,6 +1820,14 @@ def main() -> None:
     stalls = stall_summary(frame)
     components = component_summary(frame)
     disassembly = parse_disassembly(result_dir / "coremark.asm")
+    (
+        multi_branch_episode_detail,
+        multi_branch_histogram,
+        multi_branch_width_model,
+        multi_branch_activity,
+        multi_branch_aligned_activity,
+        multi_branch_hotspots,
+    ) = multi_branch_throughput_analysis(frame, disassembly)
     dynamic, identity_diagnostics = build_dynamic_conditional_events(
         frame, bju_events, redirects, disassembly
     )
@@ -1623,6 +1859,24 @@ def main() -> None:
     bju_summary.to_csv(output / "bju_recovery_summary.csv", index=False)
     stalls.to_csv(output / "stall_summary.csv", index=False)
     components.to_csv(output / "component_summary.csv", index=False)
+    multi_branch_episode_detail.to_csv(
+        output / "multi_branch_episode_detail.csv", index=False
+    )
+    multi_branch_histogram.to_csv(
+        output / "multi_branch_episode_histogram.csv", index=False
+    )
+    multi_branch_width_model.to_csv(
+        output / "multi_branch_width_model.csv", index=False
+    )
+    multi_branch_activity.to_csv(
+        output / "multi_branch_pipeline_activity.csv", index=False
+    )
+    multi_branch_aligned_activity.to_csv(
+        output / "multi_branch_event_aligned_activity.csv", index=False
+    )
+    multi_branch_hotspots.to_csv(
+        output / "multi_branch_fetch_block_hotspots.csv", index=False
+    )
     dynamic.to_csv(output / "dynamic_conditional_branches.csv", index=False)
     static.to_csv(output / "static_branch_hotspots.csv", index=False)
     bht_keys.to_csv(output / "bht_predictor_key_aliases.csv", index=False)
@@ -1643,6 +1897,17 @@ def main() -> None:
         "branch_identity_diagnostics": identity_diagnostics,
         "l0_ip_corrections": int(len(l0_ip)),
         "l0_ip_identity_matched": int(l0_ip.matched.sum()) if not l0_ip.empty else 0,
+        "multi_branch": {
+            "active_cycles": int(multi_branch_episode_detail.raw_stall_cycles.sum()),
+            "effective_serial_replay_cycles": int(
+                multi_branch_episode_detail.effective_replay_events.sum()
+            ),
+            "ib_blocked_overlap_cycles": int(
+                multi_branch_episode_detail.ib_blocked_cycles.sum()
+            ),
+            "episodes": int(multi_branch_histogram.episodes.sum()),
+            "distinct_fetch_blocks": int(len(multi_branch_hotspots)),
+        },
     }
     if bju_diagnostics["ex1_to_ex2_identity_failures"]:
         raise ValueError(f"BJU EX1->EX2 identity validation failed: {bju_diagnostics}")

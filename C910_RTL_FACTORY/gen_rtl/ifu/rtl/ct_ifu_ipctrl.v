@@ -1405,6 +1405,10 @@ assign ip_refill_pre = ifctrl_ipctrl_vld &&
 //-----------------br_more_than_one_stall-------------------
 //more than one conditional branch
 //stall one cycle to guarantee one cycle process on con_br
+//This is functional serialization, not a performance-only gate.  A wider
+//implementation may remove it only when the next conditional branch has an
+//independent history-correct BHT context and IPDP can truncate after either
+//branch.  Otherwise BHT training and wrong-path masking become incorrect.
 assign br_more_than_one_stall = masked_bry_update_vld;
 
 assign ipctrl_ifctrl_stall_short = ibctrl_ipctrl_stall || 
@@ -2018,5 +2022,4 @@ assign ipctrl_debug_h0_vld                  = h0_vld;
 
 // &ModuleEnd; @1402
 endmodule
-
 

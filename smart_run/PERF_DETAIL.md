@@ -315,7 +315,7 @@ python3 analyze_branch_hotspots.py \
 | 125 | `icache_miss_under_refill` | IFU/分支 | I-cache refill/miss/reissue/busy 相关事件。 | 判断取指 cache miss、refill 和重发是否造成前端停顿。 | miss 低而 FE 高时，前端瓶颈多半不是 I-cache 容量。 |
 | 126 | `icache_way_mispred_reissue` | IFU/分支 | I-cache refill/miss/reissue/busy 相关事件。 | 判断取指 cache miss、refill 和重发是否造成前端停顿。 | miss 低而 FE 高时，前端瓶颈多半不是 I-cache 容量。 |
 | 127 | `ifu_bry_missigned_stall` | IFU/分支 | IFU buffer、BTB 或多分支取指相关事件。 | 分析前端供给、目标预测、buffer 创建/释放和多分支限制。 | 需区分真实前端不足和后端反压。 |
-| 128 | `ifu_multi_branch_stall` | IFU/分支 | IFU buffer、BTB 或多分支取指相关事件。 | 分析前端供给、目标预测、buffer 创建/释放和多分支限制。 | 需区分真实前端不足和后端反压。 |
+| 128 | `ifu_multi_branch_stall` | IFU/分支 | IP 当前有效窗口的第一条条件分支预测 Not-Taken，且后面还有条件分支时，冻结 IF 并逐拍处理剩余窗口。该信号在 `ibctrl_ipctrl_stall` 保持当前 IP 项时也会继续为高。 | raw 驻留周期用该信号直接统计；真正消费一条条件分支并推进剩余窗口的有效串行重放应统计 `ifu_multi_branch_stall && !ifu_ip_pipeline_stall`；二者之差是 IB/后端保持重叠。 | 不能把 raw active 周期全部解释为空泡或可删除周期；还需联合 IDU 供给、ROB create、退休宽度和 PCFIFO stall。 |
 | 129 | `dcache_read_access` | LSU/Cache | D-cache read access 次数。 | 计算 load/cache 访问强度。 | 和 read miss 组成 miss rate。 |
 | 130 | `dcache_read_miss` | LSU/Cache | D-cache read miss 次数。 | 判断 load miss 压力。 | miss 低但 LSU stall 高时，瓶颈在 LSU 内部而非 cache 容量。 |
 | 131 | `dcache_write_access` | LSU/Cache | D-cache write access 次数。 | 计算 store/cache 写访问强度。 | 和 write miss 配合看。 |

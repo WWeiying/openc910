@@ -953,11 +953,15 @@ assign inst1_vghr[21:0] = (inst0_con_br)
 //bht_pred_array_result
 //inst0 & inst1 has one con_br at most
 //thus share one bht_pred_array_result
+//A dual-conditional-branch design must replace this shared result with one
+//prediction snapshot per conditional branch before relaxing the IP stall.
 assign inst_bht_pre_result[1:0] = ibdp_pcfifo_if_bht_pre_result[1:0];
 
 //bht_select_array_result
 //inst0 & inst1 has one con_br at most
 //thus share one bht_select_array_result
+//The second snapshot also needs its own selector state and pre-branch VGHR so
+//that create1_chk_idx identifies the BHT entry actually used for prediction.
 assign inst_bht_sel_result[1:0] = ibdp_pcfifo_if_bht_sel_result[1:0];
 
 //Ind_btb Miss Signal
@@ -1070,5 +1074,4 @@ assign ifu_iu_pcfifo_create1_jmp_mispred    = inst_ind_btb_miss;
 
 // &ModuleEnd; @816
 endmodule
-
 
