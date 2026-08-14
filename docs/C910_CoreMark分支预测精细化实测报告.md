@@ -14,6 +14,8 @@
 
 - CoreMark 共退休 **231,917** 条指令，其中 **47,305** 条是条件分支，占退休指令的 **20.397%**。这是一个控制流密度很高的工作负载。
 - 条件分支方向预测准确率为 **93.056%**，方向误预测 **3,285** 次；加上 **7** 次 Return 目标误预测，总误预测为 **3,292** 次，即 **14.195 MPKI**。
+- ROI 共执行到 **303 个静态条件分支 PC**，其中 **206 个**产生过架构可见方向误预测。Top 30 静态分支贡献 **2,095** 次错误，占全部方向误预测的 **63.775%**；只有 27 个静态分支恰好错 1 次，因此错误呈现“少数热点加长尾”，不是平均分布。
+- 48,002 条执行级条件分支的 PCFIFO 预测上下文和 PID/payload 配对率均为 **100%**；47,999 条进入 EX2 的事件身份错误为 **0**，3,285 条方向错误全部与最终退休误预测严格配对。
 - BJU 误预测恢复保护占 **14,103 周期，8.253%**。条件分支误预测从 BJU cancel 到 IDU/IFU 解除保护的中位数为 **3 周期**，P90 为 **6 周期**，最大为 **23 周期**。
 - 条件分支误预测发生后，正确目标通常在 **1 周期**后重新进入 IF，目标指令进入 IDU 的中位数为 **3 周期**。这说明 C910 的典型路径是“前端很快重定向，后端等待退休和 RTU 恢复后再放行”。
 - 多条件分支解析 stall 占 **14,544 周期，8.511%**，略高于 BJU 误预测恢复占比。它是本次 CoreMark 前端中与预测正确性不同、但同样重要的结构吞吐问题。
@@ -25,21 +27,23 @@
 
 | 项目 | 本次配置 |
 |---|---|
-| RTL 版本 | `2222c9874c7c81e2b838d8fff7e521bc2ce4e6cb` |
-| Git 状态 | `clean` |
+| Git 基线 | `28fd34b21bacfce4b7329725c406a7c879c005b1` |
+| Git 状态 | `dirty`；工作树差异为测试、分析和报告文件，不包含 RTL 修改 |
 | Benchmark | CoreMark 1.0，`PERFORMANCE_RUN` |
 | 迭代次数 | `1` |
 | 编译器目标 | `-march=rv64imafdcxtheadc -mabi=lp64d -mtune=c910` |
 | 关键优化 | `-O3 -funroll-all-loops -finline-limit=500 -fgcse-sm -fno-schedule-insns` |
 | 其他后端选项 | `--param max-rtl-if-conversion-unpredictable-cost=100 -msignedness-cmpiv -fno-code-hoisting -mno-thread-jumps1 -mno-iv-adjust-addr-cost -mno-expand-split-imm` |
-| 波形导出 schema | `c910-coremark-branch-precision-v2` |
-| 导出信号数 | `668` |
+| 波形导出 schema | `c910-coremark-branch-precision-v3` |
+| 导出规模 | `709` 路唯一硬件信号，生成 `714` 个标准 CSV 列；缺失信号为 `0` |
+| 全程波形样本 | `207,740` 行；硬件周期范围为 `[0, 207712]` |
 | 采样周期 | `10 ns`，对应逐核时钟周期采样 |
 | CoreMark ROI | 退休的 `rdtime` PC 对确定起止点，并要求 ROI 周期数与仿真器报告周期数一致 |
 | ROI 范围 | `[14429, 185305)` |
 | ROI 周期数 | `170,876` |
-| 实际墙上时间 | 约 `50 分 57 秒`，包含 RTL 仿真、FSDB 导出和离线分析 |
+| 有效处理时间 | 约 `53 分钟`，其中 RTL 仿真约 15 分钟、FSDB 导出约 36 分钟、离线分析约 2 分钟 |
 | 仿真结果 | `TEST PASS`，`Correct operation validated` |
+| 端到端状态 | `simv_exit=0`、`export_exit=0`、`analysis_exit=0`，最终状态 `COMPLETE` |
 
 本次仿真报告：
 
@@ -119,6 +123,119 @@ CoreMark 每约 4.61 条退休指令就有一条控制流指令，每约 4.90 �
 | 预测 T，实际 NT | 1,508 | 3.142% |
 
 执行级方向不一致共 **3,314** 次，其中 `NT→T` 占 54.50%，`T→NT` 占 45.50%，没有极端单边偏置。这个表适合判断错误方向构成，但不能用 `3,314 / 48,002` 替代退休准确率，因为其中包含后来可能被 flush 的投机事件。
+
+### 4.3 误预测究竟集中在哪些静态分支
+
+v3 分析为每个 BJU EX1 动态条件分支记录字节 PC、函数、反汇编、IID、PID、预测方向、真实方向和退休误预测身份。CoreMark ROI 共出现 **303 个静态条件分支 PC**，其中 **206 个**至少产生过一次最终退休的方向误预测，另外 97 个在本次 ROI 没有架构方向错误。
+
+因此，3,285 次方向误预测既不是“约 30 条分支各错 100 次”，也不是“3,285 条分支各错一次”，而是明显的长尾分布：
+
+| 每个静态 PC 的退休误预测次数 | 静态 PC 数 | 误预测总数 |
+|---:|---:|---:|
+| 0 | 97 | 0 |
+| 1 | 27 | 27 |
+| 2～4 | 72 | 210 |
+| 5～9 | 40 | 275 |
+| 10～19 | 23 | 319 |
+| 20～49 | 23 | 693 |
+| 50～99 | 14 | 994 |
+| 100～199 | 7 | 767 |
+
+热点集中度为：
+
+| 最高错误热点范围 | 累计退休方向误预测 | 占 3,285 次误预测 |
+|---:|---:|---:|
+| Top 1 | 128 | 3.896% |
+| Top 5 | 567 | 17.260% |
+| Top 10 | 1,054 | 32.085% |
+| Top 20 | 1,709 | 52.024% |
+| Top 30 | 2,095 | 63.775% |
+| Top 50 | 2,556 | 77.808% |
+| Top 100 | 3,009 | 91.598% |
+
+前 15 个静态热点如下。`执行次数`是 BJU 执行级观测，包含最终可能被更老 flush 取消的推测执行；`退休误预测`才是架构错误数。
+
+| 排名 | PC | 函数 | 指令 | 执行次数 | 退休误预测 | 占全部错误 | 累计占比 |
+|---:|---:|---|---|---:|---:|---:|---:|
+| 1 | `0x3a60` | `core_bench_state` | `beq a4,s10,3a80` | 740 | 128 | 3.896% | 3.896% |
+| 2 | `0x34f0` | `core_bench_state` | `bltu a3,a5,36a0` | 432 | 118 | 3.592% | 7.489% |
+| 3 | `0x3870` | `core_bench_state` | `bltu a0,a5,3a14` | 432 | 110 | 3.349% | 10.837% |
+| 4 | `0x3b28` | `core_bench_state` | `bne t5,a7,3a5c` | 668 | 108 | 3.288% | 14.125% |
+| 5 | `0x0aae` | `core_bench_list` | `beqz a5,ae4` | 2,959 | 103 | 3.135% | 17.260% |
+| 6 | `0x09a6` | `core_bench_list` | `beqz a5,ac0` | 2,894 | 100 | 3.044% | 20.304% |
+| 7 | `0x37b2` | `core_bench_state` | `bne a0,t1,36e8` | 668 | 100 | 3.044% | 23.349% |
+| 8 | `0x3a2c` | `core_bench_state` | `beq a5,a0,3a48` | 656 | 99 | 3.014% | 26.362% |
+| 9 | `0x36b8` | `core_bench_state` | `beq a5,a3,36d4` | 656 | 95 | 2.892% | 29.254% |
+| 10 | `0x0c90` | `core_bench_list` | `bge t2,t0,e94` | 209 | 93 | 2.831% | 32.085% |
+| 11 | `0x0c30` | `core_bench_list` | `bge a5,t3,c3e` | 218 | 90 | 2.740% | 34.825% |
+| 12 | `0x36b4` | `core_bench_state` | `beq a5,t1,3c34` | 644 | 79 | 2.405% | 37.230% |
+| 13 | `0x3a28` | `core_bench_state` | `beq a5,a7,3c2c` | 644 | 69 | 2.100% | 39.330% |
+| 14 | `0x37b0` | `core_bench_state` | `beqz a0,3814` | 632 | 65 | 1.979% | 41.309% |
+| 15 | `0x3a6c` | `core_bench_state` | `bgeu t4,a5,3b20` | 644 | 64 | 1.948% | 43.257% |
+
+这个分布说明优化不应只盯一个分支，也不应平均对待全部分支。Top 20 已覆盖过半错误，适合先做反汇编与源代码模式研究；但要覆盖 90% 以上错误，需要处理约 100 个静态 PC，说明 BHT 的普遍建模能力同样重要。
+
+### 4.4 每条动态分支携带的真实 BHT 状态
+
+`ct_ifu_pcfifo_if.v` 把预测时状态编码进 25 位 `chk_idx`，该值随 PCFIFO 项一直传到 BJU。v3 逐条解码：
+
+```text
+chk_idx[21:0]       = 预测时 22 位 VGHR
+chk_idx[23:22]      = bimode selector 的 2 位状态
+{bht_pred,chk[24]}  = 实际选中的 2 位饱和计数器状态
+```
+
+同时按 `ct_ifu_bht.v` 的原公式重建更新位置：
+
+```text
+predict row = {GHR[13:10], GHR[9:4] XOR GHR[21:16]}
+offset      = current_PC_index[3:0] XOR GHR[3:0]
+bank        = selector[1] 选择 Taken/Not-Taken bank
+select row  = current_PC_index[9:3]
+select slot = current_PC_index[2:0]
+```
+
+在没有旧 BHT 写缓冲项占用更新口的 **38,230 次**直接更新中，重建出的 prediction row、selector row、更新后 prediction counter 和 selector counter 与 RTL 实际信号全部一致，错误为 **0**。这证明逐条 CSV 中的 BHT key、计数器强弱和 selector 状态不是离线猜测，而是对 RTL 编码的等价解码。
+
+对 3,285 次架构方向误预测做互斥的“证据分类”得到：
+
+| 单轨迹证据类别 | 架构误预测 | 含义 |
+|---|---:|---|
+| 该 predictor key 在 ROI 内首次出现 | 1,256 | 无法从 ROI 内看到它此前如何训练；可能与预热、ROI 前状态或新历史上下文有关，不能直接断言 cold miss |
+| 相同 PC 与完整 22 位 GHR 曾对应相反结果 | 1,068 | 对当前可见上下文而言结果不可分，说明仅靠该全局历史上下文不足以唯一决定方向 |
+| 所选 2 位计数器处于弱状态 | 736 | 预测状态接近翻转边界，常见于模式切换或训练不足 |
+| 同一 prediction key 的前一次使用来自其他 PC 且结果相反 | 174 | 有明确的跨静态 PC 表项别名干扰证据 |
+| 单次轨迹无法唯一归因 | 51 | 需要结构 A/B 或更长上下文才能判定 |
+| 合计 | 3,285 | 与退休方向误预测完全守恒 |
+
+这里必须区分“证据”和“因果证明”。例如 174 次具有直接跨 PC 别名证据，但不能据此断言扩大 BHT 必然全部消除；1,068 次相同 PC/GHR 结果不唯一，说明现有上下文不能区分，却不能单凭一次 trace 判定应增加全局历史、局部历史还是路径历史。严格因果归因仍需要分别改变表容量、索引哈希、历史长度和 predictor 组织做单变量 A/B。
+
+### 4.5 动态分支身份链与正确预测开销
+
+v3 同时抓取 IFU 送入 PCFIFO 的完整 payload、PCFIFO 实际写入 PID、BJU EX1/EX2 的 PID/IID/PC/`chk_idx` 以及 RTU 退休误预测。身份链定义为：
+
+```text
+IFU PCFIFO create payload
+  → PCFIFO 实际写入并分配 PID
+  → BJU EX1：PID + IID + PC + prediction + chk_idx
+  → BJU EX2：PID + IID + halfword PC + chk_idx
+  → BJU cancel
+  → RTU retire mispred
+  → RTU flush
+  → IDU/IFU recovery release
+```
+
+48,002 条执行级条件分支的 IFU payload 上下文配对率为 **100%**，PCFIFO `PID+PC+prediction+chk_idx` 实际写入配对率也为 **100%**；47,999 条进入 EX2 的事件身份错误为 0，另有 3 条推测分支在 EX1 同周期遇到全局 flush，按 RTL 优先级被取消并未进入 EX2，未解释缺口为 0。3,285 条方向错误全部与最终退休误预测配对。后续 v3 运行会对 PID/payload 覆盖率设置 99% 的最低硬门槛，不满足时分析脚本直接失败，而不是生成残缺报告。
+
+对可同时匹配“分支被 IDU 接收”和“正确目标被 IDU 接收”的 Taken 样本，可以直接计算两者之间的 IDU 空拍。当前低 15 位半字 PC 在 CoreMark 代码范围内无冲突，匹配覆盖率为 91.596%；结果如下：
+
+| 正确 Taken 路径 | 动态事件 | 已匹配样本的平均 IDU 空拍 | P90 |
+|---|---:|---:|---:|
+| L0 BTB | 6,286 | 0.268 | 1 |
+| IP 主预测 | 10,346 | 0.468 | 1 |
+| L0 miss 后由 IP 预测 | 1,049 | 0.879 | 1 |
+
+这些数值支持“L0 正确 Taken 最接近无气泡，IP 正确 Taken 通常不超过 1 个 IDU 空拍”的结构判断，但平均值只对成功身份匹配的样本成立。正确 Not-Taken 共 25,758 次，不产生 redirect；它的控制流转向开销通常为零，但仍占用 BIQ/BJU 执行资源，不能把该资源成本从本 trace 中直接换算为独立 IPC 损失。
 
 ## 5. PCGEN 转向来源
 
@@ -304,7 +421,7 @@ Return 目标误预测只有 7 个样本，不能据此稳定估计总体分布�
 | IB RAS 正确 Return | 251 次，精确目标进入 IDU 中位 6 周期 | Return 在更晚级产生目标，且前端缓冲中的任意供给不能代表 Return 目标已经到达 |
 | 同一取指块有多个条件分支 | 14,544 stall 周期 | 即使每条分支方向都预测正确，前端解析吞吐限制仍会产生等待 |
 
-本次 FSDB 可以精确测量 redirect 发起后的目标传播与供给恢复，但没有给每条“正确预测分支”建立从该分支最初进入 IF 到目标进入 IDU 的全生命周期身份链。因此不能仅凭本表宣布“L0 正确 Taken 固定 0 bubble”或“IP 正确 Taken固定 1 bubble”。要得到这种严格逐分支惩罚，还需在 IF 入口给 fetch block/branch 分配可跨 IF、IP、IB、IDU、ROB 和 BJU 保持的身份标签。
+v3 已经把 PCFIFO payload、PID、BJU IID/PID 和 RTU 恢复串成逐动态分支身份链，并能对成功匹配的正确 Taken 样本计算“分支 IDU 接收→目标 IDU 接收”的空拍。它仍不是从 IF 首拍开始的全核硬件 transaction ID：IF/IP redirect 与具体分支的关联使用取指块 PC，IDU 使用低 15 位半字 PC。因此报告给出覆盖率和分布，不把样本均值宣传为固定的架构 penalty。若未来要在任意大程序上达到逐条 100% 的 IF→退休身份，需要专门增加跨 IF/IP/IB/IDU 的 debug tag。
 
 ## 10. 子机制理想化的全局性能收益评估
 
@@ -468,14 +585,20 @@ perfect_accuracy_plus_unlimited_throughput
 | ROI 周期连续、无重复或倒退 | 通过，170,876 行逐周期严格连续 |
 | ROI 周期与仿真器 CoreMark 周期 | 完全一致，均为 170,876 |
 | BJU EX1→EX2 IID/PID 身份 | 0 个失败 |
+| BJU EX1→EX2 `chk_idx`/PC/实际方向 | 47,999 个进入 EX2 的事件全部一致；3 个 EX1 事件被同周期全局 flush 按 RTL 优先级取消 |
+| BHT 更新公式 | 38,230 个无旧写缓冲干扰的直接更新全部一致 |
+| IFU payload→BJU 完整预测上下文 | 48,002 / 48,002 |
 | 架构误预测配对 | 3,292 / 3,292 |
 | L0→IP 纠正 VPC 身份 | 545 / 545 |
+| FSDB 配置信号 | 709 路唯一硬件信号，缺失 0 路 |
+| 逐周期原始数据 | 207,740 行，CSV 共 714 列 |
+| 仿真、导出和分析状态 | 三阶段退出码均为 0，最终状态 `COMPLETE` |
 | CoreMark 功能结果 | `TEST PASS`，正确性验证通过 |
 
 ### 12.2 必须保留的限制
 
 1. 本次只有 1 次 CoreMark 迭代，适合波形机制研究，不适合正式分数稳定性评估。
-2. IFU→IDU 精确目标 PC 使用低 15 位半字地址匹配。本次 CoreMark 代码地址范围允许唯一匹配；更大程序需要重建高位或导出完整 PC。
+2. IFU→IDU 精确目标 PC 使用低 15 位半字地址匹配。本次 CoreMark 代码地址范围允许唯一匹配；匹配覆盖率为 91.596%，更大程序需要重建高位或增加 debug tag。
 3. L0 组件事件来自不同 RTL 门控条件，不能直接构造统一命中率。
 4. `任意 IDU accept` 和 `任意 ROB create` 是供给代理，不是目标指令身份匹配。
 5. `目标进入 IF/IDU` 的最大长尾可能叠加 I-cache、iTLB、重发、前端缓冲和后续 redirect，不能全算到预测器。
@@ -484,10 +607,10 @@ perfect_accuracy_plus_unlimited_throughput
 
 ## 13. 原始数据位置
 
-本报告对应结果目录：
+本报告的 RTL 基线对应结果目录：
 
 ```text
-smart_run/results/coremark_branch_precision_v2_iter1_2222c9874c7c_clean/
+smart_run/results/coremark_branch_precision_v3_iter1_28fd34b21bac_dirty/
 ```
 
 关键文件：
@@ -497,7 +620,8 @@ smart_run/results/coremark_branch_precision_v2_iter1_2222c9874c7c_clean/
 | `run.info` | commit、迭代、schema、采样和 ELF/脚本哈希 |
 | `simv.console.log` | CoreMark 周期、得分和正确性输出 |
 | `coremark.asm` | 本次 ELF 对应反汇编 |
-| `branch_precision_signals.csv` | 668 个导出信号的逐周期原始数据，约 295 MiB |
+| `branch_precision_signals.csv` | 709 路硬件信号的逐周期原始数据；共 207,740 行、714 列，约 325 MiB |
+| `branch_precision_signals.meta.json` | 信号路径、radix、采样范围、缺失信号、周期连续性和复现命令 |
 | `branch_precision_analysis/validation.json` | ROI、架构汇总和全部一致性校验 |
 | `branch_precision_analysis/architecture_summary.csv` | 架构退休分支、准确率和 MPKI |
 | `branch_precision_analysis/execution_observations.csv` | 执行级 T/NT 预测结果构成 |
@@ -508,5 +632,18 @@ smart_run/results/coremark_branch_precision_v2_iter1_2222c9874c7c_clean/
 | `branch_precision_analysis/l0_ip_pairs.csv` | L0 早转向与 IP 纠正的身份配对 |
 | `branch_precision_analysis/bju_recovery_summary.csv` | 架构误预测恢复链摘要 |
 | `branch_precision_analysis/bju_events.csv` | 每个 BJU cancel 的身份、退休和恢复明细 |
+
+v3 已在 `branch_precision_analysis/` 生成：
+
+| 文件 | 内容 |
+|---|---|
+| `dynamic_conditional_branches.csv` | 每条动态条件分支的 PC、反汇编、IID/PID、预测/实际方向、VGHR、selector、计数器、prediction key、生命周期和恢复时间 |
+| `static_branch_hotspots.csv` | 每个静态 PC 的执行数、错误数、集中度、别名/弱状态证据和单热点理想收益上界 |
+| `bht_predictor_key_aliases.csv` | 每个物理 prediction key 被哪些静态 PC/方向使用以及错误集中度 |
+| `misprediction_cause_evidence.csv` | 误预测证据分类，类别互斥且与架构误预测数守恒 |
+| `branch_phase_summary.csv` | 将 ROI 分成十段后的静态 PC、错误和新 key 时间分布 |
+| `prediction_path_summary.csv` | 正确/错误 T/NT 在 L0、IP、L0 miss、前端纠错等路径上的事件数和延迟 |
+| `predictor_internal_summary.csv` | BHT counter/selector 更新、写缓冲和 L0 hit vector 事件 |
+| `branch_identity_report.md` | 自动生成的热点与完整性摘要 |
 
 要定位单个长尾，应先在 `bju_events.csv` 或 `redirect_events.csv` 找到 `cycle`，再回到 `branch_precision_signals.csv` 查看该周期附近的 IF valid、目标 PC、IDU valid、BJU stall、RTU retire/flush、I-cache refill 和 iTLB 信号。这样可以把“预测器错误”“恢复等待”和“目标侧取指等待”拆开，而不是把整个空泡区间都归因给分支预测。

@@ -4,7 +4,9 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(realpath "${SCRIPT_DIR}/..")"
 ITERATIONS="${COREMARK_ITERATIONS:-1}"
-SIGNAL_CONFIG="${SIGNAL_CONFIG:-/home/wangwy/work_dir/fsdb_tools/configs/c910_core_rob.json}"
+BASE_SIGNAL_CONFIG="${BASE_SIGNAL_CONFIG:-${SIGNAL_CONFIG:-/home/wangwy/work_dir/fsdb_tools/configs/c910_core_rob.json}}"
+EXTRA_SIGNAL_CONFIG="${EXTRA_SIGNAL_CONFIG:-${SCRIPT_DIR}/configs/coremark_branch_precision_v3_extra.json}"
+CONFIG_MERGER="${CONFIG_MERGER:-${SCRIPT_DIR}/merge_fsdb_signal_configs.py}"
 EXPORT_TOOL="${EXPORT_TOOL:-/home/wangwy/work_dir/fsdb_tools/export_fsdb.py}"
 ANALYZER="${ANALYZER:-${SCRIPT_DIR}/analyze_coremark_branch_precision.py}"
 PYTHON="${PYTHON:-/home/wangwy/software/anaconda3/envs/pytorch/bin/python}"
@@ -21,7 +23,8 @@ result directory.
 
 Environment:
   COREMARK_ITERATIONS   CoreMark iteration count (default: 1)
-  SIGNAL_CONFIG         fsdb_tools JSON configuration
+  BASE_SIGNAL_CONFIG    common fsdb_tools JSON configuration
+  EXTRA_SIGNAL_CONFIG   branch-precision v3 signal additions
   EXPORT_TOOL           fsdb_tools/export_fsdb.py path
   ANALYZER              post-export branch analysis script
   PYTHON                Python interpreter used for FSDB export
@@ -38,7 +41,8 @@ while (($#)); do
   shift
 done
 
-for path in "${SIGNAL_CONFIG}" "${EXPORT_TOOL}" "${ANALYZER}"; do
+for path in "${BASE_SIGNAL_CONFIG}" "${EXTRA_SIGNAL_CONFIG}" "${CONFIG_MERGER}" \
+            "${EXPORT_TOOL}" "${ANALYZER}"; do
   [[ -s "${path}" ]] || { echo "ERROR: missing required file: ${path}" >&2; exit 2; }
 done
 [[ -x "${PYTHON}" ]] || { echo "ERROR: Python is not executable: ${PYTHON}" >&2; exit 2; }
@@ -73,7 +77,7 @@ if [[ -n "$(git -C "${REPO_ROOT}" status --porcelain --untracked-files=no)" ]]; 
 else
   GIT_STATE=clean
 fi
-LABEL="coremark_branch_precision_v2_iter${ITERATIONS}_${GIT_SHORT}_${GIT_STATE}"
+LABEL="coremark_branch_precision_v3_iter${ITERATIONS}_${GIT_SHORT}_${GIT_STATE}"
 RESULT_DIR="${SCRIPT_DIR}/results/${LABEL}"
 [[ ! -e "${RESULT_DIR}" ]] || {
   echo "ERROR: result directory already exists; refusing to overwrite: ${RESULT_DIR}" >&2
@@ -86,24 +90,28 @@ for input in case.pat inst.pat data.pat symbols.args coremark.elf coremark.asm; 
 done
 [[ ! -s work/coremark_build.case.log ]] || \
   cp -p --reflink=auto work/coremark_build.case.log "${RESULT_DIR}/build.case.log"
-cp -p "${SIGNAL_CONFIG}" "${RESULT_DIR}/c910_branch_precision_signals.json"
+"${PYTHON}" "${CONFIG_MERGER}" \
+  "${RESULT_DIR}/c910_branch_precision_signals.json" \
+  "${BASE_SIGNAL_CONFIG}" "${EXTRA_SIGNAL_CONFIG}" \
+  >"${RESULT_DIR}/config_merge.log"
 cp -p "${ANALYZER}" "${RESULT_DIR}/analyze_coremark_branch_precision.py"
 
 {
-  echo "schema=c910-coremark-branch-precision-v2"
+  echo "schema=c910-coremark-branch-precision-v3"
   echo "case=coremark"
   echo "iterations=${ITERATIONS}"
   echo "git_commit=${GIT_COMMIT}"
   echo "git_state=${GIT_STATE}"
   echo "simulator=${SIMV}"
   echo "signal_config=c910_branch_precision_signals.json"
-  echo "expanded_signal_count=$(${PYTHON} -c 'import itertools,json,sys; c=json.load(open(sys.argv[1])); n=1+len(c.get("signals",[])); n+=sum(len(g.get("signals",[]))*__import__("functools").reduce(lambda a,v:a*(len(range(v["start"],v["stop"])) if isinstance(v,dict) else len(v)),g.get("variables",{}).values(),1) for g in c.get("signal_template_groups",[])); print(n)' "${SIGNAL_CONFIG}")"
+  echo "expanded_signal_count=$(${PYTHON} -c 'import json,sys; c=json.load(open(sys.argv[1])); n=1+len(c.get("signals",[])); n+=sum(len(g.get("signals",[]))*__import__("functools").reduce(lambda a,v:a*(len(range(v["start"],v["stop"])) if isinstance(v,dict) else len(v)),g.get("variables",{}).values(),1) for g in c.get("signal_template_groups",[])); print(n)' "${RESULT_DIR}/c910_branch_precision_signals.json")"
   echo "sample_period=10ns"
   sha256sum \
     "${RESULT_DIR}/coremark.elf" \
     "${RESULT_DIR}/coremark.asm" \
     "${RESULT_DIR}/c910_branch_precision_signals.json" \
-    "${RESULT_DIR}/analyze_coremark_branch_precision.py"
+    "${RESULT_DIR}/analyze_coremark_branch_precision.py" \
+    "${RESULT_DIR}/config_merge.log"
 } >"${RESULT_DIR}/run.info"
 
 cat >"${RESULT_DIR}/run_driver.sh" <<EOF
@@ -128,8 +136,7 @@ echo EXPORTING > run.status
 "${PYTHON}" "${EXPORT_TOOL}" \
   --fsdb novas.fsdb \
   --config c910_branch_precision_signals.json \
-  --output branch_precision_signals.csv \
-  --allow-missing-signals >fsdb_export.log 2>&1
+  --output branch_precision_signals.csv >fsdb_export.log 2>&1
 export_status=\$?
 printf 'export_exit=%s\n' "\${export_status}" >export.exit
 if ((export_status != 0)); then

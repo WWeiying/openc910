@@ -1,0 +1,223 @@
+{
+  "sample": {
+    "begin": "5ns",
+    "end": null,
+    "period": "10ns"
+  },
+  "cycle_signal": {
+    "alias": "cycle",
+    "path": "/tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_hpcp_top/mcycle_value",
+    "radix": "u",
+    "description": "HPCP mcycle"
+  },
+  "signals": [
+    {
+      "alias": "branch_ex1_chk_idx",
+      "path": "/tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_iu_top/x_ct_iu_bju/ex1_pipe2_chk_idx",
+      "radix": "h",
+      "description": "BJU EX1 随动态分支携带的 BHT 预测快照：低 22 位为预测时 VGHR，[23:22] 为 selector，[24] 与预测方向组成所选 2 位计数器"
+    },
+    {
+      "alias": "branch_ex2_chk_idx",
+      "path": "/tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_iu_top/x_ct_iu_bju/ex2_pipe2_chk_idx",
+      "radix": "h",
+      "description": "BJU EX2 的 BHT 预测快照，用于硬校验 EX1 到 EX2 身份和状态没有串线"
+    },
+    {
+      "alias": "branch_ex2_pc_halfword",
+      "path": "/tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_iu_top/x_ct_iu_bju/ex2_pipe2_cur_pc",
+      "radix": "h"
+    },
+    {
+      "alias": "pcfifo_if_create0_en",
+      "path": "/tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_ifu_top/x_ct_ifu_pcfifo_if/ifu_iu_pcfifo_create0_en",
+      "radix": "b"
+    },
+    {
+      "alias": "pcfifo_if_create0_pc",
+      "path": "/tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_ifu_top/x_ct_ifu_pcfifo_if/ifu_iu_pcfifo_create0_cur_pc",
+      "radix": "h"
+    },
+    {
+      "alias": "pcfifo_if_create0_target",
+      "path": "/tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_ifu_top/x_ct_ifu_pcfifo_if/ifu_iu_pcfifo_create0_tar_pc",
+      "radix": "h"
+    },
+    {
+      "alias": "pcfifo_if_create0_bht_pred",
+      "path": "/tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_ifu_top/x_ct_ifu_pcfifo_if/ifu_iu_pcfifo_create0_bht_pred",
+      "radix": "b"
+    },
+    {
+      "alias": "pcfifo_if_create0_chk_idx",
+      "path": "/tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_ifu_top/x_ct_ifu_pcfifo_if/ifu_iu_pcfifo_create0_chk_idx",
+      "radix": "h"
+    },
+    {
+      "alias": "pcfifo_if_create0_jal",
+      "path": "/tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_ifu_top/x_ct_ifu_pcfifo_if/ifu_iu_pcfifo_create0_jal",
+      "radix": "b"
+    },
+    {
+      "alias": "pcfifo_if_create0_jalr",
+      "path": "/tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_ifu_top/x_ct_ifu_pcfifo_if/ifu_iu_pcfifo_create0_jalr",
+      "radix": "b"
+    },
+    {
+      "alias": "pcfifo_if_create0_indirect_miss",
+      "path": "/tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_ifu_top/x_ct_ifu_pcfifo_if/ifu_iu_pcfifo_create0_jmp_mispred",
+      "radix": "b"
+    },
+    {
+      "alias": "pcfifo_if_create1_en",
+      "path": "/tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_ifu_top/x_ct_ifu_pcfifo_if/ifu_iu_pcfifo_create1_en",
+      "radix": "b"
+    },
+    {
+      "alias": "pcfifo_if_create1_pc",
+      "path": "/tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_ifu_top/x_ct_ifu_pcfifo_if/ifu_iu_pcfifo_create1_cur_pc",
+      "radix": "h"
+    },
+    {
+      "alias": "pcfifo_if_create1_target",
+      "path": "/tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_ifu_top/x_ct_ifu_pcfifo_if/ifu_iu_pcfifo_create1_tar_pc",
+      "radix": "h"
+    },
+    {
+      "alias": "pcfifo_if_create1_bht_pred",
+      "path": "/tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_ifu_top/x_ct_ifu_pcfifo_if/ifu_iu_pcfifo_create1_bht_pred",
+      "radix": "b"
+    },
+    {
+      "alias": "pcfifo_if_create1_chk_idx",
+      "path": "/tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_ifu_top/x_ct_ifu_pcfifo_if/ifu_iu_pcfifo_create1_chk_idx",
+      "radix": "h"
+    },
+    {
+      "alias": "pcfifo_if_create1_jal",
+      "path": "/tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_ifu_top/x_ct_ifu_pcfifo_if/ifu_iu_pcfifo_create1_jal",
+      "radix": "b"
+    },
+    {
+      "alias": "pcfifo_if_create1_jalr",
+      "path": "/tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_ifu_top/x_ct_ifu_pcfifo_if/ifu_iu_pcfifo_create1_jalr",
+      "radix": "b"
+    },
+    {
+      "alias": "pcfifo_if_create1_indirect_miss",
+      "path": "/tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_ifu_top/x_ct_ifu_pcfifo_if/ifu_iu_pcfifo_create1_jmp_mispred",
+      "radix": "b"
+    },
+    {
+      "alias": "pcfifo_if_lbuf_create",
+      "path": "/tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_ifu_top/x_ct_ifu_pcfifo_if/lbuf_create_select",
+      "radix": "b"
+    },
+    {
+      "alias": "pcfifo_pending0_pc",
+      "path": "/tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_iu_top/x_ct_iu_bju/x_ct_iu_bju_pcfifo/create_entry0_cur_pc",
+      "radix": "h"
+    },
+    {
+      "alias": "pcfifo_pending0_bht_pred",
+      "path": "/tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_iu_top/x_ct_iu_bju/x_ct_iu_bju_pcfifo/create_entry0_bht_pred",
+      "radix": "b"
+    },
+    {
+      "alias": "pcfifo_pending0_chk_idx",
+      "path": "/tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_iu_top/x_ct_iu_bju/x_ct_iu_bju_pcfifo/create_entry0_chk_idx",
+      "radix": "h"
+    },
+    {
+      "alias": "pcfifo_pending1_pc",
+      "path": "/tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_iu_top/x_ct_iu_bju/x_ct_iu_bju_pcfifo/create_entry1_cur_pc",
+      "radix": "h"
+    },
+    {
+      "alias": "pcfifo_pending1_bht_pred",
+      "path": "/tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_iu_top/x_ct_iu_bju/x_ct_iu_bju_pcfifo/create_entry1_bht_pred",
+      "radix": "b"
+    },
+    {
+      "alias": "pcfifo_pending1_chk_idx",
+      "path": "/tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_iu_top/x_ct_iu_bju/x_ct_iu_bju_pcfifo/create_entry1_chk_idx",
+      "radix": "h"
+    },
+    {
+      "alias": "pcfifo_pending0_two_entries",
+      "path": "/tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_iu_top/x_ct_iu_bju/x_ct_iu_bju_pcfifo/pcfifo_create0_2_entry",
+      "radix": "b"
+    },
+    {
+      "alias": "bht_vghr",
+      "path": "/tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_ifu_top/x_ct_ifu_bht/vghr_reg",
+      "radix": "h"
+    },
+    {
+      "alias": "bht_retired_ghr",
+      "path": "/tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_ifu_top/x_ct_ifu_bht/rtughr_reg",
+      "radix": "h"
+    },
+    {
+      "alias": "bht_pred_update_valid",
+      "path": "/tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_ifu_top/x_ct_ifu_bht/pred_array_check_updt_vld",
+      "radix": "b"
+    },
+    {
+      "alias": "bht_selector_update_valid",
+      "path": "/tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_ifu_top/x_ct_ifu_bht/sel_array_check_updt_vld",
+      "radix": "b"
+    },
+    {
+      "alias": "bht_any_update_valid",
+      "path": "/tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_ifu_top/x_ct_ifu_bht/bju_check_updt_vld",
+      "radix": "b"
+    },
+    {
+      "alias": "bht_update_buffer_create",
+      "path": "/tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_ifu_top/x_ct_ifu_bht/bht_wr_buf_create_vld",
+      "radix": "b"
+    },
+    {
+      "alias": "bht_update_buffer_retire",
+      "path": "/tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_ifu_top/x_ct_ifu_bht/bht_wr_buf_retire_vld",
+      "radix": "b"
+    },
+    {
+      "alias": "bht_update_buffer_full",
+      "path": "/tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_ifu_top/x_ct_ifu_bht/buf_full",
+      "radix": "b"
+    },
+    {
+      "alias": "bht_update_buffer_nonempty",
+      "path": "/tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_ifu_top/x_ct_ifu_bht/bht_wr_buf_not_empty",
+      "radix": "b"
+    },
+    {
+      "alias": "bht_update_pred_row",
+      "path": "/tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_ifu_top/x_ct_ifu_bht/bht_wr_buf_pred_updt_index",
+      "radix": "u"
+    },
+    {
+      "alias": "bht_update_selector_row",
+      "path": "/tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_ifu_top/x_ct_ifu_bht/bht_wr_buf_sel_updt_index",
+      "radix": "u"
+    },
+    {
+      "alias": "bht_update_pred_state",
+      "path": "/tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_ifu_top/x_ct_ifu_bht/pred_array_updt_data",
+      "radix": "u"
+    },
+    {
+      "alias": "bht_update_selector_state",
+      "path": "/tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_ifu_top/x_ct_ifu_bht/sel_array_updt_data",
+      "radix": "u"
+    },
+    {
+      "alias": "ifu_l0_hit_vector",
+      "path": "/tb/x_soc/x_cpu_sub_system_axi/x_rv_integration_platform/x_cpu_top/x_ct_top_0/x_ct_core/x_ct_ifu_top/x_ct_ifu_l0_btb/l0_btb_ifdp_entry_hit",
+      "radix": "h",
+      "description": "L0 BTB 的 16 项命中向量，可区分具体命中项并检查多命中异常"
+    }
+  ]
+}
