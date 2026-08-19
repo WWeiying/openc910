@@ -8979,5 +8979,1188 @@
     "sha256": "dbcb05619723d34e0e2913def45e9dc778aa43ead706f88c27e4df83ba19de68",
     "size": 8919,
     "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|281272f9a0686841c468d8084b620d31ac498be0793acc61cfe67b4361f7b005|01_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/nvidia_vera_wechat_article_zh/281272f9a0686841_01_figure.png",
+    "objectKey": "wechat/articles/nvidia_vera_wechat_article_zh/281272f9a0686841_01_figure.png",
+    "sha256": "281272f9a0686841c468d8084b620d31ac498be0793acc61cfe67b4361f7b005",
+    "size": 366276,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|c061d997974c92ad419e7d612598b6a9030e10f49285ec58dbee1c550273d052|02_figure.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/nvidia_vera_wechat_article_zh/c061d997974c92ad_02_figure.jpg",
+    "objectKey": "wechat/articles/nvidia_vera_wechat_article_zh/c061d997974c92ad_02_figure.jpg",
+    "sha256": "c061d997974c92ad419e7d612598b6a9030e10f49285ec58dbee1c550273d052",
+    "size": 67936,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|686d4b15e40a578d470e1f8e2fa6777ec6813292cb7798082c67dce06a547446|03_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/nvidia_vera_wechat_article_zh/686d4b15e40a578d_03_figure.png",
+    "objectKey": "wechat/articles/nvidia_vera_wechat_article_zh/686d4b15e40a578d_03_figure.png",
+    "sha256": "686d4b15e40a578d470e1f8e2fa6777ec6813292cb7798082c67dce06a547446",
+    "size": 9360,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|e25314e54668ed9b000237db707f7e83ee3358b8a03d9ac2e36aef9171adccc5|04_figure.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/nvidia_vera_wechat_article_zh/e25314e54668ed9b_04_figure.jpg",
+    "objectKey": "wechat/articles/nvidia_vera_wechat_article_zh/e25314e54668ed9b_04_figure.jpg",
+    "sha256": "e25314e54668ed9b000237db707f7e83ee3358b8a03d9ac2e36aef9171adccc5",
+    "size": 33333,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|0c0a9b7ffe5884ca1c98fdaed71fd71c02e4fd082ddfd3444873de32fa556fbf|05_figure.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/nvidia_vera_wechat_article_zh/0c0a9b7ffe5884ca_05_figure.jpg",
+    "objectKey": "wechat/articles/nvidia_vera_wechat_article_zh/0c0a9b7ffe5884ca_05_figure.jpg",
+    "sha256": "0c0a9b7ffe5884ca1c98fdaed71fd71c02e4fd082ddfd3444873de32fa556fbf",
+    "size": 54974,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|b5bc8f0bb2810310827c33bc09da816f3e40e182e6eaeb7e1a8ac88346d449b5|06_figure.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/nvidia_vera_wechat_article_zh/b5bc8f0bb2810310_06_figure.jpg",
+    "objectKey": "wechat/articles/nvidia_vera_wechat_article_zh/b5bc8f0bb2810310_06_figure.jpg",
+    "sha256": "b5bc8f0bb2810310827c33bc09da816f3e40e182e6eaeb7e1a8ac88346d449b5",
+    "size": 72388,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|59c904955f49d0b32c0784e608a2c5b4402dcd6d3ae1ea14704a5bd2e077298d|07_figure.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/nvidia_vera_wechat_article_zh/59c904955f49d0b3_07_figure.jpg",
+    "objectKey": "wechat/articles/nvidia_vera_wechat_article_zh/59c904955f49d0b3_07_figure.jpg",
+    "sha256": "59c904955f49d0b32c0784e608a2c5b4402dcd6d3ae1ea14704a5bd2e077298d",
+    "size": 155371,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|9e834e1e50adb77c68ca9343bf68631dbc452a988b3f5540d1b50509aca38a14|08_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/nvidia_vera_wechat_article_zh/9e834e1e50adb77c_08_figure.png",
+    "objectKey": "wechat/articles/nvidia_vera_wechat_article_zh/9e834e1e50adb77c_08_figure.png",
+    "sha256": "9e834e1e50adb77c68ca9343bf68631dbc452a988b3f5540d1b50509aca38a14",
+    "size": 24105,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|a85d9bdea629f3e3f7b99db0b641425254846e63e43929c235a43076a5f66d5a|09_figure.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/nvidia_vera_wechat_article_zh/a85d9bdea629f3e3_09_figure.jpg",
+    "objectKey": "wechat/articles/nvidia_vera_wechat_article_zh/a85d9bdea629f3e3_09_figure.jpg",
+    "sha256": "a85d9bdea629f3e3f7b99db0b641425254846e63e43929c235a43076a5f66d5a",
+    "size": 105403,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|3288a693dac0fef90e2b569e9c06b2d1a1d860ae3ea971410540d9d4be7faccb|10_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/nvidia_vera_wechat_article_zh/3288a693dac0fef9_10_figure.png",
+    "objectKey": "wechat/articles/nvidia_vera_wechat_article_zh/3288a693dac0fef9_10_figure.png",
+    "sha256": "3288a693dac0fef90e2b569e9c06b2d1a1d860ae3ea971410540d9d4be7faccb",
+    "size": 13488,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|d558dd6523de9b78ba62ab226f9378f47dcef10c002a6c9c5bc7e9fa701f6313|11_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/nvidia_vera_wechat_article_zh/d558dd6523de9b78_11_figure.png",
+    "objectKey": "wechat/articles/nvidia_vera_wechat_article_zh/d558dd6523de9b78_11_figure.png",
+    "sha256": "d558dd6523de9b78ba62ab226f9378f47dcef10c002a6c9c5bc7e9fa701f6313",
+    "size": 27941,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|da05bc515999d14a94f42e05dceedc89ea091bae64a7c4f164803a22479c0102|12_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/nvidia_vera_wechat_article_zh/da05bc515999d14a_12_figure.png",
+    "objectKey": "wechat/articles/nvidia_vera_wechat_article_zh/da05bc515999d14a_12_figure.png",
+    "sha256": "da05bc515999d14a94f42e05dceedc89ea091bae64a7c4f164803a22479c0102",
+    "size": 26461,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|a5058a39e06fb6eb0cdfd5ab92cdf0ea704a1311fe6ef9d72bd9a85e2574f58c|13_figure.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/nvidia_vera_wechat_article_zh/a5058a39e06fb6eb_13_figure.jpg",
+    "objectKey": "wechat/articles/nvidia_vera_wechat_article_zh/a5058a39e06fb6eb_13_figure.jpg",
+    "sha256": "a5058a39e06fb6eb0cdfd5ab92cdf0ea704a1311fe6ef9d72bd9a85e2574f58c",
+    "size": 47735,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|4fa2df3c4c80b62a1730c7db9811b9a88d4175924087b066d920008d3abe3338|14_figure.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/nvidia_vera_wechat_article_zh/4fa2df3c4c80b62a_14_figure.jpg",
+    "objectKey": "wechat/articles/nvidia_vera_wechat_article_zh/4fa2df3c4c80b62a_14_figure.jpg",
+    "sha256": "4fa2df3c4c80b62a1730c7db9811b9a88d4175924087b066d920008d3abe3338",
+    "size": 44053,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|25644b4b1f14afbfb9ff5c8115848738323d923d3973ddcdc75be74f468dbc51|15_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/nvidia_vera_wechat_article_zh/25644b4b1f14afbf_15_figure.png",
+    "objectKey": "wechat/articles/nvidia_vera_wechat_article_zh/25644b4b1f14afbf_15_figure.png",
+    "sha256": "25644b4b1f14afbfb9ff5c8115848738323d923d3973ddcdc75be74f468dbc51",
+    "size": 77337,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|c14089fe348041fbd477df900a48a490bba910d0c9663fc4bcf6a733a1c19fd9|16_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/nvidia_vera_wechat_article_zh/c14089fe348041fb_16_figure.png",
+    "objectKey": "wechat/articles/nvidia_vera_wechat_article_zh/c14089fe348041fb_16_figure.png",
+    "sha256": "c14089fe348041fbd477df900a48a490bba910d0c9663fc4bcf6a733a1c19fd9",
+    "size": 154820,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|a3df7d3a6868392dfd2db5e879d558dce1ae2ae1046cee169a9c4573b8bb943f|01_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/nvidia_gb10_memory_wechat_article_zh/a3df7d3a6868392d_01_figure.png",
+    "objectKey": "wechat/articles/nvidia_gb10_memory_wechat_article_zh/a3df7d3a6868392d_01_figure.png",
+    "sha256": "a3df7d3a6868392dfd2db5e879d558dce1ae2ae1046cee169a9c4573b8bb943f",
+    "size": 316122,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|a677bdf0be10551dfb7a0e127b3d0c9114e85ed7a5bcf273a85f026df7c51505|02_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/nvidia_gb10_memory_wechat_article_zh/a677bdf0be10551d_02_figure.png",
+    "objectKey": "wechat/articles/nvidia_gb10_memory_wechat_article_zh/a677bdf0be10551d_02_figure.png",
+    "sha256": "a677bdf0be10551dfb7a0e127b3d0c9114e85ed7a5bcf273a85f026df7c51505",
+    "size": 82724,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|da1f9228dc777d8a271cbe699ad591503e9a33b0a844c8a3a11037ceec10ffdd|03_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/nvidia_gb10_memory_wechat_article_zh/da1f9228dc777d8a_03_figure.png",
+    "objectKey": "wechat/articles/nvidia_gb10_memory_wechat_article_zh/da1f9228dc777d8a_03_figure.png",
+    "sha256": "da1f9228dc777d8a271cbe699ad591503e9a33b0a844c8a3a11037ceec10ffdd",
+    "size": 91380,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|ec3314fa3052a539c7970c325220b3383a6ebc3b71f61d80ac80951d723f882a|04_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/nvidia_gb10_memory_wechat_article_zh/ec3314fa3052a539_04_figure.png",
+    "objectKey": "wechat/articles/nvidia_gb10_memory_wechat_article_zh/ec3314fa3052a539_04_figure.png",
+    "sha256": "ec3314fa3052a539c7970c325220b3383a6ebc3b71f61d80ac80951d723f882a",
+    "size": 5894,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|bb341537d2c2e7ca24165e616c6bc9705d47db0b58de631742d0d08afc2afb5c|05_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/nvidia_gb10_memory_wechat_article_zh/bb341537d2c2e7ca_05_figure.png",
+    "objectKey": "wechat/articles/nvidia_gb10_memory_wechat_article_zh/bb341537d2c2e7ca_05_figure.png",
+    "sha256": "bb341537d2c2e7ca24165e616c6bc9705d47db0b58de631742d0d08afc2afb5c",
+    "size": 124364,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|61c19b475a4c386f43829130a45dc1a3094435eea4cc2f0e7afb2039c85d70fc|06_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/nvidia_gb10_memory_wechat_article_zh/61c19b475a4c386f_06_figure.png",
+    "objectKey": "wechat/articles/nvidia_gb10_memory_wechat_article_zh/61c19b475a4c386f_06_figure.png",
+    "sha256": "61c19b475a4c386f43829130a45dc1a3094435eea4cc2f0e7afb2039c85d70fc",
+    "size": 122415,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|85e98410cf199b393db56e3750347b8b8bfc039ad0c9d640e4cad7aac47597e7|07_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/nvidia_gb10_memory_wechat_article_zh/85e98410cf199b39_07_figure.png",
+    "objectKey": "wechat/articles/nvidia_gb10_memory_wechat_article_zh/85e98410cf199b39_07_figure.png",
+    "sha256": "85e98410cf199b393db56e3750347b8b8bfc039ad0c9d640e4cad7aac47597e7",
+    "size": 109424,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|38778390c4170fa44d2ce493c24e197884254e84617656f8ec011af107da622e|08_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/nvidia_gb10_memory_wechat_article_zh/38778390c4170fa4_08_figure.png",
+    "objectKey": "wechat/articles/nvidia_gb10_memory_wechat_article_zh/38778390c4170fa4_08_figure.png",
+    "sha256": "38778390c4170fa44d2ce493c24e197884254e84617656f8ec011af107da622e",
+    "size": 118502,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|bcb78ae7dc48301078a5677f725385dff74cfce6c07769a64f89200353822129|09_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/nvidia_gb10_memory_wechat_article_zh/bcb78ae7dc483010_09_figure.png",
+    "objectKey": "wechat/articles/nvidia_gb10_memory_wechat_article_zh/bcb78ae7dc483010_09_figure.png",
+    "sha256": "bcb78ae7dc48301078a5677f725385dff74cfce6c07769a64f89200353822129",
+    "size": 12664,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|bc189acba52546c4c92ab2aa652059ecfe532928d795c47120057bebb3258ac0|10_figure.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/nvidia_gb10_memory_wechat_article_zh/bc189acba52546c4_10_figure.jpg",
+    "objectKey": "wechat/articles/nvidia_gb10_memory_wechat_article_zh/bc189acba52546c4_10_figure.jpg",
+    "sha256": "bc189acba52546c4c92ab2aa652059ecfe532928d795c47120057bebb3258ac0",
+    "size": 113139,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|d9eb2d6f526d23780fa550e10ce03686c69a8e77c90cc98437e3072205e4177a|11_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/nvidia_gb10_memory_wechat_article_zh/d9eb2d6f526d2378_11_figure.png",
+    "objectKey": "wechat/articles/nvidia_gb10_memory_wechat_article_zh/d9eb2d6f526d2378_11_figure.png",
+    "sha256": "d9eb2d6f526d23780fa550e10ce03686c69a8e77c90cc98437e3072205e4177a",
+    "size": 41126,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|e575b34625ee635253ec0ab4a72764b9a786f9984da022339d963057492dc33a|12_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/nvidia_gb10_memory_wechat_article_zh/e575b34625ee6352_12_figure.png",
+    "objectKey": "wechat/articles/nvidia_gb10_memory_wechat_article_zh/e575b34625ee6352_12_figure.png",
+    "sha256": "e575b34625ee635253ec0ab4a72764b9a786f9984da022339d963057492dc33a",
+    "size": 41441,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|f2c6f0a567763abf8aea6073d69144f93e10005cf93e298626d3db5802b139b9|13_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/nvidia_gb10_memory_wechat_article_zh/f2c6f0a567763abf_13_figure.png",
+    "objectKey": "wechat/articles/nvidia_gb10_memory_wechat_article_zh/f2c6f0a567763abf_13_figure.png",
+    "sha256": "f2c6f0a567763abf8aea6073d69144f93e10005cf93e298626d3db5802b139b9",
+    "size": 17389,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|eaaf165c3aab0d934f666d2ef8c258dfa5a2e9ab525f57f17b07a749935402b0|14_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/nvidia_gb10_memory_wechat_article_zh/eaaf165c3aab0d93_14_figure.png",
+    "objectKey": "wechat/articles/nvidia_gb10_memory_wechat_article_zh/eaaf165c3aab0d93_14_figure.png",
+    "sha256": "eaaf165c3aab0d934f666d2ef8c258dfa5a2e9ab525f57f17b07a749935402b0",
+    "size": 85979,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|36f520e782affe5a67694a4b8ef97abfa1861ca92e367cf70beae078f0998ef7|15_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/nvidia_gb10_memory_wechat_article_zh/36f520e782affe5a_15_figure.png",
+    "objectKey": "wechat/articles/nvidia_gb10_memory_wechat_article_zh/36f520e782affe5a_15_figure.png",
+    "sha256": "36f520e782affe5a67694a4b8ef97abfa1861ca92e367cf70beae078f0998ef7",
+    "size": 14338,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|f8f5bf28164ba71489864cf565ece7ea28bc58b4c625453d997132fcdf408fc9|16_figure.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/nvidia_gb10_memory_wechat_article_zh/f8f5bf28164ba714_16_figure.jpg",
+    "objectKey": "wechat/articles/nvidia_gb10_memory_wechat_article_zh/f8f5bf28164ba714_16_figure.jpg",
+    "sha256": "f8f5bf28164ba71489864cf565ece7ea28bc58b4c625453d997132fcdf408fc9",
+    "size": 285881,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|df9a8d4581b449c4f1b9109ce2a3c9081c4e5a6e00ebdb493504fe6b9e86bc9e|17_figure.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/nvidia_gb10_memory_wechat_article_zh/df9a8d4581b449c4_17_figure.jpg",
+    "objectKey": "wechat/articles/nvidia_gb10_memory_wechat_article_zh/df9a8d4581b449c4_17_figure.jpg",
+    "sha256": "df9a8d4581b449c4f1b9109ce2a3c9081c4e5a6e00ebdb493504fe6b9e86bc9e",
+    "size": 295983,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|ffcfa9951a9bd4258576efb59853e81db0d1f70a5efc54696fa5732ecc8111ab|18_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/nvidia_gb10_memory_wechat_article_zh/ffcfa9951a9bd425_18_figure.png",
+    "objectKey": "wechat/articles/nvidia_gb10_memory_wechat_article_zh/ffcfa9951a9bd425_18_figure.png",
+    "sha256": "ffcfa9951a9bd4258576efb59853e81db0d1f70a5efc54696fa5732ecc8111ab",
+    "size": 1453048,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|4fa7bf0049082ffea4e1709de0579ab36328028e4d459de1a1884463e1001c55|01_figure.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_epyc_9355p_wechat_article_zh/4fa7bf0049082ffe_01_figure.jpg",
+    "objectKey": "wechat/articles/amd_epyc_9355p_wechat_article_zh/4fa7bf0049082ffe_01_figure.jpg",
+    "sha256": "4fa7bf0049082ffea4e1709de0579ab36328028e4d459de1a1884463e1001c55",
+    "size": 74068,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|8ce52d05f70f154a6513453c36ece131af26273dd258c81ab58b6313d6e83392|02_figure.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_epyc_9355p_wechat_article_zh/8ce52d05f70f154a_02_figure.jpg",
+    "objectKey": "wechat/articles/amd_epyc_9355p_wechat_article_zh/8ce52d05f70f154a_02_figure.jpg",
+    "sha256": "8ce52d05f70f154a6513453c36ece131af26273dd258c81ab58b6313d6e83392",
+    "size": 59611,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|25d28c1f7bf49ca2f03917db767c66f78fedcffc96eee4cda966c1ca3e0e9411|03_figure.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_epyc_9355p_wechat_article_zh/25d28c1f7bf49ca2_03_figure.jpg",
+    "objectKey": "wechat/articles/amd_epyc_9355p_wechat_article_zh/25d28c1f7bf49ca2_03_figure.jpg",
+    "sha256": "25d28c1f7bf49ca2f03917db767c66f78fedcffc96eee4cda966c1ca3e0e9411",
+    "size": 70221,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|3d554cbe6e7abbd996facde9d0b973c01f4c29c190b0d73158394a9f68aefc53|04_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_epyc_9355p_wechat_article_zh/3d554cbe6e7abbd9_04_figure.png",
+    "objectKey": "wechat/articles/amd_epyc_9355p_wechat_article_zh/3d554cbe6e7abbd9_04_figure.png",
+    "sha256": "3d554cbe6e7abbd996facde9d0b973c01f4c29c190b0d73158394a9f68aefc53",
+    "size": 53717,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|70144945a8e70ff227365889264f6c2637397ccad0fef4b40e90a9a5901d59b0|05_figure.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_epyc_9355p_wechat_article_zh/70144945a8e70ff2_05_figure.jpg",
+    "objectKey": "wechat/articles/amd_epyc_9355p_wechat_article_zh/70144945a8e70ff2_05_figure.jpg",
+    "sha256": "70144945a8e70ff227365889264f6c2637397ccad0fef4b40e90a9a5901d59b0",
+    "size": 16606,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|b97eaf1630ed6e70ddacb66b3aab7ad368f27f051689a32fad24cefaf90297c1|06_figure.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_epyc_9355p_wechat_article_zh/b97eaf1630ed6e70_06_figure.jpg",
+    "objectKey": "wechat/articles/amd_epyc_9355p_wechat_article_zh/b97eaf1630ed6e70_06_figure.jpg",
+    "sha256": "b97eaf1630ed6e70ddacb66b3aab7ad368f27f051689a32fad24cefaf90297c1",
+    "size": 111468,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|a07257bba73f2b059aa5b715dd8fb7684808672276d3517c63a94f9e6d25f5ba|07_figure.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_epyc_9355p_wechat_article_zh/a07257bba73f2b05_07_figure.jpg",
+    "objectKey": "wechat/articles/amd_epyc_9355p_wechat_article_zh/a07257bba73f2b05_07_figure.jpg",
+    "sha256": "a07257bba73f2b059aa5b715dd8fb7684808672276d3517c63a94f9e6d25f5ba",
+    "size": 52597,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|0cc86862dfb0d0850a2c340c43ecd432a53fb2875b114cde1fc76f3a4c68d49e|08_figure.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_epyc_9355p_wechat_article_zh/0cc86862dfb0d085_08_figure.jpg",
+    "objectKey": "wechat/articles/amd_epyc_9355p_wechat_article_zh/0cc86862dfb0d085_08_figure.jpg",
+    "sha256": "0cc86862dfb0d0850a2c340c43ecd432a53fb2875b114cde1fc76f3a4c68d49e",
+    "size": 32927,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|dcd65466655be5ff12f30c647e3acd4562808c6056d7e85cb106d26d85250e74|09_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_epyc_9355p_wechat_article_zh/dcd65466655be5ff_09_figure.png",
+    "objectKey": "wechat/articles/amd_epyc_9355p_wechat_article_zh/dcd65466655be5ff_09_figure.png",
+    "sha256": "dcd65466655be5ff12f30c647e3acd4562808c6056d7e85cb106d26d85250e74",
+    "size": 76801,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|2c2877a89972d82c7742663edd648c7738cbe980f319cdd6de8dcc8064eaeab3|10_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_epyc_9355p_wechat_article_zh/2c2877a89972d82c_10_figure.png",
+    "objectKey": "wechat/articles/amd_epyc_9355p_wechat_article_zh/2c2877a89972d82c_10_figure.png",
+    "sha256": "2c2877a89972d82c7742663edd648c7738cbe980f319cdd6de8dcc8064eaeab3",
+    "size": 82897,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|0f50ac4c7a1bf9f6ce0fe0843e34a6acd13439b6e7ae46e3235bd514f69c3a6e|11_figure.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_epyc_9355p_wechat_article_zh/0f50ac4c7a1bf9f6_11_figure.jpg",
+    "objectKey": "wechat/articles/amd_epyc_9355p_wechat_article_zh/0f50ac4c7a1bf9f6_11_figure.jpg",
+    "sha256": "0f50ac4c7a1bf9f6ce0fe0843e34a6acd13439b6e7ae46e3235bd514f69c3a6e",
+    "size": 71634,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|32e1c2e4819651b1209680cf495f3dc3a3a0b3abbc47199bb6890e2853dff8b4|12_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_epyc_9355p_wechat_article_zh/32e1c2e4819651b1_12_figure.png",
+    "objectKey": "wechat/articles/amd_epyc_9355p_wechat_article_zh/32e1c2e4819651b1_12_figure.png",
+    "sha256": "32e1c2e4819651b1209680cf495f3dc3a3a0b3abbc47199bb6890e2853dff8b4",
+    "size": 84354,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|ac10283b677a06ed4028c9ccc5a9677bc316ab957f96f3ca55c9e4516b437c28|13_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_epyc_9355p_wechat_article_zh/ac10283b677a06ed_13_figure.png",
+    "objectKey": "wechat/articles/amd_epyc_9355p_wechat_article_zh/ac10283b677a06ed_13_figure.png",
+    "sha256": "ac10283b677a06ed4028c9ccc5a9677bc316ab957f96f3ca55c9e4516b437c28",
+    "size": 82016,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|d36328554da4d33f02e55686172aed91734ef1b5b015c53fb79463672722b946|14_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_epyc_9355p_wechat_article_zh/d36328554da4d33f_14_figure.png",
+    "objectKey": "wechat/articles/amd_epyc_9355p_wechat_article_zh/d36328554da4d33f_14_figure.png",
+    "sha256": "d36328554da4d33f02e55686172aed91734ef1b5b015c53fb79463672722b946",
+    "size": 58774,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|5b2a642381dd41953c0776d633d77d672f494dbe83760f9cbe54be5b25c38552|15_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_epyc_9355p_wechat_article_zh/5b2a642381dd4195_15_figure.png",
+    "objectKey": "wechat/articles/amd_epyc_9355p_wechat_article_zh/5b2a642381dd4195_15_figure.png",
+    "sha256": "5b2a642381dd41953c0776d633d77d672f494dbe83760f9cbe54be5b25c38552",
+    "size": 55204,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|a370f8aeb883aedd87c8c45016f112a7210a9792edd671193bae902f31020f6e|16_figure.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_epyc_9355p_wechat_article_zh/a370f8aeb883aedd_16_figure.jpg",
+    "objectKey": "wechat/articles/amd_epyc_9355p_wechat_article_zh/a370f8aeb883aedd_16_figure.jpg",
+    "sha256": "a370f8aeb883aedd87c8c45016f112a7210a9792edd671193bae902f31020f6e",
+    "size": 104981,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|f822e9c98e66c3983bbb72864e32a25d49cd6e1604bcfdfa87195815111f4d41|17_figure.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_epyc_9355p_wechat_article_zh/f822e9c98e66c398_17_figure.jpg",
+    "objectKey": "wechat/articles/amd_epyc_9355p_wechat_article_zh/f822e9c98e66c398_17_figure.jpg",
+    "sha256": "f822e9c98e66c3983bbb72864e32a25d49cd6e1604bcfdfa87195815111f4d41",
+    "size": 71092,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|8cbc92437503a774adf2986cf187fce190bf31d9d6b980082cd84599f7b69f98|18_figure.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_epyc_9355p_wechat_article_zh/8cbc92437503a774_18_figure.jpg",
+    "objectKey": "wechat/articles/amd_epyc_9355p_wechat_article_zh/8cbc92437503a774_18_figure.jpg",
+    "sha256": "8cbc92437503a774adf2986cf187fce190bf31d9d6b980082cd84599f7b69f98",
+    "size": 45367,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|82e85360ef7cc6095b8a3fd24e87d8d1e8c7493caae07400183ab930cf433b78|01_figure.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_turin_uma_wechat_article_zh/82e85360ef7cc609_01_figure.jpg",
+    "objectKey": "wechat/articles/amd_turin_uma_wechat_article_zh/82e85360ef7cc609_01_figure.jpg",
+    "sha256": "82e85360ef7cc6095b8a3fd24e87d8d1e8c7493caae07400183ab930cf433b78",
+    "size": 31131,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|34d2eeaddb717b0ef443ce5c227c04ede7f67591879214dcc85e139d0554f565|02_figure.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_turin_uma_wechat_article_zh/34d2eeaddb717b0e_02_figure.jpg",
+    "objectKey": "wechat/articles/amd_turin_uma_wechat_article_zh/34d2eeaddb717b0e_02_figure.jpg",
+    "sha256": "34d2eeaddb717b0ef443ce5c227c04ede7f67591879214dcc85e139d0554f565",
+    "size": 44101,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|14c06bf8c269a9951af30bc88f969ce61627fe15de5d4b03536e98487ac51de0|03_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_turin_uma_wechat_article_zh/14c06bf8c269a995_03_figure.png",
+    "objectKey": "wechat/articles/amd_turin_uma_wechat_article_zh/14c06bf8c269a995_03_figure.png",
+    "sha256": "14c06bf8c269a9951af30bc88f969ce61627fe15de5d4b03536e98487ac51de0",
+    "size": 88900,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|debd73f76e303a3c27218ab8222dae211b7b46139af63a910d5ceff08cfeb0b6|04_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_turin_uma_wechat_article_zh/debd73f76e303a3c_04_figure.png",
+    "objectKey": "wechat/articles/amd_turin_uma_wechat_article_zh/debd73f76e303a3c_04_figure.png",
+    "sha256": "debd73f76e303a3c27218ab8222dae211b7b46139af63a910d5ceff08cfeb0b6",
+    "size": 26273,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|fb240068ad491380dde671796bebc6d9dabf6ec9a31f8a2d92e16702ee1c0833|05_figure.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_turin_uma_wechat_article_zh/fb240068ad491380_05_figure.jpg",
+    "objectKey": "wechat/articles/amd_turin_uma_wechat_article_zh/fb240068ad491380_05_figure.jpg",
+    "sha256": "fb240068ad491380dde671796bebc6d9dabf6ec9a31f8a2d92e16702ee1c0833",
+    "size": 16590,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|146d38bae996aefc2ce616b0a98083437122456aaea147d821a7af28e8aae019|06_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_turin_uma_wechat_article_zh/146d38bae996aefc_06_figure.png",
+    "objectKey": "wechat/articles/amd_turin_uma_wechat_article_zh/146d38bae996aefc_06_figure.png",
+    "sha256": "146d38bae996aefc2ce616b0a98083437122456aaea147d821a7af28e8aae019",
+    "size": 20336,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|0600ffcda65dd8b0f8ac96b64b94eb4d450c624dd4f17599842b68722cf70a22|07_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_turin_uma_wechat_article_zh/0600ffcda65dd8b0_07_figure.png",
+    "objectKey": "wechat/articles/amd_turin_uma_wechat_article_zh/0600ffcda65dd8b0_07_figure.png",
+    "sha256": "0600ffcda65dd8b0f8ac96b64b94eb4d450c624dd4f17599842b68722cf70a22",
+    "size": 50656,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|d61ee0c41ddb6b5a4bfcfb67ac8141e7cc73f9406a26a4a08e5697070b0d00ca|08_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_turin_uma_wechat_article_zh/d61ee0c41ddb6b5a_08_figure.png",
+    "objectKey": "wechat/articles/amd_turin_uma_wechat_article_zh/d61ee0c41ddb6b5a_08_figure.png",
+    "sha256": "d61ee0c41ddb6b5a4bfcfb67ac8141e7cc73f9406a26a4a08e5697070b0d00ca",
+    "size": 59109,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|758df6a592680812350d37d89256e57e78b3e0771d478ed35e5649cbfc755264|01_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/intel_xeon_6_memory_wechat_article_zh/758df6a592680812_01_figure.png",
+    "objectKey": "wechat/articles/intel_xeon_6_memory_wechat_article_zh/758df6a592680812_01_figure.png",
+    "sha256": "758df6a592680812350d37d89256e57e78b3e0771d478ed35e5649cbfc755264",
+    "size": 9385,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|4813234841df70a83a5f208b576da4405458aa5baf2348910e6e73b841624386|02_figure.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/intel_xeon_6_memory_wechat_article_zh/4813234841df70a8_02_figure.jpg",
+    "objectKey": "wechat/articles/intel_xeon_6_memory_wechat_article_zh/4813234841df70a8_02_figure.jpg",
+    "sha256": "4813234841df70a83a5f208b576da4405458aa5baf2348910e6e73b841624386",
+    "size": 122377,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|e3917a285c841eb3974fed2075bf87a6233de34185c9041a75879c3191436ef3|03_figure.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/intel_xeon_6_memory_wechat_article_zh/e3917a285c841eb3_03_figure.jpg",
+    "objectKey": "wechat/articles/intel_xeon_6_memory_wechat_article_zh/e3917a285c841eb3_03_figure.jpg",
+    "sha256": "e3917a285c841eb3974fed2075bf87a6233de34185c9041a75879c3191436ef3",
+    "size": 132474,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|c933b480180be115ebe266d55ad3ac0a1d3162c4d810c17271dff59dc9dea8a9|04_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/intel_xeon_6_memory_wechat_article_zh/c933b480180be115_04_figure.png",
+    "objectKey": "wechat/articles/intel_xeon_6_memory_wechat_article_zh/c933b480180be115_04_figure.png",
+    "sha256": "c933b480180be115ebe266d55ad3ac0a1d3162c4d810c17271dff59dc9dea8a9",
+    "size": 99499,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|3cb2e04a8b29f33fbd8ca68b190e454d6ecdcd379f591610ebf80e4f752a2529|05_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/intel_xeon_6_memory_wechat_article_zh/3cb2e04a8b29f33f_05_figure.png",
+    "objectKey": "wechat/articles/intel_xeon_6_memory_wechat_article_zh/3cb2e04a8b29f33f_05_figure.png",
+    "sha256": "3cb2e04a8b29f33fbd8ca68b190e454d6ecdcd379f591610ebf80e4f752a2529",
+    "size": 112471,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|ab787c968802bd4e52ed16f3a8a664e2e21538b3b47708dd626ca7ac10887148|06_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/intel_xeon_6_memory_wechat_article_zh/ab787c968802bd4e_06_figure.png",
+    "objectKey": "wechat/articles/intel_xeon_6_memory_wechat_article_zh/ab787c968802bd4e_06_figure.png",
+    "sha256": "ab787c968802bd4e52ed16f3a8a664e2e21538b3b47708dd626ca7ac10887148",
+    "size": 90080,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|dd4ba2cd1b0a8cbfddfcf5955df8cf2c9dbf9d9925410d05475a646dd474ec0b|07_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/intel_xeon_6_memory_wechat_article_zh/dd4ba2cd1b0a8cbf_07_figure.png",
+    "objectKey": "wechat/articles/intel_xeon_6_memory_wechat_article_zh/dd4ba2cd1b0a8cbf_07_figure.png",
+    "sha256": "dd4ba2cd1b0a8cbfddfcf5955df8cf2c9dbf9d9925410d05475a646dd474ec0b",
+    "size": 184605,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|a0a5aea54497e056bb0122c2c0f2ce29dc21859700df0dc00b242800c7bf4b8f|08_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/intel_xeon_6_memory_wechat_article_zh/a0a5aea54497e056_08_figure.png",
+    "objectKey": "wechat/articles/intel_xeon_6_memory_wechat_article_zh/a0a5aea54497e056_08_figure.png",
+    "sha256": "a0a5aea54497e056bb0122c2c0f2ce29dc21859700df0dc00b242800c7bf4b8f",
+    "size": 145356,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|53dc7676ec934df21f114c59d48451d7ad04b7141e9139fd28caa59dd9792214|09_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/intel_xeon_6_memory_wechat_article_zh/53dc7676ec934df2_09_figure.png",
+    "objectKey": "wechat/articles/intel_xeon_6_memory_wechat_article_zh/53dc7676ec934df2_09_figure.png",
+    "sha256": "53dc7676ec934df21f114c59d48451d7ad04b7141e9139fd28caa59dd9792214",
+    "size": 98952,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|7e2e5dc68f440b6debb44fa5db2a5ff030678625e6f6bcc6a6c5243e37f4ef4a|10_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/intel_xeon_6_memory_wechat_article_zh/7e2e5dc68f440b6d_10_figure.png",
+    "objectKey": "wechat/articles/intel_xeon_6_memory_wechat_article_zh/7e2e5dc68f440b6d_10_figure.png",
+    "sha256": "7e2e5dc68f440b6debb44fa5db2a5ff030678625e6f6bcc6a6c5243e37f4ef4a",
+    "size": 45737,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|a7bb0a8c7fa5b9b7143a177f4922680d86df2ad079e5d3101e06f87496a1bb7a|11_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/intel_xeon_6_memory_wechat_article_zh/a7bb0a8c7fa5b9b7_11_figure.png",
+    "objectKey": "wechat/articles/intel_xeon_6_memory_wechat_article_zh/a7bb0a8c7fa5b9b7_11_figure.png",
+    "sha256": "a7bb0a8c7fa5b9b7143a177f4922680d86df2ad079e5d3101e06f87496a1bb7a",
+    "size": 2491,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|3f22a7dbcb030118732df26d3a8d4ba70d555eed18338c1f15697805d9196ed3|12_figure.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/intel_xeon_6_memory_wechat_article_zh/3f22a7dbcb030118_12_figure.jpg",
+    "objectKey": "wechat/articles/intel_xeon_6_memory_wechat_article_zh/3f22a7dbcb030118_12_figure.jpg",
+    "sha256": "3f22a7dbcb030118732df26d3a8d4ba70d555eed18338c1f15697805d9196ed3",
+    "size": 405293,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|0d420c99b347058e31bbd8aa8aff8a5527253512fa71c14f3cd00eb8443596c4|13_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/intel_xeon_6_memory_wechat_article_zh/0d420c99b347058e_13_figure.png",
+    "objectKey": "wechat/articles/intel_xeon_6_memory_wechat_article_zh/0d420c99b347058e_13_figure.png",
+    "sha256": "0d420c99b347058e31bbd8aa8aff8a5527253512fa71c14f3cd00eb8443596c4",
+    "size": 13122,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|d3c7eed8bc6ed3df681bf151abb2bd18b8d7f28d613fc46fd9b0d17b183c7ed2|14_figure.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/intel_xeon_6_memory_wechat_article_zh/d3c7eed8bc6ed3df_14_figure.jpg",
+    "objectKey": "wechat/articles/intel_xeon_6_memory_wechat_article_zh/d3c7eed8bc6ed3df_14_figure.jpg",
+    "sha256": "d3c7eed8bc6ed3df681bf151abb2bd18b8d7f28d613fc46fd9b0d17b183c7ed2",
+    "size": 172289,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|eeacfd7694000a3ae6ec7785887b1427f56c14693cafc70dee2f94238a4943f1|01_figure.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_strix_halo_memory_wechat_article_zh/eeacfd7694000a3a_01_figure.jpg",
+    "objectKey": "wechat/articles/amd_strix_halo_memory_wechat_article_zh/eeacfd7694000a3a_01_figure.jpg",
+    "sha256": "eeacfd7694000a3ae6ec7785887b1427f56c14693cafc70dee2f94238a4943f1",
+    "size": 78224,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|4702087e119ee03476e57b09129d562adc0452098d74eaaa700c4121b2f79473|02_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_strix_halo_memory_wechat_article_zh/4702087e119ee034_02_figure.png",
+    "objectKey": "wechat/articles/amd_strix_halo_memory_wechat_article_zh/4702087e119ee034_02_figure.png",
+    "sha256": "4702087e119ee03476e57b09129d562adc0452098d74eaaa700c4121b2f79473",
+    "size": 156586,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|ee108f905a8d705127a171f932338156b8a031f550e127c0f0f9c0829088115a|03_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_strix_halo_memory_wechat_article_zh/ee108f905a8d7051_03_figure.png",
+    "objectKey": "wechat/articles/amd_strix_halo_memory_wechat_article_zh/ee108f905a8d7051_03_figure.png",
+    "sha256": "ee108f905a8d705127a171f932338156b8a031f550e127c0f0f9c0829088115a",
+    "size": 8300,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|57b631342986db4db5af0d563fe9653295cd4afb5f2d4480bca8eec3e16ea5f0|04_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_strix_halo_memory_wechat_article_zh/57b631342986db4d_04_figure.png",
+    "objectKey": "wechat/articles/amd_strix_halo_memory_wechat_article_zh/57b631342986db4d_04_figure.png",
+    "sha256": "57b631342986db4db5af0d563fe9653295cd4afb5f2d4480bca8eec3e16ea5f0",
+    "size": 137822,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|49fb6fdfaa513294e60cba279ec9179f7923b0e8b6ef7962467aa2d7520cd7f6|05_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_strix_halo_memory_wechat_article_zh/49fb6fdfaa513294_05_figure.png",
+    "objectKey": "wechat/articles/amd_strix_halo_memory_wechat_article_zh/49fb6fdfaa513294_05_figure.png",
+    "sha256": "49fb6fdfaa513294e60cba279ec9179f7923b0e8b6ef7962467aa2d7520cd7f6",
+    "size": 9981,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|e15440fb68c6d55e63b7640418150cba3ddcf20092b952c31edaa7a4691b389d|06_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_strix_halo_memory_wechat_article_zh/e15440fb68c6d55e_06_figure.png",
+    "objectKey": "wechat/articles/amd_strix_halo_memory_wechat_article_zh/e15440fb68c6d55e_06_figure.png",
+    "sha256": "e15440fb68c6d55e63b7640418150cba3ddcf20092b952c31edaa7a4691b389d",
+    "size": 124832,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|c6e2eb5a58cfb6afa3df5b240009563db29ddc029f1b6360ea37ddbc88233835|07_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_strix_halo_memory_wechat_article_zh/c6e2eb5a58cfb6af_07_figure.png",
+    "objectKey": "wechat/articles/amd_strix_halo_memory_wechat_article_zh/c6e2eb5a58cfb6af_07_figure.png",
+    "sha256": "c6e2eb5a58cfb6afa3df5b240009563db29ddc029f1b6360ea37ddbc88233835",
+    "size": 179464,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|0edd883643d2030db1c072738cb78cb14f0363f32d664f736ef4b076ea2b6830|08_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_strix_halo_memory_wechat_article_zh/0edd883643d2030d_08_figure.png",
+    "objectKey": "wechat/articles/amd_strix_halo_memory_wechat_article_zh/0edd883643d2030d_08_figure.png",
+    "sha256": "0edd883643d2030db1c072738cb78cb14f0363f32d664f736ef4b076ea2b6830",
+    "size": 180226,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|839d6aa3f627e13c39ef48fe18267119531ffc9d5f5d80643c43b4ee0bb44b0a|09_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_strix_halo_memory_wechat_article_zh/839d6aa3f627e13c_09_figure.png",
+    "objectKey": "wechat/articles/amd_strix_halo_memory_wechat_article_zh/839d6aa3f627e13c_09_figure.png",
+    "sha256": "839d6aa3f627e13c39ef48fe18267119531ffc9d5f5d80643c43b4ee0bb44b0a",
+    "size": 5403,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|4e3ba0f666fcab410242f2e2cb44385f8e26a2df7dd86139eea4b2d02099a1fd|10_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_strix_halo_memory_wechat_article_zh/4e3ba0f666fcab41_10_figure.png",
+    "objectKey": "wechat/articles/amd_strix_halo_memory_wechat_article_zh/4e3ba0f666fcab41_10_figure.png",
+    "sha256": "4e3ba0f666fcab410242f2e2cb44385f8e26a2df7dd86139eea4b2d02099a1fd",
+    "size": 182476,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|44dc7ff4ee9bc6fe940c6a6d08152ba233dfa3d73b869840bda51856d3b61905|11_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_strix_halo_memory_wechat_article_zh/44dc7ff4ee9bc6fe_11_figure.png",
+    "objectKey": "wechat/articles/amd_strix_halo_memory_wechat_article_zh/44dc7ff4ee9bc6fe_11_figure.png",
+    "sha256": "44dc7ff4ee9bc6fe940c6a6d08152ba233dfa3d73b869840bda51856d3b61905",
+    "size": 40118,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|eb2b7462a93ffe76c72865ee9a7fb8e8cefe0ebb658ffbb2870720ec8792e292|12_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_strix_halo_memory_wechat_article_zh/eb2b7462a93ffe76_12_figure.png",
+    "objectKey": "wechat/articles/amd_strix_halo_memory_wechat_article_zh/eb2b7462a93ffe76_12_figure.png",
+    "sha256": "eb2b7462a93ffe76c72865ee9a7fb8e8cefe0ebb658ffbb2870720ec8792e292",
+    "size": 47866,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|0db7e4f6e9078e596184ba7461a5ac4bb65686651affdc82c5b8d07bdf3eb9fe|13_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_strix_halo_memory_wechat_article_zh/0db7e4f6e9078e59_13_figure.png",
+    "objectKey": "wechat/articles/amd_strix_halo_memory_wechat_article_zh/0db7e4f6e9078e59_13_figure.png",
+    "sha256": "0db7e4f6e9078e596184ba7461a5ac4bb65686651affdc82c5b8d07bdf3eb9fe",
+    "size": 50488,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|7781e2bfca8d469fb8a83e899fe7e532233ca30a377cb4ed830b0cf42be916f3|14_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_strix_halo_memory_wechat_article_zh/7781e2bfca8d469f_14_figure.png",
+    "objectKey": "wechat/articles/amd_strix_halo_memory_wechat_article_zh/7781e2bfca8d469f_14_figure.png",
+    "sha256": "7781e2bfca8d469fb8a83e899fe7e532233ca30a377cb4ed830b0cf42be916f3",
+    "size": 11364,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|fa3232e7b4db430e977e2c62f7ed854a2957d422b443f3cff3744f1f04e93d1b|15_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_strix_halo_memory_wechat_article_zh/fa3232e7b4db430e_15_figure.png",
+    "objectKey": "wechat/articles/amd_strix_halo_memory_wechat_article_zh/fa3232e7b4db430e_15_figure.png",
+    "sha256": "fa3232e7b4db430e977e2c62f7ed854a2957d422b443f3cff3744f1f04e93d1b",
+    "size": 20075,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|34660cc500f6b660fc375cc7ed8c493339c3f63e994e3582f057f4dd6ba28a06|16_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_strix_halo_memory_wechat_article_zh/34660cc500f6b660_16_figure.png",
+    "objectKey": "wechat/articles/amd_strix_halo_memory_wechat_article_zh/34660cc500f6b660_16_figure.png",
+    "sha256": "34660cc500f6b660fc375cc7ed8c493339c3f63e994e3582f057f4dd6ba28a06",
+    "size": 21284,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|8936d453bad220714175042a7483b16b58a5efdf7bf258e7a0fbdcb8bd5c5ba4|17_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_strix_halo_memory_wechat_article_zh/8936d453bad22071_17_figure.png",
+    "objectKey": "wechat/articles/amd_strix_halo_memory_wechat_article_zh/8936d453bad22071_17_figure.png",
+    "sha256": "8936d453bad220714175042a7483b16b58a5efdf7bf258e7a0fbdcb8bd5c5ba4",
+    "size": 133324,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|c9731754d4bf6b8924f65d570b5259ade7ed001b00264619b4d5f892197fef42|18_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_strix_halo_memory_wechat_article_zh/c9731754d4bf6b89_18_figure.png",
+    "objectKey": "wechat/articles/amd_strix_halo_memory_wechat_article_zh/c9731754d4bf6b89_18_figure.png",
+    "sha256": "c9731754d4bf6b8924f65d570b5259ade7ed001b00264619b4d5f892197fef42",
+    "size": 106427,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|e0390469eb2638a2999554e9ad8bc6bbce1de53ae5ad68ca7fd1be7a4107b9ab|19_figure.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_strix_halo_memory_wechat_article_zh/e0390469eb2638a2_19_figure.jpg",
+    "objectKey": "wechat/articles/amd_strix_halo_memory_wechat_article_zh/e0390469eb2638a2_19_figure.jpg",
+    "sha256": "e0390469eb2638a2999554e9ad8bc6bbce1de53ae5ad68ca7fd1be7a4107b9ab",
+    "size": 70613,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|5c20df5a1353ff9f6ed4dc466d3a285fd8e9ca24c5149b6baf885a5f35bef792|20_figure.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_strix_halo_memory_wechat_article_zh/5c20df5a1353ff9f_20_figure.jpg",
+    "objectKey": "wechat/articles/amd_strix_halo_memory_wechat_article_zh/5c20df5a1353ff9f_20_figure.jpg",
+    "sha256": "5c20df5a1353ff9f6ed4dc466d3a285fd8e9ca24c5149b6baf885a5f35bef792",
+    "size": 351990,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|0966f58ed6fc3157a68b6797aef86fb95bee9152f4b4708aa39d8654227b53fb|21_figure.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_strix_halo_memory_wechat_article_zh/0966f58ed6fc3157_21_figure.jpg",
+    "objectKey": "wechat/articles/amd_strix_halo_memory_wechat_article_zh/0966f58ed6fc3157_21_figure.jpg",
+    "sha256": "0966f58ed6fc3157a68b6797aef86fb95bee9152f4b4708aa39d8654227b53fb",
+    "size": 350571,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|cb454ed1a07d6389146daf4efdf46ef3e27a84d58ab7f594351cfcc59639f3f5|22_figure.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_strix_halo_memory_wechat_article_zh/cb454ed1a07d6389_22_figure.jpg",
+    "objectKey": "wechat/articles/amd_strix_halo_memory_wechat_article_zh/cb454ed1a07d6389_22_figure.jpg",
+    "sha256": "cb454ed1a07d6389146daf4efdf46ef3e27a84d58ab7f594351cfcc59639f3f5",
+    "size": 174822,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|9fe69f814e56740979ff6b66e8ca0ce7ec11d178de1c561556d721cf5548cd67|23_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_strix_halo_memory_wechat_article_zh/9fe69f814e567409_23_figure.png",
+    "objectKey": "wechat/articles/amd_strix_halo_memory_wechat_article_zh/9fe69f814e567409_23_figure.png",
+    "sha256": "9fe69f814e56740979ff6b66e8ca0ce7ec11d178de1c561556d721cf5548cd67",
+    "size": 97480,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|4aa840d1f8a05ffba559b39facb5ee294e60329f552a7bcdde9dcd8019747308|24_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_strix_halo_memory_wechat_article_zh/4aa840d1f8a05ffb_24_figure.png",
+    "objectKey": "wechat/articles/amd_strix_halo_memory_wechat_article_zh/4aa840d1f8a05ffb_24_figure.png",
+    "sha256": "4aa840d1f8a05ffba559b39facb5ee294e60329f552a7bcdde9dcd8019747308",
+    "size": 135338,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|04179c9650a9aae7944e32fe2c4847055fd17d5242d2092b8bf993045232ad9d|25_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_strix_halo_memory_wechat_article_zh/04179c9650a9aae7_25_figure.png",
+    "objectKey": "wechat/articles/amd_strix_halo_memory_wechat_article_zh/04179c9650a9aae7_25_figure.png",
+    "sha256": "04179c9650a9aae7944e32fe2c4847055fd17d5242d2092b8bf993045232ad9d",
+    "size": 146240,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|0077eada6d64ce00bff4b75349b596b01aff604e621e8c346617cb8b90bf1be1|26_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_strix_halo_memory_wechat_article_zh/0077eada6d64ce00_26_figure.png",
+    "objectKey": "wechat/articles/amd_strix_halo_memory_wechat_article_zh/0077eada6d64ce00_26_figure.png",
+    "sha256": "0077eada6d64ce00bff4b75349b596b01aff604e621e8c346617cb8b90bf1be1",
+    "size": 135467,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|4b04a95666808a10f925d979e29dd86d579f53d1377c0d1e2a33858166d1df52|27_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_strix_halo_memory_wechat_article_zh/4b04a95666808a10_27_figure.png",
+    "objectKey": "wechat/articles/amd_strix_halo_memory_wechat_article_zh/4b04a95666808a10_27_figure.png",
+    "sha256": "4b04a95666808a10f925d979e29dd86d579f53d1377c0d1e2a33858166d1df52",
+    "size": 15531,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|f7f3419c57afbca013de7273c45cf001174c31d3f1ea33469eb7421cffe80fb0|28_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_strix_halo_memory_wechat_article_zh/f7f3419c57afbca0_28_figure.png",
+    "objectKey": "wechat/articles/amd_strix_halo_memory_wechat_article_zh/f7f3419c57afbca0_28_figure.png",
+    "sha256": "f7f3419c57afbca013de7273c45cf001174c31d3f1ea33469eb7421cffe80fb0",
+    "size": 135404,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|f5da105d5e84510a12d9ddd2aa9f8721e5f9bed15ae7f61086428c835cab49ac|29_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_strix_halo_memory_wechat_article_zh/f5da105d5e84510a_29_figure.png",
+    "objectKey": "wechat/articles/amd_strix_halo_memory_wechat_article_zh/f5da105d5e84510a_29_figure.png",
+    "sha256": "f5da105d5e84510a12d9ddd2aa9f8721e5f9bed15ae7f61086428c835cab49ac",
+    "size": 383678,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|add1897856beb71770cfa26e8eb02f2dcbf7074f18c150bff931f1a8aed7c729|30_figure.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_strix_halo_memory_wechat_article_zh/add1897856beb717_30_figure.jpg",
+    "objectKey": "wechat/articles/amd_strix_halo_memory_wechat_article_zh/add1897856beb717_30_figure.jpg",
+    "sha256": "add1897856beb71770cfa26e8eb02f2dcbf7074f18c150bff931f1a8aed7c729",
+    "size": 104014,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|a4ec58cab2b7d2d0c94885ffc15e853fe14f10f3d4fac181450d3a9d1ce6c92a|31_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_strix_halo_memory_wechat_article_zh/a4ec58cab2b7d2d0_31_figure.png",
+    "objectKey": "wechat/articles/amd_strix_halo_memory_wechat_article_zh/a4ec58cab2b7d2d0_31_figure.png",
+    "sha256": "a4ec58cab2b7d2d0c94885ffc15e853fe14f10f3d4fac181450d3a9d1ce6c92a",
+    "size": 13541,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|8e88d301a8a4257fcdcb231b1bcc5b577bcf2861533b5e580401b21be2283681|01_figure.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_strix_halo_infinity_cache_wechat_article_zh/8e88d301a8a4257f_01_figure.jpg",
+    "objectKey": "wechat/articles/amd_strix_halo_infinity_cache_wechat_article_zh/8e88d301a8a4257f_01_figure.jpg",
+    "sha256": "8e88d301a8a4257fcdcb231b1bcc5b577bcf2861533b5e580401b21be2283681",
+    "size": 53689,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|9b110fad698345978dfff42a6ce4c1a6a8feb01a9e9ce9cbe98d85a34399720e|02_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_strix_halo_infinity_cache_wechat_article_zh/9b110fad69834597_02_figure.png",
+    "objectKey": "wechat/articles/amd_strix_halo_infinity_cache_wechat_article_zh/9b110fad69834597_02_figure.png",
+    "sha256": "9b110fad698345978dfff42a6ce4c1a6a8feb01a9e9ce9cbe98d85a34399720e",
+    "size": 27916,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|28fb8379d98438ff491cc1c2466a43a37672d5ec36f69984efa05ed1de3b9ef2|03_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_strix_halo_infinity_cache_wechat_article_zh/28fb8379d98438ff_03_figure.png",
+    "objectKey": "wechat/articles/amd_strix_halo_infinity_cache_wechat_article_zh/28fb8379d98438ff_03_figure.png",
+    "sha256": "28fb8379d98438ff491cc1c2466a43a37672d5ec36f69984efa05ed1de3b9ef2",
+    "size": 37093,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|f00cd00675966a6f9f18b846b88b19c79c8e9a01afd9ccadeb7f8a397e8507dd|04_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_strix_halo_infinity_cache_wechat_article_zh/f00cd00675966a6f_04_figure.png",
+    "objectKey": "wechat/articles/amd_strix_halo_infinity_cache_wechat_article_zh/f00cd00675966a6f_04_figure.png",
+    "sha256": "f00cd00675966a6f9f18b846b88b19c79c8e9a01afd9ccadeb7f8a397e8507dd",
+    "size": 6431,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|5c168a110168ce6cfb470e8713092fb47c8604edb5db0d349e1f5332871ab8ce|05_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_strix_halo_infinity_cache_wechat_article_zh/5c168a110168ce6c_05_figure.png",
+    "objectKey": "wechat/articles/amd_strix_halo_infinity_cache_wechat_article_zh/5c168a110168ce6c_05_figure.png",
+    "sha256": "5c168a110168ce6cfb470e8713092fb47c8604edb5db0d349e1f5332871ab8ce",
+    "size": 12167,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|a27acae45d5ff1b223ba89e6c938a57bc98f787be747e75e87e06dd8c65c5dd5|06_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_strix_halo_infinity_cache_wechat_article_zh/a27acae45d5ff1b2_06_figure.png",
+    "objectKey": "wechat/articles/amd_strix_halo_infinity_cache_wechat_article_zh/a27acae45d5ff1b2_06_figure.png",
+    "sha256": "a27acae45d5ff1b223ba89e6c938a57bc98f787be747e75e87e06dd8c65c5dd5",
+    "size": 26516,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|5d1706c69c9c1256e836b937c309c4976c8765f3efee5b87f912157639cde5b1|07_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_strix_halo_infinity_cache_wechat_article_zh/5d1706c69c9c1256_07_figure.png",
+    "objectKey": "wechat/articles/amd_strix_halo_infinity_cache_wechat_article_zh/5d1706c69c9c1256_07_figure.png",
+    "sha256": "5d1706c69c9c1256e836b937c309c4976c8765f3efee5b87f912157639cde5b1",
+    "size": 27872,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|28f63813c6ec4caababaa918af976b9ca211210fb7c900a612889d31f9128417|08_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_strix_halo_infinity_cache_wechat_article_zh/28f63813c6ec4caa_08_figure.png",
+    "objectKey": "wechat/articles/amd_strix_halo_infinity_cache_wechat_article_zh/28f63813c6ec4caa_08_figure.png",
+    "sha256": "28f63813c6ec4caababaa918af976b9ca211210fb7c900a612889d31f9128417",
+    "size": 278450,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|a00e527f4b651ff43e75c1eb7285851070a298eba62af70f47b40427f254e22b|09_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_strix_halo_infinity_cache_wechat_article_zh/a00e527f4b651ff4_09_figure.png",
+    "objectKey": "wechat/articles/amd_strix_halo_infinity_cache_wechat_article_zh/a00e527f4b651ff4_09_figure.png",
+    "sha256": "a00e527f4b651ff43e75c1eb7285851070a298eba62af70f47b40427f254e22b",
+    "size": 205320,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|fb60e8ba5f46a2f8a852a01bbc206d3de303abbf742c9822fcdc4ce327b92231|10_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_strix_halo_infinity_cache_wechat_article_zh/fb60e8ba5f46a2f8_10_figure.png",
+    "objectKey": "wechat/articles/amd_strix_halo_infinity_cache_wechat_article_zh/fb60e8ba5f46a2f8_10_figure.png",
+    "sha256": "fb60e8ba5f46a2f8a852a01bbc206d3de303abbf742c9822fcdc4ce327b92231",
+    "size": 158027,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|2472bad095882840ea9fb840e77a95de14bfd02817f97c43426fa7081801df30|11_figure.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_strix_halo_infinity_cache_wechat_article_zh/2472bad095882840_11_figure.jpg",
+    "objectKey": "wechat/articles/amd_strix_halo_infinity_cache_wechat_article_zh/2472bad095882840_11_figure.jpg",
+    "sha256": "2472bad095882840ea9fb840e77a95de14bfd02817f97c43426fa7081801df30",
+    "size": 156411,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|ed0a818c7ea95708e5b4c298ff21ee93913fec1c95dc98d3a37583e3a601ed0a|12_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_strix_halo_infinity_cache_wechat_article_zh/ed0a818c7ea95708_12_figure.png",
+    "objectKey": "wechat/articles/amd_strix_halo_infinity_cache_wechat_article_zh/ed0a818c7ea95708_12_figure.png",
+    "sha256": "ed0a818c7ea95708e5b4c298ff21ee93913fec1c95dc98d3a37583e3a601ed0a",
+    "size": 19009,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|b0fabbae34739494887e1267b860f6905f5d246abc6cb12924c6af42338d5fba|13_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_strix_halo_infinity_cache_wechat_article_zh/b0fabbae34739494_13_figure.png",
+    "objectKey": "wechat/articles/amd_strix_halo_infinity_cache_wechat_article_zh/b0fabbae34739494_13_figure.png",
+    "sha256": "b0fabbae34739494887e1267b860f6905f5d246abc6cb12924c6af42338d5fba",
+    "size": 260904,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|6c9b8cfa841ba2358242dbf5b968bd4ad8507e834b6905edb6eb6a305ec1dd57|14_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_strix_halo_infinity_cache_wechat_article_zh/6c9b8cfa841ba235_14_figure.png",
+    "objectKey": "wechat/articles/amd_strix_halo_infinity_cache_wechat_article_zh/6c9b8cfa841ba235_14_figure.png",
+    "sha256": "6c9b8cfa841ba2358242dbf5b968bd4ad8507e834b6905edb6eb6a305ec1dd57",
+    "size": 18092,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|d963c1f489e1b603718869930f8c705a4289357883a930ebaa95627bc6921e46|15_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_strix_halo_infinity_cache_wechat_article_zh/d963c1f489e1b603_15_figure.png",
+    "objectKey": "wechat/articles/amd_strix_halo_infinity_cache_wechat_article_zh/d963c1f489e1b603_15_figure.png",
+    "sha256": "d963c1f489e1b603718869930f8c705a4289357883a930ebaa95627bc6921e46",
+    "size": 17717,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|bab92c6b96e55d2b20ef30ebe999c3321e1163b1c2415a4ab2e09ddf09bc8cbf|16_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_strix_halo_infinity_cache_wechat_article_zh/bab92c6b96e55d2b_16_figure.png",
+    "objectKey": "wechat/articles/amd_strix_halo_infinity_cache_wechat_article_zh/bab92c6b96e55d2b_16_figure.png",
+    "sha256": "bab92c6b96e55d2b20ef30ebe999c3321e1163b1c2415a4ab2e09ddf09bc8cbf",
+    "size": 221430,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|7233fa46e5306aa50781a8c08501f202bd5a4759ba7bc2c41f2812958a89b259|17_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_strix_halo_infinity_cache_wechat_article_zh/7233fa46e5306aa5_17_figure.png",
+    "objectKey": "wechat/articles/amd_strix_halo_infinity_cache_wechat_article_zh/7233fa46e5306aa5_17_figure.png",
+    "sha256": "7233fa46e5306aa50781a8c08501f202bd5a4759ba7bc2c41f2812958a89b259",
+    "size": 37908,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|f4a7a696b15c25cf9320e345a173d9053dd04f305be7d5aab646e6e014a61fa6|18_figure.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_strix_halo_infinity_cache_wechat_article_zh/f4a7a696b15c25cf_18_figure.jpg",
+    "objectKey": "wechat/articles/amd_strix_halo_infinity_cache_wechat_article_zh/f4a7a696b15c25cf_18_figure.jpg",
+    "sha256": "f4a7a696b15c25cf9320e345a173d9053dd04f305be7d5aab646e6e014a61fa6",
+    "size": 166770,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|afa9ea7e8a4f4d5770fff866403de2a93fce337f5b2a44c83dd01a4ff662bd99|01_figure.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/intel_skymont_gaming_wechat_article_zh/afa9ea7e8a4f4d57_01_figure.jpg",
+    "objectKey": "wechat/articles/intel_skymont_gaming_wechat_article_zh/afa9ea7e8a4f4d57_01_figure.jpg",
+    "sha256": "afa9ea7e8a4f4d5770fff866403de2a93fce337f5b2a44c83dd01a4ff662bd99",
+    "size": 113277,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|1346d8ab9916c8336360947e86e9473302ab300246bd9bdec2588a83557a395c|02_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/intel_skymont_gaming_wechat_article_zh/1346d8ab9916c833_02_figure.png",
+    "objectKey": "wechat/articles/intel_skymont_gaming_wechat_article_zh/1346d8ab9916c833_02_figure.png",
+    "sha256": "1346d8ab9916c8336360947e86e9473302ab300246bd9bdec2588a83557a395c",
+    "size": 192552,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|6a5163520f8060b12e0a4c51b9cc51aa9ae3ae5e57601e7c1b2ca92b62877ad5|03_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/intel_skymont_gaming_wechat_article_zh/6a5163520f8060b1_03_figure.png",
+    "objectKey": "wechat/articles/intel_skymont_gaming_wechat_article_zh/6a5163520f8060b1_03_figure.png",
+    "sha256": "6a5163520f8060b12e0a4c51b9cc51aa9ae3ae5e57601e7c1b2ca92b62877ad5",
+    "size": 51804,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|5ea689edacd0708c8c48f59d0d57a3c6988018f78962810af2ad7a2883644124|04_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/intel_skymont_gaming_wechat_article_zh/5ea689edacd0708c_04_figure.png",
+    "objectKey": "wechat/articles/intel_skymont_gaming_wechat_article_zh/5ea689edacd0708c_04_figure.png",
+    "sha256": "5ea689edacd0708c8c48f59d0d57a3c6988018f78962810af2ad7a2883644124",
+    "size": 39512,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|d5410edce8bfe66edb8ceaf95051b7a1f50c2ad8fa33fa255e57fcd795e428e8|05_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/intel_skymont_gaming_wechat_article_zh/d5410edce8bfe66e_05_figure.png",
+    "objectKey": "wechat/articles/intel_skymont_gaming_wechat_article_zh/d5410edce8bfe66e_05_figure.png",
+    "sha256": "d5410edce8bfe66edb8ceaf95051b7a1f50c2ad8fa33fa255e57fcd795e428e8",
+    "size": 10299,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|47ff1ff382801f5bff50c206e65eb941b6ff361392a642d626780e9062c44567|06_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/intel_skymont_gaming_wechat_article_zh/47ff1ff382801f5b_06_figure.png",
+    "objectKey": "wechat/articles/intel_skymont_gaming_wechat_article_zh/47ff1ff382801f5b_06_figure.png",
+    "sha256": "47ff1ff382801f5bff50c206e65eb941b6ff361392a642d626780e9062c44567",
+    "size": 48375,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|ae1c38cf3424c3708610eaac6d36d41c263d13cb6b9b8cecc752e33e2e8df49c|07_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/intel_skymont_gaming_wechat_article_zh/ae1c38cf3424c370_07_figure.png",
+    "objectKey": "wechat/articles/intel_skymont_gaming_wechat_article_zh/ae1c38cf3424c370_07_figure.png",
+    "sha256": "ae1c38cf3424c3708610eaac6d36d41c263d13cb6b9b8cecc752e33e2e8df49c",
+    "size": 11056,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|ab01bac2e21fc6102ae0096ff9c5c432e9893c5af2af1cdb32952b008059751d|08_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/intel_skymont_gaming_wechat_article_zh/ab01bac2e21fc610_08_figure.png",
+    "objectKey": "wechat/articles/intel_skymont_gaming_wechat_article_zh/ab01bac2e21fc610_08_figure.png",
+    "sha256": "ab01bac2e21fc6102ae0096ff9c5c432e9893c5af2af1cdb32952b008059751d",
+    "size": 12666,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|4ee529a266c9221d75a2e55d6fbfa54c09ddb6ceabca5a40f1b4455778a1c42b|09_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/intel_skymont_gaming_wechat_article_zh/4ee529a266c9221d_09_figure.png",
+    "objectKey": "wechat/articles/intel_skymont_gaming_wechat_article_zh/4ee529a266c9221d_09_figure.png",
+    "sha256": "4ee529a266c9221d75a2e55d6fbfa54c09ddb6ceabca5a40f1b4455778a1c42b",
+    "size": 12189,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|baf37bf197aa2c54d85c831c600007b219b14d21d7003a704daebc7b73ca8b9b|10_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/intel_skymont_gaming_wechat_article_zh/baf37bf197aa2c54_10_figure.png",
+    "objectKey": "wechat/articles/intel_skymont_gaming_wechat_article_zh/baf37bf197aa2c54_10_figure.png",
+    "sha256": "baf37bf197aa2c54d85c831c600007b219b14d21d7003a704daebc7b73ca8b9b",
+    "size": 12266,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|67d0a047321f08eb40f3e27a407b6220804c5b80c3869f165a1b0815556c1b9f|11_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/intel_skymont_gaming_wechat_article_zh/67d0a047321f08eb_11_figure.png",
+    "objectKey": "wechat/articles/intel_skymont_gaming_wechat_article_zh/67d0a047321f08eb_11_figure.png",
+    "sha256": "67d0a047321f08eb40f3e27a407b6220804c5b80c3869f165a1b0815556c1b9f",
+    "size": 40823,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|828276af69ff97cccd75360867958f4d2249cbfc2fe2ad4361f009c91588f52e|12_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/intel_skymont_gaming_wechat_article_zh/828276af69ff97cc_12_figure.png",
+    "objectKey": "wechat/articles/intel_skymont_gaming_wechat_article_zh/828276af69ff97cc_12_figure.png",
+    "sha256": "828276af69ff97cccd75360867958f4d2249cbfc2fe2ad4361f009c91588f52e",
+    "size": 10973,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|fc9c70cba8f19789b253837513a67c24d6751362c4686de16b6a9994e2a7a921|01_figure.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/intel_lion_cove_gaming_wechat_article_zh/fc9c70cba8f19789_01_figure.jpg",
+    "objectKey": "wechat/articles/intel_lion_cove_gaming_wechat_article_zh/fc9c70cba8f19789_01_figure.jpg",
+    "sha256": "fc9c70cba8f19789b253837513a67c24d6751362c4686de16b6a9994e2a7a921",
+    "size": 216144,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|954b7b2b3bee6491661a2e82a7206832d6dc8dd54dea229a63142d6e2b0cb48e|02_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/intel_lion_cove_gaming_wechat_article_zh/954b7b2b3bee6491_02_figure.png",
+    "objectKey": "wechat/articles/intel_lion_cove_gaming_wechat_article_zh/954b7b2b3bee6491_02_figure.png",
+    "sha256": "954b7b2b3bee6491661a2e82a7206832d6dc8dd54dea229a63142d6e2b0cb48e",
+    "size": 31718,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|fa70d6f12ca7f12767807f6b54a6ec548e0defd6ba0c76e37a0b6dbb1fcb4ec5|03_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/intel_lion_cove_gaming_wechat_article_zh/fa70d6f12ca7f127_03_figure.png",
+    "objectKey": "wechat/articles/intel_lion_cove_gaming_wechat_article_zh/fa70d6f12ca7f127_03_figure.png",
+    "sha256": "fa70d6f12ca7f12767807f6b54a6ec548e0defd6ba0c76e37a0b6dbb1fcb4ec5",
+    "size": 51526,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|86544ec33d2775cd8c9e226b5cffeb6080856870ca977b8df4e3f25a311bd917|04_figure.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/intel_lion_cove_gaming_wechat_article_zh/86544ec33d2775cd_04_figure.jpg",
+    "objectKey": "wechat/articles/intel_lion_cove_gaming_wechat_article_zh/86544ec33d2775cd_04_figure.jpg",
+    "sha256": "86544ec33d2775cd8c9e226b5cffeb6080856870ca977b8df4e3f25a311bd917",
+    "size": 34868,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|f16f88fac27379e761eb006039ac024bf9ebae7f5b6c556dbe4f9c1029308901|05_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/intel_lion_cove_gaming_wechat_article_zh/f16f88fac27379e7_05_figure.png",
+    "objectKey": "wechat/articles/intel_lion_cove_gaming_wechat_article_zh/f16f88fac27379e7_05_figure.png",
+    "sha256": "f16f88fac27379e761eb006039ac024bf9ebae7f5b6c556dbe4f9c1029308901",
+    "size": 17830,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|b4b95d3681097f97b61a9213221c9b3ee617cd9cb6c86ca919e76ff35038ed40|06_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/intel_lion_cove_gaming_wechat_article_zh/b4b95d3681097f97_06_figure.png",
+    "objectKey": "wechat/articles/intel_lion_cove_gaming_wechat_article_zh/b4b95d3681097f97_06_figure.png",
+    "sha256": "b4b95d3681097f97b61a9213221c9b3ee617cd9cb6c86ca919e76ff35038ed40",
+    "size": 17396,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|a2ac7aade5cb42b0a855560153881e4583d4727695c19c01597e42757da93076|07_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/intel_lion_cove_gaming_wechat_article_zh/a2ac7aade5cb42b0_07_figure.png",
+    "objectKey": "wechat/articles/intel_lion_cove_gaming_wechat_article_zh/a2ac7aade5cb42b0_07_figure.png",
+    "sha256": "a2ac7aade5cb42b0a855560153881e4583d4727695c19c01597e42757da93076",
+    "size": 10285,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|2a0ee97c2586833eb740354505c962b55dd14417d2a509a769c1701ff56b1a35|08_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/intel_lion_cove_gaming_wechat_article_zh/2a0ee97c2586833e_08_figure.png",
+    "objectKey": "wechat/articles/intel_lion_cove_gaming_wechat_article_zh/2a0ee97c2586833e_08_figure.png",
+    "sha256": "2a0ee97c2586833eb740354505c962b55dd14417d2a509a769c1701ff56b1a35",
+    "size": 19406,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|da47a98fbbe392802084c91b8e433d9ecadaf0fe86e096484604e64769e4c0c2|09_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/intel_lion_cove_gaming_wechat_article_zh/da47a98fbbe39280_09_figure.png",
+    "objectKey": "wechat/articles/intel_lion_cove_gaming_wechat_article_zh/da47a98fbbe39280_09_figure.png",
+    "sha256": "da47a98fbbe392802084c91b8e433d9ecadaf0fe86e096484604e64769e4c0c2",
+    "size": 17437,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|1a819b008a58cfebb43b911ba19329a389c8aa6baa1e5f940b11e329b082b064|10_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/intel_lion_cove_gaming_wechat_article_zh/1a819b008a58cfeb_10_figure.png",
+    "objectKey": "wechat/articles/intel_lion_cove_gaming_wechat_article_zh/1a819b008a58cfeb_10_figure.png",
+    "sha256": "1a819b008a58cfebb43b911ba19329a389c8aa6baa1e5f940b11e329b082b064",
+    "size": 9746,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|6962095b2e5683052430dc18d1b3b6093a314b2d6a1623025c266d1492390787|11_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/intel_lion_cove_gaming_wechat_article_zh/6962095b2e568305_11_figure.png",
+    "objectKey": "wechat/articles/intel_lion_cove_gaming_wechat_article_zh/6962095b2e568305_11_figure.png",
+    "sha256": "6962095b2e5683052430dc18d1b3b6093a314b2d6a1623025c266d1492390787",
+    "size": 18118,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|90c05e5d3d839ad55473fc3c0ab30f9861744dac9d79269cd0977a915fc9bd5c|12_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/intel_lion_cove_gaming_wechat_article_zh/90c05e5d3d839ad5_12_figure.png",
+    "objectKey": "wechat/articles/intel_lion_cove_gaming_wechat_article_zh/90c05e5d3d839ad5_12_figure.png",
+    "sha256": "90c05e5d3d839ad55473fc3c0ab30f9861744dac9d79269cd0977a915fc9bd5c",
+    "size": 11450,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|0effa605145918685f9cdb70c1034a87be843734d5eca01287b9c84cb8805f27|13_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/intel_lion_cove_gaming_wechat_article_zh/0effa60514591868_13_figure.png",
+    "objectKey": "wechat/articles/intel_lion_cove_gaming_wechat_article_zh/0effa60514591868_13_figure.png",
+    "sha256": "0effa605145918685f9cdb70c1034a87be843734d5eca01287b9c84cb8805f27",
+    "size": 17210,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|b8cd9e0c2f52bb85740f313200e54a6fd870c92df64b240a33c793cbc51ca1f0|14_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/intel_lion_cove_gaming_wechat_article_zh/b8cd9e0c2f52bb85_14_figure.png",
+    "objectKey": "wechat/articles/intel_lion_cove_gaming_wechat_article_zh/b8cd9e0c2f52bb85_14_figure.png",
+    "sha256": "b8cd9e0c2f52bb85740f313200e54a6fd870c92df64b240a33c793cbc51ca1f0",
+    "size": 33741,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|b37462d2a7a42f062600e4c42b1e783e961a4868f6f3f2c76852bbf5e56795bf|15_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/intel_lion_cove_gaming_wechat_article_zh/b37462d2a7a42f06_15_figure.png",
+    "objectKey": "wechat/articles/intel_lion_cove_gaming_wechat_article_zh/b37462d2a7a42f06_15_figure.png",
+    "sha256": "b37462d2a7a42f062600e4c42b1e783e961a4868f6f3f2c76852bbf5e56795bf",
+    "size": 14131,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|4bfcede94e95eb9e9e959b6d659c27f45364f1135b37691528b7dc7a5d4ddf57|16_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/intel_lion_cove_gaming_wechat_article_zh/4bfcede94e95eb9e_16_figure.png",
+    "objectKey": "wechat/articles/intel_lion_cove_gaming_wechat_article_zh/4bfcede94e95eb9e_16_figure.png",
+    "sha256": "4bfcede94e95eb9e9e959b6d659c27f45364f1135b37691528b7dc7a5d4ddf57",
+    "size": 52413,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|94f9d8f9c17938c9e56fa16e18ac14a814a3a015a7cf672b2136f85e1dd9bef7|17_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/intel_lion_cove_gaming_wechat_article_zh/94f9d8f9c17938c9_17_figure.png",
+    "objectKey": "wechat/articles/intel_lion_cove_gaming_wechat_article_zh/94f9d8f9c17938c9_17_figure.png",
+    "sha256": "94f9d8f9c17938c9e56fa16e18ac14a814a3a015a7cf672b2136f85e1dd9bef7",
+    "size": 12257,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|75aff717b717ad541c823a1c1750d506949943c2430020446be2badb40a85714|01_figure.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_zen5_gaming_wechat_article_zh/75aff717b717ad54_01_figure.jpg",
+    "objectKey": "wechat/articles/amd_zen5_gaming_wechat_article_zh/75aff717b717ad54_01_figure.jpg",
+    "sha256": "75aff717b717ad541c823a1c1750d506949943c2430020446be2badb40a85714",
+    "size": 440100,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|a68f4dd148a18959bf7cda5ea73420c62d3cc777b525ad3b12c0b1400191e0f1|02_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_zen5_gaming_wechat_article_zh/a68f4dd148a18959_02_figure.png",
+    "objectKey": "wechat/articles/amd_zen5_gaming_wechat_article_zh/a68f4dd148a18959_02_figure.png",
+    "sha256": "a68f4dd148a18959bf7cda5ea73420c62d3cc777b525ad3b12c0b1400191e0f1",
+    "size": 145317,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|c2315508a058ea0bb7f28299a411a277d1ea0c0b3246db3beb5d366147c89772|03_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_zen5_gaming_wechat_article_zh/c2315508a058ea0b_03_figure.png",
+    "objectKey": "wechat/articles/amd_zen5_gaming_wechat_article_zh/c2315508a058ea0b_03_figure.png",
+    "sha256": "c2315508a058ea0bb7f28299a411a277d1ea0c0b3246db3beb5d366147c89772",
+    "size": 14415,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|b868cbfa1d5c20da5703f49958a37ede29cbc8751f411335d453f131246a1c14|04_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_zen5_gaming_wechat_article_zh/b868cbfa1d5c20da_04_figure.png",
+    "objectKey": "wechat/articles/amd_zen5_gaming_wechat_article_zh/b868cbfa1d5c20da_04_figure.png",
+    "sha256": "b868cbfa1d5c20da5703f49958a37ede29cbc8751f411335d453f131246a1c14",
+    "size": 44107,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|afceca9996f601f439b96b24941082186594447d7aec6dcf5e7a3279c3a64e58|05_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_zen5_gaming_wechat_article_zh/afceca9996f601f4_05_figure.png",
+    "objectKey": "wechat/articles/amd_zen5_gaming_wechat_article_zh/afceca9996f601f4_05_figure.png",
+    "sha256": "afceca9996f601f439b96b24941082186594447d7aec6dcf5e7a3279c3a64e58",
+    "size": 9932,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|a9e9223aaa3682702466d4eb33e3e31214c0541b12231e0c4a2c93b404b3c473|06_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_zen5_gaming_wechat_article_zh/a9e9223aaa368270_06_figure.png",
+    "objectKey": "wechat/articles/amd_zen5_gaming_wechat_article_zh/a9e9223aaa368270_06_figure.png",
+    "sha256": "a9e9223aaa3682702466d4eb33e3e31214c0541b12231e0c4a2c93b404b3c473",
+    "size": 12809,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|3929170aafc4a87acffc7790569cfa999abc18d3b8cf6eceedcd912ef821a9a1|07_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_zen5_gaming_wechat_article_zh/3929170aafc4a87a_07_figure.png",
+    "objectKey": "wechat/articles/amd_zen5_gaming_wechat_article_zh/3929170aafc4a87a_07_figure.png",
+    "sha256": "3929170aafc4a87acffc7790569cfa999abc18d3b8cf6eceedcd912ef821a9a1",
+    "size": 12459,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|113d3127875acb114075ed16ca0d15a0a36d4ca4149305108420d36d6833b6d5|08_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_zen5_gaming_wechat_article_zh/113d3127875acb11_08_figure.png",
+    "objectKey": "wechat/articles/amd_zen5_gaming_wechat_article_zh/113d3127875acb11_08_figure.png",
+    "sha256": "113d3127875acb114075ed16ca0d15a0a36d4ca4149305108420d36d6833b6d5",
+    "size": 122800,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|b29c724e1728a1e85f668501d687d0e5cdcb731efa0915a99f79f1596c2aa0ff|09_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_zen5_gaming_wechat_article_zh/b29c724e1728a1e8_09_figure.png",
+    "objectKey": "wechat/articles/amd_zen5_gaming_wechat_article_zh/b29c724e1728a1e8_09_figure.png",
+    "sha256": "b29c724e1728a1e85f668501d687d0e5cdcb731efa0915a99f79f1596c2aa0ff",
+    "size": 55183,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|8fbc54d6876e8e97516806884561b7168a8447438b4fcc34bae6fd76b4fc2f82|10_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_zen5_gaming_wechat_article_zh/8fbc54d6876e8e97_10_figure.png",
+    "objectKey": "wechat/articles/amd_zen5_gaming_wechat_article_zh/8fbc54d6876e8e97_10_figure.png",
+    "sha256": "8fbc54d6876e8e97516806884561b7168a8447438b4fcc34bae6fd76b4fc2f82",
+    "size": 14639,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|88e5484bb6e3ea63b7f59dd2debc69125b3c2ebfd4fdda6c234b81e0269081f0|11_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_zen5_gaming_wechat_article_zh/88e5484bb6e3ea63_11_figure.png",
+    "objectKey": "wechat/articles/amd_zen5_gaming_wechat_article_zh/88e5484bb6e3ea63_11_figure.png",
+    "sha256": "88e5484bb6e3ea63b7f59dd2debc69125b3c2ebfd4fdda6c234b81e0269081f0",
+    "size": 14338,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|bda4db8f586cea53940f3fb9b423abb16e123cc160198aa4ae629b12fed40b8f|12_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_zen5_gaming_wechat_article_zh/bda4db8f586cea53_12_figure.png",
+    "objectKey": "wechat/articles/amd_zen5_gaming_wechat_article_zh/bda4db8f586cea53_12_figure.png",
+    "sha256": "bda4db8f586cea53940f3fb9b423abb16e123cc160198aa4ae629b12fed40b8f",
+    "size": 17622,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|416cd4f925d03751f579a6fdd55faff0a8a3cc7b12fa8c0f59b787ba94b0f38b|13_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_zen5_gaming_wechat_article_zh/416cd4f925d03751_13_figure.png",
+    "objectKey": "wechat/articles/amd_zen5_gaming_wechat_article_zh/416cd4f925d03751_13_figure.png",
+    "sha256": "416cd4f925d03751f579a6fdd55faff0a8a3cc7b12fa8c0f59b787ba94b0f38b",
+    "size": 12244,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|89ebdd9653dc5b6bb86bd744eaf577c7c1e94d68ba1882820e0df8c3c6d8c6dc|14_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_zen5_gaming_wechat_article_zh/89ebdd9653dc5b6b_14_figure.png",
+    "objectKey": "wechat/articles/amd_zen5_gaming_wechat_article_zh/89ebdd9653dc5b6b_14_figure.png",
+    "sha256": "89ebdd9653dc5b6bb86bd744eaf577c7c1e94d68ba1882820e0df8c3c6d8c6dc",
+    "size": 9520,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|ebc00f4ffa443baa2000308baa38fee996ec453897b6b37bef177733c03c7457|15_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_zen5_gaming_wechat_article_zh/ebc00f4ffa443baa_15_figure.png",
+    "objectKey": "wechat/articles/amd_zen5_gaming_wechat_article_zh/ebc00f4ffa443baa_15_figure.png",
+    "sha256": "ebc00f4ffa443baa2000308baa38fee996ec453897b6b37bef177733c03c7457",
+    "size": 22658,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|c8cf720b4dbd48d21b33f300f3116f9e3cf635217d914d75951f1c2ebc1bb3d2|16_figure.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_zen5_gaming_wechat_article_zh/c8cf720b4dbd48d2_16_figure.jpg",
+    "objectKey": "wechat/articles/amd_zen5_gaming_wechat_article_zh/c8cf720b4dbd48d2_16_figure.jpg",
+    "sha256": "c8cf720b4dbd48d21b33f300f3116f9e3cf635217d914d75951f1c2ebc1bb3d2",
+    "size": 116720,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|473360d08586720a0e4d912dc2757b50db6c822bdea64dd42b0e5e4050e2dbe0|17_figure.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_zen5_gaming_wechat_article_zh/473360d08586720a_17_figure.png",
+    "objectKey": "wechat/articles/amd_zen5_gaming_wechat_article_zh/473360d08586720a_17_figure.png",
+    "sha256": "473360d08586720a0e4d912dc2757b50db6c822bdea64dd42b0e5e4050e2dbe0",
+    "size": 105693,
+    "storageClass": "STANDARD"
   }
 }
