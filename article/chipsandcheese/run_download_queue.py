@@ -13,6 +13,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import json
 from pathlib import Path
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -36,6 +37,22 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output-dir", type=Path, default=base / "input")
     parser.add_argument("--workers", type=int, default=3)
     parser.add_argument("--retries", type=int, default=1)
+    parser.add_argument(
+        "--log-dir",
+        type=Path,
+        help=(
+            "Directory for per-page logs. Defaults to the historical "
+            ".chester_lam_download_logs directory."
+        ),
+    )
+    parser.add_argument(
+        "--summary",
+        type=Path,
+        help=(
+            "JSON summary path. Defaults to the historical "
+            "chester_lam_cpu_download_summary.json file."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -80,7 +97,16 @@ def download_one(
 ) -> dict[str, object]:
     name = derive_name(url)
     log_path = log_dir / f"{name}.log"
+    html_path = output_dir / f"{name}.html"
+    asset_dir = output_dir / f"{name}_files"
     for attempt in range(1, retries + 2):
+        if html_path.exists() and read_canonical(html_path) != url:
+            html_path.unlink()
+            if asset_dir.exists():
+                shutil.rmtree(asset_dir)
+        elif asset_dir.exists() and not html_path.exists():
+            shutil.rmtree(asset_dir)
+
         print(f"[{index:03d}/{total}] START attempt={attempt} {url}", flush=True)
         with log_path.open("a", encoding="utf-8") as log:
             log.write(f"\n=== attempt {attempt} {url} ===\n")
@@ -99,7 +125,6 @@ def download_one(
                 stderr=subprocess.STDOUT,
                 check=False,
             )
-        html_path = output_dir / f"{name}.html"
         canonical = read_canonical(html_path) if html_path.exists() else None
         if result.returncode == 0 and canonical == url:
             print(f"[{index:03d}/{total}] DONE {name}", flush=True)
@@ -141,8 +166,18 @@ def main() -> int:
     downloader = base / "download_webpage.py"
     output_dir = args.output_dir.resolve()
     queue_path = args.queue.resolve()
-    log_dir = output_dir / ".chester_lam_download_logs"
+    log_dir = (
+        args.log_dir.expanduser().resolve()
+        if args.log_dir
+        else output_dir / ".chester_lam_download_logs"
+    )
+    summary_path = (
+        args.summary.expanduser().resolve()
+        if args.summary
+        else output_dir / "chester_lam_cpu_download_summary.json"
+    )
     log_dir.mkdir(parents=True, exist_ok=True)
+    summary_path.parent.mkdir(parents=True, exist_ok=True)
 
     urls = [normalize_url(line) for line in queue_path.read_text().splitlines() if line.strip()]
     if len(urls) != len(set(urls)):
@@ -184,7 +219,6 @@ def main() -> int:
             records.append(future.result())
 
     records.sort(key=lambda item: int(item["index"]))
-    summary_path = output_dir / "chester_lam_cpu_download_summary.json"
     summary_path.write_text(
         json.dumps(records, indent=2, ensure_ascii=False) + "\n",
         encoding="utf-8",

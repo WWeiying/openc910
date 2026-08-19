@@ -39,6 +39,12 @@ CSS_URL_PATTERN = re.compile(
     r"url\(\s*(?P<quote>['\"]?)(?P<value>[^)'\"]+)(?P=quote)\s*\)",
     flags=re.IGNORECASE,
 )
+CANONICAL_PATTERNS = (
+    re.compile(r'<meta[^>]+property=["\']og:url["\'][^>]+content=["\']([^"\']+)', re.I),
+    re.compile(r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+property=["\']og:url["\']', re.I),
+    re.compile(r'<link[^>]+rel=["\']canonical["\'][^>]+href=["\']([^"\']+)', re.I),
+    re.compile(r'<link[^>]+href=["\']([^"\']+)["\'][^>]+rel=["\']canonical["\']', re.I),
+)
 
 
 class DownloadError(RuntimeError):
@@ -163,10 +169,37 @@ def looks_like_html(path: Path) -> bool:
     return b"<html" in prefix or b"<!doctype html" in prefix
 
 
-def select_main_html(work_dir: Path) -> Path:
+def normalize_url(url: str) -> str:
+    return html_module.unescape(url).strip().rstrip("/")
+
+
+def declared_urls(path: Path) -> set[str]:
+    try:
+        text = path.read_text(encoding="utf-8", errors="ignore")
+    except OSError:
+        return set()
+    return {
+        normalize_url(match.group(1))
+        for pattern in CANONICAL_PATTERNS
+        for match in pattern.finditer(text)
+    }
+
+
+def select_main_html(work_dir: Path, requested_url: str) -> Path:
     candidates = [path for path in work_dir.iterdir() if looks_like_html(path)]
     if not candidates:
         raise DownloadError("wget did not produce a readable HTML page")
+
+    expected_url = normalize_url(requested_url)
+    exact_matches = [path for path in candidates if expected_url in declared_urls(path)]
+    if exact_matches:
+        return max(exact_matches, key=lambda path: path.stat().st_size)
+
+    requested_slug = Path(urlsplit(requested_url).path).name.lower()
+    slug_matches = [path for path in candidates if requested_slug in path.name.lower()]
+    if slug_matches:
+        return max(slug_matches, key=lambda path: path.stat().st_size)
+
     return max(candidates, key=lambda path: path.stat().st_size)
 
 
@@ -284,7 +317,7 @@ def create_archive(args: argparse.Namespace, name: str, output_dir: Path) -> tup
 
     try:
         return_code = run_wget(args, work_dir)
-        main_html = select_main_html(work_dir)
+        main_html = select_main_html(work_dir, args.url)
         if return_code != 0 and not args.allow_partial:
             raise DownloadError(
                 f"wget exited with status {return_code}; rerun with --allow-partial "
