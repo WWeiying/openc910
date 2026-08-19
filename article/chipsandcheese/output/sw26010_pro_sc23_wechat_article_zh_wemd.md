@@ -7,7 +7,7 @@ title: "sw26010_pro_sc23_wechat_article_zh"
 > **文章来源**
 >
 > - 文章：*China’s New(ish) SW26010-Pro Supercomputer at SC23*
-> - 撰文：Chester Lam
+> - 撰文：Chester Lam、George Cozma
 > - 首发：Chips and Cheese
 > - 发布：2023 年 11 月 20 日
 > - 链接：https://chipsandcheese.com/p/chinas-newish-sw26010-pro-supercomputer-at-sc23
@@ -58,7 +58,7 @@ A64FX 也按 NUMA Cluster 组织并配 Management Core，但每 Cluster 只有�
 
 *图 7：Pro 的执行细节并未完整公开。*
 
-Pro 的 I-Cache 从 16 KB 翻到 32 KB。Sunway RISC 指令很可能 16 B，因此旧 16 KB 只够约 1000 条/每迭代，甚至小于现代 x86 Uop Cache 的有效操作容量。
+Pro 的 I-Cache 从 16 KB 翻到 32 KB。原文据此推测 Sunway RISC 指令可能长达 16 B；按这一口径，旧版 16 KB I-Cache 每次迭代通常只能容纳约 1000 条指令或操作，甚至少于现代 x86 Uop Cache 的有效操作容量。
 
 Vector Width 从 256 到 512 bit，频率从 1.45 到 2.25 GHz。
 
@@ -82,7 +82,7 @@ Execution Peak 只有在 Arithmetic Intensity 足够高时可达。若 Kernel �
 
 *图 10：软件模拟 Cache 的细节很少，不能按硬件 Cache 的 Hit/Miss 自动机制理解。*
 
-Pro 把 Scratchpad 增到 256 KB，其中最多一半可配为 Cache，类似 Nvidia 可分配 Shared Memory/L1。比 64 KB 好，但 A64FX 的 64 KB Private L1+每组8 MB L2，以及 CDNA2 的 16 KB L1+全 Die 8 MB L2，都能用 Multi-MB Cache 大幅截住 DRAM。
+Pro 把 Scratchpad 增到 256 KB，其中最多一半可配为 Cache，类似 Nvidia 可分配 Shared Memory/L1。比 64 KB 好，但 A64FX 的 64 KB Private L1 + 每组 8 MB L2，以及 CDNA2 的 16 KB L1 + 全 Die 8 MB L2，都能用 Multi-MB Cache 大幅截住 DRAM。
 
 ![图 11：三种 Compute Core 的本地/共享存储](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/sw26010_pro_sc23_wechat_article_zh/642496cfb0d649e0_11_figure.png)
 
@@ -114,7 +114,7 @@ Pro 把 Scratchpad 增到 256 KB，其中最多一半可配为 Cache，类似 Nv
 
 ![图 15：每 Cluster MPI 下的 Network 利用](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/sw26010_pro_sc23_wechat_article_zh/2c96ddc2879019f3_15_figure.jpg)
 
-*图 15：Rongfen Lin 等后来改成单 MPI Process，把 Block 切为 512 B Sub-block，跨六 NUMA Node 伪分布，才利用总 307 GB/s并避免 Partition Camping。*
+*图 15：Rongfen Lin 等后来改成单 MPI Process，把 Block 切为 512 B Sub-block，跨六个 NUMA Node 伪分布，才利用约 307 GB/s 的总带宽并避免 Partition Camping。*
 
 Fugaku 每 Partition 256 GB/s；Frontier 单 MI250X GCD 1.6 TB/s，100 GB/s NIC 只是小比例。Sunway 因而把硬件带宽不足转成额外程序开发成本。
 
@@ -156,9 +156,9 @@ Fugaku 用 6D Torus，六个 Port 对应不同层级，距离增大时带宽渐�
 
 ![图 22：SW26010-Pro、A64FX 与 MI250X 总结](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/sw26010_pro_sc23_wechat_article_zh/03e891d93c24b972_22_figure.jpg)
 
-*图 22：Sunway 用更少 Chip 提供很高 FP64 Peak，代价是弱 ILP/TLP、无共享 Cache和低 DRAM/FLOP。*
+*图 22：Sunway 用更少 Chip 提供很高 FP64 Peak，代价是弱 ILP/TLP、无共享 Cache 和低 DRAM/FLOP。*
 
-文章给出强烈批评：每 64 CPE 只有双通道 DDR4-3200不可接受；即使用 DDR5-4800 多 50% 带宽，仍会 Memory-bound，真正平衡应减少执行单元、加入更好 Cache 与 HBM。高 TOP500 Peak/HPL 分数不等于研究者更快解决问题；如果每个 Kernel 都要手工铺 NUMA、安排 DMA 与 Network，人的时间就是 Opportunity Cost。
+文章给出强烈批评：每 64 个 CPE 只有双通道 DDR4-3200，原作者认为这不可接受；即使用 DDR5-4800 多出 50% 带宽，仍会 Memory-bound，真正平衡应减少执行单元、加入更好的 Cache 与 HBM。高 TOP500 Peak/HPL 分数不等于研究者能更快解决问题；如果每个 Kernel 都要手工铺 NUMA、安排 DMA 与 Network，人的时间就是 Opportunity Cost。
 
 这部分是材料的观点，不是 Sunway 官方结论。理论 Peak、307.2 GB/s 和拓扑公开数据属于规格；0.11 B/FLOP 是计算；“为榜单设计”和“硬件不好”是价值判断。教学上更一般的结论是，可用性能还取决于 Compiler、Runtime、Memory Hierarchy 与 Programmer Effort，峰值只是上界。
 

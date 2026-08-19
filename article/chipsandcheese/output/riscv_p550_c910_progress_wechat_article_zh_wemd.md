@@ -17,7 +17,7 @@ title: "riscv_p550_c910_progress_wechat_article_zh"
 
 ![图 2：P550 与 C910 的核心规格对照](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/riscv_p550_c910_progress_wechat_article_zh/23a0939a21ecb446_02_figure.jpg)
 
-两者都采用三发射级别的乱序设计，但频率、缓存、内存控制器和软件优化共同决定最终性能。公开规格只能说明资源上限，不能代替实测。
+两者都采用三宽乱序设计，但频率、缓存、内存控制器和软件优化共同决定最终性能。公开规格只能说明资源上限，不能代替实测。
 
 为了给结果建立参照，测试还加入 Arm Cortex-A73 和 Intel Goldmont Plus。两者同样拥有规模不算大的乱序执行引擎，因此比拿旗舰大核来比较更有意义；Cortex-A55 和 A53 则代表现代顺序核。
 
@@ -101,7 +101,7 @@ C910 支持 RVV 0.7.1，但 libx264 没有任何 RISC-V 扩展的汇编实现。
 
 ![图 17：x264 的动态指令数](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/riscv_p550_c910_progress_wechat_article_zh/731957b2e28a2fcd_17_figure.png)
 
-问题在于它们为同一任务执行了远多于 x86-64 和 AArch64 的指令。此时只看 IPC会得出相反结论：高 IPC 并没有变成高吞吐。
+问题在于它们为同一任务执行了远多于 x86-64 和 AArch64 的指令。此时只看 IPC 会得出相反结论：高 IPC 并没有变成高吞吐。
 
 ### 体系结构视角：ISA 扩展需要软硬件同时跨过门槛
 

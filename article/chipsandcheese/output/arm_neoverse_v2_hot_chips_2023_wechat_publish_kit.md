@@ -7,11 +7,11 @@ Neoverse V2：Arm 面向高性能服务器的新挑战者
 ## 基本信息
 
 - 英文题目：Hot Chips 2023: Arm’s Neoverse V2
-- 作者：Chester Lam
+- 作者：Chester Lam、Chips and Cheese
 - 首发：Chips and Cheese
 - 日期：2023 年 9 月 11 日
 - 阅读原文：https://chipsandcheese.com/p/hot-chips-2023-arms-neoverse-v2
-- 后台作者栏：Chester Lam
+- 后台作者栏：Chester Lam、Chips and Cheese
 
 ## 摘要
 

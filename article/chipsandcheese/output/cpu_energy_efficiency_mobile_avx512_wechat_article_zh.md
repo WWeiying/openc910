@@ -27,7 +27,7 @@ Instruction Side 同样是 Cezanne 更省。Cache 内 Vermeer 可 Race-to-sleep�
 
 ## Tiger Lake-U Willow Cove
 
-Willow Cove 支持 AVX-512，一条 Load 搬 64 B，是 Zen 3 AVX 的两倍。它在 Private L1/L2 同时得到更高 Bandwidth 和更好 Energy Efficiency；超过每核 1280 KB 后，AMD L3 的 Bandwidth/能效又领先，DRAM AMD 略优。
+Willow Cove 支持 AVX-512，一条 Load 搬 64 B，是 Zen 3 AVX 的两倍。它在 Private L1/L2 同时得到更高 Bandwidth 和更好 Energy Efficiency；工作集超过每核 1280 KB 后，AMD L3 的 Bandwidth/能效又领先，DRAM AMD 略优。
 
 ![图 3：Willow Cove、Cezanne 的数据侧能效](cpu_energy_efficiency_mobile_avx512_figures/03_figure.png)
 
@@ -71,7 +71,7 @@ Laptop 很难用来反推纯 Core：OEM Cooling、PL1/PL2、Firmware 与 Ambient
 
 ![图 9：测试过程中的 Package Power 随时间变化](cpu_energy_efficiency_mobile_avx512_figures/09_figure.png)
 
-Desktop 测试约 35～40 W 稳定，只在超 Cache 后因等待数据下降；Mobile 初高后降，i7-1165G7 持续四核希望低于 20 W。i7-11800H 是反例，55 W PL2 让它保持 4 GHz 以上。
+Desktop 测试约 35～40 W 稳定，只在超 Cache 后因等待数据下降；Mobile 功耗先高后降，i7-1165G7 持续四核负载时低于 20 W。i7-11800H 是反例，55 W PL2 让它保持 4 GHz 以上。
 
 ## AVX-512 的结论
 

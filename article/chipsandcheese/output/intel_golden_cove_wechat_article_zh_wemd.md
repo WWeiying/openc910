@@ -12,7 +12,7 @@ title: "intel_golden_cove_wechat_article_zh"
 > - 发布：2021 年 12 月 2 日
 > - 链接：https://chipsandcheese.com/p/popping-the-hood-on-golden-cove
 
-Alder Lake 是 Intel 五年多以来最令人振奋的桌面发布之一。Skylake 之后，Intel 终于再次拿出具有正面竞争力的新桌面微架构。承担峰值单线程性能的 P-Core 正是 Golden Cove。
+Alder Lake 是 Intel 五年多以来最令人振奋的桌面发布之一。Skylake 之后，Intel 终于再次拿出真正具备正面竞争力的新桌面微架构。承担峰值单线程性能的 P-Core 正是 Golden Cove。
 
 这篇分析不再重复介绍 Alder Lake 的混合核心与产品规格，而是直接拆开 Golden Cove 的流水线：从方向预测、BTB、取指与译码，经过六宽重命名和巨大的乱序窗口，再到执行端口、Cache、DDR5，以及这些结构之间是否真正匹配。
 
@@ -182,7 +182,7 @@ ROB 记录所有尚未退休的微操作，Golden Cove 约 512 项，Sunny Cove 
 
 *图 19：Golden Cove 整数寄存器可覆盖 248/512＝48.4% ROB，Sunny Cove 为 70.4%，Zen 3 为 67.5%；FP/向量覆盖分别为 58.5%、55.9%、54.29%；Load Queue 为 37.5%、36.3%、45.3%；Store Queue 为 22.2%、20.5%、25%。整数密集代码可能先耗尽 Golden Cove 的寄存器，而不是 512 项 ROB。*
 
-纯整数负载因此未必能充分利用 headline 的 512 项窗口；浮点/向量负载写整数寄存器的比例更低，Golden Cove 测得的可见重排序容量仍比 Zen 3 高出 40% 以上。
+纯整数负载因此未必能充分利用醒目的 512 项窗口；浮点/向量负载写整数寄存器的比例更低，Golden Cove 测得的可见重排序容量仍比 Zen 3 高出 40% 以上。
 
 ### 体系结构视角：ROB 是天花板，最先耗尽的资源才是房间高度
 

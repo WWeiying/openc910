@@ -7,11 +7,11 @@
 ## 基本信息
 
 - 英文题目：Why you can’t trust CPUID
-- 作者：Ryan Mull
+- 作者：Ryan Mull、Chester Lam
 - 首发：Chips and Cheese
 - 日期：2022 年 10 月 27 日
 - 阅读原文：https://chipsandcheese.com/p/why-you-cant-trust-cpuid
-- 后台作者栏：Ryan Mull
+- 后台作者栏：Ryan Mull、Chester Lam
 
 ## 摘要
 
@@ -39,6 +39,6 @@ AMD 的 Brand String 来自六个可写 MSR，CPU-Z、Geekbench 等工具读取�
 
 ## 发布前检查
 
-- 原始撰文者为 Ryan Mull。
+- 原始撰文者为 Ryan Mull、Chester Lam。
 - Bare-metal 与 Hypervisor 的信任边界已分开。
 - 7 张图按顺序可访问。

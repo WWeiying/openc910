@@ -3,7 +3,7 @@
 ## 正式发布信息
 
 - 正式标题：Bulldozer：AMD 的激进现代化（上）——前端与执行引擎
-- 署名：Chester Lam
+- 署名：Chester Lam、Unknown
 - 来源：Chips and Cheese
 - 发布日期：2023 年 1 月 22 日
 - 英文标题：Bulldozer, AMD’s Crash Modernization: Frontend and Execution Engine
@@ -61,7 +61,7 @@ CPU 微架构史
 ## 后台设置
 
 - 标题：Bulldozer：AMD 的激进现代化（上）——前端与执行引擎
-- 作者栏：Chester Lam
+- 作者栏：Chester Lam、Unknown
 - 摘要：使用本文件摘要
 - 阅读原文：https://chipsandcheese.com/p/bulldozer-amds-crash-modernization-frontend-and-execution-engine
 - 原创声明：关闭

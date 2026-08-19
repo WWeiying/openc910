@@ -5,7 +5,7 @@ title: "arm_css_genesis_hc35_wechat_article_zh"
 ---
 
 > 英文标题：Arm at HC35 (2023): CSS-Genesis
-> 撰文：Chester Lam
+> 撰文：Chester Lam、Joshua Gregory
 > 首发：Chips and Cheese，2023 年 9 月 13 日
 > 链接：https://chipsandcheese.com/p/arm-at-hc35-2023-css-genesis
 

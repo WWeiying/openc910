@@ -85,7 +85,7 @@ V1 核心面积小于 Zen 4c 和 Neoverse V2，但它也牺牲了功能：没有
 
 ![图 11：V1 与 Hot Chips 2023 其他核心的面积比较](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/ventana_veyron_v1_wechat_article_zh/c9da0cbe274742e8_11_figure.jpg)
 
-Neoverse N2 宽度更小、BTB/TLB 也更小；V1 在大代码 footprint 的整数负载可能更强，N2 则至少有 2×128 bit 向量能力。
+Neoverse N2 宽度更小、BTB/TLB 也更小；V1 在大代码 footprint 的整数负载可能更强，N2 则至少有 2×128-bit 向量能力。
 
 Ventana 用 16 核 compute chiplet 连接中央 I/O Die，类似 Bergamo 的 hub-and-spoke。
 

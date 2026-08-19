@@ -3,7 +3,7 @@
 > **文章来源**
 >
 > - 文章：*Bulldozer, AMD’s Crash Modernization: Frontend and Execution Engine*
-> - 撰文：Chester Lam
+> - 撰文：Chester Lam、Unknown
 > - 首发：Chips and Cheese
 > - 发布：2023 年 1 月 22 日
 > - 链接：https://chipsandcheese.com/p/bulldozer-amds-crash-modernization-frontend-and-execution-engine
@@ -74,7 +74,7 @@ Bulldozer 优先扩大 Target Capacity，而非降低延迟。Predictor 与 L1I 
 
 ![图 9：双线程下的 Branch Target 吞吐](amd_bulldozer_frontend_execution_figures/09_dual_thread_branch_targets.png)
 
-*图 9：两条独立 Target Chain 可让两颗 CPU 的 L1 BTB 每拍提供一个 Target，隐藏部分单线程 Bubble；Bulldozer L2 BTB 每三周期才出一个 Target，Intel 仍占优。*
+*图 9：两条独立 Target Chain 可让两款 CPU 各自的 L1 BTB 每拍提供一个 Target，隐藏部分单线程 Bubble；Bulldozer L2 BTB 每三周期才出一个 Target，Intel 仍占优。*
 
 Return Stack 每线程各 24 项；同期 Intel 为每线程 16 项，因此 Bulldozer 更深。
 
@@ -104,7 +104,7 @@ Bulldozer 沿用 64 KB、两路 L1I，物理上由 `8×2` 个 4 KB、8T SRAM Ban
 
 Module Aggregate 可达 32 B/cycle，不代表单线程能取 32 B。典型 4-byte Instruction 下 16 B 已足够四宽，只有长 Encoding 或双线程才暴露 Byte Interface。
 
-应同时报告 B/cycle 与 Instruction/cycle，并按 Code Footprint 分区。否则“32 B/cycle”会掩盖 L2 只有约一 IPC的现实。
+应同时报告 B/cycle 与 Instruction/cycle，并按 Code Footprint 分区。否则“32 B/cycle”会掩盖 L2 只有约一 IPC 的现实。
 
 ## Rename/Allocate：PRF、Checkpoint 与 Vector Move Elimination
 
@@ -168,7 +168,7 @@ Integer Register File 复制两份缩短 Wire/Critical Path；每份四读四写
 
 ## 共享 FPU：资源竞争，而非固定对半
 
-FPU 每拍接四 Operation，同一拍必须来自同一 Thread；双线程时可逐拍轮换。为服务两线程，单线程看来资源极大：Unified Scheduler 约 60 项，大于 Sandy Bridge 全类型 54 项和 K10 FPU 42 项；FP Register 160 项，K10 为 120、Sandy Bridge 144。
+FPU 每拍接四 Operation，同一拍必须来自同一 Thread；双线程时可逐拍轮换。为服务两线程，对单线程而言资源极大：Unified Scheduler 约 60 项，大于 Sandy Bridge 全类型 54 项和 K10 FPU 42 项；FP Register 160 项，K10 为 120、Sandy Bridge 144。
 
 ![图 19：Bulldozer FPU 物理布局](amd_bulldozer_frontend_execution_figures/19_fpu_layout.jpg)
 
@@ -226,7 +226,7 @@ Bulldozer 允许 Integer-only Sibling 把全部 FPU 留给另一线程，平均�
 
 ## Load/Store：覆盖 Case 更多，失败代价也更大
 
-每线程两条强 AGU，Indexed Addressing 无额外 Penalty。Load Queue 40、Store Queue 24，改用独立队列；Sandy Bridge 同类但更大。K10 Unified Queue 对更常见、Metadata 较少的 Load 与需保存 Data 的 Store 使用同样 Entry，不够高效。
+每线程两条强 AGU，Indexed Addressing 无额外 Penalty。Load Queue 40、Store Queue 24，改用独立队列；Sandy Bridge 同类但更大。K10 Unified Queue 对更常见且 Metadata 较少的 Load，与需保存 Data 的 Store 使用同样 Entry，不够高效。
 
 Bulldozer 消除了 K10 在同一 4 B Aligned Region、实际不重叠时的部分 False Dependency；Scalar Exact Address Match 可 Fast Forward，K10 跨 16 B 就失败。但 Bulldozer Happy Path 八周期，K10 四～五；Misaligned Load 即使成功也 13～14，失败 35～39，跨 64 B 可 42～43。K10 最坏只有 12～13。
 

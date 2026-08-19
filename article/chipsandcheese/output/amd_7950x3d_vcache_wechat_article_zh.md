@@ -28,7 +28,7 @@ DRAM 延迟与带宽长期落后于核心计算能力，处理器因此从三级
 
 ## 高频 CCD 与大 Cache CCD，谁更快没有固定答案
 
-堆叠 Cache 对高电压的容忍度较低，V-Cache CCD 的 Boost 因而受限。依赖整数加法测得，V-Cache 核心多在 5.2 GHz，普通 CCD 可到 5.5 GHz以上，最佳核心接近标称 5.7 GHz；普通 CCD 平均约高 7%。
+堆叠 Cache 对高电压的容忍度较低，V-Cache CCD 的 Boost 因而受限。依赖整数加法测得，V-Cache 核心多在 5.2 GHz，普通 CCD 可到 5.5 GHz 以上，最佳核心接近标称 5.7 GHz；普通 CCD 平均约高 7%。
 
 ![图 5：7950X3D 逐核心最高频率](amd_7950x3d_vcache_figures/05_figure.png)
 
@@ -58,7 +58,7 @@ DRAM 延迟与带宽长期落后于核心计算能力，处理器因此从三级
 
 ## 带宽：环形互连不变，主要差异来自频率
 
-V-Cache 是给每个 L3 Slice 增容，CCD 内连接核心与 Slice 的双向环仍基本不变。单核读取时普通 CCD 的 L3 GB/s 高 11%，大致对应频率优势；关闭 Boost 后按 4.2 GHz 换算，二者 B/cycle 几乎相同。
+V-Cache 为每个 L3 Slice 增容，CCD 内连接核心与 Slice 的双向环仍基本不变。单核读取时普通 CCD 的 L3 GB/s 高 11%，大致对应频率优势；关闭 Boost 后按 4.2 GHz 换算，二者 B/cycle 几乎相同。
 
 ![图 9：单核 L3 读取带宽](amd_7950x3d_vcache_figures/09_figure.png)
 
@@ -150,7 +150,7 @@ Haswell/Broadwell/Skylake 曾用 128 MB eDRAM Die 作 L4。容量惊人，但延
 
 *图 25：Haswell OPIO 为全双工 64-bit、6.4 GT/s，每方向 51.2 GB/s。Zen 4 每 CCD 跨 Die Infinity Fabric 读约 64 GB/s、写约一半，也说明普通封装走线难以承载 L3 内部带宽。*
 
-TSV 与 Hybrid Bonding 把引脚数量提高多个数量级；每个名义 4 MB L3 Slice 对接一个带 Tag 与 LRU 的 8 MB扩展。文章推测控制器按部分地址位决定访问基础 Die 或 Cache Die，再比较 16 个 Tag；这是依据组织作出的推断，不是 RTL 确认。
+TSV 与 Hybrid Bonding 把引脚数量提高多个数量级；每个名义 4 MB L3 Slice 对接一个带 Tag 与 LRU 的 8 MB 扩展。文章推测控制器按部分地址位决定访问基础 Die 或 Cache Die，再比较 16 个 Tag；这是依据组织作出的推断，不是 RTL 确认。
 
 ![图 26：V-Cache Slice 的细粒度堆叠接口](amd_7950x3d_vcache_figures/26_figure.png)
 

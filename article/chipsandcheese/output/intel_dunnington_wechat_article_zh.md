@@ -117,7 +117,7 @@ K8/K10 为 64 KB、2-way、类似延迟；K8 FPU 每周期只能一次 L1D acces
 
 ![图 16：Merom/Penryn 与 K10 缓存延迟](intel_dunnington_figures/16_figure.png)
 
-Penryn 容量选项比 Merom 大 50%，延迟可能多 1 周期。45 nm K10 若计 L3可给单核相近总容量，但 L3 约 50 周期；65 nm K10 只有 2 MB L3，同样约 50 周期。
+Penryn 容量选项比 Merom 大 50%，延迟可能多 1 周期。45 nm K10 若计入 L3，可给单核相近的总容量，但 L3 约 50 周期；65 nm K10 只有 2 MB L3，同样约 50 周期。
 
 Intel 称 L2 随 core clock、256-bit bus、每两周期一请求，理论 32 B/cycle；实测未达到。
 
@@ -159,7 +159,7 @@ Inclusive L3 的 tag 可当目录，快速判断是否需要 snoop core；代价
 
 ![图 22：7300 MCH 与旧 E8500 ball-out；FSB、FBD、IMI、XDP 标注](intel_dunnington_figures/22_figure.png)
 
-封装 12 层、2013 ball、49.5 mm见方；MCH 仅 266 MHz 仍需大散热器。
+封装 12 层、2013 ball、49.5 mm 见方；MCH 仅 266 MHz 仍需大散热器。
 
 ![图 23：7300 芯片组公开规格](intel_dunnington_figures/23_figure.png)
 
@@ -177,7 +177,7 @@ L3 miss 后进入 MCH。为避免四条 FSB 广播 snoop，MCH 有 1M-entry、12
 
 ![图 26：用 40-bit physical address 查 Snoop Filter](intel_dunnington_figures/26_figure.png)
 
-每项覆盖 64 B，总计跟踪 64 MB，正好覆盖四颗完整 Dunnington L3。每项 5-bit data 指定该 snoop 哪些 socket。
+每项覆盖 64 B，总计跟踪 64 MB，正好覆盖四颗完整 Dunnington L3。每项 5-bit data 指定该请求需要 snoop 哪些 socket。
 
 ![图 27：Snoop Filter 如何减少跨 FSB 广播](intel_dunnington_figures/27_figure.png)
 
@@ -211,7 +211,7 @@ Paxville 已在部分负载遇到高 FSB utilization，Tulsa 先加 uncore，Dun
 
 ![图 32：四路系统随 Penryn module 增加的 libx264 scaling](intel_dunnington_figures/32_figure.png)
 
-同 socket 从一组到两组双核只提升 53%，远低于理想 100%；再加到 6 核几乎不增，指向 L3/FSB 瓶颈。上第二 socket 接近翻倍，继续加则进入内存带宽瓶颈。
+同 socket 从一组到两组双核只提升 53%，远低于理想 100%；再加到 6 核几乎不增，指向 L3/FSB 瓶颈。加入第二颗 socket 后接近翻倍，继续增加则进入内存带宽瓶颈。
 
 ![图 33：加载更多 module 时每核 IPC 下滑](intel_dunnington_figures/33_figure.png)
 
@@ -219,7 +219,7 @@ PMU 证明不是单纯频率问题，而是共享 L3/内存让每核退休效率
 
 ![图 34：4K、veryslow、CRF 24 的 libx264 FPS；Intel 单 socket 多 50% 核心仍落后 AMD](intel_dunnington_figures/34_figure.png)
 
-甚至需要 2 socket、12 核才超过一颗 AMD 四核，Dunnington 未解决多线程 scaling。
+甚至需要两个 socket、12 核才超过一颗 AMD 四核，Dunnington 未解决多线程 scaling。
 
 ## 结语
 

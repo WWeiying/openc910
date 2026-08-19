@@ -65,7 +65,7 @@ Top-down 在流水线最窄、后续 Burst 无法补回吞吐的位置归因 Los
 
 Meteor Lake 的 Cache/Memory Hierarchy Latency 较高，Redwood Cove 跑 `omnetpp` 的 Backend Memory 问题更重；`mcf` 也更 Memory-bound，同时因 Bad Speculation 损失更多。
 
-`541.leela` 的 Predictor Accuracy 技术上更低，但 Branch 只占 16.47%；`505.mcf` 有 22.5%指令是 Branch，将 Mispredict 按全部指令归一化后尤其严峻。
+`541.leela` 的 Predictor Accuracy 技术上更低，但 Branch 只占 16.47%；`505.mcf` 有 22.5% 的指令是 Branch，将 Mispredict 按全部指令归一化后尤其严峻。
 
 ![图 9：SPEC Integer 的 Branch Prediction Accuracy/MPKI](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/spec_cpu2017_methodology_wechat_article_zh/7187c762f0b35299_09_figure.png)
 
@@ -119,7 +119,7 @@ FP Suite 整体比 Integer 更 Core-bound，更多 Slot 退休有用工作，更
 
 ![图 20：Zen 5 的 FP Top-down 分解](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/spec_cpu2017_methodology_wechat_article_zh/353ccaaf51613d38_20_figure.png)
 
-`507.cactuBSSN` 是全套中唯一让 Zen 5 Op-cache Hit 低于 90%的项目，Redwood Cove 仅 58.98%。
+`507.cactuBSSN` 是全套中唯一让 Zen 5 Op-cache Hit 低于 90% 的项目，Redwood Cove 仅 58.98%。
 
 ![图 21：FP Suite 的 Micro-op Source](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/spec_cpu2017_methodology_wechat_article_zh/450e7f2626554f04_21_figure.png)
 

@@ -12,7 +12,7 @@ title: "centaur_cha_die_wechat_article_zh"
 > - 发布：2022 年 4 月 30 日
 > - 链接：https://chipsandcheese.com/p/examining-centaur-chas-die-and-implementation-goals
 
-CHA 是 Centaur 最后一颗 SoC，面向 Edge Server Inference：八颗最高2.5 GHz CNS x86 Core、2.5 GHz NCore ML Accelerator、16 MB L3、四通道 DDR4、44 PCIe Lane和双路 Link。本文从 Die Area 看目标如何决定核心：不是“把大核缩小”，而是有意把 CPU 频率和 IPC 控制在适合密度的范围，把面积留给加速器和 I/O。
+CHA 是 Centaur 最后一颗 SoC，面向 Edge Server Inference：八颗最高 2.5 GHz 的 CNS x86 Core、2.5 GHz NCore ML Accelerator、16 MB L3、四通道 DDR4、44 条 PCIe Lane 和双路 Link。本文从 Die Area 看产品目标如何决定核心设计：不是“把大核缩小”，而是有意把 CPU 频率和 IPC 控制在适合密度的范围，把面积留给加速器和 I/O。
 
 ## 对比 Haswell-E：相似 I/O/核数，Die 只有略多一半
 
@@ -20,27 +20,27 @@ CHA 用 TSMC 16 nm、194 mm²；八核 Haswell-E 用 Intel 22 nm、355 mm²。
 
 ![图 1：CHA 与 Haswell-E 等比例 Die Photo](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/centaur_cha_die_wechat_article_zh/118262315f6b7e3e_01_figure.jpg)
 
-*图 1：两者均八核、四通道 DDR4、双路；CHA 44 PCIe 对40，L3 16 MB对20 MB。工艺标称不可直接等比例换算，Die 图提供整体实现证据。*
+*图 1：两者均为八核、四通道 DDR4、双路；CHA 有 44 条 PCIe 通道，对方为 40 条；L3 为 16 MB 对 20 MB。工艺标称不可直接等比例换算，Die 图提供整体实现证据。*
 
 Haswell Core 约占三分之一，加 L3/Ring 约一半，其余 I/O。
 
 ![图 2：Haswell-E Area Breakdown](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/centaur_cha_die_wechat_article_zh/c7134f5bc090bdcd_02_figure.png)
 
-*图 2：另约33.44%主要为 PCIe/QPI Logic 与 Bus。*
+*图 2：另约 33.44% 主要为 PCIe/QPI Logic 与 Bus。*
 
-CHA I/O 也近半，但八 CNS+L3 只约三分之一，剩余可装面积约等于八 Core 的 NCore。
+CHA 的 I/O 也接近一半，但八颗 CNS 核心及其 L3 只占约三分之一；剩余空间容纳了面积约等于八颗 CPU 核心的 NCore。
 
 ![图 3：CHA Area Breakdown](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/centaur_cha_die_wechat_article_zh/079624023b5786e9_03_figure.png)
 
 *图 3：未标面积主要是 Bus、I/O Control、Dual-socket Interconnect。NCore 显然是第一优先级。*
 
-Haswell-E 要服务 HEDT，3 GHz以上的 Single-thread 需要大、高频 Circuit；Broadwell 缩14 nm后 Core 仍大。
+Haswell-E 要服务 HEDT，3 GHz 以上的 Single-thread 性能需要庞大的高频 Circuit；Broadwell 缩到 14 nm 后，Core 仍然很大。
 
 ![图 4：Haswell/Broadwell Core 等比例](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/centaur_cha_die_wechat_article_zh/cebd73155fb2ef0c_04_figure.jpg)
 
 *图 4：高频 Library、长 Pipeline 与更多 Critical-path Logic 都付出面积。*
 
-CNS 只瞄准低功耗 Edge Server，以小 Core 达 Haswell-like IPC，却无法继续抬频。
+CNS 只瞄准低功耗 Edge Server，以小 Core 达到接近 Haswell 的 IPC，却无法继续抬频。
 
 ![图 5：同频附近 7-Zip](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/centaur_cha_die_wechat_article_zh/5494f7d58ed21631_05_figure.png)
 
@@ -48,7 +48,7 @@ CNS 只瞄准低功耗 Edge Server，以小 Core 达 Haswell-like IPC，却无�
 
 ![图 6：libx264 同频/Stock](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/centaur_cha_die_wechat_article_zh/da57eb6531be2264_06_figure.png)
 
-*图 6：约14.67% 指令用 AVX-512 时 CNS 同频接近 Haswell；解除频率限制后 Haswell 明显领先。*
+*图 6：约 14.67% 指令使用 AVX-512 时，CNS 同频接近 Haswell；解除频率限制后，Haswell 明显领先。*
 
 Y-Cruncher 中 23.29% 指令为 AVX-512，`VPMADD52LUQ` 12.76%、`VPADDQ` 9.06%；前者无直接 AVX2 对应。
 
@@ -62,7 +62,7 @@ Y-Cruncher 中 23.29% 指令为 AVX-512，`VPMADD52LUQ` 12.76%、`VPADDQ` 9.06%�
 
 ## 对比 Zeppelin 与 Coffee Lake：通用性也占面积
 
-Zeppelin（GF 14 nm）八 Zen 1、两组4核+8 MB L3，比 CHA 大约9%，却只有一半 DDR Channel、32 对44 PCIe。
+Zeppelin（GF 14 nm）包含八颗 Zen 1 核心、两组 4 核 + 8 MB L3，比 CHA 大约 9%，却只有一半的 DDR Channel，以及 32 条而非 44 条 PCIe 通道。
 
 ![图 8：CHA、Zeppelin、Coffee Lake 等比例](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/centaur_cha_die_wechat_article_zh/c5f0e4a5f15e352b_08_figure.jpg)
 
@@ -70,13 +70,13 @@ Zeppelin（GF 14 nm）八 Zen 1、两组4核+8 MB L3，比 CHA 大约9%，却只
 
 ![图 9：Zeppelin Area Breakdown](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/centaur_cha_die_wechat_article_zh/da3325fc14cee4f8_09_figure.png)
 
-*图 9：L3 面积近似，TSMC 16 nm/GF14 nm High-density SRAM量级接近；Core Area介于 CHA 与 Haswell-E。*
+*图 9：L3 面积近似，TSMC 16 nm/GF 14 nm High-density SRAM 量级接近；Core Area 介于 CHA 与 Haswell-E。*
 
-Zeppelin 还要兼任 Desktop/Workstation/Server Building Block：USB3.1、PCIe/SATA Multi-mode、IFOP 都耗面积，却能一 Die 扩到四 Die EPYC（32核、8 DDR Channel、128 PCIe）。Zen 1 需 Desktop 频率，因此用128-bit Execution/Register，把256-bit AVX拆两 Uop来省 Vector Area。
+Zeppelin 还要兼任 Desktop/Workstation/Server Building Block：USB 3.1、PCIe/SATA Multi-mode、IFOP 都耗面积，却能由单 Die 扩展到四 Die EPYC（32 核、8 个 DDR Channel、128 条 PCIe 通道）。Zen 1 需达到 Desktop 频率，因此使用 128-bit Execution/Register，把 256-bit AVX 拆成两个 Uop，以节省 Vector Area。
 
 ![图 10：CNS 与 Zen 1 Core 面积](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/centaur_cha_die_wechat_article_zh/ee278d52aaeaa921_10_figure.jpg)
 
-*图 10：Zen 1 不含 L2 已约5.24 mm²，仍大于含 L2 的 CNS。*
+*图 10：Zen 1 不含 L2 已约 5.24 mm²，仍大于含 L2 的 CNS。*
 
 Zen 1 以适中 IPC/频率和 SMT 平衡密度。
 
@@ -92,7 +92,7 @@ Zen 1 以适中 IPC/频率和 SMT 平衡密度。
 
 *图 13：AMD 的大 Vector Non-scheduling Queue 减少 Renamer Stall，价值超过 CNS 较高 Execution Throughput。重 Vector AVX-512 的 Y-Cruncher 则由 CNS 大胜。*
 
-Coffee Lake 把 Core+L3 超过一半面积、约四分之一给 iGPU；其 GPU 无论绝对/比例都比 NCore 大，剩余才是有限 I/O。
+Coffee Lake 的 Core 与 L3 占据超过一半面积，约四分之一留给 iGPU；其 GPU 无论绝对面积还是占比都比 NCore 大，剩余部分才是有限的 I/O。
 
 ![图 14：Coffee Lake Area Breakdown](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/centaur_cha_die_wechat_article_zh/432b22b37f8ad7c6_14_figure.png)
 
@@ -114,13 +114,13 @@ Coffee Lake 把 Core+L3 超过一半面积、约四分之一给 iGPU；其 GPU �
 
 ![图 18：特定内核的 AVX-512 Speedup](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/centaur_cha_die_wechat_article_zh/025b70d9637eddf8_18_figure.png)
 
-*图 18：灰条相对 Table Lookup；Skylake-X 不支持 AVX-512 Integer FMA而未测。CNS 面积成本低但仍能在匹配指令上明显加速，不代表所有 AVX-512 负载。*
+*图 18：灰条相对 Table Lookup；Skylake-X 不支持 AVX-512 Integer FMA 而未测。CNS 面积成本低，但仍能在匹配指令上明显加速，不代表所有 AVX-512 负载。*
 
 ## 设计逻辑：低频、最低限度 AVX-512、适中 ROB
 
-Centaur 需要低成本 Edge SoC，又要 NCore、PCIe 和 Memory I/O，只能让 CPU 追密度。高性能 SRAM Bitcell 的示例为 Samsung 7 nm 0.032 µm²，高密度为0.026 µm²；高频还要更深 Pipeline 与复杂 Circuit。
+Centaur 需要低成本 Edge SoC，又要 NCore、PCIe 和 Memory I/O，只能让 CPU 追求密度。高性能 SRAM Bitcell 的示例为 Samsung 7 nm 0.032 µm²，高密度版本为 0.026 µm²；高频还需要更深的 Pipeline 与更复杂的 Circuit。
 
-CNS 只追 Haswell-like IPC，而非当时最新 Skylake。ChampSim 对7-Zip Trace 的 ROB Occupancy 显示多数周期要么低于200项，要么直接接近填满。
+CNS 只追求接近 Haswell 的 IPC，而非当时最新的 Skylake。ChampSim 对 7-Zip Trace 的 ROB Occupancy 显示，多数周期要么低于 200 项，要么直接接近填满。
 
 ![图 19：模拟 ROB Occupancy 分布](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/centaur_cha_die_wechat_article_zh/3ee4308104ad1537_19_figure.png)
 
@@ -128,23 +128,23 @@ CNS 只追 Haswell-like IPC，而非当时最新 Skylake。ChampSim 对7-Zip Tra
 
 ![图 20：ROB 容量的累计覆盖](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/centaur_cha_die_wechat_article_zh/3267f8f857456eb3_20_figure.png)
 
-*图 20：超过约200项开始收益递减；扩大 ROB 还必须扩大 RF/Scheduler/LSQ，否则别处先满，面积增长不成比例。*
+*图 20：超过约 200 项后开始收益递减；扩大 ROB 还必须扩大 RF/Scheduler/LSQ，否则别处会先满，面积增长不成比例。*
 
-CNS 在2.2 GHz Heavy AVX 约65 W，2.5 GHz 暴增到140 W，显示已过 Efficiency Knee、不适合消费者。CHA 每 Socket 又只有八核，未使用 NCore 的程序也缺多线程竞争力。
+CNS 在 2.2 GHz Heavy AVX 下约为 65 W，2.5 GHz 时暴增到 140 W，显示已越过 Efficiency Knee，不适合消费者。CHA 每个 Socket 又只有八核，未使用 NCore 的程序也缺乏多线程竞争力。
 
 ![图 21：Core Width、Window、Vector 与 Clock 的表层对照](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/centaur_cha_die_wechat_article_zh/80d583ff40767387_21_figure.jpg)
 
-*图 21：关键结论是强 Vector Unit 可以放进小核，只要频率/IPC目标按密度设定。Centaur 团队约100人、使用上一代节点，说明这类路线对有限资源可行。*
+*图 21：关键结论是强 Vector Unit 可以放进小核，只要频率/IPC 目标按密度设定。Centaur 团队约 100 人、使用上一代节点，说明这类路线对有限资源可行。*
 
 ## 如果当年走另一条路
 
-这是明确的 Speculation。若把八核 CPU Complex+Cache 复制四倍，约246 mm²；加 I/O 后，32核 CNS 仍可能比28核 Skylake-X 677.98 mm² 小得多。
+这是明确的 Speculation。若把八核 CPU Complex + Cache 复制四倍，约为 246 mm²；加上 I/O 后，32 核 CNS 仍可能比 28 核 Skylake-X 的 677.98 mm² 小得多。
 
 ![图 22：假想32核 CNS Die](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/centaur_cha_die_wechat_article_zh/e99e540beecb760f_22_figure.jpg)
 
-*图 22：MS Paint 可视化约372 mm²，不是可布线 Floorplan。2019 前可用低价/AVX-512 与32核 Zen1 EPYC 竞争，后者 Vector 较弱。*
+*图 22：MS Paint 可视化约为 372 mm²，不是可布线 Floorplan。2019 年前可凭低价和 AVX-512 与 32 核 Zen 1 EPYC 竞争，后者的 Vector 较弱。*
 
-Zen 2+TSMC7 nm 后，AMD 有更大 OoO、更快/大 Cache与256-bit Unit，CNS Core-to-core 已无机会。
+进入 Zen 2 与 TSMC 7 nm 时代后，AMD 拥有更大的 OoO 窗口、更快且更大的 Cache 和 256-bit Unit；逐核比较时，CNS 已没有胜算。
 
 ![图 23：CNS 与 Zen 2 综合性能](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/centaur_cha_die_wechat_article_zh/6de40eb01d498b96_23_figure.png)
 
@@ -156,9 +156,9 @@ Zen 2+TSMC7 nm 后，AMD 有更大 OoO、更快/大 Cache与256-bit Unit，CNS C
 
 ![图 25：Y-Cruncher 最佳场景](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/centaur_cha_die_wechat_article_zh/6aca09e4553083e2_25_figure.png)
 
-*图 25：Zen 2 仍靠高频+SMT 领先；7 nm 又让单 Socket 可64核。*
+*图 25：Zen 2 仍靠高频 + SMT 领先；7 nm 又让单 Socket 可达 64 核。*
 
-文章设想若 CNS 缩到7 nm，可能成为带 AVX-512 的最小 CPU Core、类似 Altra 但 Vector 更强；被 Intel 收购后，其 Vector 技术也可能补 E-Core 的 AVX-512，解决 Alder Lake ISA 不一致。均为当时设想，没有后续实现事实。
+文章设想若 CNS 缩到 7 nm，可能成为带 AVX-512 的最小 CPU Core、类似 Altra 但 Vector 更强；被 Intel 收购后，其 Vector 技术也可能补 E-Core 的 AVX-512，解决 Alder Lake ISA 不一致。均为当时设想，没有后续实现事实。
 
 ## 参考资料
 

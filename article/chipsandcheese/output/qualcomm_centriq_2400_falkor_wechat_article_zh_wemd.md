@@ -326,7 +326,7 @@ SPEC CPU2017 的单线程估算结果中，Falkor 相对 Graviton 1 的 Cortex-A
 
 *图 33：整数 Falkor/A72 分别为 perlbench 2.04/1.69，gcc 2.51/2.13，mcf 2.91/2.02，omnetpp 1.74/1.23，xalancbmk 1.35/1.54，x264 5.35/3.94，deepsjeng 2.41/2.07，leela 2.42/2.14，exchange2 6.73/5.43，xz 1.83/1.47。浮点为 bwaves 21.3/8.01，cactuBSSN 2.61/0.751，namd 2.60/1.70，parest 1.62/2.39，povray 3.15/2.18，lbm 3.13/1.50，wrf 3.75/2.41，blender 2.18/2.28，cam4 3.20/2.04，imagick 4.13/2.59，nab 2.49/1.86，fotonik3d 3.86/3.73，roms 2.90/1.61。A72 在 xalancbmk、parest 和 blender 等个别项目仍占优。*
 
-从 IPC 看，Falkor 能在 Cache 友好的 538.imagick 中发挥较大窗口和存储系统；但高 IPC 并不保证对 A72 大幅领先。548.exchange2 与 525.x264 中，A72 只稍慢。原因之一是第四重命名槽限制：Falkor 不能像没有此限制的 Skylake 那样稳定利用四宽，容易负载中 Skylake 可以达到或超过 3 IPC，Falkor 通常达不到。
+从 IPC 看，Falkor 能在 Cache 友好的 538.imagick 中发挥较大窗口和存储系统；但高 IPC 并不保证对 A72 大幅领先。548.exchange2 与 525.x264 中，A72 只稍慢。原因之一是第四重命名槽限制：Falkor 不能像没有此限制的 Skylake 那样稳定利用四宽；在较容易的负载中，Skylake 可以达到或超过 3 IPC，Falkor 通常达不到。
 
 ![图 34：SPEC CPU2017 子项 IPC](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/qualcomm_centriq_2400_falkor_wechat_article_zh/012e606a290996e7_34_spec_cpu2017_ipc.png)
 

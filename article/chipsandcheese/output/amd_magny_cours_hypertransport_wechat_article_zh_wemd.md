@@ -80,11 +80,11 @@ MCT 始终是 Home Agent。即使两个核在同 Die，若 Cache Line Home 在�
 
 *图 10：聚合值不代表单线程或任一 Node 可获得相同带宽。*
 
-## Die 内 Northbridge：低空载延迟，差公平性与低 DDR3 利用率
+## Die 内 Northbridge：低空载延迟，公平性差且 DDR3 利用率低
 
 六核心经 SRI→XBAR 两级 Crossbar 到本地 MCT/HT。Family 10h 的 System Request Queue 为 32 项，早期 K8 Opteron 为 24；XBAR Scheduler（XCS）56 项，跟踪 SRI、MCT 与 HT Command。
 
-Crossbar 适合节点数少、线数可控的低延迟有序网络。空载 Pointer Chasing 约 72.2 ns，比不少现代复杂服务器的 100 ns以上更低。
+Crossbar 适合节点数少、线数可控的低延迟有序网络。空载 Pointer Chasing 约 72.2 ns，比不少现代复杂服务器的 100 ns 以上更低。
 
 ![图 11：Magny-Cours 的空载与 Loaded Latency](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_magny_cours_hypertransport_wechat_article_zh/dcb3a30f968e43dc_11_figure.png)
 

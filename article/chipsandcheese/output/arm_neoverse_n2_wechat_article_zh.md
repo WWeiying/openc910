@@ -232,7 +232,7 @@ Arm 也在做同一件事。N1/N2 来自 Cortex，靠更大 Cache 与 Mesh 扩�
 
 *图 21：Arm 给出的改进包括 Rename 4→5 宽、加入 Rename Checkpoint、ROB 128→160+、分支解析 1→2/cycle、L1D Load 2×16→3×16 B/cycle、Store 16→32 B/cycle、L2 读写各 32→各 64 B/cycle，以及更多 outstanding transaction 和预取能力。这里是官方代际对比。*
 
-N2 是 N1 的明显升级：A710 比 A76 晚数代，更强乱序后端和 Memory-Level Parallelism 都被带进服务器。文章接受 Arm 以单核性能换更多核心的方向，但仍希望进展更激进：2019 到 2023 年，Zen 2→Zen 4 的 L2 TLB 从 2048 增至 3072，即使物理地址扩到 52 bit；Sapphire Rapids L2 增至 2 MB，而 Skylake/Ice Lake 为 1/1.25 MB。N2 却仍是 1 MB、13～14 周期 L2，频率也与 N1 相近，倚天 710 的 DRAM 延迟还比 Altra/Graviton 2 相对 x86 的表现退步。
+N2 是 N1 的明显升级：A710 比 A76 晚数代，更强乱序后端和 Memory-Level Parallelism 都被带进服务器。文章接受 Arm 以单核性能换更多核心的方向，但仍希望进展更激进：2019 到 2023 年，Zen 2→Zen 4 的 L2 TLB 从 2048 增至 3072，即使物理地址扩到 52 bit；Sapphire Rapids L2 增至 2 MB，而 Skylake/Ice Lake 为 1/1.25 MB。N2 却仍是 1 MB、13～14 周期 L2，频率也与 N1 相近；倚天 710 的 DRAM 延迟相较 Altra/Graviton 2，对 x86 的差距反而扩大。
 
 这份担忧来自服务器市场的竞争史。K8/K10 Opteron 曾经强势，随后被 Nehalem/Sandy Bridge Xeon 压过；Intel 的长期统治又被 Rome、Milan、Genoa 逐步挑战。N1 获得立足点不等于 N2 可以只做到“足够好”。
 

@@ -7,11 +7,11 @@ Tachyum 重做 Prodigy：更可信，也仍然极其激进
 ## 基本信息
 
 - 英文题目：Tachyum’s Revised Prodigy Architecture
-- 作者：Chester Lam
+- 作者：Chester Lam、Dr. Ian Cutress
 - 首发：Chips and Cheese
 - 日期：2022 年 8 月 26 日
 - 阅读原文：https://chipsandcheese.com/p/tachyums-revised-prodigy-architecture
-- 后台作者栏：Chester Lam
+- 后台作者栏：Chester Lam、Dr. Ian Cutress
 
 ## 摘要
 

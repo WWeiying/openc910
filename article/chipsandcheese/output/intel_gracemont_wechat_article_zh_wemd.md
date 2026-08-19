@@ -182,7 +182,7 @@ FP 使用半统一结构：一组 Triple-Port Queue 处理数学操作，一组 
 
 ![图 23：Gracemont 的 FP/Vector Scheduler 与 NSQ](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/intel_gracemont_wechat_article_zh/96f84d12b0560daa_23_fp_scheduler.png)
 
-*图 23：较小 Scheduler 前放大 NSQ，可在 Rename 停顿前保留约 91 条 FP/Vector 操作。256-bit AVX 每条拆两 micro-op，也会占两个 Scheduler Slot。*
+*图 23：在较小的 Scheduler 前放置较大的 NSQ，可在 Rename 停顿前保留约 91 条 FP/Vector 操作。256-bit AVX 每条拆成两个 micro-op，也会占两个 Scheduler Slot。*
 
 常用操作至少有两条 128-bit 端口，因此 256-bit 指令一般无额外依赖延迟，吞吐至少 1/cycle。
 

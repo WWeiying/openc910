@@ -28,7 +28,7 @@ AMD Zen 用多级互连扩展核心数：若干核共享 Core Complex（CCX）�
 
 *图 3：Zen 2 一颗 CCD 内还有两个 CCX 共用 IFOP，便于分别观察 CCX 与 CCD 层瓶颈。*
 
-## Zen 4：单 CCD 内延迟可从 83 ns 冲到 400 ns以上
+## Zen 4：单 CCD 内延迟可从 83 ns 冲到 400 ns 以上
 
 平台为 Ryzen 9 7950X3D、DDR5-5600。Zen 4 每 CCD 一个八核 CCX，单核顺序读 3 GB 就接近 50 GB/s。
 

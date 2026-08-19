@@ -11,7 +11,7 @@
 
 ## Binary 让 ISA 专用优化成为主角
 
-Intel SDE 可用不同 ISA Target 精确统计指令。Granite Rapids Target 下，Background Blur、Object Detection、Structure from Motion 大量使用 AVX-512；Object Detection 与 Photo Library 还有 AMX，虽只占 0.2%和 0.02%动态指令。
+Intel SDE 可用不同 ISA Target 精确统计指令。Granite Rapids Target 下，Background Blur、Object Detection、Structure from Motion 大量使用 AVX-512；Object Detection 与 Photo Library 还有 AMX，虽只占 0.2% 和 0.02% 的动态指令。
 
 ![图 2：Granite Rapids Target 的 Instruction Mix](geekbench6_evaluation_figures/02_figure.png)
 
@@ -39,15 +39,15 @@ SPEC CPU2017 为 Portability 依赖 Compiler Auto-vectorization。GCC 14.2.0 针
 
 ### 体系结构视角：少量矩阵指令可以替代大量普通指令
 
-Dynamic Instruction Share 不能直接表示时间或加速贡献。AMX 一条 Tile Operation 可完成大量 Multiply-accumulate，0.2%也可能重塑热点；反之，频繁 Scalar 控制指令可能只占少量 Cycle。分析应同时看指令数、Latency/Throughput、数据搬运和禁用扩展后的端到端差值。
+Dynamic Instruction Share 不能直接表示时间或加速贡献。AMX 一条 Tile Operation 可完成大量 Multiply-accumulate，0.2% 也可能重塑热点；反之，频繁 Scalar 控制指令可能只占少量 Cycle。分析应同时看指令数、Latency/Throughput、数据搬运和禁用扩展后的端到端差值。
 
 ## IPC：大多“喂得很饱”
 
-Geekbench 6 多数在中高 IPC。Lion Cove/Zen 5 多项超过 2；Skymont IPC 常接近，却在 Clang、Asset Compression、Photo Library、Structure From Motion 出现 Glass-jaw。
+Geekbench 6 多数在中高 IPC。Lion Cove/Zen 5 多项超过 2；Skymont IPC 常接近，却在 Clang、Asset Compression、Photo Library、Structure From Motion 暴露出明显短板。
 
 ![图 8：x86 核心的 Geekbench 6 IPC](geekbench6_evaluation_figures/08_figure.png)
 
-N1/N2 也相似。四宽 N1 多项超 2 已很高，五宽 N2 多项超 3。N1 Object Remover 较低可能来自弱 Vector；只有 Navigation 在所有核心都持续低 IPC。
+N1/N2 也相似。四宽 N1 多项超 2 已很高，五宽 N2 多项超 3。N1 的 Object Remover 较低可能来自弱 Vector；只有 Navigation 在所有核心都持续低 IPC。
 
 ![图 9：Neoverse N1/N2 IPC](geekbench6_evaluation_figures/09_figure.png)
 

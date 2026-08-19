@@ -12,7 +12,7 @@ title: "chinese_cpus_spec2017_wechat_article_zh"
 > - 发布：2024 年 10 月 19 日
 > - 链接：https://chipsandcheese.com/p/running-spec-cpu2017-on-chinese-cpus
 
-SPEC CPU2017 是 OEM 与 CPU 团队常用的源码 Benchmark。这里的结果标为 Estimated：技术上尽量满足同一次 `runcpu` 跑完整套件、单 File System 等要求，主要未满足正式提交的 Documentation；统一使用 GCC 14.2.0 和 Bare-metal Linux。若发行版无包，就源码编译 GCC 或在 Debian Chroot 运行。x86-64 Flags 为 `-O3 -march=native -mtune=native -fomit-frame-pointer`，AArch64 为 `-O3 -mcpu=native -fomit-frame-pointer`，其他 ISA 采用相当的 Native Target。
+SPEC CPU2017 是 OEM 与 CPU 团队常用的源码 Benchmark。这里的结果标为 Estimated：技术上尽量满足同一次 `runcpu` 跑完整套件、单 File System 等要求，主要缺少正式提交要求的文档；统一使用 GCC 14.2.0 和 Bare-metal Linux。若发行版无包，就源码编译 GCC 或在 Debian Chroot 运行。x86-64 Flags 为 `-O3 -march=native -mtune=native -fomit-frame-pointer`，AArch64 为 `-O3 -mcpu=native -fomit-frame-pointer`，其他 ISA 采用相当的 Native Target。
 
 重点为单线程 Rate、一个 Copy；只有 SMT 收益用两个 Copy 固定到同一核心的 Sibling Thread。因此不能与正式 SPEC 公布分数或不同 Compiler Flag 直接比较。
 
@@ -42,7 +42,7 @@ SMT 让 Pipeline 各级获得更多显式并行度。
 
 *图 5：两线程仍不及当代 AMD 单线程。首代 SMT 实现本身表现不错，但不能弥补频率与核心数。*
 
-环境准备也很困难：SPEC Toolset 与 GCC 都需源码编译，八 Hardware Thread 编 GCC 会 Crash，固定两核才完成且耗时很长。这个失败是软件/平台稳定性观察，不属于一次有效 CPU 性能结果。
+环境准备也很困难：SPEC Toolset 与 GCC 都需源码编译，使用八个 Hardware Thread 编译 GCC 会崩溃，固定两核才完成且耗时很长。这个失败是软件/平台稳定性观察，不属于一次有效 CPU 性能结果。
 
 ## 3A5000：同为 2.5 GHz，四宽 LA464 落在低功耗旧核心区间
 
@@ -70,13 +70,13 @@ SMT 让 Pipeline 各级获得更多显式并行度。
 
 ![图 10：SPEC FP 的 Retired Instruction 差](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/chinese_cpus_spec2017_wechat_article_zh/17feb6ef46ee1935_10_figure.png)
 
-*图 10：LoongArch64 比 x86-64 多 11.4%，与 AArch64 的 Geomean 却在 1%内；549.fotonik3d/554.roms 分别多 77.1%/78%，可能是 ISA 难表达，也可能 GCC Codegen 特别差，不能只怪 ISA。*
+*图 10：LoongArch64 比 x86-64 多 11.4%，与 AArch64 的 Geomean 却在 1% 内；549.fotonik3d/554.roms 分别多 77.1%/78%，可能是 ISA 难表达，也可能 GCC Codegen 特别差，不能只怪 ISA。*
 
 ![图 11：3A5000/6000 的 SPEC IPC](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/chinese_cpus_spec2017_wechat_article_zh/69014f7a42a68cf6_11_figure.jpg)
 
-*图 11：两代 IPC 很有竞争力，但多执行指令、2.5 GHz 又低，无法变成等比例性能。*
+*图 11：两代 IPC 很有竞争力，但要执行更多指令，2.5 GHz 的频率又低，无法变成等比例性能。*
 
-Zen 1 数据来自 Oracle `VM.Standard.E2.4`。该 Cloud Core 似乎永久静态分成 2T，即使 Sibling Idle，单线程也只能看到一半 ROB/Register Capacity；其他 Cloud 未见此现象，但它支持 PMU，只能作为有明确限制的最佳可用对照。
+Zen 1 数据来自 Oracle `VM.Standard.E2.4`。该 Cloud Core 似乎被永久静态划分为双线程，即使 Sibling Idle，单线程也只能看到一半 ROB/Register Capacity；其他 Cloud 未见此现象，但它支持 PMU，只能作为有明确限制的最佳可用对照。
 
 ![图 12：受 Cloud 2T 分区影响的 Zen 1 IPC](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/chinese_cpus_spec2017_wechat_article_zh/48aa49ce5fc6b4a8_12_figure.jpg)
 
@@ -94,7 +94,7 @@ Zen 1 数据来自 Oracle `VM.Standard.E2.4`。该 Cloud Core 似乎永久静态
 
 ## 兆芯 KX-6640MA：小乱序核心的合理位置
 
-KX-6640MA 为四核 2.6 GHz x86-64，LuiJiaZui 是两宽、低 Reordering Capacity 的 OoO Core。
+KX-6640MA 为四核 2.6 GHz x86-64，“陆家嘴”是两宽、低 Reordering Capacity 的 OoO Core。
 
 ![图 15：KX-6640MA SPEC 总分](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/chinese_cpus_spec2017_wechat_article_zh/b6de66c9a8dd712c_15_figure.png)
 

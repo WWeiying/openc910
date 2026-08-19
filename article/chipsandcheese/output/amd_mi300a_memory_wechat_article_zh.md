@@ -23,7 +23,7 @@ Infinity Fabric 由大量网络化组件组成，为 24 个 CPU 核与 228 个 G
 
 ![图 3：MI300A 内存系统概览，CCD/XCD 经 CM、IOD 与 HBM3 相连](amd_mi300a_memory_figures/03_figure.jpg)
 
-大部分 CPU/GPU 请求落到由 DRAM backing 的物理地址。Coherent Slave（CS）负责提供最新数据，内部有 probe filter，并连接 memory controller。
+大部分 CPU/GPU 请求落到由 DRAM 支撑的物理地址。Coherent Slave（CS）负责提供最新数据，内部有 probe filter，并连接 memory controller。
 
 ![图 4：CM、CS、Infinity Cache 与 HBM 的简化数据路径](amd_mi300a_memory_figures/04_figure.jpg)
 
@@ -183,7 +183,7 @@ atomic 可在 kernel 不结束、驱动不做整套维护时让写入跨 CPU/GPU
 
 ![图 32：CPU↔GPU atomic ping-pong；MI300A 本地约 222.15 ns，远端仍控制在数百 ns](amd_mi300a_memory_figures/32_figure.png)
 
-去掉 driver 与高层同步后，延迟回到纳秒级。本地 MI300A 的 222.15 ns 比明确支持 atomics 的 Core i5-6600K 稍慢，但对如此大的一致性系统已很优秀，且接近 CCD 间延迟；跨 MI300A 的 GPU 也没有失控。
+去掉驱动程序与高层同步后，延迟回到纳秒级。本地 MI300A 的 222.15 ns 比明确支持 atomics 的 Core i5-6600K 稍慢，但对如此大的一致性系统已很优秀，且接近 CCD 间延迟；跨 MI300A 的 GPU 也没有失控。
 
 ![图 33：四颗 MI300A 上不同 CCX 到不同 GPU 的 atomic 延迟矩阵](amd_mi300a_memory_figures/33_figure.png)
 
@@ -209,7 +209,7 @@ AMD 的封装论文称，每颗 IOD 几乎用完整 die edge 铺设接口；相�
 
 高 die-to-die 带宽让 MI300X 对程序员呈现为一个巨大 GPU。上一代 MI250X 与 Intel Ponte Vecchio 的两半间带宽不足，需要按两个 GPU 管理；MI300A 再加入 CPU，低成本 CPU/GPU 通信进一步简化编程。
 
-硬件连接只是问题的一半。大项目容易出现“太多厨师”的协作成本，而清晰接口可以划分责任。无法从外部确认 AMD 内部组织，但 MI300A 显示出组件之间非常明确的边界：CCX 或 GPU block 只要遵守 CM 接口，就能获得 coherent memory access，无需知道后面接 DDR5、LPDDR5 还是 HBM3，也无需知道系统有 1、11 或不同组合的其他计算块。
+硬件连接只是问题的一半。大项目容易出现“太多厨师”的协作成本，而清晰接口可以划分责任。无法从外部确认 AMD 内部组织，但 MI300A 显示出组件之间非常明确的边界：CCX 或 GPU block 只要遵守 CM 接口，就能获得 coherent memory access，无需知道后面接 DDR5、LPDDR5 还是 HBM3，也无需关心系统连接的是 Ryzen 中的另 1 个 CPU Cluster、EPYC 中的另 11 个，还是 2 个 CPU Cluster 加 6 个 GPU Block。
 
 ![图 36：Llano 的 GPU 大部分访问走 non-coherent link，coherent 请求则通过较窄的特殊路径接入 Northbridge](amd_mi300a_memory_figures/36_figure.jpg)
 

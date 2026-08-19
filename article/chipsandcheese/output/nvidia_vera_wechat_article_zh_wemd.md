@@ -7,7 +7,7 @@ title: "nvidia_vera_wechat_article_zh"
 > **文章来源**
 >
 > - 文章：*NVIDIA’s Vera Whitepaper Has a Thread Loose*
-> - 撰文：George Cozma
+> - 撰文：George Cozma、Chester Lam
 > - 首发：Chips and Cheese
 > - 发布：2026 年 8 月 5 日
 > - 链接：https://chipsandcheese.com/p/nvidias-vera-whitepaper-has-a-thread
@@ -152,7 +152,7 @@ ClickHouse 约 1.2 倍的结果来自较可识别的 1 亿行测试，却仍属�
 
 ## 七、怎样看待 Vera
 
-Vera 最值得关注的不是白皮书里的绿色柱子，而是 Olympus 试图同时推进的几件难事：把服务器核心做得很宽，用值预测跨越数据依赖，用 Graph Prefetcher追踪不规则访问，以大私有 L2 和高带宽内存降低等待，再通过线程隔离为多 Agent 服务提供更稳定的 QoS。
+Vera 最值得关注的不是白皮书里的绿色柱子，而是 Olympus 试图同时推进的几件难事：把服务器核心做得很宽，用值预测跨越数据依赖，用 Graph Prefetcher 追踪不规则访问，以大私有 L2 和高带宽内存降低等待，再通过线程隔离为多 Agent 服务提供更稳定的 QoS。
 
 这也导向几条更一般的认识：
 

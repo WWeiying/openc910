@@ -57,7 +57,7 @@ Windows minimum CPU state 设 100% 后，idle 仍约 1.35 V；核心从 1.41 到
 
 它比只看最高频率更响应，但远慢于 Skylake Speed Shift。移动平台为 Dell Precision M3800，桌面为 Asus Q87M-E。
 
-HEDT Sandy Bridge Xeon E5-1650 很快到 3.2 GHz base，随后等近 0.5 秒才到 3.8 GHz单核 turbo；Haswell E5-2630 v3 约三分之一秒到最高，但本身是低频 SKU。
+HEDT Sandy Bridge Xeon E5-1650 很快到 3.2 GHz base，随后等近 0.5 秒才到 3.8 GHz 单核 turbo；Haswell E5-2630 v3 约三分之一秒到最高，但本身是低频 SKU。
 
 ![图 8：Sandy Bridge/Haswell HEDT 升频](cpu_clock_speed_change_figures/08_figure.png)
 
@@ -69,7 +69,7 @@ Goldmont Plus 是 2017 年 3-wide 低功耗乱序核，似乎没有 Speed Shift�
 
 ![图 9：Goldmont Plus 升频](cpu_clock_speed_change_figures/09_figure.png)
 
-Snapdragon 670（Pixel 3a）有 2×Cortex-A75 2 GHz、6×A55 1.7 GHz。A75 ramp 很快；A55 较慢，而且插电时 A55 更快、A75 反而电池时更快。A55 idle 600 MHz，A75略超 800 MHz。
+Snapdragon 670（Pixel 3a）有 2×Cortex-A75 2 GHz、6×A55 1.7 GHz。A75 ramp 很快；A55 较慢，而且插电时 A55 更快、A75 反而电池时更快。A55 idle 600 MHz，A75 略超 800 MHz。
 
 ![图 10：Snapdragon 670 在电池与接电下的大小核](cpu_clock_speed_change_figures/10_figure.png)
 
@@ -91,7 +91,7 @@ KX-6640MA 使用旧版程序，按键启动采样而非睡眠 5 秒；按键事�
 
 ## 测量方法与误差
 
-程序执行已知数量的依赖整数加法；绝大多数核心每周期推进一次，测完成时间即可估算有效 core cycle/frequency。
+程序执行已知数量的依赖整数加法；绝大多数核心每周期推进一次，测量完成时间即可估算有效 core cycle/frequency。
 
 ![图 13：x86 上用整数加法延迟和 RDTSC 估频](cpu_clock_speed_change_figures/13_figure.png)
 

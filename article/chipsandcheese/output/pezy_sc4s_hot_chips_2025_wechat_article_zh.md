@@ -39,7 +39,7 @@ SC3 的 PE 仅双路 FP64，SC4s 扩到四路，减少每份计算的指令控�
 
 ## 从 4 KB 私有缓存到 64 MB L3
 
-PEZY 以行政区划命名层级：四 PE 为 Village，四 Village 为 City，16 City 为 Prefecture，八 Prefecture 为整颗 State。SC4s 实际每个 Prefecture 布置 18 City，其中两个关闭作冗余，合计 2304 PE。
+PEZY 以行政区划命名层级：四 PE 为 Village，四 Village 为 City，16 City 为 Prefecture，八 Prefecture 为整颗 State。SC4s 实际每个 Prefecture 物理布置 18 City，其中两个关闭作冗余；全芯片物理合计 2304 个 PE，启用 2048 个。
 
 每 PE 的 L1I 仅 4 KB。若沿用 SC3 的 4 B 指令和 8 B/cycle 取指，可容纳约 1024 条指令；16 PE 共享 32 KB L2I，承担更大代码 footprint。
 

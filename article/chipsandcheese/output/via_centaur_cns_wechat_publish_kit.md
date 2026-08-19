@@ -13,6 +13,7 @@ VIA 终章：深入 Centaur 最后一代 CPU 核心 CNS
 ## 作者与来源
 
 - 来源平台：Chips and Cheese
+- 英文标题：VIA Part 4 – A Deep Dive into Centaur’s Last CPU Core: CNS
 - 撰文：George Cozma、Chester Lam
 - 发布日期：2022 年 3 月 23 日
 - 文章地址：https://chipsandcheese.com/p/via-part-4-a-deep-dive-into-centaurs-last-cpu-core-cns

@@ -70,7 +70,7 @@ GCP 似乎把 SPR 分成小 Cluster，容量较小、Latency 较好，Clock 也�
 
 ![图 8：不同 SPR Cluster 配置的 ns](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/intel_sapphire_rapids_wechat_article_zh/f467b07e389ed034_08_figure.png)
 
-*图 8：较低 Core Clock 会压缩以 ns 表示的差距。*
+*图 8：较低的 Core Clock 会使固定的核心周期开销换算为更长时间，从而缩小以 ns 表示的差距。*
 
 ![图 9：不同配置的 Cycle](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/intel_sapphire_rapids_wechat_article_zh/e5b63ed6a0deaee0_09_figure.png)
 

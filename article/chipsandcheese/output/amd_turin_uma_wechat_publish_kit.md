@@ -14,7 +14,7 @@ AMD Turin 的统一内存模式：24 个控制器换来多少带宽，又付出�
 
 - 作者栏：Chester Lam
 - 首发：Chips and Cheese
-- 英文题目：*Evaluating Uniform Memory Access Mode on AMD’s Turin*
+- 英文题目：*Evaluating Uniform Memory Access Mode on AMD’s Turin ft. Verda (formerly DataCrunch.io)*
 - 发布日期：2025 年 11 月 26 日
 - 阅读原文：https://chipsandcheese.com/p/evaluating-uniform-memory-access
 

@@ -173,7 +173,7 @@ X925 的 FPU 有六条执行管线，六条都能处理向量浮点加法、乘�
 
 *图 16：测试使用 64 位 store 和 32 位 load，横纵轴改变两者在 64 B 范围内的偏移。绿色表示互不依赖的约 0.5～1 周期吞吐区；load 完全落在旧 store 内时，橙色带约为 5～6 周期；仅部分重叠时会失败并升到约 12～13 周期。跨 64 B Cache line 边界会进一步增加代价。*
 
-![图 17：FP/向量 store forwarding 延迟矩阵](cortex_x925_figures/17_vector_store_forwarding.png)
+![图 17：FP/向量 store forwarding 延迟矩阵](cortex_x925_figures/17_vector_store_forwarding.jpg)
 
 *图 17：测试改用 128 位向量 store 与 64 位 load。只有读取 store 的前半或后半、或 load 从 store 地址前 4 B 起始等特定关系能够较快转发；其他重叠组合大多落入约 13～15 周期区域。与整数矩阵相比，向量路径对相对对齐更敏感。*
 

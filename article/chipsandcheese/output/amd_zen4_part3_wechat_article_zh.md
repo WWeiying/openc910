@@ -18,11 +18,11 @@ AMD 标称 7950X 最高 Boost 为 5.7 GHz，外界曾讨论 5.85 GHz，但这颗
 
 *图 1：纵轴没有从零开始，以放大核心间差异。该图是单颗样品的实测，不代表所有 7950X。*
 
-第二颗 CCD 的核心约为 5.51～5.54 GHz，比第一颗低 100～200 MHz。测试过的 5950X 与 3950X 也都由第一颗 CCD 包含最高频核心，因此一种可能是 16 核型号只对其中一颗 CCD 做最高 Boost 档分箱；材料没有厂商确认，不能把它写成固定规则。
+第二颗 CCD 的核心约为 5.51～5.54 GHz，比第一颗低 100～200 MHz。测试过的 5950X 与 3950X 的最高频核心也都位于第一颗 CCD，因此一种可能是 16 核型号只对其中一颗 CCD 做最高 Boost 档分箱；材料没有厂商确认，不能把它写成固定规则。
 
 ![图 2：Zen 2、Zen 3 与 Zen 4 的逐核心频率离散](amd_zen4_part3_figures/02_figure.jpg)
 
-*图 2：这三颗具体样品中，Zen 3/4 的核心间离散小于 Zen 2。制程成熟度、分箱与样品差异都会影响结果。3950X 上约 7%～8% 的差距更可能让调度位置影响性能，而 5950X/7950X 的 3%～4% 较难感知。*
+*图 2：这三颗具体样品中，Zen 3/4 的核心间离散小于 Zen 2。制程成熟度、分箱与样品差异都会影响结果。3950X 上约 7%～8% 的差距更可能让调度落点影响性能，而 5950X/7950X 的 3%～4% 较难感知。*
 
 为了查看亚毫秒到数百毫秒的变化，测试用 `RDTSC` 高频采样并增加每个样本的迭代次数。相同核心的重复结果稳定，但核心之间不同：第一颗 CCD 某些核心短暂超过 5.71 GHz，核心 0、2 曾在不足 50 ms 内到 5.74 GHz；核心 2 又维持约半秒后出现波动。
 
@@ -76,7 +76,7 @@ Zen 2/3 常让 FCLK 与 DDR 实钟匹配，因此一条 32 B/cycle 链路的理�
 
 *图 10：旧 DDR4 控制器在纯峰值利用率上更高；但 Zen 4 已能让 `REP STOSB` 避免 Read for Ownership，并更好处理 Read-Modify-Write 和全线程普通 AVX 写，绝对带宽也高得多。*
 
-把 FCLK 从 2.0 降到 1.6 GHz后，写带宽的下降几乎正好对应两颗 CCD 各 16 B/cycle 链路少掉的容量。
+把 FCLK 从 2.0 降到 1.6 GHz 后，写带宽的下降几乎正好对应两颗 CCD 各 16 B/cycle 链路少掉的容量。
 
 ![图 11：2.0 与 1.6 GHz FCLK 下的带宽](amd_zen4_part3_figures/11_figure.png)
 
@@ -92,15 +92,15 @@ Raphael 是 AMD 近年第一款带核显的高性能桌面平台。I/O Die 从 G
 
 ![图 12：Raphael 核显的 DRAM 带宽](amd_zen4_part3_figures/12_figure.png)
 
-*图 12：只用一个 Workgroup，因为硬件也只有一个 WGP；更多 Workgroup 反而因争用和更不线性的访问降低带宽。大工作集略高于 60 GB/s，既可能接近单 WGP 能力，也接近假设 32 B/cycle、2 GHz Fabric 的 64 GB/s，因而无法用此图识别 Fabric 上限。*
+*图 12：只用一个 Workgroup，因为硬件也只有一个 WGP；更多 Workgroup 反而因争用和更加不规则的访问模式降低带宽。大工作集略高于 60 GB/s，既可能接近单 WGP 能力，也接近假设 32 B/cycle、2 GHz Fabric 的 64 GB/s，因而无法用此图识别 Fabric 上限。*
 
-缓存配置非常小：64 KB L1、256 KB L2，没有独立显卡 RDNA 2 的 Infinity Cache，L2 miss 直接去内存。此前 RDNA(2) 常见 128 KB L1，Renoir 核显则用 1 MB L2 抵消 DDR4 带宽不足。
+缓存配置非常小：64 KB L1、256 KB L2，没有独立显卡 RDNA 2 的 Infinity Cache，L2 miss 直接去内存。此前的 RDNA/RDNA 2 核心常见 128 KB L1，Renoir 核显则用 1 MB L2 抵消 DDR4 带宽不足。
 
 测试还发现一个方法学陷阱：若编译器认定整个 Wavefront 读取相同值，会生成 `s_load_dword`，走独立的标量 Cache。阻止这种 Uniform 推断后才会生成 `global_load_dword`，走向量路径并测到更高延迟；近代 Nvidia/Intel 因共享 Cache，未出现同样差别。
 
 ![图 13：AMD GPU 标量侧 Cache 与内存延迟](amd_zen4_part3_figures/13_figure.png)
 
-*图 13：容量拐点确认 Raphael 为 64 KB L1、256 KB L2。它的 L1 因频率较低而比桌面 RDNA 2 慢，L2 却更低延迟；1 GB 主存端约 191 ns，优于 RX 6900 XT 的 250 ns 以上，也远好于 Renoir GPU 侧。Renoir 在越过 L2 后的阶梯还混入 TLB 层级，128 MB 后可能是真正 TLB miss。*
+*图 13：容量拐点确认 Raphael 为 64 KB L1、256 KB L2。其 L1 因频率较低而比桌面 RDNA 2 的 L1 更慢，L2 却延迟更低；1 GB 主存端约 191 ns，优于 RX 6900 XT 的 250 ns 以上，也远好于 Renoir GPU 侧。Renoir 在越过 L2 后的阶梯还混入 TLB 层级，128 MB 后可能是真正 TLB miss。*
 
 ![图 14：GCN 与 RDNA 2 的标量/向量读取差异](amd_zen4_part3_figures/14_figure.png)
 
@@ -114,7 +114,7 @@ Raphael 是 AMD 近年第一款带核显的高性能桌面平台。I/O Die 从 G
 
 ## 结语
 
-这颗 7950X 的 Boost 呈现每 CCD 分箱与毫秒级细调；单 CCD 的 32/16 B/cycle IFOP 链路会在合成负载中出现边界，但 DRAM 调度又使“更多线程”不必然带来更高带宽。Raphael 核显则展示 RDNA 2 可以缩到 64 KB L1、256 KB L2和单 WGP，仍保留低延迟 Cache 特征。三组观察的共同点是：核心频率、片上链路、DRAM 和 GPU Cache 必须作为系统共同分析，任何单一峰值都不足以确认实现。
+这颗 7950X 的 Boost 呈现每 CCD 分箱与毫秒级细调；单 CCD 的 32/16 B/cycle IFOP 链路会在合成负载中出现边界，但 DRAM 调度又使“更多线程”不必然带来更高带宽。Raphael 核显则展示 RDNA 2 可以缩到 64 KB L1、256 KB L2 和单 WGP，仍保留低延迟 Cache 特征。三组观察的共同点是：核心频率、片上链路、DRAM 和 GPU Cache 必须作为系统共同分析，任何单一峰值都不足以确认实现。
 
 ## 参考资料
 

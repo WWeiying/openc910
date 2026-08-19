@@ -29,7 +29,7 @@ MP2845 控制三相供电，可能分成两相与一相 Rail。APU 约限制 16 
 
 ![图 3：Core-to-core Latency 确认单 CCX](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_van_gogh_steam_deck_wechat_article_zh/a43a86f173216374_03_figure.png)
 
-L3 仅 4 MB，与 Renoir 相似，远小于 Desktop/Server Zen 2 每 CCX 16 MB。SteamOS 默认 `schedutil` 下 Latency Test 几乎看不到 L3；改 `performance` Governor 后才显现，但仍很差。Windows 下合理，说明不是 APU 硬件缺陷，而与 OS Power Policy 有关。
+L3 仅 4 MB，与 Renoir 相似，远小于 Desktop/Server Zen 2 每 CCX 16 MB。SteamOS 默认 `schedutil` 下 Latency Test 几乎看不到 L3；改 `performance` Governor 后才显现，但仍很差。Windows 下延迟正常，说明不是 APU 硬件缺陷，而与 OS Power Policy 有关。
 
 ![图 4：不同 OS/Governor 下 Van Gogh L3 Latency](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_van_gogh_steam_deck_wechat_article_zh/ff7467fab5d97c13_04_figure.png)
 
@@ -57,7 +57,7 @@ DRAM 却只有约 25 GB/s。Read/Write Turnaround、Page Miss 等都会损失理
 
 即使把 Renoir 限在单 CCX，仍大幅领先；i5-6600K 双通道 DDR4-2133 都约 27 GB/s。小 L3 又让 CPU 更频繁落到这条慢路径。
 
-Cyberpunk 2077 关闭 Ray Tracing、约 100 FPS 时，使用经过已知流量校准的 Undocumented Counter 测 DRAM Demand。
+作为参照，文章在桌面 Zen 2 平台上运行 Cyberpunk 2077，关闭 Ray Tracing、帧率约 100 FPS，并用经过已知流量校准的 Undocumented Counter 测量 DRAM Demand。
 
 ![图 10：Cyberpunk 的 CPU Memory Bandwidth Demand](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_van_gogh_steam_deck_wechat_article_zh/d41351046377f1d9_10_figure.png)
 

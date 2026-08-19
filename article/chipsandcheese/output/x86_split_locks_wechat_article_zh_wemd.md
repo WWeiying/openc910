@@ -195,7 +195,7 @@ Ryzen AI MAX+ 395（Strix Halo）的 Zen 5 Split Lock 比桌面 Zen 5 更慢。C
 
 ![图 42：移动 Zen 4 Split Lock Latency](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/x86_split_locks_wechat_article_zh/e63b621db90905d3_42_figure.jpg)
 
-Arrow Lake E-Core 的 PMU 显示，参与 Split Lock 的 E-Core 几乎全周期 Block，其他 E-Core 约一半周期被 Block，可解释 L3/DRAM 约 50%退化，但仍解释不了 L2 为何安然无恙。
+Arrow Lake E-Core 的 PMU 显示，参与 Split Lock 的 E-Core 几乎全周期 Block，其他 E-Core 约一半周期被 Block，可解释 L3/DRAM 约 50% 的退化，但仍解释不了 L2 为何安然无恙。
 
 ![图 43：在 E-Core 4、5 循环 Split Lock 时的 Bus-lock Blocking Counter](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/x86_split_locks_wechat_article_zh/5d24ffa02f5a144a_43_figure.png)
 

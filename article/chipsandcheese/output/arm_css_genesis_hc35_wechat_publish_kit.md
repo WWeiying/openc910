@@ -7,11 +7,11 @@ Arm CSS-Genesis：从授权核心走向预集成计算子系统
 ## 基本信息
 
 - 英文题目：Arm at HC35 (2023): CSS-Genesis
-- 作者：Chester Lam
+- 作者：Chester Lam、Joshua Gregory
 - 首发：Chips and Cheese
 - 日期：2023 年 9 月 13 日
 - 阅读原文：https://chipsandcheese.com/p/arm-at-hc35-2023-css-genesis
-- 后台作者栏：Chester Lam
+- 后台作者栏：Chester Lam、Joshua Gregory
 
 ## 摘要
 

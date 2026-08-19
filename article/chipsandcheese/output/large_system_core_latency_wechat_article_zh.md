@@ -18,7 +18,7 @@
 
 ## Intel Sapphire Rapids
 
-完整 Sapphire Rapids 由四 Die 通过 EMIB 相连，基于 Golden Cove。Socket 内平均59 ns，跨 Socket 平均138 ns。
+完整 Sapphire Rapids 由四 Die 通过 EMIB 相连，基于 Golden Cove。Socket 内平均 59 ns，跨 Socket 平均 138 ns。
 
 ![图 1：Sapphire Rapids 全系统核间延迟](large_system_core_latency_figures/01_figure.png)
 
@@ -26,7 +26,7 @@
 
 ![图 2：单 Socket 重新着色](large_system_core_latency_figures/02_figure.png)
 
-*图 2：四核一组特征相近，Socket 内最坏81 ns。颜色只按该 Socket Scale，不能与图1颜色直接比。*
+*图 2：四核一组特征相近，Socket 内最坏 81 ns。颜色只按该 Socket Scale，不能与图 1 的颜色直接比较。*
 
 ## AMD Genoa-X
 
@@ -38,13 +38,13 @@ Genoa-X 是 Zen 4 V-Cache Server。Coherence 分 CCX 与系统两层：CCX 可�
 
 ## Amazon Graviton 3/2
 
-Graviton 3 是单片64颗 Neoverse V1，Memory Controller 位于 Chiplet。
+Graviton 3 是单片、包含 64 颗 Neoverse V1 核心，Memory Controller 位于 Chiplet。
 
 ![图 4：Graviton 3](large_system_core_latency_figures/04_figure.png)
 
-*图 4：平均48 ns、全芯片低于59 ns；不支持跨 Socket Coherence，最大实例64核，用规模边界换统一低延迟。*
+*图 4：平均 48 ns、全芯片低于 59 ns；不支持跨 Socket Coherence，最大实例 64 核，用规模边界换统一低延迟。*
 
-Graviton 2 为单片64颗 Neoverse N1，行为近似、平均50.7 ns。
+Graviton 2 为单片、包含 64 颗 Neoverse N1 核心，行为近似，平均 50.7 ns。
 
 ![图 5：Graviton 2](large_system_core_latency_figures/05_figure.png)
 
@@ -52,15 +52,15 @@ Graviton 2 为单片64颗 Neoverse N1，行为近似、平均50.7 ns。
 
 ## Intel Skylake Server
 
-Skylake Server 首次用 Mesh。AVX-512 大核在14 nm 面积大，高核数需四 Socket。
+Skylake Server 首次使用 Mesh。AVX-512 大核在 14 nm 上面积较大，高核数配置需要四个 Socket。
 
 ![图 6：四路 Skylake 全矩阵](large_system_core_latency_figures/06_figure.png)
 
-*图 6：第一 Socket 似乎是 Cacheline Home，第四最远；跨 Socket 最坏约150 ns，在四路规模下表现不错。*
+*图 6：第一个 Socket 似乎是 Cacheline Home，第四个最远；跨 Socket 最坏约 150 ns，在四路规模下表现不错。*
 
 ![图 7：单 Socket Mesh 延迟](large_system_core_latency_figures/07_figure.png)
 
-*图 7：平均47 ns，Core Group 有相似特征。*
+*图 7：平均 47 ns，Core Group 有相似特征。*
 
 ![图 8：四颗 Skylake 各自的单 Socket 着色](large_system_core_latency_figures/08_figure.png)
 
@@ -68,7 +68,7 @@ Skylake Server 首次用 Mesh。AVX-512 大核在14 nm 面积大，高核数需�
 
 ## Intel Broadwell
 
-Broadwell Server 用 Dual Ring，跨 Socket 最坏约130 ns，比 Sandy Bridge 改善。
+Broadwell Server 使用 Dual Ring，跨 Socket 最坏约 130 ns，比 Sandy Bridge 有所改善。
 
 ![图 9：Broadwell 双路矩阵](large_system_core_latency_figures/09_figure.png)
 
@@ -78,13 +78,13 @@ Broadwell Server 用 Dual Ring，跨 Socket 最坏约130 ns，比 Sandy Bridge �
 
 ![图 10：不同 Home Slice 的 Broadwell 矩阵](large_system_core_latency_figures/10_figure.png)
 
-*图 10：同一硬件、不同地址即可改变结果。Dual Ring 的延迟与 Skylake Mesh近似，Best-case 更好、Worst-case 相当。*
+*图 10：同一硬件、不同地址即可改变结果。Dual Ring 的延迟与 Skylake Mesh 近似，Best-case 更好、Worst-case 相当。*
 
 Cluster-on-die 把每 Ring 变成 Private L3+Memory Controller NUMA Node。
 
 ![图 11：Broadwell CoD](large_system_core_latency_figures/11_figure.png)
 
-*图 11：同 Cluster <50 ns，同 Socket跨 Cluster略超100 ns，跨 Socket只再多一点，说明主要成本在 Home Agent/Directory，而非物理 Socket Link。*
+*图 11：同 Cluster 低于 50 ns，同 Socket 跨 Cluster 略超 100 ns，跨 Socket 只再多一点，说明主要成本在 Home Agent/Directory，而非物理 Socket Link。*
 
 ![图 12：Broadwell CoD 单 Cluster 着色](large_system_core_latency_figures/12_figure.png)
 
@@ -102,13 +102,13 @@ Sandy Bridge 每 Chip 最多八核 Ring，QPI 多路。
 
 *图 14：两 Socket 的 Address→L3 Slice Mapping 保持一致。*
 
-Westmere 是32 nm Nehalem：用中央 Global Queue Crossbar 取代 FSB，QPI 点对点负责跨 Socket。
+Westmere 是 32 nm Nehalem：用中央 Global Queue Crossbar 取代 FSB，QPI 点对点链路负责跨 Socket 通信。
 
 ![图 15：Westmere 双路](large_system_core_latency_figures/15_figure.png)
 
 *图 15：跨 Socket 很快，甚至接近 Sapphire Rapids Socket 内 Worst-case；中央化简单路径有利延迟，但扩展性有限。*
 
-Dunnington 是三组双核 Penryn+共享L3，通过 Northbridge 暴露四条 FSB做四路；L3 Core-valid Bit 先做 Socket 内 Coherence，Northbridge Probe Filter 避免全局 Broadcast，但同组共享 L2 没 Probe Filter。
+Dunnington 是三组双核 Penryn + 共享 L3，通过 Northbridge 暴露四条 FSB 实现四路互连；L3 Core-valid Bit 先做 Socket 内 Coherence，Northbridge Probe Filter 避免全局 Broadcast，但同组共享 L2 没有 Probe Filter。
 
 ![图 16：Dunnington 四路](large_system_core_latency_figures/16_figure.png)
 
@@ -134,7 +134,7 @@ Piledriver Server（Abu Dhabi）每 Module 两线程共享 L2/Frontend/FPU，各
 
 ![图 20：Abu Dhabi 双路](large_system_core_latency_figures/20_figure.png)
 
-*图 20：Sibling 尚可，跨 Module 慢，跨 Socket再加；第二 Socket 某一 Die 尤其远。数据由0xcats提供。*
+*图 20：Sibling 尚可，跨 Module 较慢，跨 Socket 还会增加；第二个 Socket 的某一 Die 尤其远。数据由 0xcats 提供。*
 
 ![图 21：Bulldozer 四路拓扑](large_system_core_latency_figures/21_figure.jpg)
 
@@ -142,7 +142,7 @@ Piledriver Server（Abu Dhabi）每 Module 两线程共享 L2/Frontend/FPU，各
 
 ![图 22：四路、64“Core”Piledriver](large_system_core_latency_figures/22_figure.png)
 
-*图 22：同 Die Pattern重复，同 Socket Die 编号相邻；最坏近350 ns，可能经 Sibling Die中转。这里“Core”沿产品线程/模块命名口径。*
+*图 22：同 Die Pattern 重复，同 Socket Die 编号相邻；最坏接近 350 ns，可能经 Sibling Die 中转。这里“Core”沿产品线程/模块命名口径。*
 
 ## IBM POWER8/POWER9：Cloud Mapping 让结果难解释
 
@@ -150,37 +150,37 @@ POWER8 E880 每 Chip 6～12 Core、每 Core 8-way SMT，还可跨 Server Node Co
 
 ![图 23：POWER8 8c/64t Cloud](large_system_core_latency_figures/23_figure.png)
 
-*图 23：同 Core SMT 快；Core 像按 Pair 组织，Pair 内约150～200 ns，跨 Pair 300～400 ns，可能已经跨 Node。*
+*图 23：同 Core SMT 较快；Core 像按 Pair 组织，Pair 内约 150～200 ns，跨 Pair 为 300～400 ns，可能已经跨 Node。*
 
 ![图 24：POWER8 四核 VM](large_system_core_latency_figures/24_figure.png)
 
-*图 24：不再见 Pair，全部低于200 ns；支持 Cloud Placement 影响，而非芯片固定数值。*
+*图 24：不再见 Pair，全部低于 200 ns；支持 Cloud Placement 影响，而非芯片固定数值。*
 
-POWER9 可看成一颗8-way SMT Core，或两颗4-way共享10 MB L2的 Core，License 口径不同。
+POWER9 可看成一颗 8-way SMT Core，或两颗共享 10 MB L2 的 4-way Core，License 口径不同。
 
 ![图 25：POWER9 Cloud](large_system_core_latency_figures/25_figure.png)
 
-*图 25：同 Core快，Pair 内500～800 ns，Pair间进入微秒；底层未知，文章怀疑跨 Node，不能当作裸芯片延迟。*
+*图 25：同 Core 较快，Pair 内为 500～800 ns，Pair 间进入微秒级；底层未知，文章怀疑路径跨 Node，不能当作裸芯片延迟。*
 
 ## UltraSPARC T1、ThunderX 与 eMAG
 
-Niagara/T1 八核 Crossbar、每核4-way SMT，用 Thread-level Parallelism 隐藏 L2/DRAM而非 OoO。
+Niagara/T1 采用八核 Crossbar、每核 4-way SMT，用 Thread-level Parallelism 隐藏 L2/DRAM 延迟，而非依靠 OoO。
 
 ![图 26：UltraSPARC T1](large_system_core_latency_figures/26_figure.png)
 
-*图 26：约46 ns且均匀；奇怪的是同 Core SMT Sibling 稍慢于跨 Core。*
+*图 26：约 46 ns 且均匀；奇怪的是，同 Core SMT Sibling 稍慢于跨 Core。*
 
-ThunderX CN8890 每 Socket 48 Core并支持双路。
+ThunderX CN8890 每个 Socket 有 48 个 Core，并支持双路。
 
 ![图 27：ThunderX 双路](large_system_core_latency_figures/27_figure.png)
 
-*图 27：Socket 内平均64 ns，跨 Socket平均315 ns。*
+*图 27：Socket 内平均 64 ns，跨 Socket 平均 315 ns。*
 
 ![图 28：ThunderX 单 Socket着色](large_system_core_latency_figures/28_figure.png)
 
 *图 28：整体一致却有未解释 Pattern，保留未知。*
 
-Ampere eMAG 8180 是 Altra 前的32核 Workstation，Core 成 Pair。
+Ampere eMAG 8180 是 Altra 之前的 32 核 Workstation，Core 成 Pair。
 
 ![图 29：eMAG 8180](large_system_core_latency_figures/29_figure.png)
 
@@ -188,7 +188,7 @@ Ampere eMAG 8180 是 Altra 前的32核 Workstation，Core 成 Pair。
 
 ## Knights Landing 与原始 Pentium
 
-Knights Landing 最多72颗 Silvermont-derived 小核，每核4-way SMT，却配2×512-bit FMA和大 Mesh；Xeon Phi 7210启用64核。
+Knights Landing 最多包含 72 颗 Silvermont-derived 小核，每核 4-way SMT，却配有 2×512-bit FMA 和大 Mesh；Xeon Phi 7210 启用 64 核。
 
 ![图 30：Knights Landing 默认模式](large_system_core_latency_figures/30_figure.png)
 
@@ -198,11 +198,11 @@ Knights Landing 最多72颗 Silvermont-derived 小核，每核4-way SMT，却配
 
 *图 31：Sub-NUMA Clustering 把 Die 分四 Quadrant，Locality 边界更显式。*
 
-最早 Pentium 双路是两颗单核共享 FSB和430NX Chipset，各 CPU Snoop Peer Transaction保持 Coherence。
+最早的 Pentium 双路系统由两颗单核处理器共享 FSB 和 430NX Chipset，各 CPU 通过 Snoop Peer Transaction 保持 Coherence。
 
 ![图 32：120 MHz Pentium 双路](large_system_core_latency_figures/32_figure.png)
 
-*图 32：0xcats 贡献。507.9 ns 看似巨大，120 MHz 下只有约61周期；若 CPU/FSB 都等比例到3 GHz，约20 ns。这个换算只是展示周期尺度，现实 FSB 不会无成本线性提频。*
+*图 32：由 0xcats 贡献。507.9 ns 看似巨大，在 120 MHz 下只有约 61 周期；若 CPU/FSB 都等比例提升到 3 GHz，则约为 20 ns。这个换算只是展示周期尺度，现实 FSB 不会无成本线性提频。*
 
 ## 结语：核心数越多，平均值越不够
 

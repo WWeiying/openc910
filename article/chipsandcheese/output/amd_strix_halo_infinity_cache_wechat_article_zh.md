@@ -40,7 +40,7 @@ Strix Halo 只有八个 Fabric 计数器，读写各占一个，所以一次只�
 
 ![图 5：CPU CCD 与 GPU Endpoint 的流量占比](amd_strix_halo_infinity_cache_figures/05_figure.png)
 
-*图 5：GPU 流量占主导，CPU 仍形成不可忽略的误差边界。图中只采两个 GPU Endpoint再乘四，也依赖八个 Endpoint 近似均匀。*
+*图 5：GPU 流量占主导，CPU 仍形成不可忽略的误差边界。图中只采两个 GPU Endpoint 再乘四，也依赖八个 Endpoint 近似均匀。*
 
 最后，采样工具每秒更新一次。毫秒级尖峰可能被平均，峰值带宽会被低估。作者选择复用已有监控程序，是业余项目时间预算下的现实折中。
 
@@ -134,7 +134,7 @@ Cache 命中率从 70% 降到 60% 是否影响性能，取决于剩余流量离 
 2. 32 MB 对目标 GPU 与常见分辨率足够，不代表 GPU 或分辨率继续放大后仍能线性扩展。
 3. 一秒采样、四 CS 乘四和 CPU/Snoop 混入都构成误差；数字适合看趋势，不是官方命中率。
 4. 更大 Cache 可降低 DRAM 带宽与能耗，却消耗可观 Die 面积；更宽 DRAM 则增加封装、主板和功耗成本。
-5. 开发者若能直接看到 Infinity Cache Hitrate，会更容易理解分辨率、资源布局和渲染阶段的影响。AMD 现有工具只到 GPU L2，仍留下明显观测空白。
+5. 开发者若能直接看到 Infinity Cache 命中率，会更容易理解分辨率、资源布局和渲染阶段的影响。AMD 现有工具只到 GPU L2，仍留下明显观测空白。
 
 网页视频口述中还更正了两个用词：Core Coherent Master 的 32 B/64 B 是每个 Data Beat，而非每 cycle；末尾应是读流量多于写流量。保留这一更正很重要，因为把 Beat 与 cycle 混用会直接导致端口带宽误判。
 

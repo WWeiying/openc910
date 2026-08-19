@@ -9,7 +9,7 @@ title: "intel_meteor_lake_ces_wechat_article_zh"
 > 首发：Chips and Cheese，2024 年 1 月 11 日<br>
 > 原始链接：https://chipsandcheese.com/p/previewing-meteor-lake-at-ces
 
-Intel 用 P-Core 追逐单线程，用 E-Core 避开大核边际收益、提高每面积多线程；Meteor Lake 又加入第三类 LPE-Core，希望轻载时不唤醒整个 Compute Tile。CES 的有限测试由 Cheese 完成，被测芯片可能不是最终版本：P-Core 约 4.7 GHz，E-Core 3.77 GHz，LPE-Core 2.48 GHz。
+Intel 用 P-Core 追逐单线程，用 E-Core 避开大核边际收益、提高单位面积的多线程吞吐；Meteor Lake 又加入第三类 LPE-Core，希望轻载时不唤醒整个 Compute Tile。CES 的有限测试由 Cheese 完成，被测芯片可能不是最终版本：P-Core 约 4.7 GHz，E-Core 3.77 GHz，LPE-Core 2.48 GHz。
 
 ![图 1：Meteor Lake 产品与 tile 结构](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/intel_meteor_lake_ces_wechat_article_zh/451067f2cf2c9f63_01_figure.jpg)
 
@@ -25,7 +25,7 @@ Meteor Lake iGPU 在独立 tile，有自己的 memory-controller 路径，不再
 
 ![图 4：Meteor/Raptor Lake 与 Phoenix 的纳秒延迟](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/intel_meteor_lake_ces_wechat_article_zh/6e1118d97dc62166_04_figure.png)
 
-Intel L2 pipeline 更长，但较高频率补偿，实际 L2 优于被 HP 限到 4.5 GHz 的 Ryzen 7 7840HS；L1/L3 则 AMD 更低延迟，但容量更小。Meteor Lake 用 LPDDR5X-7467，pre-production memory latency 可变，不能与 desktop DDR直接定论。
+Intel L2 pipeline 更长，但较高频率补偿，实际 L2 优于被 HP 限到 4.5 GHz 的 Ryzen 7 7840HS；L1/L3 则 AMD 更低延迟，但容量更小。Meteor Lake 用 LPDDR5X-7467，pre-production memory latency 可变，不能与 desktop DDR 直接比较并下定论。
 
 Redwood Cove 可 `3×256-bit AVX load/cycle`，高频下 L1 带宽明显高于 Zen 4；L2 interface 64 B/cycle，AMD 32。
 
@@ -39,7 +39,7 @@ AMD 的 L2 miss 路径更强，Zen 4 单核从 L3 超 120 GB/s；Meteor Lake 从
 
 ![图 6：E-Core cache/memory 延迟（cycle）](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/intel_meteor_lake_ces_wechat_article_zh/2f6d0a06cd02e7e0_06_figure.png)
 
-L3 多几 cycle，但不如 P-Core 回退严重。3-cycle L1D 加较低频，实际纳秒仍优于 P-Core，亦优于 4.5 GHz Zen 4；L2 约 5.21 ns。L2 区域曲线缓慢上升，可能说明 replacement policy 改变，不能据此确认算法。
+L3 多出几个 cycle，但不如 P-Core 回退严重。3-cycle L1D 加较低频，实际纳秒仍优于 P-Core，亦优于 4.5 GHz Zen 4；L2 约 5.21 ns。L2 区域曲线缓慢上升，可能说明 replacement policy 改变，不能据此确认算法。
 
 ![图 7：E-Core 纳秒延迟](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/intel_meteor_lake_ces_wechat_article_zh/95414039441836fe_07_figure.png)
 
@@ -47,7 +47,7 @@ L3 多几 cycle，但不如 P-Core 回退严重。3-cycle L1D 加较低频，实
 
 ![图 8：E-Core 单核带宽](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/intel_meteor_lake_ces_wechat_article_zh/d8fc1c5dd385da74_08_figure.png)
 
-L1 近似说明频率相近；Meteor Lake L2/L3 略回退，小 L2 又让更多访问进入 L3；单核 DRAM 下降可能仍是 latency 限制。
+L1 带宽近似，说明频率相近；Meteor Lake L2/L3 略回退，小 L2 又让更多访问进入 L3；单核 DRAM 下降可能仍是 latency 限制。
 
 ## SoC Tile LPE-Core
 

@@ -37,7 +37,7 @@ Latency/Throughput 值的直接作用，是告诉 Scheduler 一条消费者应�
 
 1A 还加入中国标准 SM3 Hash 与 SM4 Block Cipher 的加速指令，意义类似 AES/SHA 指令；若市场要求这些算法，硬件支持会明显提高适配性。
 
-Arm Memory Tagging Extension（MTE）利用 64 bit Pointer 中当前地址空间未使用的高位存 Tag，硬件对 Pointer 与 Memory Tag，不匹配时 Fault，可检测 Use-after-free 等细粒度错误。
+Arm Memory Tagging Extension（MTE）利用 64 bit Pointer 中当前地址空间未使用的高位存 Tag，硬件核对 Pointer Tag 与 Memory Tag，不匹配时触发异常，可检测 Use-after-free 等细粒度错误。
 
 ![图 3：Arm MTE 检测 Use-after-free](llvm_ampere1b_figures/03_figure.png)
 

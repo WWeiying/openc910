@@ -18,7 +18,7 @@ Cortex-A72 是 Arm 在 2016 年推出的三宽、投机、乱序执行核心。�
 
 测试选择 AWS Graviton 1 的 Cortex-A72，因为实例价格低、容易获得；同期对照是 Snapdragon 821 的 Qualcomm Kryo。两者发布时间接近，频率也相近：Kryo 最高 2.34 GHz，Graviton 1 的 A72 为 2.3 GHz。
 
-网页没有披露 AWS 实例的 OS/Kernel、编译器与 Flags、频率控制、预热、重复次数和统计误差；手机微基准还明确出现较大噪声。因此比较适合观察结构趋势，不适合把所有差距外推为 AArch64 与 x86，或 Arm 与 Qualcomm 的普遍性能结论。
+网页没有披露 AWS 实例的 OS/Kernel、编译器与 Flags、频率控制、预热、重复次数和统计误差；手机微基准还明确出现较大噪声。因此比较适合观察结构趋势，不适合把这些差距外推为 AArch64 与 x86 之间，或 Arm 与 Qualcomm 之间的普遍性能结论。
 
 ## 核心总览：三宽乱序，目标是“小而能干”
 
@@ -134,7 +134,7 @@ A72 只有三个 L1I Fill Buffer，无法吸收 L2 延迟。
 
 *图 15：Kryo 图中为 8 项 L0、2048 项 L1、8192 项 L2 BTB，约 64 项间接目标、16 项 RAS，32 KB 四路 L1I、四宽 Decode/Rename。容量来自测试整理，并非 Qualcomm RTL。*
 
-总体上，A72 前端多处弱于 Kryo：三宽而非四宽，L2 取指稍慢，Taken 分支延迟更高；优点是 L1I 从 32 KB 增至 48 KB，虽然后者的四路相联会部分抵消容量差。A72 与 A53 一样，在填入 L1I 时预译码，保存中间格式，以缩短主译码并节能。
+总体上，A72 前端多处弱于 Kryo：三宽而非四宽，L2 取指稍慢，Taken 分支延迟更高；优点是 L1I 从 Kryo 的 32 KB 增至 48 KB，不过 Kryo 的 32 KB L1I 是四路组相联，会部分抵消 A72 的容量优势。A72 与 A53 一样，在填入 L1I 时预译码，保存中间格式，以缩短主译码并节能。
 
 ## Rename 与乱序窗口：128 项 ROB 很深，资源比例不均
 
@@ -142,7 +142,7 @@ A72 的 Renamer 不能消除依赖型寄存器 MOV；它能识别“立即数零
 
 ![图 16：A72 的乱序资源分配](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/arm_cortex_a72_wechat_article_zh/771dfef1632a21b6_16_a72_reordering_resources.jpg)
 
-*图 16：三宽 Rename/Dispatch 为每条指令分配 128 项 ROB，并按需使用 32 项 Load Queue、15 项 Store Queue、39 项 Branch Order Buffer、96 个整数物理寄存器、26 个 Flags、158 个 64-bit FP/Vector、5 个 FPCR。图中总物理数包含非投机架构状态，正文关注可重命名部分。*
+*图 16：三宽 Rename/Dispatch 会为每条指令分配 ROB 项，ROB 共 128 项，并按需使用 32 项 Load Queue、15 项 Store Queue、39 项 Branch Order Buffer、96 个整数物理寄存器、26 个 Flags、158 个 64-bit FP/Vector、5 个 FPCR。图中总物理数包含非投机架构状态，正文关注可重命名部分。*
 
 128 项 ROB 对低功耗核心很大。A72 使用 ROB 与独立物理寄存器文件，而不是把结果存进 ROB。整数侧约允许 64 次投机 Rename，意味着大约一半在途指令能产生整数结果；比例偏低，但仍略高于 Golden Cove 的对应覆盖比例。
 
@@ -166,7 +166,7 @@ Haswell 单线程整数 Rename 测试约 148，曲线在 136～144 间有可复�
 
 *图 19：136～144 条附近的尖峰可重复出现，说明用阻塞序列反推容量会受恢复、资源分配或测试边界影响。它是对照平台的细节，不能反推 A72。*
 
-### 体系结构视角：ROB 深度不等于所有代码都能看 128 条远
+### 体系结构视角：ROB 深度不等于所有代码都能向前看 128 条指令
 
 每条指令都占 ROB，但只有 Load 占 LQ、Store 占 SQ、分支占 Branch Order、写寄存器者占物理条目。任何一种更小资源先满，Rename 都会停止。A72 的 15 项 SQ 和约 31 组 128-bit Vector Rename 会把特定代码的有效窗口压到远低于 128。
 

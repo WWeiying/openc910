@@ -8,7 +8,7 @@
 > - 发布：2022 年 6 月 7 日
 > - 链接：https://chipsandcheese.com/p/sunny-cove-intels-lost-generation
 
-Sunny Cove 名义上接替 Skylake，却从未在全产品线完成接班，就被 Golden Cove 替代。2018 Architecture Day 公布后，10 nm 困境让它到 2019 年末才以超低功耗形态上市，2020 年末才进大型 Laptop；Desktop 直到 2021 年把核心 Backport 到 14 nm 的 Rocket Lake，功耗巨大、最多八核，又很快被 Alder Lake 结束旗舰生涯。
+Sunny Cove 名义上接替 Skylake，却从未在全产品线完成接班，就被 Golden Cove 替代。2018 Architecture Day 公布后，10 nm 困境让它到 2019 年末才以超低功耗形态上市，2020 年末才进入大型笔记本电脑；Desktop 直到 2021 年把核心 Backport 到 14 nm 的 Rocket Lake，功耗巨大、最多八核，又很快被 Alder Lake 结束旗舰生涯。
 
 ![图 1：Sunny Cove 各 Variant 的时间与命名](intel_sunny_cove_figures/01_figure.png)
 

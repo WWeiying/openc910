@@ -68,7 +68,7 @@ TLB 也改用 Custom RAM Macro，移除通用 Standard-cell 路径中的不必�
 
 *图 9：频率由最慢路径决定，不能只优化 ALU。*
 
-IPC 侧扩大 ROB，并加入 512 KB、4-way、9-cycle 片上 L2和 Memory Controller。但 Athlon FX-62 2.8 GHz 的 L2 约 4.6 ns，Godson-2E 约 9 ns；两者 L2 都为 4 B/cycle，绝对带宽分别约 11 与 4 GB/s。
+IPC 侧扩大 ROB，并加入 512 KB、4-way、9-cycle 片上 L2 和 Memory Controller。但 Athlon FX-62 2.8 GHz 的 L2 约 4.6 ns，Godson-2E 约 9 ns；两者 L2 都为 4 B/cycle，绝对带宽分别约 11 与 4 GB/s。
 
 ![图 10：Godson-2E Die 与片上 L2](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/loongson_western_gap_wechat_article_zh/754453420116cfb7_10_figure.jpg)
 
@@ -112,7 +112,7 @@ MIPS64 软件生态弱，团队加入 x86 Flag 辅助指令、2×64 Load/Store�
 
 ![图 16：Nehalem Die](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/loongson_western_gap_wechat_article_zh/8e5b305474634cb2_16_figure.jpg)
 
-*图 16：三级 Cache 隔离 L3 延迟的组织延续至今。AMD K10 也用 Crossbar+2 MB L3，但频率从 K8 3 GHz以上回落到约 2.6 GHz。*
+*图 16：三级 Cache 隔离 L3 延迟的组织延续至今。AMD K10 也用 Crossbar + 2 MB L3，但频率从 K8 的 3 GHz 以上回落到约 2.6 GHz。*
 
 ## Godson-3B/GS464V：256-bit+FMA，算力仍被频率和供数约束
 
@@ -172,7 +172,7 @@ ISSCC 2013 的 3B1500 把八核 GS464V 移到 ST 32 nm，LLC 增至 8 MB（可�
 
 ## LA464、LA664：IPC 快进，2.5 GHz 仍是硬墙
 
-LA464 转向 SMIC 12 nm、2.5 GHz，扩大 Scheduler/Load/Store Queue并多两条 ALU Port。
+LA464 转向 SMIC 12 nm、2.5 GHz，扩大 Scheduler/Load/Store Queue，并增加两条 ALU Port。
 
 ![图 27：3A5000 的 LA464](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/loongson_western_gap_wechat_article_zh/b5feaa31ec506e24_27_figure.png)
 
@@ -184,17 +184,17 @@ LA664 是更大的架构更新，在 3A6000 上显著提高 IPC。
 
 *图 28：单看 3A5000→3A6000 两点会得到过于乐观的趋势线；2003～2006 年 Godson-2 系列也曾快速进步，之后仍长期受频率限制。*
 
-Papworth 对 Pentium Pro 的提醒同样适用：若为同频性能牺牲永远影响频率的 Pipeline，就不是好目标；只追高频却牺牲 CPI 也无意义。Apple 以更宽核心、更大 Window/L1换高 IPC，仍需要 3 GHz以上。龙芯没有同等资源优势，频率还更低。
+Papworth 对 Pentium Pro 的提醒同样适用：若为同频性能牺牲永远影响频率的 Pipeline，就不是好目标；只追高频却牺牲 CPI 也无意义。Apple 以更宽核心、更大 Window/L1 换取高 IPC，仍需要 3 GHz 以上。龙芯没有同等资源优势，频率还更低。
 
 ## 核心数与软件：两条同样艰难的扩展轴
 
 2024 年 3A6000 仍只有四核，同价位市场已普及八核；7950X/14900K 把昔日服务器级多线程带到消费级。多核还需要灵活 Interconnect。旧 HyperTransport 把 Cluster 拼成 NUMA，要求软件感知；AMD/Intel 已能做 16 核 UMA，通用程序更容易扩展。
 
-软件侧，龙芯存在两个 Binary-incompatible Linux Distribution，应用优化又远少于 x86/Arm。LBrowser v3 基于 Chromium，但 Speedometer 3.0 表现很低。
+软件侧，龙芯一度存在两套二进制不兼容的 Linux ABI 生态，应用优化又远少于 x86/Arm。LBrowser v3 基于 Chromium，但 Speedometer 3.0 表现很低。
 
 ![图 29：LBrowser v3 的 Speedometer 3.0](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/loongson_western_gap_wechat_article_zh/18eed74bb1035d03_29_figure.jpg)
 
-*图 29：Ryzen 3950X+Chrome 得 15.9，差距约 483%；而 libx264 两边都有手写汇编时，Zen 2 只快约 40%。这证明生态优化会放大硬件差距，但浏览器/版本不同，不能全归因于 CPU。若再用 x86 Binary Translation，原生性能本已落后，余量更小。*
+*图 29：Ryzen 3950X+Chrome 得 15.9，差距约 483%；而 libx264 两边都有手写汇编时，Zen 2 只快约 40%。这说明生态优化可能放大硬件差距，但浏览器和版本不同，不能全归因于 CPU。若再用 x86 Binary Translation，原生性能本已落后，余量更小。*
 
 ## 结语：文章为何给出悲观判断
 

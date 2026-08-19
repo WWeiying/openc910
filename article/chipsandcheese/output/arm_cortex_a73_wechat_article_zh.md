@@ -100,7 +100,7 @@ A72 无法消除依赖型寄存器 MOV，A73 则具备某种 Move Elimination。
 
 ## “无限”重排序：Slot-based 执行的反常测量结果
 
-A73 是最独特的一部分。Arm 说架构有八个 “Slot”，但公开描述不足以解释 Slot 具体保存什么。用 Henry Wong 的方法，在两次 Cache miss 之间不断增加 filler 指令，通常能测出 ROB、寄存器文件或 LSQ 容量；A73 却一直到 filler 多得让两宽 Decoder 在第一个 DRAM miss 返回前都发不完，两个 miss 才不再重叠。
+A73 最独特之处在于乱序窗口。Arm 说架构有八个 “Slot”，但公开描述不足以解释 Slot 具体保存什么。用 Henry Wong 的方法，在两次 Cache miss 之间不断增加 filler 指令，通常能测出 ROB、寄存器文件或 LSQ 容量；A73 却一直到 filler 多得让两宽 Decoder 在第一个 DRAM miss 返回前都发不完，两个 miss 才不再重叠。
 
 从这个外部测试定义看，已完成但尚待退休的指令没有撞上可见资源上限，因此表现为“理论无限”的重排序容量。一个可能解释是：核心识别某段指令不可能引发异常后，把中间结果折叠进 Slot。但公开材料与微基准都不足以确认这一恢复机制。
 
@@ -200,7 +200,7 @@ A73 还把 L1D 从物理索引物理 Tag（PIPT）改为虚拟索引物理 Tag�
 
 *图 19：2 MB 大页下，A73/A72 L1 为 2.99/4.01 周期；A73 1 MB L2 约 24.92，A72 2 MB L2 约 21.13；进入 DRAM 后 A73 又更高。容量和 SoC 不同，不能把全部差距归于核心代际。*
 
-两者都能每周期做一次 128-bit Load，但 A73 不再像 A72 那样在 8～16 KB 后明显掉带宽，两条通用 AGU对窄 Load 也更灵活。
+两者都能每周期做一次 128-bit Load，但 A73 不再像 A72 那样在 8～16 KB 后明显掉带宽，两条通用 AGU 对窄 Load 也更灵活。
 
 ![图 20：单线程 Cache 与内存带宽](arm_cortex_a73_figures/20_single_thread_cache_bandwidth.png)
 

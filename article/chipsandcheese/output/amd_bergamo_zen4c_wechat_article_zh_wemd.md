@@ -46,7 +46,7 @@ Zen 4c 没改 Zen 4 Architecture，而用另一套 Physical Implementation：牺
 
 *图 5：Zen 4c 16 MB 与 V-Cache 96 MB 都比普通 32 MB L3 多几周期。测试展示结果，无法仅凭容量解释 Zen 4c 的具体 Layout/Timing。*
 
-小 L3 降低 Hit Rate、增加 Memory Traffic。Server 本就比 Client 拥有更低“每 Core Memory Bandwidth”，Bergamo Core 更多，仍使用 Genoa 同一 768-bit DDR5。它最适合 16 MB L3 下 Miss 不多的程序；低 Clock 也会降低每核 Compute 与带宽需求，部分抵消压力。
+小 L3 降低 Hit Rate、增加 Memory Traffic。Server 本就比 Client 拥有更低“每 Core Memory Bandwidth”，Bergamo Core 更多，仍使用与 Genoa 相同的 768-bit DDR5 内存接口。它最适合 16 MB L3 下 Miss 不多的程序；低 Clock 也会降低每核 Compute 与带宽需求，部分抵消压力。
 
 ![图 6：Bergamo 与 Client Zen 4 的 Cache/Memory 延迟](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_bergamo_zen4c_wechat_article_zh/6948140d0742d526_06_cache_memory_latency.png)
 
@@ -54,7 +54,7 @@ Zen 4c 没改 Zen 4 Architecture，而用另一套 Physical Implementation：牺
 
 ### 体系结构视角：Zen 4c 的“c”首先是物理实现选择
 
-ISA、Core Pipeline 与 Optimization Knowledge 可复用，Area/Clock/Voltage Curve、Layout、L3 Ratio 和 Chiplet Packing 改变。它不像 Intel E-Core 那样另造 Architecture，而是在同一逻辑设计中选不同 PPA Point。
+ISA、Core Pipeline 与 Optimization Knowledge 可复用，Area/Clock/Voltage Curve、Layout、L3 Ratio 和 Chiplet Packing 改变。它不像 Intel E-Core 那样另造 Architecture，而是在同一微架构下选择不同的 PPA 实现点。
 
 评价不应只问“同频 IPC 是否相同”，还要看每 mm²、每瓦和每 CCD Throughput。Zen 4c 牺牲 Per-core Cache/Clock，目标是让总 Compute Density 增长更快。
 
@@ -90,7 +90,7 @@ Cross-socket Read 超过 120 GB/s，Genoa-X 略胜，可能受 NPS2 降低 I/O D
 
 ![图 10：Local 与 Cross-socket Bandwidth](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_bergamo_zen4c_wechat_article_zh/97eff1bd881d253d_10_cross_socket_bandwidth.png)
 
-*图 10：带星号的值通过两颗 Socket 内多个 Node 同时从对应 Remote Node 读取后相加近似。Broadwell Absolute 较低，Remote/Local Ratio 更好；假想 Non-NUMA Bergamo 约损失 32.2%，Broadwell Cluster-on-die 到 Non-NUMA 约损失 21%。网页正式图注明确近似方法。*
+*图 10：带星号的值通过两颗 Socket 内多个 Node 同时从对应 Remote Node 读取后相加近似。Broadwell 绝对带宽较低，Remote/Local Ratio 更好；假想 Non-NUMA Bergamo 约损失 32.2%，Broadwell Cluster-on-die 到 Non-NUMA 约损失 21%。网页正式图注明确近似方法。*
 
 Read-modify-write 可把 Cross-socket Aggregate 几乎翻倍，说明 Link 两方向独立，双向超过 200 GB/s，接近低端 RX 6600 VRAM Bandwidth。
 

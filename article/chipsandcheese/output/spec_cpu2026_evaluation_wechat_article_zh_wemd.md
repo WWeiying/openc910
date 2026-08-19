@@ -53,7 +53,9 @@ Zen 5 的新 FP 分布更宽；Lion Cove 在两代都较宽。
 
 ![图 9：CPU2017 低 IPC 的 mcf/omnetpp 与 CPU2026](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/spec_cpu2026_evaluation_wechat_article_zh/a00a67278882ec4f_09_figure.jpg)
 
-CPU2017 的 `505.mcf`、`520.omnetpp` 因 Cache/Branch 很难；CPU2026 没有等价项，同名 `710.omnetpp` 行为完全不同。最低的 `721.gcc`、`725.llvm` 仍高于约 1.5 IPC，而 PC Game 常约 1 IPC。
+CPU2017 的 `505.mcf`、`520.omnetpp` 因 Cache/Branch 很难；CPU2026 没有等价项，同名 `710.omnetpp` 行为完全不同。最低的 `721.gcc`、`723.llvm` 仍高于约 1.5 IPC，而 PC Game 常约 1 IPC。
+
+原网页正文对 LLVM 子项还出现过 `725.llvm` 和 `721.llvm` 两种写法，但相关图表均标为 `723.llvm`；下文按图表口径使用 `723.llvm`，并保留这处来源文字差异。
 
 超过半数 Integer 接近或超过 3 IPC；`750.sealcrypto` 在 Zen 5、Lion Cove、Skymont 都最高。
 
@@ -93,7 +95,7 @@ CPU2017 的 `505.mcf`、`541.leela`、`557.xz` 对 Zen 5 仍有高 MPKI。
 
 ![图 16：CPU2026 Integer Branch MPKI](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/spec_cpu2026_evaluation_wechat_article_zh/40b1efd742eb7b2d_16_figure.png)
 
-`721.llvm` 仍中等困难，却低于 `557.xz`，更远低于 mcf/leela。预测压力降低是 IPC 上升原因之一。
+`723.llvm` 仍中等困难，却低于 `557.xz`，更远低于 mcf/leela。预测压力降低是 IPC 上升原因之一。
 
 ![图 17：CPU2017 FP Branch MPKI](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/spec_cpu2026_evaluation_wechat_article_zh/fa91f468ed27b818_17_figure.png)
 
@@ -109,7 +111,7 @@ AMD 近代核心偏向把 Hot Code 放在高优化 Op Cache。CPU2026 Integer �
 
 ![图 19：Zen 5 Integer Op-cache Coverage](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/spec_cpu2026_evaluation_wechat_article_zh/8208167a684895ce_19_figure.png)
 
-Coverage 低于 90%的项多也有显著 L1I Miss。32 KB L1I 从 Zen 2 沿用至今，对 6K Op Cache 之外扩展有限；1 MB L2 接住大多数，只有 GCC/LLVM 编译明显 Miss L2，可能降低 IPC。
+Coverage 低于 90% 的项目大多也有显著 L1I Miss。32 KB L1I 从 Zen 2 沿用至今，对 6K Op Cache 之外扩展有限；1 MB L2 接住大多数，只有 GCC/LLVM 编译明显 Miss L2，可能降低 IPC。
 
 ![图 20：Zen 5 Integer L1I/L2 Code Miss](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/spec_cpu2026_evaluation_wechat_article_zh/34a55fff3ce3cc4a_20_figure.png)
 

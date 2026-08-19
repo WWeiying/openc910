@@ -20,7 +20,7 @@
 
 ## 一、Lion Cove 追平 Zen 5，但没拉开 Raptor Cove
 
-Zen 5 与 Arrow Lake P-Core 峰值频率接近。AMD 使用更小 L2、更快 L3和更低 DRAM 延迟；Arrow Lake 的 DRAM 延迟甚至比 Raptor Lake 退步。SPEC 整数中 Lion Cove 只领先 Raptor Cove 1.2%，浮点领先 3%；在 `505.mcf`、`520.omnetpp` 等内存敏感子项，旧平台反而胜出。`omnetpp` 中，Arrow Lake Lion Cove 比 Lunar Lake 同核心快 45%。
+Zen 5 与 Arrow Lake P-Core 峰值频率接近。AMD 使用更小 L2、更快 L3 和更低 DRAM 延迟；Arrow Lake 的 DRAM 延迟甚至比 Raptor Lake 退步。SPEC 整数中 Lion Cove 只领先 Raptor Cove 1.2%，浮点领先 3%；在 `505.mcf`、`520.omnetpp` 等内存敏感子项，旧平台反而胜出。`omnetpp` 中，Arrow Lake Lion Cove 比 Lunar Lake 同核心快 45%。
 
 ![图 4：Lion Cove、Raptor Cove 与 Zen 5 的 SPEC 子项](intel_lion_cove_memory_figures/04_figure.jpg)
 

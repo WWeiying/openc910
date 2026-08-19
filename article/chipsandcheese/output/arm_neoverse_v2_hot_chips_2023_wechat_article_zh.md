@@ -1,7 +1,7 @@
 # Neoverse V2：Arm 面向高性能服务器的新挑战者
 
 > 英文标题：Hot Chips 2023: Arm’s Neoverse V2
-> 撰文：Chester Lam
+> 撰文：Chester Lam、Chips and Cheese
 > 首发：Chips and Cheese，2023 年 9 月 11 日
 > 链接：https://chipsandcheese.com/p/hot-chips-2023-arms-neoverse-v2
 
@@ -87,7 +87,7 @@ Arm 把单线程 SPEC CPU2017 Integer 的 5.3% 提升归于 Prefetch 改进。�
 
 ### 体系结构视角：Prefetch 的收益会随并发反转
 
-空闲带宽下，提前取数把 Latency 变成重叠时间；带宽饱和时，错误 Prefetch 会占 Queue、Mesh 和 DRAM，挤掉 Demand。验证需同时报告 Accuracy、Coverage、Lateness、额外流量及单核/满核结果，不能把单线程 5.3%直接外推。
+空闲带宽下，提前取数把 Latency 变成重叠时间；带宽饱和时，错误 Prefetch 会占 Queue、Mesh 和 DRAM，挤掉 Demand。验证需同时报告 Accuracy、Coverage、Lateness、额外流量及单核/满核结果，不能把单线程 5.3% 直接外推。
 
 ## 面积与 Zen 4c 的不同取舍
 

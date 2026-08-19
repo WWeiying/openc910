@@ -12,7 +12,7 @@ Intel 详解 Skymont：9-wide 前端、416 项 ROB 与 26 个执行端口
 
 ## 作者与来源
 
-- 作者栏：Chester Lam
+- 作者栏：Chester Lam、George Cozma
 - 首发：Chips and Cheese
 - 英文题目：*Intel Details Skymont*
 - 发布日期：2024 年 6 月 15 日
@@ -45,7 +45,7 @@ Skymont 以三组 3-wide Decoder、8-wide Rename、16-wide Retire、416 项 ROB�
 
 ## 后台设置
 
-- 作者栏：Chester Lam
+- 作者栏：Chester Lam、George Cozma
 - 阅读原文：https://chipsandcheese.com/p/intel-details-skymont
 - 原创声明：关闭
 - AI 内容标识：按平台要求开启

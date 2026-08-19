@@ -11,7 +11,7 @@ title: "intel_cannon_lake_wechat_article_zh"
 
 Palm Cove，常被直接称作 Cannon Lake 核心，是 Skylake 的 10 nm 工艺移植版。按 Intel 当年的 Tick-Tock 节奏，它本应是 Skylake 之后风险较低的“Tick”；但 2018 年 Cannon Lake-U 到来时已经迟到，Skylake 甚至完成了 Kaby Lake 高频刷新。
 
-10 nm 困难把产品压缩到唯一 SKU：Core i3-8121U，2 核 4 线程、15 W、最高 3.2 GHz，而且集成 GPU 被禁用。cha0s 在该机上完成微基准，Fritzchens Fritz 对同型号芯片开盖拍摄。本文把 SoC 代号和核心架构分开使用，避免把 Cannon Lake 产品与 Palm Cove 核心混成一个概念。
+10 nm 困难把产品压缩到唯一 SKU：Core i3-8121U，2 核 4 线程、15 W、最高 3.2 GHz，而且集成 GPU 被禁用。cha0s 在该机上完成微基准；Fritzchens Fritz 则对同型号芯片开盖拍摄。本文把 SoC 代号和核心架构分开使用，避免把 Cannon Lake 产品与 Palm Cove 核心混成一个概念。
 
 ![图 1：Cannon Lake/Palm Cove 与 Kaby Lake/Skylake 等名称对应](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/intel_cannon_lake_wechat_article_zh/edc87e1ca9133f86_01_figure.jpg)
 

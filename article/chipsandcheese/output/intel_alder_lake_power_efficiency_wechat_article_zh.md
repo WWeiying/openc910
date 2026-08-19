@@ -35,7 +35,7 @@ libx264 中超过 17% 指令是 256-bit 向量指令，而 Gracemont 会把它�
 
 ![图 5：7-Zip 在不同频率下完成任务的总核心能量](intel_alder_lake_power_efficiency_figures/05_figure.jpg)
 
-默认频率下 Gracemont 更省能，因为虽然慢，功率也低得多。但 Golden Cove 在 3—4 GHz 也很高效：整数负载用近似总能量更快完成；向量负载则因完成得快，即使瞬时功率更高，总能量仍低于 Gracemont。若主要目标是能效，让 Gracemont 超过 3.2 GHz 已没有意义，3.8 GHz 更像一个更差的 P-Core。
+默认频率下 Gracemont 更省能，因为虽然慢，功率也低得多。但 Golden Cove 在 3—4 GHz 也很高效：整数负载用相近的总能量更快完成；向量负载则因完成得快，即使瞬时功率更高，总能量仍低于 Gracemont。若主要目标是能效，让 Gracemont 超过 3.2 GHz 已没有意义，3.8 GHz 更像一个更差的 P-Core。
 
 低于 3 GHz 时 Gracemont 尤其擅长整数负载；但两种核心低于 1 GHz 后能效都恶化，因为任务时间太长，静态功耗抵消降频收益。
 
@@ -57,7 +57,7 @@ libx264 中，四核总功率超过 20 W 后 Gracemont 与六年多前的 Skylak
 
 ![图 9：7-Zip 中 Golden Cove 与 Skylake 的性能—功率关系](intel_alder_lake_power_efficiency_figures/09_figure.jpg)
 
-Golden Cove 在极低功率、每核约 1 W 左右时与 Skylake 很接近，可能为高功率性能牺牲了低压缩放；功率上升后则拉开差距。在近似功率下，两个测试分别领先 Skylake 42% 与 52%。
+Golden Cove 在极低功率、每核约 1 W 时与 Skylake 很接近，可能为高功率性能牺牲了低压缩放；功率上升后则拉开差距。在近似功率下，两个测试分别领先 Skylake 42% 与 52%。
 
 按相似频率比较，新架构几乎全面更高效；按默认频率比较，Skylake 反而可能更省能，因为 Golden Cove 为进入 4 GHz 后半段付出了过高电压。具体例子是：Skylake 3 GHz 以 5.71 FPS 完成编码，耗 6368 J；Gracemont 3.7 GHz 为 5.72 FPS，却耗 6711 J。半宽向量单元确实省面积和瞬时功率，但更大的向量单元若降频降压，可能以更少周期完成任务，最终同样高效。
 

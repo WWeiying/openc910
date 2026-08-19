@@ -202,9 +202,9 @@ Grace 是很有个性的 Neoverse V2 实现：比 Graviton 4 核心少、Power B
 
 *图 22：Arm Hot Chips 2023 Slide 展示的 Emulation Environment 与 Grace、Graviton 4 的实际平台差别很大。网页正式图注以此说明 IP 设计方无法完全预见最终 Uncore。*
 
-Neoverse V2 的 Reordering Capacity 接近 Zen 4；换成 125-cycle L3、200 ns DRAM，Zen 4 同样会很难受。所有 Zen 4 实现都配低延迟 L3并非偶然。Golden Cove 在 i7-12700K 的 L3 约 11.8 ns，在 Xeon 8480+ 则约 33.3 ns；Server 版凭更大的乱序窗口和 2 MB L2缓解慢 Mesh。
+Neoverse V2 的 Reordering Capacity 接近 Zen 4；换成 125-cycle L3、200 ns DRAM，Zen 4 同样会很难受。所有 Zen 4 实现都配低延迟 L3 并非偶然。Golden Cove 在 i7-12700K 的 L3 约 11.8 ns，在 Xeon 8480+ 则约 33.3 ns；Server 版凭更大的乱序窗口和 2 MB L2 缓解慢 Mesh。
 
-GPU 侧可能是市场上最强 H100 Variant：完整 Memory Bus、更高 Power Limit，NVLink C2C 的 CPU/GPU Bandwidth 也高于 PCIe。但理论 450 GB/s 单向带宽很难被高 Latency 利用，Link Error 与 System Hang 令人担忧。把 VRAM 透明呈现为 NUMA Node 是很好的目标，以当前技术和软件成熟度看，却可能仍跨得太远。
+GPU 侧可能是市场上最强 H100 Variant：完整 Memory Bus、更高 Power Limit，NVLink C2C 的 CPU/GPU Bandwidth 也高于 PCIe。但理论 450 GB/s 单向带宽很难被高 Latency 利用，Link Error 与 System Hang 令人担忧。把 VRAM 透明呈现为 NUMA Node 是很好的目标；以测试时的技术与软件成熟度看，这一步却可能仍跨得太远。
 
 ![图 23：NVLink 用于跨节点的高速互连](nvidia_grace_hopper_figures/23_nvlink_cluster.png)
 
@@ -218,7 +218,7 @@ Grace Hopper 虽不是共享同一 Memory Pool 的 iGPU，却是 Nvidia 对抗 A
 
 第二，Bandwidth 与 Latency 可以同时一强一弱。远端 HBM 有服务器级吞吐，Pointer Chain 仍近 800 ns；批量并行传输与细粒度依赖访问必须采用不同策略。
 
-第三，同一 Neoverse V2 的性能主要从 L2 之后分叉。Grace 的 1 MB L2、高延迟大 L3和 LPDDR，与 Graviton 4 的 2 MB L2、低频多核形成不同产品。
+第三，同一 Neoverse V2 的性能主要从 L2 之后分叉。Grace 的 1 MB L2、高延迟大 L3 和 LPDDR，与 Graviton 4 的 2 MB L2、低频多核形成不同产品。
 
 第四，Prefetcher 能扩展 MLP，不能消除 Dependency Latency。Grace 单核线性 L3 Bandwidth 很强，单核 DRAM 却只有 21 GB/s，说明 200 ns 已超出它能持续掩盖的范围。
 

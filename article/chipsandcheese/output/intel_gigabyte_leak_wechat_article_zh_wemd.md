@@ -107,4 +107,4 @@ CPU 提供 4 路 DisplayPort，其中 3 路可走 USB-C DP Alt Mode。版本未�
 
 更激进变化位于平台：AM5 转 DDR5、增加 lane 与 BIOS 便利性；Genoa 增到 12 通道 DDR5、更多核心、面向 PCIe 5 与层级化大内存，I/O 变化类似 Zen 1→Zen 2 的幅度。
 
-由于材料来自泄露、版本不明，而且文章写于产品发布前，四 scheduler、两级 BTB等字段可视为文档事实；FMA 宽度、双 SDP、narrow mode、peer memory 和无 iGPU SKU 原因则必须保留推测边界。
+由于材料来自泄露、版本不明，而且文章写于产品发布前，四 scheduler、两级 BTB 等字段可视为文档事实；FMA 宽度、双 SDP、narrow mode、peer memory 和无 iGPU SKU 原因则必须保留推测边界。

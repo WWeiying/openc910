@@ -70,7 +70,7 @@ Skylake 用统一 97 项 Scheduler；Zen 2 分布式：每 ALU Port 16 项、三
 
 ![图 9：Zen 2 L1D Refill Source](amd_zen2_cinebench_r15_figures/09_figure.png)
 
-*图 9：LSU 投机口径，不能与图 8逐项等同。Zen 2 的 512 KB L2 与 Skylake 256 KB L2 同为约 12 周期，却有更高命中率；大 L3 让 DRAM 请求不到 Skylake 一半，但两者 DRAM miss 本来都很少。*
+*图 9：LSU 投机口径，不能与图 8 逐项等同。Zen 2 的 512 KB L2 与 Skylake 256 KB L2 同为约 12 周期，却有更高命中率；大 L3 让 DRAM 请求不到 Skylake 一半，但两者 DRAM miss 本来都很少。*
 
 ![图 10：L2 Data Hit Rate 与 IPC](amd_zen2_cinebench_r15_figures/10_figure.png)
 
@@ -122,7 +122,7 @@ Skylake 的 1536 项 Op Cache 命中率反而是 69.1%，高于 Zen 2 4096 项�
 
 ## 结论与边界
 
-在 CBR15 单线程中，Zen 2 以更准预测减少错误路径，以 512 KB L2/大 L3降低中长延迟访问，再用 FP NSQ 扩展可吸收延迟的窗口，最终领先 Skylake。CBR15 不重压 DRAM Controller，因而没有展示 Intel 单片设计的较低内存延迟；Skylake 也有更大 Store Buffer、更高 Op Cache/L1I Hit Rate。文章写作时桌面 Rocket Lake 尚未取代 Skylake，预计其 512 KB L2、更多 Scheduler 项和可能改进的预测会缩小差距——这是当时的前瞻，不是后验结论。
+在 CBR15 单线程中，Zen 2 以更准预测减少错误路径，以 512 KB L2/大 L3 降低中长延迟访问，再用 FP NSQ 扩展可吸收延迟的窗口，最终领先 Skylake。CBR15 不重压 DRAM Controller，因而没有展示 Intel 单片设计的较低内存延迟；Skylake 也有更大 Store Buffer、更高 Op Cache/L1I Hit Rate。文章写作时桌面 Rocket Lake 尚未取代 Skylake，预计其 512 KB L2、更多 Scheduler 项和可能改进的预测会缩小差距——这是当时的前瞻，不是后验结论。
 
 ## 参考资料
 

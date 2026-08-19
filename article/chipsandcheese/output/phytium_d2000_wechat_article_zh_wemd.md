@@ -146,7 +146,7 @@ Skylake 单 Branch 至少 128 Target、总计至少 1024；N1 单 Branch 64、�
 
 ![图 25：N1 Indirect Predictor](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/phytium_d2000_wechat_article_zh/9965b1dcbc9e15d5_25_figure.png)
 
-*图 25：512 Branch×4 Target 仍很稳。Return Stack 约31项，与A72/N1相同；Skylake只有16项但 Overflow 可回退到 Indirect Predictor。*
+*图 25：512 Branch×4 Target 仍很稳。Return Stack 约 31 项，与 A72/N1 相同；Skylake 只有 16 项，但 Overflow 可回退到 Indirect Predictor。*
 
 ### 体系结构视角：预测“准、快、能覆盖大 Footprint”缺一不可
 
@@ -174,9 +174,9 @@ Rename/Allocate 只做基本 Register Renaming，没有 Move Elimination、Zero 
 
 ![图 29：限制实际窗口的短板](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/phytium_d2000_wechat_article_zh/93f576bc9803f775_29_figure.jpg)
 
-*图 29：Load Queue 没随 ROB 扩大，Flag Rename 也未增加；128-bit NEON 仍低效占用多个64-bit Register，任何一项先满都会阻塞 Rename。N1/Skylake 的资源占 ROB 比例更均衡。*
+*图 29：Load Queue 没随 ROB 扩大，Flag Rename 也未增加；128-bit NEON 仍低效占用多个 64-bit Register，任何一项先满都会阻塞 Rename。N1/Skylake 的资源占 ROB 比例更均衡。*
 
-A72/FTC663 的 FP RF 大到覆盖 ROB，可能是为弥补 128-bit 值低效分配。二者还有罕见的 NOP 限制：只能越过约 38 NOP，尽管可越过百余条 FP；30 NOP 还会让 Integer Register Reorder 从 96 降到约70，说明 NOP 消耗未知 Shared Resource。
+A72/FTC663 的 FP RF 大到覆盖 ROB，可能是为弥补 128-bit 值低效分配。二者还有罕见的 NOP 限制：只能越过约 38 条 NOP，尽管可越过百余条 FP；30 条 NOP 还会让 Integer Register Reorder 从 96 降到约 70，说明 NOP 消耗未知 Shared Resource。
 
 ## Execution：四条 Specialized Integer Pipe，Vector 多为半宽
 
@@ -214,7 +214,7 @@ LSU 不预测 Load 是否依赖未知地址的老 Store，所以所有先前 Sto
 
 ![图 36：Skylake Forwarding](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/phytium_d2000_wechat_article_zh/2195d47cfa3ea917_36_figure.png)
 
-*图 36：N1/Skylake 的 Partial Overlap 某些路径更贵。独立访问方面，FTC663 Store 跨16 B加一周期，Load 跨64 B加一周期；推测 L1D 有16 B Sector、双 Read Port 让跨16 B Load免罚。*
+*图 36：N1/Skylake 的 Partial Overlap 某些路径更贵。独立访问方面，FTC663 Store 跨 16 B 增加一周期，Load 跨 64 B 增加一周期；推测 L1D 有 16 B Sector，双 Read Port 让跨 16 B Load 免罚。*
 
 ## Cache、TLB 与 Memory：容量尚可，延迟和带宽很差
 
@@ -222,17 +222,17 @@ LSU 不预测 Load 是否依赖未知地址的老 Store，所以所有先前 Sto
 
 ![图 37：2 MB Page 下 Cache 延迟周期](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/phytium_d2000_wechat_article_zh/9883a55fc17a5423_37_figure.png)
 
-*图 37：L2 22周期，容量不错却接近 Skylake 更大 L3 的真实延迟。*
+*图 37：L2 为 22 周期，容量不错却接近 Skylake 更大 L3 的真实延迟。*
 
 ![图 38：Cache/DRAM 纳秒延迟](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/phytium_d2000_wechat_article_zh/21bfd8649230061a_38_figure.png)
 
-*图 38：L3 超过50周期、20 ns；DRAM 164 ns，比对照 Server 还差，甚至慢于双路 Westmere 访问远端 DDR3 的约120 ns。*
+*图 38：L3 超过 50 周期、20 ns；DRAM 为 164 ns，比对照 Server 还差，甚至慢于双路 Westmere 访问远端 DDR3 的约 120 ns。*
 
-2 MB Page 用于隔离 Cache；普通 Client 多为4 KB。FTC663/A72 L1 DTLB 约32项，4 KB Page 下在 L1D 容量内也出现奇怪延迟升高，2 MB Page 时消失，确定与翻译有关但机制未知。
+2 MB Page 用于隔离 Cache；普通 Client 多使用 4 KB Page。FTC663/A72 的 L1 DTLB 约 32 项，4 KB Page 下在 L1D 容量内也出现奇怪的延迟升高，2 MB Page 时消失，可以确定与翻译有关，但机制未知。
 
 ![图 39：4 KB Page 的 TLB 延迟阶梯](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/phytium_d2000_wechat_article_zh/33912b5d907dcc03_39_figure.png)
 
-*图 39：L2 TLB 约1024项，Hit 比 L1 TLB 多约7周期。*
+*图 39：L2 TLB 约 1024 项，Hit 比 L1 TLB 多约 7 周期。*
 
 ![图 40：单核 Cache/DRAM 带宽](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/phytium_d2000_wechat_article_zh/7c1e4f04d33cd0c7_40_figure.png)
 
@@ -266,17 +266,17 @@ LSU 不预测 Load 是否依赖未知地址的老 Store，所以所有先前 Sto
 
 ## 两层结论：消费者价值与产业判断
 
-作为普通桌面/移动产品，D2000 在良好多线程负载也输七年前四核 i5，测试系统价格超过500美元，同价可组八核 Zen 3；二手 i5 约50美元。D2000 Die 132.08 mm²，还大于 Skylake 122.4 mm²。
+作为普通桌面或移动产品，D2000 在良好多线程负载下也不如七年前的四核 i5，测试系统价格超过 500 美元，同价可组八核 Zen 3；二手 i5 约为 50 美元。D2000 Die 为 132.08 mm²，还大于 Skylake 的 122.4 mm²。
 
 ![图 47：D2000 Die Area 分布](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/phytium_d2000_wechat_article_zh/c65cb8478f38bba7_47_figure.jpg)
 
-*图 47：来自 HKEPC 飞腾 Slide。价格/二手市场是2022年时点。*
+*图 47：来自 HKEPC 飞腾 Slide。价格和二手市场数据对应 2022 年时点。*
 
-材料随后从产业自立背景评价：短期性能不足，长期可视为建立设计/制造经验的高成本投入。更具争议的判断是，FTC663 并非 Ground-up：它与 A72 不仅大结构相似，连 5-cycle Integer Multiply、Scalar FP Pipe 利用问题、一周期一 NOP、NOP 消耗额外 OoO Resource、128-bit Register 低效分配、48 KB L1I+4096 BTB、4 KB Page 在16 KB后异常等怪癖都相同；L1/L2 Bandwidth、Load Queue、Flag Rename 也匹配。
+材料随后从产业自立背景评价：短期性能不足，长期可视为建立设计/制造经验的高成本投入。更具争议的判断是，FTC663 并非 Ground-up：它与 A72 不仅大结构相似，连 5-cycle Integer Multiply、Scalar FP Pipe 利用问题、一周期一 NOP、NOP 消耗额外 OoO Resource、128-bit Register 低效分配、48 KB L1I+4096 BTB、4 KB Page 在 16 KB 后异常等怪癖都相同；L1/L2 Bandwidth、Load Queue、Flag Rename 也匹配。
 
 ![图 48：FTC663 相对 A72 的改动与短板](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/phytium_d2000_wechat_article_zh/3e7d0481f43a18fc_48_figure.jpg)
 
-*图 48：更大 ROB/RF、Store Queue与 L2 Fetch 是前进；Load Queue未配套、L2仍慢、Predictor反而退步，额外投机工作常因 Mispredict 被丢弃。结构相似是强证据，但没有 RTL/授权资料，不能升级成代码来源的事实认定。*
+*图 48：更大的 ROB/RF、Store Queue 与 L2 Fetch 是进步；Load Queue 未配套、L2 仍慢、Predictor 反而退步，额外投机工作常因 Mispredict 被丢弃。结构相似是强证据，但没有 RTL/授权资料，不能升级成代码来源的事实认定。*
 
 N1 展示了更成功的后继方向：准确而快速的 Predictor、BPU-driven Prefetch、低延迟 L2、可让 Load 越过未知 Store、均衡 OoO Resource。文章因此对飞腾长期能力悲观。这是基于一颗 2022 年样品与微基准的评价，不等于对所有后续飞腾产品的事实判决；政治措辞与地缘判断也应保留为文章立场，而非微架构实测结论。
 

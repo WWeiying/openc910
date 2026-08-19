@@ -31,9 +31,9 @@ Controller 可能监控 CPU Tile 与 memory controller 之间队列 occupancy；
 
 ![图 3：此前文章中的 APU 内存延迟对比](intel_meteor_lake_dram_latency_update_figures/03_figure.png)
 
-高性能状态下，Crestmont 也低于 200 ns；153 ns 与 Van Gogh Zen 2 大致同档。实际 controller 可能更低，因为用另一个核心制造几十 GB/s 会有请求排队，抬高测得 latency。
+高性能状态下，Crestmont 也低于 200 ns；153 ns 与 Van Gogh Zen 2 大致同档。Controller 的实际空载延迟可能更低，因为用另一个核心制造几十 GB/s 会有请求排队，抬高测得 latency。
 
-LPE-Core 的问题仍在，只是多了一层原因：没有 L3已经让每个 L2 miss 直达 DRAM，而低功耗策略又不因 LPE 流量提高 controller 状态。让 CPU Tile 醒来并制造流量可改善 memory latency，却违背 LPE-Core “不唤醒 Compute Tile”目标。
+LPE-Core 的问题仍在，只是多了一层原因：没有 L3 已经让每个 L2 miss 直达 DRAM，而低功耗策略又不因 LPE 流量提高 controller 状态。让 CPU Tile 醒来并制造流量可改善 memory latency，却违背 LPE-Core “不唤醒 Compute Tile”目标。
 
 扩大 L2 是更直接办法，Atom 长期可支持 4 MB，先把 2 MB 翻倍；更激进是 SoC Tile 加 system-level cache。Firmware 也可能允许 LPE-Core 拉高 controller，但 175 ns 仍很残酷，效果有限。这些都是设计建议，不是 Intel 已宣布计划。
 
@@ -41,4 +41,4 @@ LPE-Core 的问题仍在，只是多了一层原因：没有 L3已经让每个 L
 
 Meteor Lake 超 200 ns 并非 memory controller 固有上限，而是单链低流量触发的省电状态。Compute Tile 制造带宽后，E-Core 约 153 ns，LPE-Core 175.3 ns；只有 LPE-Core 的流量不足以改变状态。
 
-Intel 的选择有明确逻辑：LPE-Core 目标是最低整包功耗。代价也同样明确：无 L3与高 DRAM latency 叠加，使较强的 Crestmont 被限制为轻量后台核心。感谢 Andrei F. 指出 pin 到 LPE-Core 时的低 P-state，促成这组组合负载复测。
+Intel 的选择有明确逻辑：LPE-Core 目标是最低整包功耗。代价也同样明确：无 L3 与高 DRAM latency 叠加，使较强的 Crestmont 被限制为轻量后台核心。感谢 Andrei F. 指出 pin 到 LPE-Core 时的低 P-state，促成这组组合负载复测。

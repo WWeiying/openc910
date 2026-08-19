@@ -104,7 +104,7 @@ Samsung 14 nm FinFET 让手机功耗内实现中等规模乱序引擎成为可�
 
 *图 10：Kryo 即使让约一半在途指令都是 Branch，也能接近最大窗口；较大的 Flags Register File 能容纳与 Conditional Branch 配套的 Flag-setting 指令，Integer Register File 容量也更充裕。表中数字来自 Reverse Engineering，不是官方规格。*
 
-A72 对 Scalar FP 的 Rename Capacity 更好，但换成 128-bit Vector 后优势消失，因为 Kryo 使用全宽 Vector Register。两者 Memory Ordering Queue 都小：A72 的 Load Queue 大得多，Kryo 的 Store Queue略大；Store Queue 往往是很热的结构，差距未必简单由 Load 项数决定。
+A72 对 Scalar FP 的 Rename Capacity 更好，但换成 128-bit Vector 后优势消失，因为 Kryo 使用全宽 Vector Register。两者 Memory Ordering Queue 都小：A72 的 Load Queue 大得多，Kryo 的 Store Queue 略大；Store Queue 往往是很热的结构，差距未必简单由 Load 项数决定。
 
 Scheduler 每拍都要比较依赖并选择 Ready Instruction，是高功耗、难定时结构。Kryo 总容量通常优于 A72。
 

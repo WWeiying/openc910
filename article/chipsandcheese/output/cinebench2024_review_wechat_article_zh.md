@@ -15,7 +15,7 @@ Intel Software Development Emulator（SDE）显示，Cinebench 2024 大量使用
 
 ![图 2：Cinebench 2024 动态指令扩展分布](cinebench2024_review_figures/02_figure.png)
 
-多数 SSE/AVX 数学仍是 Scalar，最常见的是 `VMULSS` 和 `VADDSS`。约 6.8%指令对 128 bit Vector 做计算，256 bit 几乎消失。AVX 的价值在这里更多来自 Non-destructive Three-operand Format，而不是向量宽度。
+多数 SSE/AVX 数学仍是 Scalar，最常见的是 `VMULSS` 和 `VADDSS`。约 6.8% 指令对 128 bit Vector 做计算，256 bit 几乎消失。AVX 的价值在这里更多来自 Non-destructive Three-operand Format，而不是向量宽度。
 
 ![图 3：最常执行的 43 条指令；FP 以标量为主，128 bit 位于长尾](cinebench2024_review_figures/03_figure.png)
 
@@ -25,7 +25,7 @@ Intel Software Development Emulator（SDE）显示，Cinebench 2024 大量使用
 
 ![图 5：Load、Store、Branch 与其他操作比例](cinebench2024_review_figures/05_figure.png)
 
-22.6%指令读内存，7.85%写内存，Branch 约 9%，Load/Store 约 3:1，处于 7-Zip 与 libx264 之间。
+22.6% 指令读内存，7.85% 写内存，Branch 约 9%，Load/Store 约 3:1，处于 7-Zip 与 libx264 之间。
 
 ## 测试平台与总体吞吐
 
@@ -95,7 +95,7 @@ Kaby Lake 用 58 项 Unified Scheduler 同时服务 Integer/FP，Memory Address 
 
 ![图 18：Kaby Lake 后端 Stall，Unified Scheduler 最突出](cinebench2024_review_figures/18_figure.png)
 
-Cinebench 约 37%为 FP/Vector。Zen 2 有 64 项分布式 Integer Scheduler，加 36 项 FP 共 100；Zen 4 为 96+64，共 160，明显高于 Kaby Lake 共享的 58 项。因而测试先受益于 Integer 与 FP 的总调度容量，随后才是更大的 Load/Store Queue 和 ROB。
+Cinebench 约 37% 为 FP/Vector。Zen 2 有 64 项分布式 Integer Scheduler，加 36 项 FP 共 100；Zen 4 为 96+64，共 160，明显高于 Kaby Lake 共享的 58 项。因而测试先受益于 Integer 与 FP 的总调度容量，随后才是更大的 Load/Store Queue 和 ROB。
 
 ## 执行端口：没有谁真正被打满
 
@@ -151,7 +151,7 @@ AMD `FP pipe assignment` 在 Rename 时计数，Intel 是 Scheduler 发往 Port 
 
 ## 结语
 
-Cinebench 2024 是中等 IPC、较大代码与数据 Footprint 的全核渲染负载。控制流比游戏容易，代码却会溢出 L1I/部分 Micro-op Cache；数据会穿过 L3并产生约 20 GB/s 级流量。它奖励 Predictor、Micro-op Cache、Integer/FP Scheduler、ROB、Load/Store Queue 和多核内存系统的平衡。
+Cinebench 2024 是中等 IPC、较大代码与数据 Footprint 的全核渲染负载。控制流比游戏容易，代码却会溢出 L1I/部分 Micro-op Cache；数据会穿过 L3 并产生约 20 GB/s 级流量。它奖励 Predictor、Micro-op Cache、Integer/FP Scheduler、ROB、Load/Store Queue 和多核内存系统的平衡。
 
 它不像游戏，也不像被宽向量或纯带宽主导的 Y-Cruncher；和视频编码更接近，但 Vector Emphasis 更弱。相较 R23，新版更关注 DRAM，却仍很少用 256/512 bit Compute。因而 Cinebench 2024 是一个不错但不完备的 CPU Benchmark：分数应配合版本、线程数、内存配置、功耗限制和其他类型负载一起阅读。
 

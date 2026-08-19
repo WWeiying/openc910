@@ -65,7 +65,7 @@ Little’s Law 给出 `Throughput≈Outstanding/Latency`。高 Latency Mesh 需�
 
 ## 576 MB L3、1.3 TB/s DRAM 与 576 GB/s UPI
 
-L3 Latency 很可能高、Bandwidth 中等，但 576 MB 容量可带来巨大 Hit-rate 优势。AMD V-Cache 单 Cluster 96 MB，且一个 Cluster 不能向另一个 L3 Allocation；Intel Unified/System L3 的可用范围不同。
+L3 Latency 很可能高、Bandwidth 中等，但 576 MB 容量可带来巨大 Hit-rate 优势。AMD V-Cache 单 Cluster 96 MB，且单个 Cluster 不能使用另一 Cluster 的 L3 容量；Intel Unified/System L3 的可用范围不同。
 
 DDR5-8000 Read 约 1.3 TB/s，是很高的 Server DRAM Bandwidth。
 
@@ -77,11 +77,11 @@ I/O 也很大：每 Socket 96 条 PCIe Gen5，其中 64 支持 CXL，Aggregate I
 
 ### 体系结构视角：Density Server 的三层带宽必须同时扩展
 
-288 Core 先争 Cluster L2，再争 Mesh/L3，最后争 12? Channel DDR5/UPI/I/O（Channel 数在本文未给，不能补写）。任何一层只扩容量、不扩 Outstanding/Port，就会把瓶颈下移。Topology-aware Thread/Data Placement 和 NUMA 分区将直接影响可用带宽。
+288 Core 先争 Cluster L2，再争 Mesh/L3，最后争用 DDR5、UPI 和 I/O；本文未给出 DDR5 通道数，不能自行补写。任何一层只扩容量、不扩 Outstanding/Port，就会把瓶颈下移。Topology-aware Thread/Data Placement 和 NUMA 分区将直接影响可用带宽。
 
-## Intel 的 20 Rack 对 70 Rack 主张该怎样理解
+## Intel 的 20 个机架对 70 个机架主张该怎样理解
 
-Intel 称 20 Rack Clearwater Forest 可提供旧 P-Core Server 70 Rack 的相同性能，测试为 SPEC CPU2017 Integer Rate。Rate 运行很多独立 Copy，天然随 Core Count 扩展，最能展示 288 Core Density。
+Intel 称 20 个机架的 Clearwater Forest 可提供旧 P-Core Server 70 个机架的相同性能，测试为 SPEC CPU2017 Integer Rate。Rate 运行很多独立 Copy，天然随 Core Count 扩展，最能展示 288 Core Density。
 
 ![图 9：Intel 的 Rack Consolidation Slide](intel_clearwater_forest_figures/09_figure.jpg)
 

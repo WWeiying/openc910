@@ -24,7 +24,7 @@ E-Core 自 Alder Lake 起成为 Intel Client 战略核心。Meteor Lake 用 Cres
 
 *图 2：八个 E-Core 分两组四核 Cluster 接 Ring，与 P-Core 共享 L3；两 LPE 位于 SoC Tile，靠 Scalable Fabric 一致性。旧 Intel 则让所有 Core/iGPU 围绕 Ring、共享 L3/System Agent。*
 
-Crestmont 使用按 Active Core Count 固定的旧式 Boost：超过四核降到 3.1 GHz，超过六核降到 2.8；P-Core 仍按温度/功耗/电流动态独立调整。
+Crestmont 使用按 Active Core Count 固定的旧式 Boost：超过四核降到 3.1 GHz，超过六核降到 2.8 GHz；P-Core 仍按温度/功耗/电流动态独立调整。
 
 ![图 3：主 E-Core 的 Multi-core Boost](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/intel_crestmont_wechat_article_zh/bf163bc385380ab3_03_figure.png)
 
@@ -40,7 +40,7 @@ Crestmont 使用按 Active Core Count 固定的旧式 Boost：超过四核降到
 
 ## 核心总览：六宽，但多数 Backend 没变
 
-Crestmont 是 6-wide Superscalar OoO Core，本质是增强版 Gracemont。微基准估容量并非精确科学：Retirement 后资源不一定立即 Reclaim，Distributed Scheduler 还要逐 Queue/Port 探测，小差异可能只是误差。
+Crestmont 是 6-wide Superscalar OoO Core，本质是增强版 Gracemont。用微基准估算容量并非精确科学：Retirement 后资源不一定立即 Reclaim，Distributed Scheduler 还要逐 Queue/Port 探测，小差异可能只是误差。
 
 ![图 6：Crestmont 核心结构](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/intel_crestmont_wechat_article_zh/74168812d5e8269d_06_figure.jpg)
 
@@ -108,7 +108,7 @@ Renamer 从 Gracemont 五宽增到六宽，并能同 Cycle 同时读两 Cluster 
 
 ## OoO/FP：小幅补强，不改大图景
 
-Scheduler Layout 与 Execution Resource 基本不变。FP/Vector Store Scheduler 约 18→22，FP Math 35→38；小差异仍可能受微基准误差。FP Divide 从 Gracemont 10-cycle（uops.info）约减半到 5；另增 Vector Integer Multiplier，但适用 Instruction 未确定，Packed INT32 Mul 不在其中。ROB、Renamed RF、LSQ 看来未变。
+Scheduler Layout 与 Execution Resource 基本不变。FP/Vector Store Scheduler 约 18→22，FP Math 35→38；小差异仍可能受微基准误差。FP Divide 从 Gracemont 的 10-cycle（uops.info）约减半到 5-cycle；另增 Vector Integer Multiplier，但适用 Instruction 未确定，Packed INT32 Mul 不在其中。ROB、Renamed RF、LSQ 看来未变。
 
 ## TLB 与 Store Forwarding
 
@@ -156,7 +156,7 @@ Cluster L2 可供 64 B/cycle，64-entry L2 Miss Queue 连接 Ring。
 
 ![图 24：多核 L2/L3 Bandwidth](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/intel_crestmont_wechat_article_zh/7e699befecae7f56_24_figure.png)
 
-*图 24：每 Cluster 加载两 Core、保持 3.8 GHz 时，双 Cluster L2 Aggregate 341 GB/s；超过四核降频反而降低带宽。L3 Read 115 GB/s，与 Alder Lake Gracemont 相同。*
+*图 24：每个 Cluster 让两个 Core 同时加载、保持 3.8 GHz 时，双 Cluster L2 Aggregate 为 341 GB/s；超过四核后降频反而降低带宽。L3 Read 为 115 GB/s，与 Alder Lake Gracemont 相同。*
 
 两 Cluster 从 DRAM Read 略低于 40 GB/s，低于 12900K Gracemont 60 GB/s；高 Latency 限制 Outstanding Request 兑现。Write 可较早交给 Cache Hierarchy，混合流较能绕开回程等待。
 

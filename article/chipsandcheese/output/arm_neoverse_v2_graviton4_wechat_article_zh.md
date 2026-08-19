@@ -148,7 +148,7 @@ FP/Vector 侧有四条 128-bit Pipe，四条都能处理大部分基础 FP 与�
 
 ![图 16：V2、Zen 4 与 Oryon 的 FP/Vector 调度](arm_neoverse_v2_graviton4_figures/16_fp_vector_cluster_comparison.png)
 
-*图 16：V2 为约 36 项 NSQ、两组各 28 项 Scheduler、四条 128-bit Pipe；Zen 4 为 64 项 NSQ、两组各 36 项 Scheduler及更专门化的 256-bit Pipe；Oryon 直接使用四组各 48 项 Scheduler。V2 比 Cortex-X2 多少量条目，但未完成 FP/Vector 操作容量仍低于 Zen 4，更远低于 Oryon。*
+*图 16：V2 为约 36 项 NSQ、两组各 28 项 Scheduler、四条 128-bit Pipe；Zen 4 为 64 项 NSQ、两组各 36 项 Scheduler 及更专门化的 256-bit Pipe；Oryon 直接使用四组各 48 项 Scheduler。V2 比 Cortex-X2 多了少量条目，但未完成 FP/Vector 操作容量仍低于 Zen 4，更远低于 Oryon。*
 
 Non-Scheduling Queue（NSQ）可先接纳暂时进不了 Scheduler 的操作，延后前端停顿，又不必承担完整 Wakeup/Select 网络。它增加的是等待容量，不是可立即发射的端口数。
 
@@ -262,7 +262,7 @@ V2 没有可跟踪 Renamed Micro-op 的性能计数器，因此难以精确量�
 
 ### 体系结构视角：IPC、指令数和吞吐必须同时看
 
-高 IPC 可能来自较低频率、不同 ISA 指令粒度或更少的 SMT 竞争，并不自动变成更高任务吞吐。libx264 中 V2 的 IPC 更高，却执行更多指令且频率更低；7-Zip 中它以较高 IPC 和较少的 Zen 4 对照线程竞争取得更好的八核无 SMT结果。
+高 IPC 可能来自较低频率、不同 ISA 指令粒度或更少的 SMT 竞争，并不自动变成更高任务吞吐。libx264 中 V2 的 IPC 更高，却执行更多指令且频率更低；7-Zip 中，V2 凭较高 IPC 在八核无 SMT 对照中取得更好结果，Zen 4 开启 SMT 后则反超。
 
 严谨比较还需要相同软件版本、编译器、Flags、输入、核心数、线程数、频率与功耗，并报告总指令、IPC、MPKI、Cache Miss 和 Wall Time。本页条件不足以形成通用云实例性价比或每瓦排名。
 
@@ -292,7 +292,7 @@ V2 的定位不是 Zen 4、Golden Cove 或 Oryon 那样追求极高单线程，�
 
 第二，大私有 L2 与小共享 L3 是明确的系统取舍。它把常见工作集留在核心附近，降低 96 核 Mesh 压力，却使跨核共享数据和大工作集更依赖高延迟 L3、目录与内存系统。
 
-第三，低周期不等于低时间，高 IPC也不等于高吞吐。V2 的 11-cycle L2 很漂亮，2.8 GHz 下的纳秒值却未必优于高频 Zen 4；Benchmark 还要再乘以指令数、频率、SMT 与并行效率。
+第三，低周期不等于低时间，高 IPC 也不等于高吞吐。V2 的 11-cycle L2 很漂亮，2.8 GHz 下的纳秒值却未必优于高频 Zen 4；Benchmark 还要再乘以指令数、频率、SMT 与并行效率。
 
 第四，微基准最有价值的地方不是猜出一个确定框图，而是找出资源之间的约束关系。六宽实测与八宽宣称、四 Add/cycle 与六 ALU 宣称、92/96 项 Transaction Queue 都应作为边界保留，而不是为了图表整齐强行统一。
 

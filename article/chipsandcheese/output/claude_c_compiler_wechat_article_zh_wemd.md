@@ -73,7 +73,7 @@ CCC 编译的 `502.gcc` 在 Cortex-X925 上持续 segmentation fault，虽然 x8
 
 ![图 10：CCC 相对 GCC 的性能回退比例](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/claude_c_compiler_wechat_article_zh/07132ed2171c19f8_10_figure.png)
 
-Cortex-X925 受影响最大。GCC 版本下它可与 Zen 5、Lion Cove竞争；换成 CCC 后，除 `500.perlbench` 因 Zen 5 自身大幅下滑而短暂领先外，几乎全面落后，而且该项仍不及 Lion Cove。
+Cortex-X925 受影响最大。GCC 版本下它可与 Zen 5、Lion Cove 竞争；换成 CCC 后，除 `500.perlbench` 因 Zen 5 自身大幅下滑而短暂领先外，几乎全面落后，而且该项仍不及 Lion Cove。
 
 SPEC CPU2017 的 score 是相对参考机的速度比，参考机是 2.1 GHz UltraSPARC IV+ 的 Sun Fire V490。Lion Cove 在 `500.perlbench` 中三者最好，却只有 0.76，仍低于参考机。原文由此故意反推“4-wide 顺序执行的 UltraSPARC IV+ 比 8-wide 巨型乱序核更先进”，用来讽刺把编译器问题归咎于硬件。
 
@@ -111,7 +111,7 @@ X925 运行 CCC 代码时高度 core-bound，而且不只发生在三个浮点 w
 
 ![图 17：CCC 版 519.lbm 的热点汇编，反复把 x0 写入 stack，数条指令后又加载回来](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/claude_c_compiler_wechat_article_zh/6983d211ed37db78_17_figure.jpg)
 
-`519.lbm` 的 backend memory-bound 明显上升，与 store forwarding latency 有关。热点路径重复 spill `x0` 再 reload，把转发延迟放进长依赖链；X925 无法像 Zen 5 与 Lion Cove 那样近零延迟完成。
+`519.lbm` 的 backend memory-bound 明显上升，与 store forwarding latency 有关。热点路径重复 spill `x0` 再 reload，把转发延迟放进长依赖链；X925 无法像 Zen 5 与 Lion Cove 那样以近零延迟完成。
 
 ## 收尾：一份用性能数据写成的讽刺文
 

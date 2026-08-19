@@ -7,11 +7,11 @@ Tachyum Prodigy：那些“好得难以置信”的早期承诺
 ## 基本信息
 
 - 英文题目：Tachyum: Too Good to be True?
-- 作者：George Cozma
+- 作者：George Cozma、Chester Lam
 - 首发：Chips and Cheese
 - 日期：2022 年 6 月 28 日
 - 阅读原文：https://chipsandcheese.com/p/tachyum-too-good-to-be-true
-- 后台作者栏：George Cozma
+- 后台作者栏：George Cozma、Chester Lam
 
 ## 摘要
 

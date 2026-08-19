@@ -31,7 +31,7 @@ AMD 普通封装 PCB link 廉价、距离长，可让 CCD/IOD 跨桌面与服务
 
 ![图 4：AMD CCD/IOD 与移动 APU 组织对比](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/intel_meteor_lake_chiplets_hot_chips34_wechat_article_zh/772acc52c7f6e729_04_figure.jpg)
 
-Foveros 需要额外 base die，成本更高；要扩大 CPU Tile 或增加 Tile，也要更大 base die，reach 较差。交换得到的是更高 I/O density、更小 package 和更低 die-to-die energy，适合 ultrabook。
+Foveros 需要额外 base die，成本更高；要扩大 CPU Tile 或增加 Tile，也要更大的 base die，扩展性较差。交换得到的是更高 I/O density、更小 package 和更低 die-to-die energy，适合 ultrabook。
 
 ### 体系结构视角：Chiplet 的价值取决于“复用边界”画在哪里
 
@@ -39,7 +39,7 @@ AMD 以 CCD 为复用单元，跨 desktop/server 获益；Intel 把 CPU、GPU、
 
 ## Foveros Die Interconnect：更省电，延迟优势未必大
 
-Intel 称链路 FDI。AMD 曾称 Zen 1 跨 die Infinity Fabric 约 2 pJ/bit，Zen 2 slide 又称每 bit 低 27%，但不能确定多少来自 PHY/link、多少来自其他逻辑。合理推测 AMD 普通封装链路成本不低于 Haswell OPIO，FDI 更适合移动。
+Intel 称链路 FDI。AMD 曾称 Zen 1 跨 die Infinity Fabric 约 2 pJ/bit，Zen 2 slide 又称每 bit 能耗降低 27%，但不能确定多少来自 PHY/link、多少来自其他逻辑。合理推测 AMD 普通封装链路成本不低于 Haswell OPIO，FDI 更适合移动。
 
 ![图 5：Intel HC34 的 FDI 密度、功耗与延迟 slide](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/intel_meteor_lake_chiplets_hot_chips34_wechat_article_zh/d6b2aaa36bbf0aca_05_figure.jpg)
 
@@ -87,7 +87,7 @@ AMD 也曾显示 GPU Infinity Cache 小于 16 MB 时 hitrate 不佳。
 
 ![图 11：Intel GPU 自己的 L3 与 CPU L3 命名关系](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/intel_meteor_lake_chiplets_hot_chips34_wechat_article_zh/1cfba51855be603e_11_figure.png)
 
-低 hitrate 时，每次先查 CPU L3、再去 DRAM，不仅增延迟，还会把返回 line 填进 L3，与 CPU 争容量和带宽。较新 Xe private cache 已大于 Vega/RDNA2 iGPU，接近部分中端独显；RTX 3060 L2 为 3 MB。Renoir/Cezanne 仅 1 MB GPU L2且不共享 CPU L3，也能给出竞争性能，说明独立 GPU cache hierarchy 可行。
+低 hitrate 时，每次先查 CPU L3、再去 DRAM，不仅增延迟，还会把返回 line 填进 L3，与 CPU 争容量和带宽。较新 Xe private cache 已大于 Vega/RDNA2 iGPU，接近部分中端独显；RTX 3060 L2 为 3 MB。Renoir/Cezanne 仅有 1 MB GPU L2，且不共享 CPU L3，也能给出竞争性能，说明独立 GPU cache hierarchy 可行。
 
 ## 更准确的类比：低功耗版 AMD Chiplet，而非跨 Die L3 Mesh
 

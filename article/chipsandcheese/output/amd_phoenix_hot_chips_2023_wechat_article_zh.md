@@ -57,7 +57,7 @@ Interconnect 在轻负载时也可能占显著功耗。Phoenix 按 Compute-bound
 
 ![图 10：Infinity Fabric 的工作负载感知模式](amd_phoenix_hot_chips_2023_figures/10_figure.jpg)
 
-这避免 Van Gogh 为极低功耗 Gaming 优化后、CPU 侧只约 25 GB/s 的问题。实测 Fabric Clock 会随 CPU/GPU 流量变化。
+这避免了 Van Gogh 因针对极低功耗 Gaming 优化、导致 CPU 侧带宽只有约 25 GB/s 的问题。实测 Fabric Clock 会随 CPU/GPU 流量变化。
 
 ![图 11：CPU/GPU 带宽测试中的 Fabric Clock](amd_phoenix_hot_chips_2023_figures/11_figure.jpg)
 

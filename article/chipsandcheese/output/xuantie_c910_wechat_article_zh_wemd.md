@@ -1,83 +1,83 @@
-# 玄铁 C910：Chips and Cheese 独立分析中文版
+---
+theme: custom-1786280678341-jnfpaqasm
+themeName: "学术论文 (副本)"
+title: "xuantie_c910_wechat_article_zh"
+---
 
-## 文档说明
+> **文章来源**
+>
+> - 文章：*Alibaba/T-HEAD's Xuantie C910*
+> - 撰文：Chester Lam
+> - 首发：Chips and Cheese
+> - 发布：2025 年 2 月 4 日
+> - 链接：https://chipsandcheese.com/p/alibabat-heads-xuantie-c910
 
-本文只整理 Chester Lam 发表于 Chips and Cheese 的《Alibaba/T-HEAD's Xuantie C910》。在不遗漏技术正文、关键数值、图表和作者结论的前提下，正文按中文阅读习惯重组语序；网页导航、评论、点赞、登录与订阅界面不属于文章正文。原文结尾的赞助和社区邀请保留存在性说明，但不展开非技术链接。
+## 导读
 
-正文按中文阅读习惯转述原文观点。凡涉及平头哥公开规格，均写作“官方资料”；凡来自开源 Verilog 的结构信息，均写作“RTL 观察”或“当前仓库 RTL”；凡来自 LicheePi 4A 的数据，均归于“作者实测”；机制归因则写作“作者判断”。这些证据不能互相替代。
+玄铁 C910 是较早进入真实芯片的乱序 RISC-V 核之一。这组分析没有停留在“几级流水、几宽发射”的规格表层，而是把公开 RTL、定向微基准和 TH1520 实机测试放在一起，回答三个更实际的问题：前端能否持续供给，乱序窗口能否真正利用，存储层次能否跟上执行端的数据需求。
 
-专业术语首次承担关键概念时保留英文名称或缩写。所有 30 幅技术图均按网页顺序本地化，并在正文和文末给出中文标题、内容解释与体系结构意义。
+文章肯定 C910 的非对齐访存、向量支持和核间传输延迟；批评则集中在乱序资源配比、TH1520 的共享 L2 延迟与带宽，以及 DRAM 持续读带宽。这里的性能数字来自一块具体的 LicheePi 4A，并不等于所有 C910 IP 配置；“结构失衡导致性能下降”也是需要计数器和单变量实验继续验证的归因，而不是官方定论。
 
-## 出版信息与证据性质
+## 阅读口径与测试边界
 
-- 英文题目：Alibaba/T-HEAD's Xuantie C910
-- 作者：Chester Lam
-- 发布平台：Chips and Cheese
-- 发表日期：2025 年 2 月 4 日
-- 本地归档：[HTML 原文](../input/alibaba_thead_xuantie_c910.html)
-- 原始网页：https://chipsandcheese.com/p/alibabat-heads-xuantie-c910
-- 分析方法：公开资料阅读、开源 C910 RTL 阅读、定向微基准和 TH1520 实机测量
-- 实测平台：LicheePi 4A，TSMC 12 nm FinFET 工艺的 TH1520，4 个 C910 核，1 MB 共享 L2，核心频率 1.85 GHz，8 GB LPDDR4X-3733
+文中证据分为四类：
 
-### 测试条件与可比性
+- **官方资料**：平头哥公开论文或演示中的规格与设计目标；
+- **RTL 观察**：从当前公开 OpenC910 Verilog 的数组、位宽和控制逻辑中可以直接核对的实现；
+- **作者实测**：Chester Lam 在 TH1520/LicheePi 4A 上运行微基准得到的软件可见行为；
+- **作者判断**：作者根据结构与数据作出的解释，需要额外实验建立因果关系。
 
-原文明确披露了上述平台配置；ROB/LQ 容量探测以相关分支和未完成 load 阻塞退休；DRAM 延迟使用 2 MB 大页和 1 GB 数组；L2 带宽分别报告单核与四核数据，DRAM 对照图报告全核数据。其他微基准并未完整披露源码版本、操作系统与内核版本、编译器及优化参数、频率锁定方式、预热与重复次数、误差范围，也没有逐项标明单核或多核。因此本文只复述原文明示的条件，不补造配置；跨 C910、P550、Goldmont Plus 与 Cortex-A73 的比较用于观察数量级和结构趋势，不能视为严格同平台、同软件栈排名。
+原文明示的实测平台为 LicheePi 4A：TSMC 12 nm FinFET 工艺的 TH1520、4 个 C910 核、1 MB 共享 L2、核心频率 1.85 GHz、8 GB LPDDR4X-3733。ROB/LQ 容量探测使用相关分支和未完成 load 阻塞退休；DRAM 延迟使用 2 MB 大页和 1 GB 数组；L2 带宽分别报告单核与四核结果。
 
-### 原文引用的技术链接
+原文没有完整披露其他微基准的源码版本、操作系统与内核、编译器及优化参数、频率锁定、预热与重复次数、误差范围，也没有逐项注明单核或多核。因此，跨 C910、P550、Goldmont Plus 和 Cortex-A73 的比较只适合观察数量级与结构趋势，不能当作严格同平台排名。
 
-- OpenC910 开源仓库：https://github.com/XUANTIE-RV/openc910
-- IFU 早期译码 RTL `ct_ifu_ipdecode.v`：https://github.com/XUANTIE-RV/openc910/blob/main/C910_RTL_FACTORY/gen_rtl/ifu/rtl/ct_ifu_ipdecode.v
-- ROB RTL `ct_rtu_rob.v`：https://github.com/XUANTIE-RV/openc910/blob/main/C910_RTL_FACTORY/gen_rtl/rtu/rtl/ct_rtu_rob.v
-- 原文用于解释 bi-mode predictor 的论文链接：https://people.eecs.berkeley.edu/~kubitron/courses/cs152-S04/handouts/papers/p4-lee.pdf
-
-HTML 还包含 30 幅图片的 CDN 链接以及 Patreon、PayPal、Discord 等非技术链接。图片已保存为本地资产；非技术推广链接不影响文章技术内容，本文只在结尾说明其存在，不重复展开。
-
-这是一篇第三方技术分析，而不是阿里巴巴或平头哥的官方规格。Chester Lam 先用微基准观察软件可见行为，再回到公开 RTL 寻找可能的结构原因；原文同时引用官方论文和 Hot Chips 图示作为背景。它补充了预测器容量、调度队列规模、转发边界和实机存储延迟等细节，但测量结果会受到具体 SoC、固件、操作系统、频率和测试方法影响。
-
-作者也明确声明自己是软件工程师而非硬件工程师，而且部分 RTL 很可能由未公开的更高层源代码自动生成，阅读十分困难，文中可能存在错误。因此，下面使用四种标记理解证据：
-
-| 标记 | 含义 | 可以支持的结论 |
-|---|---|---|
-| **官方资料** | ISCA 论文、Hot Chips 演示等公开规格 | 设计方公布的目标、容量和实现数据 |
-| **RTL 观察** | 从开源 Verilog 的数组、端口和控制逻辑得到 | 当前公开 RTL 中确实存在的结构；仍需注意配置宏和版本差异 |
-| **实机测量** | 作者在 TH1520/LicheePi 4A 上运行微基准所得 | 该平台的软件可见行为，不自动等价于其他 C910 实现 |
-| **作者判断** | 作者根据结构与数据作出的归因或评价 | 有证据支持的假说，但不是官方事实，也不替代单变量实验 |
-
-## 背景与定位
+## 一、背景与定位
 
 平头哥是阿里巴巴全资拥有的处理器 IP 公司，并建立了覆盖多个性能层级的 RISC-V 处理器产品线。原文认为，采用 RISC-V 一方面有利于为物联网端点、边缘计算等目标领域构建成本可控的定制芯片，另一方面也有减少对外部处理器 ISA 和 IP 依赖的战略价值。作者特别以 x86-64 和 Arm 背后的美国、英国企业为对照，强调 RISC-V 是不由这些企业控制的开放 ISA，并把平头哥的路线放到中国发展本土芯片能力的背景下理解。后一层属于作者对产业动机的判断，不是微结构事实。
 
 玄铁 C910 位于产品线的“高性能”层级。它既是较早实现为真实芯片的乱序 RISC-V 核之一，也是 RISC-V Vector 0.7.1 的早期采用者，支持掩码和可变向量长度。文章称后继 C920 将向量规范升级到 1.0，而其余部分基本延续 C910；这一产品关系属于文章发表时的概括，分析具体芯片时仍应核对型号和实现配置。
 
-![图 1：平头哥处理器产品线与 C910 架构概览](xuantie_c910_figures/01_architecture-slide.jpg)
+![图 1：平头哥处理器产品线与 C910 架构概览](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/xuantie_c910_wechat_article_zh/968643b6261826ad_01_architecture-slide.jpg)
+
+*图 1：平头哥处理器产品线与 C910 架构概览*
 
 C910 面向 AI、边缘服务器、工业控制和高级驾驶辅助系统等场景。它是平头哥第一代乱序核，可以组成最多四核的簇，并在簇内共享 L2。官方资料给出的 12 nm 目标为 2–2.5 GHz、单核约 0.8 mm²；2 GHz 时电压约 0.8 V，2.5 GHz 时约 1.0 V；7 nm 实现达到 2.8 GHz。官方还报告动态功耗约 `100 µW/MHz`，按 2 GHz 线性换算约为 0.2 W，但这个数字不包括静态功耗和核外逻辑。作者据此把 C910 定位为低功耗、小面积设计。
 
 下图是作者在官方版图上增加红色注释后的单核图。图中 PIU 与 PLIC 出现在后面的双核版图中。
 
-![图 2：作者标注后的 C910 单核版图](xuantie_c910_figures/02_annotated-single-core-floorplan.jpg)
+![图 2：作者标注后的 C910 单核版图](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/xuantie_c910_wechat_article_zh/f9afab5204966d2e_02_annotated-single-core-floorplan.jpg)
 
-![图 3：C910 双核版图](xuantie_c910_figures/03_dual-core-floorplan.jpg)
+*图 2：作者标注后的 C910 单核版图*
+
+![图 3：C910 双核版图](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/xuantie_c910_wechat_article_zh/466b5a725c4c4a5a_03_dual-core-floorplan.jpg)
+
+*图 3：C910 双核版图*
 
 原文的所有实测均来自上述 TH1520 平台。不能把“TH1520 上的 C910”与“论文中可配置到不同 L2 容量的 C910 IP”完全等同，也不能把实机 Linux 测量值直接当成当前仓库 RTL 仿真的固定参数。
 
-## 核心总览
+## 二、核心总览
 
 C910 是三指令宽、乱序执行、12 级流水的处理器。官方流水级从取指、指令打包、缓冲、译码和重命名，延伸到分布式发射、寄存器读取、执行、写回与退休。不同执行管线经过的级数并不完全相同，“12 级”描述的是总体组织，不表示每一类指令都固定经历十二个同名寄存级。
 
-![图 4：官方给出的 C910 12 级流水线](xuantie_c910_figures/04_official-pipeline.jpg)
+![图 4：官方给出的 C910 12 级流水线](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/xuantie_c910_wechat_article_zh/88c3954fb101be4b_04_official-pipeline.jpg)
+
+*图 4：官方给出的 C910 12 级流水线*
 
 作者指出，C910 与 Arm Cortex-A73 类似，可以在指令最终退休之前较早释放部分乱序资源。为了通过微基准探测容量，作者使用相关分支和未完成 load 阻塞退休，从而避免被测指令很快流出窗口。这个方法的核心是让某种结构先达到稳定占用，再从吞吐或延迟曲线的拐点反推容量；它测到的是软件可观察的有效容量，仍需与 RTL 物理表项数互证。
 
-![图 5：作者整理的 C910 核心高层数据通路](xuantie_c910_figures/05_core-overview.jpg)
+![图 5：作者整理的 C910 核心高层数据通路](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/xuantie_c910_wechat_article_zh/dc0e8373a1f1703b_05_core-overview.jpg)
 
-## 前端：取指与分支预测
+*图 5：作者整理的 C910 核心高层数据通路*
+
+## 三、前端：取指与分支预测
 
 ### 指令 Cache 与预译码
 
 C910 要同时处理 16 位压缩指令、32 位普通指令和向量指令。其 L1 I-Cache 为 64 KB、2 路组相联、FIFO 替换。除了指令字节，每个可能的 16 位指令起点还保存 4 位预译码信息：其中两位用于初步标识该位置是否为指令起点，另外两位携带分支信息。把数据、tag 和这些预译码位合计，文章估算指令 Cache 使用约 83.7 KB 原始位存储。
 
-![图 6：64 KB、2 路 L1 I-Cache 的存储组成](xuantie_c910_figures/06_l1i-storage.jpg)
+![图 6：64 KB、2 路 L1 I-Cache 的存储组成](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/xuantie_c910_wechat_article_zh/282147e2e416b4c2_06_l1i-storage.jpg)
+
+*图 6：64 KB、2 路 L1 I-Cache 的存储组成*
 
 一次 L1 I-Cache 访问会同时读取两路的指令字节、预译码数据和 tag。因此 IF 级的临时寄存器一度接收两路共 256 位指令数据和 64 位预译码数据，再由两路 tag 比较确定真正命中的一路。与此同时，IF 级查询一个 16 项全相联 L0 BTB，使少量重复 taken 分支可获得接近单周期的早期目标供给。
 
@@ -85,7 +85,9 @@ C910 要同时处理 16 位压缩指令、32 位普通指令和向量指令。�
 
 这里必须澄清一个容易误读的数字：物理 SRAM 同时读出两路，所以内部暂时出现 `2 × 128 = 256` 位；但组相联 Cache 每次只会有一路命中，错误一路的 8 个候选槽全部丢弃，送往后续级的有效取指窗口仍是命中一路的 128 位。它不是“每周期向后端提供 256 位指令”，更不是“8 字节等于 128 位”。在压缩指令全为 16 位时，一个 128 位窗口最多包含 8 条；若全为 32 位，最多包含 4 条，最终供给还受分支边界和三指令译码宽度限制。
 
-![图 7：作者绘制的简化前端数据流](xuantie_c910_figures/07_frontend-sketch.jpg)
+![图 7：作者绘制的简化前端数据流](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/xuantie_c910_wechat_article_zh/c6f758576edc92bb_07_frontend-sketch.jpg)
+
+*图 7：作者绘制的简化前端数据流*
 
 ### 主分支预测器
 
@@ -99,17 +101,25 @@ C910 的主要预测机制位于 IP 级。条件分支使用 bi-mode 预测器�
 
 选择表索引由分支地址低位与全局历史哈希形成，历史表还会使用全局历史的更高位进行哈希，选择表输出决定使用 taken 表还是 not-taken 表。文章估算全部主要预测存储约 17.3 KB，并把它视为符合低面积、低功耗目标的小型预测器。原文拿 Qualcomm Oryon 的约 80 KB 条件方向预测存储和约 40 KB 间接预测存储作数量级对照；跨时代、跨目标产品的容量比较只能说明设计预算差异，不能单独证明准确率高低。
 
-![图 8：作者从 RTL 整理的分支预测资源](xuantie_c910_figures/08_branch-predictor-resources.jpg)
+![图 8：作者从 RTL 整理的分支预测资源](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/xuantie_c910_wechat_article_zh/6e13d5ce8a202337_08_branch-predictor-resources.jpg)
+
+*图 8：作者从 RTL 整理的分支预测资源*
 
 作者用不同长度的随机分支模式测试历史识别能力。C910 能处理一定长度的模式，表现与作者测过的其他低功耗核大致相当；当同时存在很多分支时，C910 和 Cortex-A73 都会明显变差，而分支数量较少且所需历史不过长时仍能保持较好准确率。
 
-![图 9：C910 的随机分支模式识别结果](xuantie_c910_figures/09_branch-pattern-c910.jpg)
+![图 9：C910 的随机分支模式识别结果](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/xuantie_c910_wechat_article_zh/51c7a936b9b4a8be_09_branch-pattern-c910.jpg)
 
-![图 10：Cortex-A73 的随机分支模式识别结果](xuantie_c910_figures/10_branch-pattern-a73.jpg)
+*图 9：C910 的随机分支模式识别结果*
+
+![图 10：Cortex-A73 的随机分支模式识别结果](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/xuantie_c910_wechat_article_zh/ac606163e7bbe6d0_10_branch-pattern-a73.jpg)
+
+*图 10：Cortex-A73 的随机分支模式识别结果*
 
 主 BTB 为 1024 项、4 路组相联。由 IP 级重定向会制造一个显式流水空泡，软件观察到的 taken 分支延迟约为 2 周期；当分支集合超出主 BTB 容量但代码仍命中 I-Cache 时，作者测得约 4 周期。这里的“taken 延迟”是特定依赖微基准下的有效代价，不应直接替代完整程序中的误预测恢复周期。
 
-![图 11：taken 分支延迟随分支工作集变化](xuantie_c910_figures/11_taken-branch-latency.jpg)
+![图 11：taken 分支延迟随分支工作集变化](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/xuantie_c910_wechat_article_zh/465180d4ba36eadd_11_taken-branch-latency.jpg)
+
+*图 11：taken 分支延迟随分支工作集变化*
 
 ### 指令缓冲与循环缓冲
 
@@ -117,52 +127,62 @@ IP 级最多向 IB（Instruction Buffer）级交付 8 个 16 位槽及其早期�
 
 向正式译码级供给时，IB 可以从循环缓冲、指令队列或旁路路径选择。每条指令连同早期译码元数据被打包成 73 位格式。旁路用于在无需排队时减少额外延迟，队列用于解耦取指波动与译码消耗。
 
-## 前端：译码与重命名
+## 四、前端：译码与重命名
 
 ID（Instruction Decode）级接收三路 73 位输入，由主译码器提取寄存器信息，并在必要时把一条 ISA 指令拆为多个微操作。三个槽都能为简单指令产生 1–2 个微操作，但每周期总输出不超过 4 个微操作；只有第一个译码槽可以处理会展开为 4 个或更多微操作的复杂指令。此类复杂指令会阻止同周期的并行译码。
 
 译码后的微操作为 178 位，直接进入 IR（Instruction Rename）级。C910 在译码和重命名之间没有许多现代核所设的独立微操作队列，因此两级宽度需要直接匹配：重命名为 4 微操作宽，译码总输出也限制为每周期 4 微操作。
 
-![图 12：译码到重命名的数据流](xuantie_c910_figures/12_decode-rename-flow.png)
+![图 12：译码到重命名的数据流](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/xuantie_c910_wechat_article_zh/d941ff4916238718_12_decode-rename-flow.png)
+
+*图 12：译码到重命名的数据流*
 
 重命名级检查架构寄存器匹配，建立指令间真依赖，并从整数或浮点物理寄存器池分配空闲寄存器；刚从退休级释放的寄存器也可直接再次分配。该级还继续补充多周期 ALU 类型、可用执行端口等控制信息。经过重命名后，一个微操作的打包宽度达到 271 位。这个位宽包括大量控制和依赖元数据，不表示每条指令都搬运 271 位有效数据。
 
-![图 13：作者对各阶段微操作格式的 RTL 笔记](xuantie_c910_figures/13_micro-op-format-notes.jpg)
+![图 13：作者对各阶段微操作格式的 RTL 笔记](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/xuantie_c910_wechat_article_zh/5216a3165662125b_13_micro-op-format-notes.jpg)
+
+*图 13：作者对各阶段微操作格式的 RTL 笔记*
 
 图 13 的图内字段可按下面三组理解。位号和信号名保留原图，中文解释说明其职责；原图在 `vl`、`vl_pred` 等名称后带有问号，表示作者当时仍在推测，本文不把问号消去。
 
-| 内部格式 | 原图字段 | 中文职责 |
-|---|---|---|
-| 73 位译码输入 | `opcode[31:0]` | 32 位原始指令数据 |
-| 73 位译码输入 | `expt_vld`、`expt_vec`、`high_hw_expt` | 异常有效、异常向量和高半字异常信息 |
-| 73 位译码输入 | `split_long`、`split_short` | 分别提示译码为较多微操作或两个微操作 |
-| 73 位译码输入 | `fence`、`bkpta_inst`、`bkptb_inst`、`no_spec` | 屏障、两类断点和禁止推测属性 |
-| 73 位译码输入 | `vlmul`、`vsew`、`pc`、`vl`、`vl_pred` | 向量寄存器分组、元素宽度、程序计数器，以及作者标作可能的向量长度/预测信息 |
-| 178 位译码输出 | `src0/1/2_vld`、`src0/1/2_reg`、`dst_vld`、`dst_reg` | 最多三个源和一个目的架构寄存器的有效位与编号 |
-| 178 位译码输出 | `srcv0/1/2_vld`、`srcv0/1/2_reg`、`dstv_vld`、`dstv_reg` | 向量源/目的寄存器信息 |
-| 178 位译码输出 | `inst_type`、`split`、`intmask`、`length` | 指令类型、拆分、整数掩码和指令长度等控制 |
-| 178 位译码输出 | `mov`、`fmov`、`iid_plus`、`illegal`、`dst_x0`、`mla` 等 | move/FPU move、指令标识增量、非法指令、写 x0、乘加等译码属性 |
-| 178 位译码输出 | `vmla`、`split_last`、`vlmul`、`vsew`、`pc`、`vmb`、`vl`、`vl_pred` | 向量乘加/拆分尾项和从取指侧继续传递的向量、PC 信息；原图蓝色表示沿取指级透传 |
-| 271 位重命名输出 | `preg`、`vreg`、`rel_preg` | 重命名后的标量/向量物理寄存器及待释放物理寄存器 |
-| 271 位重命名输出 | `bp_rdy`、`lsu_match`、`data`、`wb` | 旁路就绪、LSU 匹配、内联数据和写回控制 |
-| 271 位重命名输出 | `srcv*_vld`、`dstv_vreg`、`dst_rel_vreg`、`dst_ereg` | 向量源、向量目的、待释放向量寄存器和扩展目的寄存器 |
-| 271 位重命名输出 | `alu`、`load`、`store`、`staddr`、`bar`、`bar_type` | ALU、load、store、store 地址和屏障类别 |
-| 271 位重命名输出 | `lsu_pc`、`bju`、`pcall`、`pcfifo`、`mult`、`div`、`special`、`rts`、`expt` | LSU PC、分支跳转、调用、PC FIFO、乘除法、特殊操作、返回和异常属性 |
-| 271 位重命名输出 | `pipe6/7`、`vdiv`、`vmla`、`mtvr`、`mfvr`、`unit_stride` 等 | 执行管线选择和向量除法、乘加、标量/向量搬运、单位步长访存等属性 |
+- **73 位译码输入**
+  - `opcode[31:0]`：32 位原始指令数据
+  - `expt_vld`、`expt_vec`、`high_hw_expt`：异常有效、异常向量和高半字异常信息
+  - `split_long`、`split_short`：分别提示译码为较多微操作或两个微操作
+  - `fence`、`bkpta_inst`、`bkptb_inst`、`no_spec`：屏障、两类断点和禁止推测属性
+  - `vlmul`、`vsew`、`pc`、`vl`、`vl_pred`：向量寄存器分组、元素宽度、程序计数器，以及作者标作可能的向量长度/预测信息
+- **178 位译码输出**
+  - `src0/1/2_vld`、`src0/1/2_reg`、`dst_vld`、`dst_reg`：最多三个源和一个目的架构寄存器的有效位与编号
+  - `srcv0/1/2_vld`、`srcv0/1/2_reg`、`dstv_vld`、`dstv_reg`：向量源/目的寄存器信息
+  - `inst_type`、`split`、`intmask`、`length`：指令类型、拆分、整数掩码和指令长度等控制
+  - `mov`、`fmov`、`iid_plus`、`illegal`、`dst_x0`、`mla` 等：move/FPU move、指令标识增量、非法指令、写 x0、乘加等译码属性
+  - `vmla`、`split_last`、`vlmul`、`vsew`、`pc`、`vmb`、`vl`、`vl_pred`：向量乘加/拆分尾项和从取指侧继续传递的向量、PC 信息；原图蓝色表示沿取指级透传
+- **271 位重命名输出**
+  - `preg`、`vreg`、`rel_preg`：重命名后的标量/向量物理寄存器及待释放物理寄存器
+  - `bp_rdy`、`lsu_match`、`data`、`wb`：旁路就绪、LSU 匹配、内联数据和写回控制
+  - `srcv*_vld`、`dstv_vreg`、`dst_rel_vreg`、`dst_ereg`：向量源、向量目的、待释放向量寄存器和扩展目的寄存器
+  - `alu`、`load`、`store`、`staddr`、`bar`、`bar_type`：ALU、load、store、store 地址和屏障类别
+  - `lsu_pc`、`bju`、`pcall`、`pcfifo`、`mult`、`div`、`special`、`rts`、`expt`：LSU PC、分支跳转、调用、PC FIFO、乘除法、特殊操作、返回和异常属性
+  - `pipe6/7`、`vdiv`、`vmla`、`mtvr`、`mfvr`、`unit_stride` 等：执行管线选择和向量除法、乘加、标量/向量搬运、单位步长访存等属性
+
 
 从教学角度看，位宽从 73 增至 178，再增至 271，并不是操作数数据越来越宽，而是指令越接近后端，必须携带的控制、依赖、物理寄存器和端口选择信息越来越多。图中部分字段的精确定义仍应以对应 RTL 信号赋值为准。
 
 作者的软件微基准显示，只要代码完全位于 64 KB L1 I-Cache，C910 前端可持续达到每周期 3 条指令；当代码供给落到 L2，前端吞吐低于 1 IPC。对照的 SiFive P550 在更大代码工作集下更稳定，甚至从 L3 取代码时仍能维持约 1 IPC。该图反映的是特定代码布局与测试平台的取指吞吐，不代表通用 benchmark 的总 IPC。
 
-![图 14：不同代码工作集下的取指吞吐](xuantie_c910_figures/14_instruction-fetch-bandwidth.jpg)
+![图 14：不同代码工作集下的取指吞吐](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/xuantie_c910_wechat_article_zh/b75899bdebdad9f9_14_instruction-fetch-bandwidth.jpg)
 
-## 乱序执行引擎
+*图 14：不同代码工作集下的取指吞吐*
+
+## 五、乱序执行引擎
 
 ### ROB：64 个物理表项与约 192 条指令容量
 
 C910 使用物理寄存器文件式乱序执行：尚未退休的推测结果和已经提交的架构结果都存放在 ROB 之外的物理寄存器文件，ROB 主要负责顺序、完成和异常状态。`ct_rtu_rob.v` 确实例化 64 个 ROB 表项，而官方论文称最多可容纳 192 条指令，作者的容量微基准也大体支持后一个数字。
 
-![图 15：微基准观察到的 ROB 有效容量](xuantie_c910_figures/15_rob-capacity.jpg)
+![图 15：微基准观察到的 ROB 有效容量](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/xuantie_c910_wechat_article_zh/70188742e78ebf24_15_rob-capacity.jpg)
+
+*图 15：微基准观察到的 ROB 有效容量*
 
 以上是原文保留的三项观察：RTL 文件中有 64 个表项，官方论文写最多 192 条指令，作者微基准大体接近 192。原文没有进一步解释 64 与 192 如何对应，也没有在此处使用“折叠 ROB”这一术语。
 
@@ -170,17 +190,38 @@ C910 使用物理寄存器文件式乱序执行：尚未退休的推测结果和
 
 C910 有 96 项整数物理寄存器和 64 项浮点/向量物理寄存器。RISC-V 各有 32 个架构整数和浮点寄存器；按作者的简化估计，保留已提交状态后，留给在途结果的大约是 64 个整数和 32 个浮点寄存器。精确可分配数量还受零寄存器、重命名规则和实现保留项影响，但“物理寄存器可能早于文章所称的 ROB 指令容量耗尽”符合原文的判断方向。
 
-![图 16：C910、P550 与 Haswell 的关键乱序结构容量对照](xuantie_c910_figures/16_structure-capacity-comparison.jpg)
+![图 16：C910、P550 与 Haswell 的关键乱序结构容量对照](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/xuantie_c910_wechat_article_zh/5a03def5b9902324_16_structure-capacity-comparison.jpg)
+
+*图 16：C910、P550 与 Haswell 的关键乱序结构容量对照*
 
 图中的全部容量转录如下。`entry`、问号和约数均按原图保留；特别是原图把 C910 写成 `192 entry`，这与上文从 RTL 看到的 64 个物理表项不是同一种表述，本文不替作者重写该表。
 
-| 结构 | 何时需要分配 | C910 | P550 | Haswell |
-|---|---|---:|---:|---:|
-| ROB | 所有进入乱序窗口的指令 | 192 entry（原图原词） | 96 entry | 192 entry |
-| 整数物理寄存器 | 写整数寄存器 | 96 项 | 128 项 | 168 项 |
-| 浮点/向量物理寄存器 | 写浮点寄存器 | 64 项 | 约 119 项 | 168 项 |
-| Load Queue | 从内存读取 | 约 12 项，原图带问号 | 12 项 | 72 项 |
-| Store Queue | 向内存写入 | 24 项 | 16 项 | 42 项 |
+- **ROB**
+  - 何时需要分配：所有进入乱序窗口的指令
+  - C910：192 entry（原图原词）
+  - P550：96 entry
+  - Haswell：192 entry
+- **整数物理寄存器**
+  - 何时需要分配：写整数寄存器
+  - C910：96 项
+  - P550：128 项
+  - Haswell：168 项
+- **浮点/向量物理寄存器**
+  - 何时需要分配：写浮点寄存器
+  - C910：64 项
+  - P550：约 119 项
+  - Haswell：168 项
+- **Load Queue**
+  - 何时需要分配：从内存读取
+  - C910：约 12 项，原图带问号
+  - P550：12 项
+  - Haswell：72 项
+- **Store Queue**
+  - 何时需要分配：向内存写入
+  - C910：24 项
+  - P550：16 项
+  - Haswell：42 项
+
 
 ### 执行端口与整数调度
 
@@ -188,53 +229,69 @@ C910 有 96 项整数物理寄存器和 64 项浮点/向量物理寄存器。RIS
 
 常用 ALU 调度容量只有 16 项。原文对照 P550 的 3 个 ALU 端口共享约 40 项调度容量，以及 Goldmont Plus 的约 30 项。不同处理器的“scheduler entry”分组方式和可接受操作类型并不完全一致，因此这些数值适合做结构预算对比，不适合直接换算性能。
 
-![图 17：整数调度器与执行端口](xuantie_c910_figures/17_integer-scheduler-ports.png)
+![图 17：整数调度器与执行端口](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/xuantie_c910_wechat_article_zh/0e308e7ac3137b2f_17_integer-scheduler-ports.png)
+
+*图 17：整数调度器与执行端口*
 
 ### 浮点与向量执行
 
 FPU 采用两条执行管线，两条都能处理常见加法、乘法、融合乘加和 128 位向量操作。一个 FMA 需要读取三个源操作数，带掩码的向量操作还可能需要第四个源。与 AVX-512 和 SVE 的独立掩码寄存器不同，RVV 的掩码占用向量寄存器，因此这些输入都来自浮点/向量物理寄存器文件。虽然浮点/向量端口数量少于整数侧，寄存器文件仍需提供接近整数侧数量的读端口。
 
-![图 18：浮点/向量调度器与执行端口](xuantie_c910_figures/18_fp-vector-scheduler-ports.jpg)
+![图 18：浮点/向量调度器与执行端口](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/xuantie_c910_wechat_article_zh/be6807440caf2256_18_fp-vector-scheduler-ports.jpg)
+
+*图 18：浮点/向量调度器与执行端口*
 
 作者测得常见浮点运算延迟约为 3–5 周期：加法 3 周期、乘法 4 周期、FMA 5 周期；图中 P550 为 4/4/4，Cortex-A73 为 3/3/5。原文指出 Cortex-X2、Golden Cove、Zen 5 等更新的大核可达到 2 周期浮点加法，但认为不应对低功耗 C910 提出同样目标。
 
-![图 19：常见浮点操作延迟对照](xuantie_c910_figures/19_fp-latency-comparison.jpg)
+![图 19：常见浮点操作延迟对照](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/xuantie_c910_wechat_article_zh/85a53495cc3dc580_19_fp-latency-comparison.jpg)
 
-## 存储子系统
+*图 19：常见浮点操作延迟对照*
+
+## 六、存储子系统
 
 ### 地址生成、TLB 与存储队列
 
 C910 有两个地址生成单元：一个处理 load，一个处理 store。LSU 大体分为 load 和 store 两条管线，目标是每周期最多完成一次 load 地址和一次 store 地址处理。与许多乱序核一样，一条 store 会拆成地址微操作和数据微操作，使地址可以在 store 数据尚未就绪时提前解析。
 
-![图 20：官方 LSU 流水线](xuantie_c910_figures/20_official-lsu-pipeline.jpg)
+![图 20：官方 LSU 流水线](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/xuantie_c910_wechat_article_zh/ca2df1bd4eaa12fc_20_official-lsu-pipeline.jpg)
+
+*图 20：官方 LSU 流水线*
 
 数据访问使用 39 位虚拟地址并形成 40 位物理地址。数据侧一级 uTLB 为 17 项全相联，其中公开 RTL 可进一步解释为 16 个普通页项加 1 个大页项。L1 TLB 未命中后访问统一 JTLB；JTLB 为 1024 项、4 路组相联，即 256 组×4 路，文章称相对一级命中增加约 4 周期。
 
 JTLB 数据阵列由两个 `256×84` SRAM 组成，tag 阵列为一个 `256×196` SRAM；一次 tag 访问包含四路 tag 和 4 位 FIFO 替换状态。每个 tag 除 VPN 和有效位外，还包含 16 位 ASID 与 global 位，以便地址空间切换时保留不必失效的转换。文章估算 tag 与数据合计约 8.96 KB 原始位存储。
 
-![图 21：JTLB tag 字段与存储组织](xuantie_c910_figures/21_l2-tlb-tag-format.png)
+![图 21：JTLB tag 字段与存储组织](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/xuantie_c910_wechat_article_zh/f509fb062d91ce7f_21_l2-tlb-tag-format.png)
+
+*图 21：JTLB tag 字段与存储组织*
 
 地址转换完成后，物理地址进入 load 或 store 队列。文章对 LQ 大小持保留态度：RTL 迹象指向 12 项，但微基准结果并不清晰。RTL 中每个 LQ 项保存 36 位 load 物理地址、16 位字节有效信息和 7 位指令标识；SQ 项则保存 40 位物理地址、待写数据、16 位字节有效位、7 位指令标识以及其他控制字段。相关辅助结构还包括 12 项 wakeup queue、4 位 store-data 标识，以及各 12 项的年龄关系向量。它们共同承担依赖唤醒、顺序判断和转发控制。
 
-![图 22：作者的 load 队列容量微基准](xuantie_c910_figures/22_load-queue-microbenchmark.jpg)
+![图 22：作者的 load 队列容量微基准](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/xuantie_c910_wechat_article_zh/7de6d875e7fba5ea_22_load-queue-microbenchmark.jpg)
+
+*图 22：作者的 load 队列容量微基准*
 
 ### Store-to-load 转发与非对齐访问
 
 RTL 的内存依赖比较会使用地址位 `[11:4]`。作者的软件测试显示，只要 load 的所有字节完全包含在较老 store 覆盖范围内，C910 可以不受 store 内部对齐位置影响地转发；但 load 跨越 16 字节对齐边界，或 store 跨越 8 字节对齐边界时，转发会失败，并出现 20 周期以上的代价。
 
-![图 23：不同 load/store 对齐组合下的转发结果](xuantie_c910_figures/23_store-forwarding-map.jpg)
+![图 23：不同 load/store 对齐组合下的转发结果](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/xuantie_c910_wechat_article_zh/ada83bf2551d1738_23_store-forwarding-map.jpg)
+
+*图 23：不同 load/store 对齐组合下的转发结果*
 
 文章认为 C910 对普通非对齐访问处理良好：load 不跨 16 字节边界、store 不跨 8 字节边界时基本没有额外代价；跨越边界时通常只需在内部增加一次 L1 D-Cache 访问。作者把它评价为略低于当时最新 Intel/AMD 核，但大体达到 AMD Piledriver 的能力层级，也明显好于其测试中的 P550。跨处理器比较仍依赖指令宽度、Cache 命中和测试方法，图中的具体边界才是最可复现的结论。
 
-## 数据 Cache
+## 七、数据 Cache
 
 L1 D-Cache 为 64 KB、2 路组相联、3 周期命中延迟，并划分为 4 字节宽的 bank。它可以每周期处理最多一个 load 和一个 store，但 128 位 store 需要两个周期。load 与 store 使用分离的 tag 阵列，使两类请求能够并行检查地址。
 
-![图 24：64 KB、2 路 L1 D-Cache 的存储组成](xuantie_c910_figures/24_l1d-storage.jpg)
+![图 24：64 KB、2 路 L1 D-Cache 的存储组成](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/xuantie_c910_wechat_article_zh/88b34e855349f28c_24_l1d-storage.jpg)
+
+*图 24：64 KB、2 路 L1 D-Cache 的存储组成*
 
 Cache miss 由 8 个 line-fill buffer 项跟踪，每项保存 miss 地址；回填数据暂存在两个 512 位宽寄存器中。D-Cache 与 I-Cache 一样使用 FIFO 替换。LFB 数量决定同一时刻能追踪多少个尚未完成的 line miss，但有效内存级并行度还受 LQ、TLB、总线信用和依赖链限制。
 
-## L2 Cache 与互连
+## 八、L2 Cache 与互连
 
 ### 从核心到 CIU
 
@@ -246,49 +303,95 @@ CIU 包含两个 SNB 实例，按物理地址位 `[6]` 将相邻 64 B Cache line
 
 在 TH1520 中，L2 容量为 1 MB、16 路组相联、FIFO 替换，并兼任 L1 miss 的下一级和四核簇共享末级 Cache。L2 以物理地址位 `[6]` 选择两个 bank，能够让相邻 Cache line 进入不同 bank；它对上层 Cache 保持包含关系，并用 ECC 保护数据完整性。
 
-![图 25：1 MB、16 路共享 L2 的存储组成](xuantie_c910_figures/25_l2-storage.png)
+![图 25：1 MB、16 路共享 L2 的存储组成](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/xuantie_c910_wechat_article_zh/18ac4dcaeea60be5_25_l2-storage.png)
+
+*图 25：1 MB、16 路共享 L2 的存储组成*
 
 作者在 TH1520 上测得 L2 访问约 60 周期，并认为对于没有中间级 Cache、可利用乱序资源受限的 C910 来说过高。原文对照 P550 的 4 MB L3 以及 Goldmont Plus 约 28 周期的共享 L2 延迟。由于各测试的频率、TLB 路径、预取、测量链和 Cache 定义不同，这种对照应看数量级，不能当成严格同条件排名。
 
-![图 26：TH1520 的 Cache 与内存访问延迟](xuantie_c910_figures/26_cache-memory-latency.jpg)
+![图 26：TH1520 的 Cache 与内存访问延迟](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/xuantie_c910_wechat_article_zh/b7ed11de31abdd44_26_cache-memory-latency.jpg)
+
+*图 26：TH1520 的 Cache 与内存访问延迟*
 
 ### L2 与 DRAM 带宽
 
 单个 C910 核从 L2 读取略高于 10 GB/s，按 1.85 GHz 换算约 5.5 B/cycle。四核合计读取约 12.6 GB/s，即平均每核约 1.7 B/cycle；四核合计写带宽约 23.81 GB/s，仍低于整个簇每周期 16 字节，而且一般程序的读流量往往比写流量更常见。原文认为这些结果不仅落后于对照的 P550 L3 和 Goldmont Plus L2，也意味着多线程程序容易触及共享 L2 读带宽限制。
 
-![图 27：三种四核平台的读取带宽随工作集变化](xuantie_c910_figures/27_quad-core-bandwidth.png)
+![图 27：三种四核平台的读取带宽随工作集变化](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/xuantie_c910_wechat_article_zh/44ae6e314fec77df_27_quad-core-bandwidth.png)
+
+*图 27：三种四核平台的读取带宽随工作集变化*
 
 离开处理器簇的请求通过 128 位 AXI4 接口。LicheePi 4A 的 64 位 LPDDR4X-3733 理论峰值略低于 30 GB/s，但作者测得多线程持续读取约 4.2 GB/s。四核共享的末级 Cache 只有 1 MB 时，大工作集很快落到 DRAM，因此可实现带宽会直接限制多核和向量吞吐。
 
 使用 2 MB 大页和 1 GB 数组时，作者测得 DRAM 延迟约 133.9 ns。原文对照表如下；它比较的是整个平台而非单纯 CPU 核，内存控制器、DRAM 配置、页大小和软件环境都在结果中。
 
-| 平台 | 处理器配置 | 作者测得读带宽 | 作者测得 DRAM 延迟 |
-|---|---|---:|---:|
-| LicheePi 4A / TH1520 | 4×C910 | 4.17 GB/s | 133.86 ns |
-| Eswin EIC7700X | 4×P550 | 17.91 GB/s | 193.92 ns |
-| Intel Celeron J4125 | 4×Goldmont Plus | 12.70 GB/s | 186.63 ns |
-| Amlogic S922X | 4×Cortex-A73 | 7.96 GB/s | 139.79 ns |
+- **LicheePi 4A / TH1520**
+  - 处理器配置：4×C910
+  - 作者测得读带宽：4.17 GB/s
+  - 作者测得 DRAM 延迟：133.86 ns
+- **Eswin EIC7700X**
+  - 处理器配置：4×P550
+  - 作者测得读带宽：17.91 GB/s
+  - 作者测得 DRAM 延迟：193.92 ns
+- **Intel Celeron J4125**
+  - 处理器配置：4×Goldmont Plus
+  - 作者测得读带宽：12.70 GB/s
+  - 作者测得 DRAM 延迟：186.63 ns
+- **Amlogic S922X**
+  - 处理器配置：4×Cortex-A73
+  - 作者测得读带宽：7.96 GB/s
+  - 作者测得 DRAM 延迟：139.79 ns
 
-![图 28：四种低功耗平台的 DRAM 带宽与延迟](xuantie_c910_figures/28_dram-comparison.jpg)
+
+![图 28：四种低功耗平台的 DRAM 带宽与延迟](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/xuantie_c910_wechat_article_zh/957ef77540909555_28_dram-comparison.jpg)
+
+*图 28：四种低功耗平台的 DRAM 带宽与延迟*
 
 ### 核间传输延迟
 
 一致性协议有时必须把脏数据或所有权从一个核心转移到另一个核心。作者编写了与 AnandTech 同类的核间延迟微基准，并认为结果可作大致对照。TH1520 四核矩阵中的核间值约为 61–64 ns；作者评价 CIU 的核间传递速度合理，并明显好于其测得簇内超过 300 ns 的 P550 平台。图中非对角线数值完整转录如下，单位为 ns：
 
-| 发起核＼目标核 | 核 1 | 核 2 | 核 3 | 核 4 |
-|---:|---:|---:|---:|---:|
-| 核 1 | — | 62.75 | 63.10 | 63.05 |
-| 核 2 | 64.05 | — | 62.65 | 63.60 |
-| 核 3 | 63.15 | 62.45 | — | 61.75 |
-| 核 4 | 62.50 | 61.90 | 61.75 | — |
+- **核 1**
+  - 核 1：—
+  - 核 2：62.75
+  - 核 3：63.10
+  - 核 4：63.05
+- **核 2**
+  - 核 1：64.05
+  - 核 2：—
+  - 核 3：62.65
+  - 核 4：63.60
+- **核 3**
+  - 核 1：63.15
+  - 核 2：62.45
+  - 核 3：—
+  - 核 4：61.75
+- **核 4**
+  - 核 1：62.50
+  - 核 2：61.90
+  - 核 3：61.75
+  - 核 4：—
 
-![图 29：TH1520 四核之间的传输延迟矩阵](xuantie_c910_figures/29_core-to-core-latency.png)
 
-## 总结与作者结论
+![图 29：TH1520 四核之间的传输延迟矩阵](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/xuantie_c910_wechat_article_zh/099e388a0932cc79_29_core-to-core-latency.png)
 
-作者认为，作为平头哥第一代乱序核，C910 已有不少成熟之处：核间传递延迟、非对齐访问和向量支持优于其测试过的 P550 平台；L2 可配置到 8 MB，多簇配置也提供了扩展核心数的可能性。原文引用官方论文中的产品目标：面向 AI、边缘服务器、工业控制和 ADAS，并预计到 2022 年相关玄铁 910 产品总量达到 1500 万颗。该数字是 2020 年材料中的预期，不是本文核验的实际出货量。
+*图 29：TH1520 四核之间的传输延迟矩阵*
 
-![图 30：Hot Chips 2024 展示的 TH1520 芯片，并非作者测试的那一颗](xuantie_c910_figures/30_th1520-chip.jpg)
+## 体系结构视角：宽窗口只有在整条供给链匹配时才有价值
+
+乱序窗口的有效大小不是单由 ROB 条目数决定。物理寄存器、调度器、Load/Store Queue、Cache miss 跟踪项和回写端口中，任何一种资源先满，都会让前端停止分配。因而“ROB 很大”与“能够跨越长延迟继续找出独立工作”并不等价；容量微基准还需要结合各类队列满周期和 ready-but-not-issued 状态，才能判断真正的限制落在哪里。
+
+存储供给同样决定宽窗口能否兑现。向量指令提高了每条指令的数据需求，共享 L2 的延迟、读带宽和四核争用会沿着 refill、Load Queue 与调度器逐级形成反压。单项带宽结果只能指出可能的瓶颈，若要建立因果链，还应同时比较退休 IPC、前端停顿、L1/L2 miss、在途请求数、CIU/L2 反压和执行端空闲周期。
+
+OpenC910 的价值正在于这些假设可以继续向 RTL 收敛：先核对资源深度、握手和恢复条件，再用定向测试观察相同周期内的队列占用、阻塞来源与退休进度。只有结构证据、计数器变化和性能结果彼此吻合，才能把“资源不平衡”从合理解释提升为已验证根因。
+
+## 九、文章总结与结论
+
+文章认为，作为平头哥第一代乱序核，C910 已有不少成熟之处：核间传递延迟、非对齐访问和向量支持优于其测试过的 P550 平台；L2 可配置到 8 MB，多簇配置也提供了扩展核心数的可能性。文中引用的官方论文把产品目标指向 AI、边缘服务器、工业控制和 ADAS，并预计到 2022 年相关玄铁 910 产品总量达到 1500 万颗。该数字是 2020 年材料中的预期，并非已经核验的实际出货量。
+
+![图 30：Hot Chips 2024 展示的 TH1520 芯片，并非作者测试的那一颗](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/xuantie_c910_wechat_article_zh/f05637ad07075ac4_30_th1520-chip.jpg)
+
+*图 30：Hot Chips 2024 展示的 TH1520 芯片，并非作者测试的那一颗*
 
 作者的批评更集中在“结构平衡”与“存储供给”：
 
@@ -298,49 +401,14 @@ CIU 包含两个 SNB 实例，按物理地址位 `[6]` 将相邻 64 B Cache line
 - 核心因 L2 延迟和带宽不足而需要更多在途工作，但支撑结构又可能先满，形成互相强化的限制；
 - 向量指令提高单位指令的数据需求，若存储层次不能持续供数，向量执行能力也难以充分利用。
 
-原文最后希望平头哥利用 C910 的经验继续改进后续核心，并认为阿里巴巴的支持应能提供充足研发资源；作者也希望看到更多开源乱序设计。作者特别肯定公开 RTL 的研究价值：研究者能直接看到微操作格式如何随流水阶段变化，也能理解“译码”实际上分散在早期边界识别、主译码、重命名控制补充等多个阶段，而不是只存在于名为 Decode 的一级。
+文章最后希望平头哥利用 C910 的经验继续改进后续核心，并认为阿里巴巴的支持应能提供充足研发资源，同时期待看到更多开源乱序设计。公开 RTL 的研究价值也得到特别肯定：研究者能直接看到微操作格式如何随流水阶段变化，也能理解“译码”实际上分散在早期边界识别、主译码、重命名控制补充等多个阶段，而不是只存在于名为 Decode 的一级。
 
-原文最后还有支持 Chips and Cheese 的 Patreon、PayPal 和 Discord 邀请；与处理器技术无关，在此完整记录其存在而不展开宣传链接。
+文末还有支持 Chips and Cheese 的 Patreon、PayPal 和 Discord 邀请；这些内容与处理器技术无关，这里只记录其存在，不展开宣传链接。
 
-## 图表完整性与英文标签对照
+## 参考资料
 
-原始 HTML 技术正文含 30 幅图，已全部按原顺序嵌入。下表集中解释图内仍保留的英文标签；保留原文缩写是为了与网页和 RTL 信号保持唯一对应。
-
-| 图号 | 图的作用 | 阅读重点与英文标签对应 |
-|---:|---|---|
-| 1 | 平头哥产品线与 C910 架构概览 | High Performance / Efficient Computing / Embedded / MCU：高性能 / 高效计算 / 嵌入式 / 微控制器；C910 位于高性能层级 |
-| 2 | 作者标注的单核版图 | 红字为 Chester Lam 添加的模块说明，不是原始论文标注；PIU/PLIC 在双核图出现 |
-| 3 | 双核版图 | 观察两个核心、共享或接口逻辑的物理布局关系 |
-| 4 | 官方 12 级流水 | IF/IP/IB/ID/IR/IS/RF/EX/WB/RT 分别对应取指、打包、缓冲、译码、重命名、发射、寄存器读取、执行、写回和退休 |
-| 5 | 核心高层框图 | 作者把前端、乱序后端、执行端口、LSU、Cache 和 TLB 串成一张结构图 |
-| 6 | L1 I-Cache 存储组成 | Data/Predecode/Tag：指令数据 / 预译码 / 标签；总原始位存储约 83.7 KB，不等于软件可用容量 |
-| 7 | 简化前端草图 | 两路各读 128 位并各过 8 路早期译码，最终仅保留命中一路 |
-| 8 | 分支预测资源 | BHT/BTB/GHR/RAS/Indirect Target Array：方向表 / 目标缓冲 / 全局历史 / 返回栈 / 间接目标数组 |
-| 9 | C910 分支模式测试 | Array (Pattern) Length：模式数组长度；Branches in Loop：循环中的分支数；Difference Between Random/Predictable：随机与可预测模式的耗时差，单位 ns；曲面不是直接的“准确率百分比” |
-| 10 | Cortex-A73 分支模式测试 | 与图 9 使用相同三轴定义，提供低功耗乱序核参照 |
-| 11 | taken 分支延迟 | 横轴 Branches in Loop：循环分支数；纵轴 Cycles Per Branch：每分支周期；四条线表示每 4/8/16/32 B 放置一个分支；BTB 容量内约 2 周期，溢出主 BTB 但仍命中 I-Cache 时约 4 周期 |
-| 12 | 译码与重命名流 | 每周期 3 条 ISA 指令入口、最多 4 个微操作输出；译码后直接进入重命名 |
-| 13 | 微操作格式笔记 | 73/178/271 位是不同阶段的内部打包宽度，包括控制元数据，不是数据通路计算位宽 |
-| 14 | 代码工作集与前端吞吐 | 横轴 Test Size (KB)：测试代码大小；纵轴 Instructions/Cycle：每周期指令数；蓝线为使用 2 MB 大页的 C910，红线为 P550；C910 在 64 KB I-Cache 内接近 3 IPC，进入下级后明显下降 |
-| 15 | ROB 有效容量测试 | 横轴为两次指针追踪 load 之间的 NOP 数；纵轴为两次 Cache miss 的延迟；约 181 个 NOP 处出现 288.8 ns 标注和台阶，作者据此认为软件可见容量接近 192；原文另行指出 RTL 文件定义了 64 个 ROB 表项，但未解释二者关系 |
-| 16 | 后端容量对照 | ROB、整数/浮点物理寄存器、LQ/SQ 等容量；跨架构定义可能不同，只比较量级 |
-| 17 | 整数调度与端口 | 两个常用 ALU 端口、一个分支端口及存储相关端口；常用 ALU 调度容量约 16 项 |
-| 18 | 浮点/向量调度与端口 | 两条常见浮点/128 位向量管线；FMA 与掩码操作需要较多寄存器读端口 |
-| 19 | 浮点延迟对照 | C910 加/乘/FMA 为 3/4/5 周期；图中同时给出 P550、A73 |
-| 20 | 官方 LSU 流水 | LD PIPE/ST PIPE：load/store 管线；地址、TLB、Cache、队列、对齐和写回路径 |
-| 21 | JTLB tag 格式 | 256 组×4 路、16 位 ASID、global 与 FIFO 状态；统一承接指令和数据 uTLB miss |
-| 22 | LQ 容量微基准 | 横轴为两次 Cache miss 之间插入的 load 数，纵轴为两次 miss 的延迟；红线 Just loads：仅 load，蓝线 Dependent Branch Blocking Retire：用相关分支阻塞退休；曲线并无唯一清晰拐点，RTL 指向约 12 项 |
-| 23 | Store-to-load 转发图 | 列为 32 位 load 偏移，行为 64 位 store 偏移；每格给出相应组合的测量值，绿色约 1、黄色约 2、红色常为 10–32；红色对角带显示不能直接转发的重叠/跨边界组合 |
-| 24 | L1 D-Cache 存储组成 | 64 KB、2 路、分 bank；load/store tag 阵列分离 |
-| 25 | L2 存储组成 | TH1520 为 1 MB、16 路、双 bank、FIFO、ECC；软件可见容量与原始 SRAM 位数不同 |
-| 26 | Cache/内存延迟 | 标题中的 2 MB Pages 表示使用 2 MB 页；横轴为测试大小 KB，纵轴为延迟周期；蓝线 C910 的 L1 约 3 周期、L2 标注 59.57 周期，红线 P550 的下级平台标注 13.06 与 38.11 周期 |
-| 27 | 四核读取带宽 | 横轴为测试大小 KB，纵轴为 GB/s；蓝/红/绿分别为 TH1520 四核 C910、EIC7700X 四核 P550、Celeron J4125 四核 Goldmont Plus；图上标出 C910 L2 约 12.64 GB/s、DRAM 约 4.17 GB/s |
-| 28 | DRAM 平台对照 | All-Core DRAM Read Bandwidth / Latency：全核 DRAM 读带宽 / 延迟；四个平台的全部精确值已在正文表格转录；比较的是完整 SoC 平台 |
-| 29 | 核间延迟矩阵 | 行列为核编号，单位 ns；对角线不是跨核传输；12 个非对角线数值已在正文完整转录，范围 61.75–64.05 ns |
-| 30 | TH1520 芯片照片 | 摄于 Hot Chips 2024；原文明确说明并非作者实际测试的那一颗芯片 |
-
-本清单中的“全部”指 HTML 的技术正文、标题、引文、30 幅图及图注。网页导航、评论、互动计数、登录控件和订阅界面不属于文章正文；原文结尾的赞助与社区邀请已在总结中说明。品牌、处理器型号、人名、URL、代码缩写和标准专名保留原文，以免失去唯一对应关系。
-
-## 内容边界
-
-本文区分网页原文给出的说法与数据、公开 OpenC910 RTL 中能够直接对应的结构，以及图中明确标注的 TH1520 实测结果。平台数据不能外推为所有 C910 IP 配置的固定规格；不同处理器之间缺少完整统一的软件与测试环境，只能作定性或数量级比较。
+- 英文原文：https://chipsandcheese.com/p/alibabat-heads-xuantie-c910
+- OpenC910：https://github.com/XUANTIE-RV/openc910
+- IFU 早期译码 RTL：https://github.com/XUANTIE-RV/openc910/blob/main/C910_RTL_FACTORY/gen_rtl/ifu/rtl/ct_ifu_ipdecode.v
+- ROB RTL：https://github.com/XUANTIE-RV/openc910/blob/main/C910_RTL_FACTORY/gen_rtl/rtu/rtl/ct_rtu_rob.v
+- bi-mode predictor 论文：https://people.eecs.berkeley.edu/~kubitron/courses/cs152-S04/handouts/papers/p4-lee.pdf

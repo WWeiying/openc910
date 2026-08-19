@@ -27,7 +27,7 @@ Intel 把 AVX-512 带入大核后，并没有简单地把整个向量数据通�
 
 ![图 4：Golden Cove 256-bit 与 512-bit 结果的可用重命名容量](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/intel_golden_cove_vector_rf_wechat_article_zh/137a9e25dc33667b_04_figure.png)
 
-测试约测到 295 个 256-bit rename、210 个 512-bit rename。若假设两个 SMT 线程共需 32 项保存体系结构状态，当时推算总物理向量寄存器约 327 项，其中约 242 项具备完整 512-bit 宽度。两种容量都高于 Ice Lake，但主要增益落在更常见的 SSE/AVX2 代码。
+测试测得约 295 个 256-bit rename、210 个 512-bit rename。若假设两个 SMT 线程共需 32 项保存体系结构状态，当时推算总物理向量寄存器约 327 项，其中约 242 项具备完整 512-bit 宽度。两种容量都高于 Ice Lake，但主要增益落在更常见的 SSE/AVX2 代码。
 
 交替写 256-bit 与 512-bit 结果时，测试仍能使用接近完整容量，说明重命名器会优先把窄结果放进不具备高半部的 entry，把全宽 entry 留给 ZMM 结果。它很可能维护两类资源池，并对 256-bit 结果的分配作出选择；具体启发式没有公开，不能仅凭曲线确认。
 
@@ -69,4 +69,4 @@ Zen 4 总向量 entry 较少，物理阵列更小，数据不必走那么远；�
 
 Golden Cove 用三个办法提高向量寄存器文件效率：只让一部分 entry 具备 512-bit 高半部；让重命名器按结果宽度选择资源池；SMT 下用 watermark，而不是固定对半。这让 Intel 能把更多面积投入常见的 SSE/AVX2 重排序，同时仍保持强 AVX-512 容量。
 
-测试约值不是官方总 entry 数，后续 Sapphire Rapids 官方数据还会修正“为体系结构状态固定预留 32 项”的假设。更现实的限制是，大多数 Golden Cove 客户端根本无法使用 AVX-512；测试需要一颗未 fuse-off 的芯片和允许开启 AVX-512 的旧 BIOS。文章推测 Sapphire Rapids 可能有相似行为，后续官方资料确实提供了核对机会，但本篇当时尚未确认。
+测试近似值不是官方总 entry 数，后续 Sapphire Rapids 官方数据还会修正“为体系结构状态固定预留 32 项”的假设。更现实的限制是，大多数 Golden Cove 客户端根本无法使用 AVX-512；测试需要一颗未 fuse-off 的芯片和允许开启 AVX-512 的旧 BIOS。文章推测 Sapphire Rapids 可能有相似行为，后续官方资料确实提供了核对机会，但本篇当时尚未确认。

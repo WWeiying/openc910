@@ -2,7 +2,7 @@
 
 > **文章来源**
 >
-> - 文章：*Skymont: Intel’s E-Cores Reach for the Sky*
+> - 文章：*Skymont: Intel’s E-Cores reach for the Sky*
 > - 撰文：Chester Lam
 > - 首发：Chips and Cheese
 > - 发布：2024 年 10 月 3 日
@@ -68,7 +68,7 @@ Skymont 的 8-wide 指的是重命名/分配阶段可持续向后端送入的峰
 
 ![图 6：512 个分支下的历史模式容量](intel_skymont_figures/06_many_branch_history_pattern.png)
 
-*图 6：Skymont 在长模式区域比 Crestmont维持更久，随后分级跌落。测试同时增加模式长度与静态分支压力，因而衡量的是整个方向预测组织的有效能力，而非单一全局历史长度。*
+*图 6：Skymont 在长模式区域比 Crestmont 维持得更久，随后分级跌落。测试同时增加模式长度与静态分支压力，因而衡量的是整个方向预测组织的有效能力，而非单一全局历史长度。*
 
 方向正确只是第一步。预测器还必须提前告诉取指单元“下一段代码在哪里”。现代前端会让分支预测跑在取指之前，提前排队 I-Cache miss，以存储级并行隐藏 L2 或更低层级的延迟。分支目标缓冲区（Branch Target Buffer，BTB）正是这条链路的关键。
 
@@ -174,7 +174,7 @@ Skymont 保留四个整数调度器，每个从 16 项增到 20 项，并从单�
 
 ![图 18：Skymont 与 Crestmont 的整数执行端口](intel_skymont_figures/18_integer_execution_ports.png)
 
-*图 18：Skymont 四个 20 项整数调度器各连接两条基础 ALU 路径，其中两组还能到达整数乘法器，一组到达 PDE P；另有约 54 项分支调度器连接三条分支路径。Crestmont 的四个 16 项队列各只有一条主要 ALU，约 42 项分支调度器连接两条分支路径。图是基于测试的近似端口关系，不代表 Intel 的物理版图。*
+*图 18：Skymont 四个 20 项整数调度器各连接两条基础 ALU 路径，其中两组还能到达整数乘法器，一组到达 `PDEP`；另有约 54 项分支调度器连接三条分支路径。Crestmont 的四个 16 项队列各只有一条主要 ALU，约 42 项分支调度器连接两条分支路径。图是基于测试的近似端口关系，不代表 Intel 的物理版图。*
 
 不常用的乘法器、移位器并未按比例扩张，因此这些操作的吞吐与 Crestmont 接近。64-bit 整数乘法延迟则从 5 周期降到 4 周期，仍慢于 Zen 5 的 3 周期。Skymont 还多了一条分支端口，可每周期处理三条 Not-Taken 分支；Taken 分支仍受前端目标供给限制，只能每周期一条。
 
@@ -344,7 +344,7 @@ Intel 尚未公开 Skymont、Lion Cove 的完整专用 PMU 文档，但从 Core 
 
 *图 36：英文正式图注注明使用 Broadwell binary。横轴是总计算时间，越低越好。该二进制和 25 亿位输入说明了测试版本的一部分，但线程绑定、内存状态和误差未列出。*
 
-总体看，Skymont 最擅长高 IPC、小 Cache footprint 的工作。例如 548.exchange2 的 SPEC 分数相对 Crestmont提高 20.8%，IPC 从 3.39 增到 4.21。反过来，520.omnetpp 在 Zen 4 的 1 MB L2 上有 10.38 MPKI、32 MB L3 上仍有 1.42 MPKI，显示出明显 Cache 压力；Skymont 在该项只有 0.54 IPC，Crestmont 则为 0.62。
+总体看，Skymont 最擅长高 IPC、小 Cache footprint 的工作。例如 548.exchange2 的 SPEC 分数相对 Crestmont 提高 20.8%，IPC 从 3.39 增到 4.21。反过来，520.omnetpp 在 Zen 4 的 1 MB L2 上有 10.38 MPKI、32 MB L3 上仍有 1.42 MPKI，显示出明显 Cache 压力；Skymont 在该项只有 0.54 IPC，Crestmont 则为 0.62。
 
 ![图 37：SPEC CPU2017 整数子项 IPC](intel_skymont_figures/37_spec_ipc_comparison.png)
 
@@ -392,7 +392,7 @@ Skymont 相对 Crestmont 是一次巨大跃迁：方向预测更强，末级 BTB
 
 ## 参考资料
 
-- Chester Lam，*Skymont: Intel’s E-Cores Reach for the Sky*，Chips and Cheese，2024-10-03： https://chipsandcheese.com/p/skymont-intels-e-cores-reach-for-the-sky
+- Chester Lam，*Skymont: Intel’s E-Cores reach for the Sky*，Chips and Cheese，2024-10-03： https://chipsandcheese.com/p/skymont-intels-e-cores-reach-for-the-sky
 - Intel，Lunar Lake / Skymont 公开演讲与 Hot Chips 2024 幻灯片，相关图示由文章引用。
 - SPEC CPU2017：本文保留网页中的 GCC 14.2、Rate-1 Estimated Score 口径；未披露的编译参数、输入和误差不作补充假设。
 

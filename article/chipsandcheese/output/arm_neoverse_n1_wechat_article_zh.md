@@ -32,7 +32,7 @@ AMD 把 L3 放得离核心很近并按核心频率运行。Altra 为支撑大单
 
 *图 3：每线程独立数组避免控制器合并相邻请求，得到更可信 DRAM 带宽。代价是 Altra 的 32 MB L3 淹没在 80 MB 总 L2 之后，不易从曲线单独识别。*
 
-全芯片吞吐则是 Altra 的主场：80 核很难被 16 核 3950X 或 24 核 3960X 抵消。原测试没有 64 核 EPYC 裸机，不能把结果外推成同核心数结论。
+全芯片吞吐则是 Altra 的主场：80 核带来的总吞吐优势，很难被 16 核 3950X 或 24 核 3960X 追上。原测试没有 64 核 EPYC 裸机，不能把结果外推成同核心数结论。
 
 ![图 4：全芯片共享数组带宽](arm_neoverse_n1_figures/04_chip_level_shared_array_bandwidth.jpg)
 
@@ -46,7 +46,7 @@ Altra L3 总带宽最合理估计约 663 GB/s，低于 Threadripper Zen 2，甚�
 
 ### 体系结构视角：Mesh 用局部性能换规模可扩展性
 
-核心频率 L3 提供低延迟高带宽，却难以把许多核心接在一个统一域；Mesh 可扩到 80～128 核，代价是更低互连频率、更远 hop 与更高共享 Cache 延迟。服务器设计优化的是每瓦吞吐、内存通道与部署密度，不必追求桌面式单线程 Cache。
+随核心频率运行的 L3 提供低延迟高带宽，却难以把许多核心接在一个统一域；Mesh 可扩到 80～128 核，代价是更低互连频率、更远 hop 与更高共享 Cache 延迟。服务器设计优化的是每瓦吞吐、内存通道与部署密度，不必追求桌面式单线程 Cache。
 
 判断 Mesh 是否瓶颈，应按 NUMA/目标 Slice、hop、并发线程和每线程独立数组分组，观察 Mesh 占用、L3 hit、内存控制器流量与延迟，而不是只看全芯片 GB/s。
 
@@ -132,7 +132,7 @@ Load/Store Queue 与 WikiChip 数字不一致。N1 在超过约 44 个 Store 或
 
 ![图 17：Zen 2 微架构总览](arm_neoverse_n1_figures/17_zen2_microarchitecture.png)
 
-*图 17：Zen 2 的更大前后端、微操作 Cache、分层 Load 跟踪与核心频率 L3，为宏基准提供结构参照。*
+*图 17：Zen 2 的更大前后端、微操作 Cache、分层 Load 跟踪与随核心频率运行的 L3，为宏基准提供结构参照。*
 
 AMD 手册称 Zen 2 Load Queue 44 项，但只适用于仍在等数据的 Load；Load 已投机完成、只等退休时可追踪约 116。按 N1 那种“不能提前执行”的标准，N1 Load Queue 约 37 项。
 
@@ -168,9 +168,9 @@ Linux `p7zip-full 16.02` 与 Windows 16.04 即使压缩率相同，速度差异�
 
 *图 21：桌面 Zen 2 同频领先 N1 66.7%。版本、操作系统和虚拟化路径会比 CCX 排布造成更大差异。*
 
-Zen 2 的优势来自：分支准确率 97.6%、5.35 MPKI，对 N1 的 95.6%、8.16；Op Cache hitrate 89.8%；L1 DTLB miss 2.02 对 2.77 MPKI，N1 翻译惩罚出现频率高 37.1%；Page Walk 0.74 对 Zen 2 L2 DTLB miss 0.1/千指令。Altra L3 计数器显示 hitrate 低于 1%，但作者怀疑事件可能不准。
+Zen 2 的优势来自：分支准确率 97.6%、5.35 MPKI，对 N1 的 95.6%、8.16；Op Cache 命中率 89.8%；L1 DTLB miss 2.02 对 2.77 MPKI，N1 翻译惩罚出现频率高 37.1%；Page Walk 0.74 对 Zen 2 L2 DTLB miss 0.1/千指令。Altra L3 计数器显示命中率低于 1%，但作者怀疑事件可能不准。
 
-N1 的 64 KB L1D 是优势：hitrate 98.7%、3.53 MPKI，Zen 2 为 98.9%、4.33。看似更低 hitrate 却更低 MPKI，是因为 Zen 2 有 43% 指令访存，N1 只有 27.32%；这说明不能只看 hitrate。EPYC 7452 可能因 boost 到约 3.3 GHz 而领先 3950X 5%，云 VM 无法锁频。Skylake 仅领先 N1 4%，Haswell 反而慢 5.5%，可能受 Intel 较弱预测影响。
+N1 的 64 KB L1D 是优势：命中率 98.7%、3.53 MPKI，Zen 2 为 98.9%、4.33。看似命中率更低却有更低的 MPKI，是因为 Zen 2 有 43% 的指令为访存指令，N1 只有 27.32%；这说明不能只看命中率。EPYC 7452 可能因 boost 到约 3.3 GHz 而领先 3950X 5%，云 VM 无法锁频。Skylake 仅领先 N1 4%，Haswell 反而慢 5.5%，可能受 Intel 较弱预测影响。
 
 ### Blender Cycles
 
@@ -204,7 +204,7 @@ Zen 2、Zen 3、Haswell、Skylake 在 3 GHz 下几乎相同；Zen 2 SMT 只增 8
 
 ![图 26：ChampSim 基准](arm_neoverse_n1_figures/26_champsim.png)
 
-*图 26：N1 分支准确率 98.86%、2.65 MPKI，Zen 2 为 97.67%、5.36；N1 L1I hitrate 99.7%，Zen 2 为 93.37%。作者据此建议 AMD 考虑恢复 K10/Zen 1 的 64 KB L1I。*
+*图 26：N1 分支准确率 98.86%、2.65 MPKI，Zen 2 为 97.67%、5.36；N1 L1I 命中率 99.7%，Zen 2 为 93.37%。作者据此建议 AMD 考虑恢复 K10/Zen 1 的 64 KB L1I。*
 
 ### x264 与 x265
 
@@ -236,7 +236,7 @@ ARM 在 A77/A78 扩大后端，并加入微操作 Cache。后者能增加前端�
 
 ## 结论：N1 的目标不是单核同频击败 Zen 2
 
-无论 CCX 配置或平台如何变化，同核心同频 N1 都不敌 Zen 2；这些变量只改变几个百分点，而差距常跨数代。Haswell 更接近 N1 的整数表现，但 3 GHz 锁频已让 i7-4770 自缚一手，默认频率会更快；使用向量单元的负载又把 N1 拉开。
+无论 CCX 配置或平台如何变化，在相同核心数和频率下，N1 都不敌 Zen 2；这些变量只改变几个百分点，而差距常跨数代。Haswell 更接近 N1 的整数表现，但 3 GHz 锁频已让 i7-4770 自缚一手，默认频率会更快；使用向量单元的负载又把 N1 拉开。
 
 这暴露 Source-based Benchmark 的局限：编码器、渲染器等吞吐程序常用 Intrinsic 或汇编利用 ISA。若只重新编译同一高级语言源代码，可能忽略产品真实软件路径，给出现实性不足的画面。
 

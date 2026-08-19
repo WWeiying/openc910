@@ -210,7 +210,7 @@ L1D 仍只能每周期两次 256-bit Load 和一次 256-bit Store，向量访存
 
 Intel 客户端 512-bit 操作会把 Port 0/1 两个 256-bit 单元结合起来。混合 256-bit 与 512-bit FMA 时，执行模式似乎只能在 `1×512` 或 `2×256` 中选择，不能同拍混用，结果卡在每周期一个向量操作。
 
-![图 23：不同向量操作的实测吞吐](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_zen4_part1_wechat_article_zh/46f2070d53785f36_23_vector_throughput.png)
+![图 23：不同向量操作的实测吞吐](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_zen4_part1_wechat_article_zh/46f2070d53785f36_23_vector_throughput.jpg)
 
 *图 23：Zen 4/Tiger Lake/Cascade Lake 的 256-bit FMA 为 1.90/1.99/1.94 IPC，512-bit FMA 为 1.00/0.94/1.82，512-bit 向量整数 Add 为 1.78/1.89/1.94；混合 256/512-bit FMA 的 1:1 比例为 1.34/0.94/1.82，2:1 为 1.50/0.94/1.82。*
 
@@ -234,7 +234,7 @@ Zen 4 的 FMA 仍是 256-bit 物理管线，但一条 512-bit 指令在 ROB 和�
 
 ## 上篇结论：提高利用率，而不是把每一处都做大
 
-Zen 4 的前端和乱序引擎有实质提升：强大的 L2 方向预测、更多快速 BTB 目标、更大的微操作 Cache与更深的窗口，能让已有执行资源获得更稳定供给。调度器与执行单元却几乎不变；Zen 3 的布局本就灵活充足，AMD 更看重高频。整数 IPC 仍会提高，但这一代总体性能更依赖频率增长。
+Zen 4 的前端和乱序引擎有实质提升：强大的 L2 方向预测、更多快速 BTB 目标、更大的微操作 Cache 与更深的窗口，能让已有执行资源获得更稳定供给。调度器与执行单元却几乎不变；Zen 3 的布局本就灵活充足，AMD 更看重高频。整数 IPC 仍会提高，但这一代总体性能更依赖频率增长。
 
 Load/Store 带宽是明显保守处：L1D 每拍 512-bit Load、256-bit Store，与 Zen 2/3 以及 Haswell/客户端 Skylake 同级。对 256-bit 或更窄向量仍很强，却不及 Golden Cove 的私有 Cache 供给。
 

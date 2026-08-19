@@ -7,7 +7,7 @@
 
 这篇文章发表于 4 月 1 日，故意站在 CDC 6600 所属年代，用“当代新品评测”的语气介绍它，并穿插今天看来明显荒诞的判断。玩笑之外，60-bit 数据通路、scoreboard、十个功能单元、磁芯存储与独立 I/O 处理器等结构参数，来自 CDC 手册与历史资料。
 
-当银行、航空公司和大型企业面对越来越多的数据，Control Data Corporation（CDC）用 CDC 6600 追求比 IBM、DEC 更强的计算能力。它没有现代乱序核的寄存器重命名与推测执行，却已经使用并行、非阻塞功能单元，高性能 Central Memory，以及独立 I/O processor 来减少中央处理器负担。
+当银行、航空公司和大型企业面对越来越多的数据，Control Data Corporation（CDC）用 CDC 6600 追求比 IBM、DEC 更强的计算能力。它没有现代乱序核的寄存器重命名与推测执行，却已经使用可并行工作的非阻塞功能单元、高性能 Central Memory，以及独立 I/O processor 来减少中央处理器负担。
 
 ## 整体结构
 
@@ -15,13 +15,13 @@ CDC 6600 的 Central Processor 是 60-bit scalar、in-order 架构，拥有非�
 
 ![图 1：CDC 6600 中央处理器、寄存器、功能单元、Central Memory 与 ECS 的高层结构](cdc_6600_figures/01_figure.png)
 
-Central Processor 与 Central Memory 都运行在当时很高的 10 MHz。CPU 与内存同频，使系统无需多级 cache，整个 Central Memory 地址空间都能提供相对一致的访问时间。
+Central Processor 与 Central Memory 都运行在当时很高的 10 MHz。CPU 与内存同频；在这样的时序与设计取舍下，系统无需多级 cache，整个 Central Memory 地址空间都能提供相对一致的访问时间。
 
 ## 前端：没有分支预测
 
 CDC 6600 不做 branch prediction。
 
-指令从 Central Memory 取到一个可容纳 8 个 60-bit word 的 instruction queue，这个队列也能充当 loop buffer。为节约内存带宽，只有分支跳出队列范围，或队列即将耗尽时，才启动下一次取指。Central Memory 取指延迟为 8 周期；若分支目标已在队列中，分支约 9 周期，必须重新从内存取目标则约 15 周期。
+指令从 Central Memory 取到一个可容纳 8 个 60-bit word 的 instruction queue，这个队列也能充当 loop buffer。为节约内存带宽，只有在分支跳出队列范围，或队列即将耗尽时，才启动下一次取指。Central Memory 取指延迟为 8 周期；若分支目标已在队列中，分支约 9 周期，必须重新从内存取目标则约 15 周期。
 
 ![图 2：CDC 参考手册中的 RNI（Read Next Instruction）时序](cdc_6600_figures/02_figure.png)
 
@@ -55,7 +55,7 @@ CDC 6600 不做 branch prediction。
 
 ![图 5：CDC 6400/6600/6800 各类指令在不同功能单元上的周期数](cdc_6600_figures/05_figure.png)
 
-increment unit 与 floating-point multiply unit 各有两套，因此前一条乘法未完成时，下一条仍可在另一单元启动。理想地混合浮点乘加时，CDC 6600 可达 4.5 MFLOPS；不过浮点乘法延迟高达 10 周期，软件很难持续制造完美组合。
+increment unit 与 floating-point multiply unit 各有两套，因此前一条乘法未完成时，下一条仍可在另一单元启动。在浮点乘法与加法理想交错时，CDC 6600 可达 4.5 MFLOPS；不过浮点乘法延迟高达 10 周期，软件很难持续制造完美组合。
 
 ![图 6：培训手册中的指令时序与冲突图；“third order conflict”指 WAR hazard](cdc_6600_figures/06_figure.png)
 
@@ -71,11 +71,11 @@ CDC 6600 的指令按序进入功能单元控制，却允许不同的长延迟�
 
 ![图 7：RA 与 FL 定义的程序内存区间](cdc_6600_figures/07_figure.png)
 
-系统不用 paging 或 virtual memory，而采用简洁的 segmentation。每个程序有 Reference Address（RA）作为段基址，Field Length（FL）以 60-bit word 表示可用长度。访问越过 `RA` 到 `RA+FL` 的范围会 halt。系统也不提供现代操作系统可恢复的 precise exception；原文把这种限制戏称为程序员应如实申请存储并“提高水平”。
+系统不用 paging 或 virtual memory，而采用简洁的 segmentation。每个程序有 Reference Address（RA）作为段基址，Field Length（FL）以 60-bit word 表示可用长度。访问超出 `RA` 到 `RA+FL` 的有效范围会 halt。系统也不提供现代操作系统可恢复的 precise exception；原文把这种限制戏称为程序员应如实申请存储并“提高水平”。
 
 ## Central Memory：用多 bank 换带宽
 
-Central Memory 最多 960 KB，即 131,072 个 60-bit word。它按 4096 word 一 bank 划分，由地址低位选择；满配共有 32 bank。程序使用八个 18-bit address register 访问，但容量实际只需 17 位，最高一位没有使用。
+Central Memory 最多 960 KB，即 131,072 个 60-bit word。它以每 bank 4096 word 的方式划分，由地址低位选择；满配共有 32 bank。程序使用八个 18-bit address register 访问，但容量实际只需 17 位，最高一位没有使用。
 
 ![图 8：Central Memory 的理论读取带宽：10 MHz 下每周期一个 60-bit word，即 75 MB/s](cdc_6600_figures/08_figure.png)
 

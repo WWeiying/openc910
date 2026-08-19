@@ -9,7 +9,7 @@ title: "cpu_z_benchmark_wechat_article_zh"
 > 首发：Chips and Cheese，2023 年 11 月 3 日
 > 链接：https://chipsandcheese.com/p/cpu-zs-inadequate-benchmark
 
-CPU-Z 首先是一款硬件信息工具，开发者 CPUID 公司也不要和 x86 的 `CPUID` 指令混淆。它附带的免费跑分很方便，因此进入了硬件评测、网络讨论乃至 AMD 的发布幻灯片。但“方便比较”不等于“能代表真实负载”。下面通过 Intel Software Development Emulator（SDE）和性能计数器，看看这个分数究竟在奖励什么。
+CPU-Z 首先是一款硬件信息工具，开发者是 CPUID 公司；这里的公司名称不要与 x86 的 `CPUID` 指令混淆。它附带的免费跑分很方便，因此进入了硬件评测、网络讨论乃至 AMD 的发布幻灯片。但“方便比较”不等于“能代表真实负载”。下面通过 Intel Software Development Emulator（SDE）和性能计数器，看看这个分数究竟在奖励什么。
 
 ![图 1：CPU-Z 的处理器信息与内置 Benchmark 界面；识别结果本身也可能出现古怪之处](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/cpu_z_benchmark_wechat_article_zh/b2ce0e6eb79e7595_01_figure.png)
 
@@ -49,7 +49,7 @@ CPU-Z 和游戏、Cinebench 2024 的“内存约束”含义完全不同：它�
 
 ![图 8：数据缓存命中率；主要访问停留在 L1D](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/cpu_z_benchmark_wechat_article_zh/9dd3ed2781758ccc_08_figure.png)
 
-即使 Bulldozer 只有 16 KB L1D，命中率仍为 99.9%，每千条指令不到一次 Miss。Kaby Lake 从单线程切换到多线程，L1D 命中率也只从 99.97%降到 99.78%。因此 L2、L3、DRAM 的差异基本没有进入比赛；所谓 Memory-bound Slot 多半只是 Load 等待 L1D 延迟，而乱序窗口通常能遮住它。
+即使 Bulldozer 只有 16 KB L1D，命中率仍为 99.9%，每千条指令不到一次 Miss。Kaby Lake 从单线程切换到多线程，L1D 命中率也只从 99.97% 降到 99.78%。因此 L2、L3、DRAM 的差异基本没有进入比赛；所谓 Memory-bound Slot 多半只是 Load 等待 L1D 延迟，而乱序窗口通常能遮住它。
 
 ### 体系结构视角：工作集过小，会把“系统性能”压缩成单一局部能力
 
@@ -95,7 +95,7 @@ Zen 4 的专用 FStore Pipe 卸下了加法 Pipe 上的 Store 压力，因此端
 
 ![图 17：Kaby Lake、Zen 2、Zen 4 的 Micro-op 来源；纵轴从 75%起](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/cpu_z_benchmark_wechat_article_zh/4f9f9c27d8aea689_17_figure.png)
 
-三者超过 90%的 Micro-op 来自缓存。Kaby Lake 若走 Decoder，16 Byte/Cycle 配合 4.85 Byte 平均指令长度只能支撑约 3.3 IPC；但热点命中绕开了限制。Zen 2 的 4096 项已经能装下全部测试，Zen 4 更大的缓存没有发挥空间。
+三者超过 90% 的 Micro-op 来自缓存。Kaby Lake 若走 Decoder，16 Byte/Cycle 配合 4.85 Byte 平均指令长度只能支撑约 3.3 IPC；但热点命中绕开了限制。Zen 2 的 4096 项已经能装下全部测试，Zen 4 更大的缓存没有发挥空间。
 
 ![图 18：Sandy Bridge 发布时 Intel 给出的典型 Micro-op Cache 命中率约为 80%](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/cpu_z_benchmark_wechat_article_zh/da1687d0374c61d4_18_figure.png)
 

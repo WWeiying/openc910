@@ -77,7 +77,7 @@ P870 的 ROB 和寄存器文件容量大致与 Cortex-X 系列、Zen 4 同一量
 
 ![图 10：两条 128 bit 向量流水线](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/sifive_p870_hot_chips_2023_wechat_article_zh/780b30b11f314ece_10_figure.png)
 
-向量后端为 2×128 bit，吞吐并不强，却是 RISC-V 实现的重要进步；它大致接近 Neoverse N1/N2，而 Veyron V1 甚至没有向量执行能力。
+向量后端为 2×128-bit，吞吐并不强，却是 RISC-V 实现的重要进步；它大致接近 Neoverse N1/N2，而 Veyron V1 甚至没有向量执行能力。
 
 RISC-V Vector 的 LMUL 可让一条指令操作连续多组向量寄存器。若在译码时直接拆分，LMUL>1 会大量消耗译码和重命名带宽。
 

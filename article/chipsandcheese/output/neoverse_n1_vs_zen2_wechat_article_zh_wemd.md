@@ -21,7 +21,7 @@ OpenSSL `speed -multi 4 rsa2048` 测四线程签名；Signs/s 可看作 HTTPS �
 
 Zen 2 同为 3 GHz 时超过 N1 四倍，Boost 后超过五倍。Cloudflare 曾把部分差距归于 Arm 缺少相应 64 bit Multiply、x86 可每拍执行两条 Add-with-carry；但更老、频率更低的 Snapdragon 821 仍比 Altra 快 55%，说明不只是 ISA。
 
-Sandy Bridge 没有 ADCX/ADOX，三个 Integer Pipe 占用超过 70%仍有合理性能；N1 也有三条 ALU，却连双 ALU 的 FX-8350 同频都不如，像是 N1 实现对该依赖模式利用不佳。
+Sandy Bridge 没有 ADCX/ADOX，三个 Integer Pipe 占用超过 70% 时仍有合理性能；N1 也有三条 ALU，却连双 ALU 的 FX-8350 同频都不如，像是 N1 实现对该依赖模式利用不佳。
 
 ![图 2：OpenSSL 四线程 IPC](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/neoverse_n1_vs_zen2_wechat_article_zh/c71a8b3a983f3f2a_02_figure.png)
 
@@ -131,7 +131,7 @@ N1 在 Pattern 长度超过 512 后开始变差，2048 后更明显；Skylake �
 
 ![图 23：不同 Branch Footprint 下的 Taken 吞吐](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/neoverse_n1_vs_zen2_wechat_article_zh/14fcd7d5983e1e79_23_figure.jpg)
 
-面向 Web 的 N1 有很快的后级 BTB和 BTB Miss 地址计算。Intel 可能有约 4096 项、只损一周期的大型快 BTB；Zen 2 L2 BTB 容量大但约四周期。AMD 更偏精度，Arm/Intel 更偏目标速度。
+面向 Web 的 N1 有很快的后级 BTB 和 BTB Miss 地址计算。Intel 可能有约 4096 项、只损一周期的大型快 BTB；Zen 2 L2 BTB 容量大但约四周期。AMD 更偏精度，Arm/Intel 更偏目标速度。
 
 ## 物理寄存器与功耗
 
@@ -141,7 +141,7 @@ N1 约有 88 个 Integer、96 个 FP/SIMD Rename Register；加上 32 个架构�
 
 ![图 25：Zen 2 四核 RAPL Core Power](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/neoverse_n1_vs_zen2_wechat_article_zh/1873515780713be5_25_figure.png)
 
-云 VM 无法读取 N1 Power。Arm 声称 N1 在 2.6～3.1 GHz 每核 1～1.8 W，3 GHz Altra可能接近 1.8 W。若接受该数字，3 GHz Zen 2 每核高 48%～98%，AVX2 压力时接近高端；多数同频性能领先小于功耗差，因此 N1 可能赢能效，x265 例外。这里不是同平台功耗实测。
+云 VM 无法读取 N1 Power。Arm 声称 N1 在 2.6～3.1 GHz 时每核为 1～1.8 W，3 GHz Altra 可能接近 1.8 W。若接受该数字，3 GHz Zen 2 每核高 48%～98%，AVX2 压力时接近高端；多数同频性能领先小于功耗差，因此 N1 可能赢能效，x265 例外。这里不是同平台功耗实测。
 
 ## 测试平台与可比性
 

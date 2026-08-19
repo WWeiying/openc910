@@ -21,7 +21,7 @@ Henry Wong 常用的容量测法大多无法在 A73 上得到拐点，只有 Sch
 
 ![图 2：顺序退休、精确异常与错误路径清除](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/cortex_a73_reordering_capacity_wechat_article_zh/ab46a5659b088ec5_02_figure.png)
 
-顺序退休使异常状态精确：若一条指令访问未映射页面，核心丢弃它之后的所有投机工作，操作系统看到的状态恰好停在异常前，处理完后即可恢复。任意退休后面的指令，一旦更老指令异常，状态就可能无法回滚。
+顺序退休使异常状态精确：若一条指令访问未映射页面，核心丢弃它之后的所有投机工作，操作系统看到的状态恰好停在异常前，处理完后即可恢复。若任由后面的指令提前退休，一旦更老的指令异常，状态就可能无法回滚。
 
 A73 却可能在特定条件下越过未完成 Load 退休。一个合理解释是：地址翻译和页表权限检查完成后，核心已能确信 Load 最终不会产生普通软件异常，剩下只是数据何时返回。灾难性内存故障不在正常恢复模型内。这个解释来自现象推断，并无 RTL 或官方机制说明。
 
@@ -51,13 +51,13 @@ A72 端口多且共享一个 Register File，可能需要复制阵列等办法�
 
 ## Load 很多，Store 与 Branch 很少
 
-A73 可有约 50 个在途 Load，远多于其他结构。要达到该数字还需让 Load 同时写 Integer 和 Vector Destination，否则先被某一 PRF 限制。相对 A72 约 32 项 LQ，这是很大的提升，通常不会成为首要瓶颈。
+A73 可有约 50 个在途 Load，远多于其他结构。要达到该数字，测试序列还需混合写入 Integer 和 Vector Destination，否则会先受某一 PRF 限制。相对 A72 约 32 项 LQ，这是很大的提升，通常不会成为首要瓶颈。
 
 Store 则只能在未决 Branch 后保留约 11 个，比 A72 已偏小的 15 项更少。更奇怪的是，独立 Branch 看起来也共享这 11 项资源；它满后，即使 Scheduler 仍有空间，新 Branch 也进不了后端。
 
 ![图 6：Store 与 Branch 共享约 11 项容量的测量](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/cortex_a73_reordering_capacity_wechat_article_zh/0673c58c91487374_06_figure.png)
 
-一种可能是两者都要在 11 项 Verification Queue 中保留位置：Branch 可能误预测，Store 提交会让数据对其他核可见，均需额外确认。但结构名称和实现未公开。无论如何，这个低容量共享资源很可能很热。
+一种可能是两者都要在 11 项 Verification Queue 中保留位置：Branch 可能误预测，Store 提交会让数据对其他核可见，均需额外确认。但结构名称和实现未公开。无论如何，这个低容量共享资源很可能频繁成为瓶颈。
 
 A73 也没有 Memory Dependence Prediction。只要先前 Store Address 尚未知，年轻 Load 就不能执行；实际上多数 Load 不与 Store 重叠，Core 2 和 Bulldozer 已通过预测让 Load 越过未知 Store。A73 的保守策略会推迟高延迟 Load，并进一步压迫有限窗口。
 

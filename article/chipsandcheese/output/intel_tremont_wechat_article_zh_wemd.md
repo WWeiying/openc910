@@ -20,7 +20,7 @@ Tremont 是 Gracemont 的直接祖先，也标志着 Intel Atom 战略转向。I
 
 *图 1：双三宽 Decode Cluster 后接四宽 Rename/Retire、208 项 ROB、168 项整数和 175 项 128-bit FP 物理寄存器、64/42 项 Load/Store Queue；四核共享 1.5 MB L2，再接 4 MB L3。图中未公开容量来自微基准反推。*
 
-从结构上看，Tremont 像缩小的 Gracemont；从演进关系看，Gracemont则是把 Tremont 的方向推到底。前端名义六宽，Rename 与退休四宽；后端不再是早期 Atom 那种脆弱小窗口，但 Cache 和部分执行资源仍保留低功耗取舍。
+从结构上看，Tremont 像缩小的 Gracemont；从演进关系看，Gracemont 则是把 Tremont 的方向推到底。前端名义六宽，Rename 与退休四宽；后端不再是早期 Atom 那种脆弱小窗口，但 Cache 和部分执行资源仍保留低功耗取舍。
 
 ## Core 级分支预测：准确率、容量和延迟分层
 
@@ -258,7 +258,7 @@ Gracemont 翻倍 Cache 路径，是为了让新增 AVX 能有可用数据；从 
 
 *图 36：Intel 2019 幻灯片列出 Last-Level Cache QoS、内存带宽分配、优先级与监控；这些功能对单用户客户端意义有限，却适合云租户隔离。*
 
-Tremont 还面向 5G、IoT，Snow Ridge 用于边缘；Lakefield 则与 Sunny Cove 一起帮助 Intel摸索异构调度。Total Memory Encryption 防御 Cold Boot，Accelerator Interfacing Instructions 方便 GPU 等卸载设备；Core 级预测、窗口和宽度，也让 Atom 能在桌面贡献性能。
+Tremont 还面向 5G、IoT，Snow Ridge 用于边缘；Lakefield 则与 Sunny Cove 一起帮助 Intel 摸索异构调度。Total Memory Encryption 防御 Cold Boot，Accelerator Interfacing Instructions 方便 GPU 等卸载设备；Core 级预测、窗口和宽度，也让 Atom 能在桌面贡献性能。
 
 但它仍像过渡架构：Cache 弱，执行资源偏薄，整数 Scheduler 甚至小于同期 N1，IPC 与频率都没真正接近桌面大核。
 
@@ -310,7 +310,7 @@ PMU 事件通常测量极具体的条件，不同架构上名字相似也可能�
 
 ![图 42：单核写带宽（B/cycle）](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/intel_tremont_wechat_article_zh/e82991ddf977c8a9_42_single_core_write_bytes_per_cycle.jpg)
 
-*图 42：进入下级 Cache 后 Skylake 明显领先；DRAM 区写入不用等待数据返回，对 DDR5 高读延迟较不敏感，Gracemont因而反超。Jasper Lake Tremont 各层都弱。*
+*图 42：进入下级 Cache 后 Skylake 明显领先；DRAM 区写入不用等待数据返回，对 DDR5 高读延迟较不敏感，Gracemont 因而反超。Jasper Lake Tremont 各层都弱。*
 
 ![图 43：四核写带宽](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/intel_tremont_wechat_article_zh/b169c87c5e04cecb_43_four_core_write_bandwidth.jpg)
 

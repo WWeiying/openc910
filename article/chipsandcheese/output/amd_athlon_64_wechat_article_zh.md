@@ -8,9 +8,9 @@
 > - 发布：2022 年 7 月 28 日
 > - 链接：https://chipsandcheese.com/p/amds-athlon-64-getting-the-basics-right
 
-二十年前，AMD K8 与 Intel 最强的 NetBurst 正面对抗。它比今天的“Zen 对某代 Lake”更有意思，因为两颗核心走向了几乎相反的性能路线：Intel 堆出长流水线、大窗口、Trace Cache 和强预测，AMD 则在 K7 基础上谨慎加入 64 bit 与系统级改造。
+二十年前，AMD K8 与 Intel 最强的 NetBurst 正面对抗。它比今天的“Zen 对某代 Lake”更有意思，因为两款核心走向了几乎相反的性能路线：Intel 堆出长流水线、大窗口、Trace Cache 和强预测，AMD 则在 K7 基础上谨慎加入 64 bit 与系统级改造。
 
-主要数据来自 Athlon 64 FX-62：两颗 K8、AMD 90 nm、2.8 GHz，2006 年与 NetBurst 产品竞争，直到同年 Merom 出现。部分结果来自 65 nm Athlon 64 6000+，核心架构相同。两套 AMD 样品与 Pentium Extreme Edition 965 的频率、Cache、Memory 和主板不同；网页也没有完整给出 OS、Compiler/Flags、温控、重复次数与误差，跨平台曲线用于解释架构，不是严格同频 IPC。
+主要数据来自 Athlon 64 FX-62：两个 K8 核心、AMD 90 nm、2.8 GHz，2006 年与 NetBurst 产品竞争，直到同年 Merom 出现。部分结果来自 65 nm Athlon 64 6000+，核心架构相同。两套 AMD 样品与 Pentium Extreme Edition 965 的频率、Cache、Memory 和主板不同；网页也没有完整给出 OS、Compiler/Flags、温控、重复次数与误差，跨平台曲线用于解释架构，不是严格同频 IPC。
 
 ## 总览：K7 加 64 bit，而非另起炉灶
 
@@ -278,7 +278,7 @@ K8 只是 K7 的小步演进：Integer Queue 每条多两项、TLB 翻倍、FP R
 
 *图 30：Cole L 的 Die Photo。K8 没把最大面积押在新奇前端，而把工程资源投入 x86-64 与 Integrated Memory Controller 等系统变化。网页正式图注说明照片来源。*
 
-x86-64 相对等价 x86-32 实现只增加约 2%～3% Die Area，并尽量保持 32/64-bit Encoding 相近，兼容现有代码。文章将其与 Arm 从 32 到 64 bit 大改 Encoding 的路线对比：后者增加 Decoder Complex，也最终难以无限期保留 32-bit Compatibility。这是架构路线判断，不是仅由 Die 图证明的结论。
+x86-64 相对等价 x86-32 实现只增加约 2%～3% Die Area，并尽量保持 32/64-bit Encoding 相近，兼容现有代码。文章将其与 Arm 从 32 到 64 bit 大改 Encoding 的路线对比：后者增加译码复杂度，也最终难以无限期保留 32-bit Compatibility。这是架构路线判断，不是仅由 Die 图证明的结论。
 
 K8 Integrated Memory Controller 降低 Latency、提高 Bandwidth，HyperTransport 又服务 Multi-socket。AMD 把有限工程资源投向 ISA 与 System Level，得以在 2000 年代中期对抗更大的 Intel。
 
@@ -294,7 +294,7 @@ K8 Integrated Memory Controller 降低 Latency、提高 Bandwidth，HyperTranspo
 
 第四，规则化三 Lane 是 Control Complexity 与面积的交换。重复 AGU/ALU 看似浪费，却简化 Steering、Timing 和模块复用；Macro-op 还节省 ROB/Scheduler Entry。
 
-第五，TLB 层级决定大 Working Set 的尾延迟。K8 32-entry L1 在小集落后，512-entry L2 让它避免 NetBurst 20+ cycle Walk，1 GB Array 最终近乎快一倍。
+第五，TLB 层级决定大 Working Set 的尾延迟。K8 32-entry L1 在小工作集上落后，512-entry L2 让它避免 NetBurst 20+ cycle Walk，1 GB Array 最终近乎快一倍。
 
 第六，Memory Controller 是核心性能的一部分。60 ns DRAM、可扩展双核带宽和更低 Coherency Latency 共同证明，Uncore 设计能抵消 Core 前端的纸面落后。
 

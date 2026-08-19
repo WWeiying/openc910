@@ -5,11 +5,11 @@ title: "cpuid_unreliable_wechat_article_zh"
 ---
 
 > 英文标题：Why you can’t trust CPUID
-> 撰文：Ryan Mull
+> 撰文：Ryan Mull、Chester Lam
 > 首发：Chips and Cheese，2022 年 10 月 27 日
 > 链接：https://chipsandcheese.com/p/why-you-cant-trust-cpuid
 
-社交媒体上流传的“新款 Zen 4”Geekbench 5 结果后来被证实是伪造的。麻烦在于，它们从截图和分数上都可以与真实结果难以区分：AMD 处理器的 Brand String 由六个可读写 CPUID Model-specific Register（MSR）保存，只要改写这些寄存器，依赖标准 CPUID Brand String 的软件就会显示任意名称。
+社交媒体上流传的“新款 Zen 4”Geekbench 5 结果后来被证实是伪造的。麻烦在于，从截图和分数上看，它们都与真实结果难以区分：AMD 处理器的 Brand String 由六个可读写 CPUID Model-specific Register（MSR）保存，只要改写这些寄存器，依赖标准 CPUID Brand String 的软件就会显示任意名称。
 
 ![图 1：AMD Family 19h Model 21h Revision B0 PPR 第 163 页对 Brand String MSR 的定义](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/cpuid_unreliable_wechat_article_zh/a0dcc1b45fb2829b_01_figure.png)
 

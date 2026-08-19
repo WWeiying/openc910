@@ -7,7 +7,7 @@ title: "intel_skymont_details_wechat_article_zh"
 > **文章来源**
 >
 > - 文章：*Intel Details Skymont*
-> - 撰文：Chester Lam
+> - 撰文：Chester Lam、George Cozma
 > - 首发：Chips and Cheese
 > - 发布：2024 年 6 月 15 日
 > - 链接：https://chipsandcheese.com/p/intel-details-skymont

@@ -59,7 +59,7 @@ Crystal Well 有 128 个 bank；同期 DDR3 仅 8 个，DDR5 也常为 32 个。
 
 ## Broadwell 如何把 eDRAM 做成 L4
 
-Haswell 和大概率 Broadwell 使用 non-inclusive victim cache：L3 被替换的 victim line 进入 eDRAM，L4 无需重复保存仍在上层的 line。Crystal Well die 主要只有 data array 和简单控制；cache tag 放在 CPU die 的 L3 slice 内。
+Haswell，以及很可能 Broadwell，都使用 non-inclusive victim cache：L3 被替换的 victim line 进入 eDRAM，L4 无需重复保存仍在上层的 line。Crystal Well die 主要只有 data array 和简单控制；cache tag 放在 CPU die 的 L3 slice 内。
 
 Broadwell L3 从 8 MB 缩到 6 MB，为 L4 tag 腾出面积。tag 每次 lookup 都要按 way 比较，适合放在先进 14 nm SRAM 上，而非独立 eDRAM die。
 
@@ -69,7 +69,7 @@ L3 与 L4 tag 并行查，L4 miss 不必先绕 ring 访问 eDRAM 控制器、再
 
 ![图 9：eDRAM 控制器拥有独立 ring stop](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/intel_broadwell_edram_wechat_article_zh/916ede4a59a434d0_09_figure.png)
 
-该 stop 与四个核心/L3 slice、System Agent、iGPU 一起挂在 ring 上。这些结构来自 Intel 公开论文和框图；“Broadwell 与 Haswell 相同”的部分仍带推定，不能写成已核 RTL。
+该 stop 与四个核心/L3 slice、System Agent、iGPU 一起挂在 ring 上。这些结构来自 Intel 公开论文和框图；“Broadwell 与 Haswell 相同”的部分仍带推定，不能写成已经由 RTL 核实。
 
 ## 实测：约 36.6 ns、50 GB/s
 

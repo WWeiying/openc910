@@ -103,7 +103,7 @@ Desktop 高频六核明显更快。Snapdragon 8+ Gen 1 为 1×X2+3×A710+4×A510
 
 ## 结语：用 Physical Design 做温和 Hybrid
 
-![图 16：Ryzen Z1 Die；万扯淡图像、Clamchowder 标注](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_ryzen_z1_rog_ally_wechat_article_zh/cd0a619eb8a7917e_16_figure.jpg)
+![图 16：Ryzen Z1 Die；万扯淡提供图像、Clamchowder 标注](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_ryzen_z1_rog_ally_wechat_article_zh/cd0a619eb8a7917e_16_figure.jpg)
 
 AMD 没有维护两套架构，而是重做 Zen 4 Physical Design。优点是开发/验证投入小，Compiler Optimization 共享，所有 Core 都支持 AVX-512；Intel Hybrid 则因 ISA 不一致关闭 AVX-512。缺点是 Zen 4c 仍沿用四周期 L1D，没利用低频像 Gracemont 那样做三周期路径，优化空间受共同架构约束。
 

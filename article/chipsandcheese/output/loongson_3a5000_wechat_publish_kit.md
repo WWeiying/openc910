@@ -3,7 +3,7 @@
 ## 正式发布信息
 
 - 正式标题：龙芯 3A5000：LA464 的实力、短板与追赶难题
-- 署名：Chester Lam；来源：Chips and Cheese；发布日期：2023 年 4 月 9 日
+- 署名：Chester Lam、George Cozma；来源：Chips and Cheese；发布日期：2023 年 4 月 9 日
 - 英文标题：Loongson’s 3A5000: China’s Best Shot?
 - 原文/阅读原文：https://chipsandcheese.com/p/loongsons-3a5000-chinas-best-shot
 
@@ -31,7 +31,7 @@
 
 - 30 图，目录 `loongson_3a5000_figures/`，01～30；封面建议 1/3/23；COS HTTPS。
 - 正文 15～16 px，图注 12～13 px；显式保留“体系结构视角”。
-- 后台标题同正式标题；作者 Chester Lam；原创关闭；AI 标识开启；阅读原文同上。
+- 后台标题同正式标题；作者 Chester Lam、George Cozma；原创关闭；AI 标识开启；阅读原文同上。
 
 ## 关键边界与发布检查
 

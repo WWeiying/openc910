@@ -88,7 +88,7 @@ AMD 自 Zen 2 起就有很强 Predictor。Zen 5 在 Zen 4 基础上进一步提�
 
 *图 13：被 L1 BTB 替换的 Target 进入 L2 BTB，近期再次使用时可避免从更晚阶段重发现。具体 Replacement、Tag 和 Recovery 未公开。*
 
-第一层还能跟踪 1024 个 Branch，并达到每周期两个 Taken Branch。Rocket Lake、Cortex-X2 已实现同类吞吐，但 Zen 5 在比 Neoverse V2、Golden Cove 更大的 Branch Footprint 下保持速度，且移动平台频率超过 5 GHz。
+在约 1024 个 Branch 的 Footprint 下，第一层仍能达到每周期两个 Taken Branch。Rocket Lake、Cortex-X2 已实现同类吞吐，但 Zen 5 在比 Neoverse V2、Golden Cove 更大的 Branch Footprint 下保持速度，且移动平台频率超过 5 GHz。
 
 ![图 14：Taken Branch 吞吐与 Footprint](amd_strix_point_zen5_figures/14_taken_throughput.png)
 
@@ -238,7 +238,7 @@ Latency 方面，Zen 5 延续 Zen 4 优势。高性能 Cluster 的 16 MB L3 比�
 
 ### 体系结构视角：Cache 容量、延迟、带宽与可达范围不可合并成一个“更强”
 
-48 KB/4-cycle 说明 L1D 在不增加 Hit Cycle 的前提下扩容；16 MB L3 多 2～3 cycle，则是容量换延迟；两组分离 L3 又限制单线程可触达容量。Bandwith Microbenchmark 验证 Port/Path，Pointer Chase 验证串行 Hit Latency，真实应用还受 Hit Rate 与 Memory-level Parallelism 影响。
+48 KB/4-cycle 说明 L1D 在不增加 Hit Cycle 的前提下扩容；16 MB L3 多 2～3 cycle，则是容量换延迟；两组分离 L3 又限制单线程可触达容量。Bandwidth Microbenchmark 验证 Port/Path，Pointer Chase 验证串行 Hit Latency，真实应用还受 Hit Rate 与 Memory-level Parallelism 影响。
 
 ## 轻量性能测试：Memory Subsystem 能压过核心代际
 
@@ -286,7 +286,7 @@ Intel 在 Lunar Lake 等 Mobile 产品上转离 SMT，借不同 E-Core/P-Core �
 
 第三，Clustered Decode 在 Zen 5 上首先服务 SMT。单线程四宽并不矛盾，因为 Op Cache 是主供给路径；双线程才更常需要八宽 Decode Aggregate。
 
-第四，统一 Scheduler 提高 Entry Fungibility，分布式 Scheduler降低选择器复杂度。Zen 5 在 Integer 与 FP 上分别选择，证明“统一最好”也不是普遍规律。
+第四，统一 Scheduler 提高 Entry Fungibility，分布式 Scheduler 降低选择器复杂度。Zen 5 在 Integer 与 FP 上分别选择，证明“统一最好”也不是普遍规律。
 
 第五，移动 AVX-512 的重点是能效。保持 1024 bit/cycle 峰值，却让窄向量吞吐下降，是用更少 Port/RF Read 把软件推向宽 Vector。
 

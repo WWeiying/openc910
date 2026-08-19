@@ -22027,5 +22027,593 @@
     "sha256": "d5bc4719c7cf3af61eebe00aed65c47595ab1914d4e2f42b3ed38ac4f5d39238",
     "size": 109908,
     "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|45004285525ddecb0929ffe33339c6e0cbf7f7ccb4f1102560be483e0d13c046|01_kunpeng-920-chip.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/kunpeng_920_wechat_article_zh/45004285525ddecb_01_kunpeng-920-chip.jpg",
+    "objectKey": "wechat/articles/kunpeng_920_wechat_article_zh/45004285525ddecb_01_kunpeng-920-chip.jpg",
+    "sha256": "45004285525ddecb0929ffe33339c6e0cbf7f7ccb4f1102560be483e0d13c046",
+    "size": 84780,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|8df5045e0c8d7f35816c712a56681f81f920dd6716a830129d925c2e7c6f2034|02_multi-socket-numa-topology.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/kunpeng_920_wechat_article_zh/8df5045e0c8d7f35_02_multi-socket-numa-topology.png",
+    "objectKey": "wechat/articles/kunpeng_920_wechat_article_zh/8df5045e0c8d7f35_02_multi-socket-numa-topology.png",
+    "sha256": "8df5045e0c8d7f35816c712a56681f81f920dd6716a830129d925c2e7c6f2034",
+    "size": 44145,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|f3a2ac0b5adcc0e6f67526b79ce9b0a84cca0b2b4836847d9ecbaadbb839f591|03_chiplet-system-architecture.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/kunpeng_920_wechat_article_zh/f3a2ac0b5adcc0e6_03_chiplet-system-architecture.png",
+    "objectKey": "wechat/articles/kunpeng_920_wechat_article_zh/f3a2ac0b5adcc0e6_03_chiplet-system-architecture.png",
+    "sha256": "f3a2ac0b5adcc0e6f67526b79ce9b0a84cca0b2b4836847d9ecbaadbb839f591",
+    "size": 43837,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|a40a2f41909a0c969db19642cda7775caf1087104856d247544cdaabcb010eae|04_l3-cache-modes.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/kunpeng_920_wechat_article_zh/a40a2f41909a0c96_04_l3-cache-modes.png",
+    "objectKey": "wechat/articles/kunpeng_920_wechat_article_zh/a40a2f41909a0c96_04_l3-cache-modes.png",
+    "sha256": "a40a2f41909a0c969db19642cda7775caf1087104856d247544cdaabcb010eae",
+    "size": 60025,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|b145197997a492bf93f9eaf2494f4c1869dc667f46d040e37aa30a09ccb10a3a|05_l3-latency-sharing-patterns.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/kunpeng_920_wechat_article_zh/b145197997a492bf_05_l3-latency-sharing-patterns.png",
+    "objectKey": "wechat/articles/kunpeng_920_wechat_article_zh/b145197997a492bf_05_l3-latency-sharing-patterns.png",
+    "sha256": "b145197997a492bf93f9eaf2494f4c1869dc667f46d040e37aa30a09ccb10a3a",
+    "size": 110930,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|58c7e6aa1d707dcd2f2e255458c1bf3d7475626e813dc6291623b6da8b1a009a|06_l3-private-vs-shared-schematic.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/kunpeng_920_wechat_article_zh/58c7e6aa1d707dcd_06_l3-private-vs-shared-schematic.png",
+    "objectKey": "wechat/articles/kunpeng_920_wechat_article_zh/58c7e6aa1d707dcd_06_l3-private-vs-shared-schematic.png",
+    "sha256": "58c7e6aa1d707dcd2f2e255458c1bf3d7475626e813dc6291623b6da8b1a009a",
+    "size": 18980,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|4e2883d97837a971a55237c722ec5afcc5efc9dc6f31b76488de9138193ca6db|07_l3-latency-vs-zen2.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/kunpeng_920_wechat_article_zh/4e2883d97837a971_07_l3-latency-vs-zen2.png",
+    "objectKey": "wechat/articles/kunpeng_920_wechat_article_zh/4e2883d97837a971_07_l3-latency-vs-zen2.png",
+    "sha256": "4e2883d97837a971a55237c722ec5afcc5efc9dc6f31b76488de9138193ca6db",
+    "size": 124644,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|3ccfece5f9eb5bec456d8522038efd487e7adb8ba43b612dd07f02084efa9433|08_quad-core-memory-bandwidth.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/kunpeng_920_wechat_article_zh/3ccfece5f9eb5bec_08_quad-core-memory-bandwidth.png",
+    "objectKey": "wechat/articles/kunpeng_920_wechat_article_zh/3ccfece5f9eb5bec_08_quad-core-memory-bandwidth.png",
+    "sha256": "3ccfece5f9eb5bec456d8522038efd487e7adb8ba43b612dd07f02084efa9433",
+    "size": 82281,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|76522c199fea1258c3d0443cf842bdb94f9cd9b841a1587c15e247e66a7e022a|09_l3-bandwidth-latency-contention.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/kunpeng_920_wechat_article_zh/76522c199fea1258_09_l3-bandwidth-latency-contention.png",
+    "objectKey": "wechat/articles/kunpeng_920_wechat_article_zh/76522c199fea1258_09_l3-bandwidth-latency-contention.png",
+    "sha256": "76522c199fea1258c3d0443cf842bdb94f9cd9b841a1587c15e247e66a7e022a",
+    "size": 27146,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|5df67c81625cc0df7e1d6a1fd636a676c69e567e28999f3419a2d29aaa3c7b6e|10_loaded-dram-latency.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/kunpeng_920_wechat_article_zh/5df67c81625cc0df_10_loaded-dram-latency.png",
+    "objectKey": "wechat/articles/kunpeng_920_wechat_article_zh/5df67c81625cc0df_10_loaded-dram-latency.png",
+    "sha256": "5df67c81625cc0df7e1d6a1fd636a676c69e567e28999f3419a2d29aaa3c7b6e",
+    "size": 74397,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|c81889829d03a4868263afda1ad21b2c60e50da0ccdb916bb91d4e12520df19b|11_kunpeng-core-to-core-latency.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/kunpeng_920_wechat_article_zh/c81889829d03a486_11_kunpeng-core-to-core-latency.jpg",
+    "objectKey": "wechat/articles/kunpeng_920_wechat_article_zh/c81889829d03a486_11_kunpeng-core-to-core-latency.jpg",
+    "sha256": "c81889829d03a4868263afda1ad21b2c60e50da0ccdb916bb91d4e12520df19b",
+    "size": 197203,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|2e6c5ffbca643308d4f61b8d877094e0465a490b9856e9085842c3a4ebc7a565|12_zen2-core-to-core-latency.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/kunpeng_920_wechat_article_zh/2e6c5ffbca643308_12_zen2-core-to-core-latency.jpg",
+    "objectKey": "wechat/articles/kunpeng_920_wechat_article_zh/2e6c5ffbca643308_12_zen2-core-to-core-latency.jpg",
+    "sha256": "2e6c5ffbca643308d4f61b8d877094e0465a490b9856e9085842c3a4ebc7a565",
+    "size": 338056,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|4b52a06585e9ba1c857a85bc0438222ea042995e94c4a1af960ba5a73a4edd2f|13_taishan-v110-core-overview.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/kunpeng_920_wechat_article_zh/4b52a06585e9ba1c_13_taishan-v110-core-overview.png",
+    "objectKey": "wechat/articles/kunpeng_920_wechat_article_zh/4b52a06585e9ba1c_13_taishan-v110-core-overview.png",
+    "sha256": "4b52a06585e9ba1c857a85bc0438222ea042995e94c4a1af960ba5a73a4edd2f",
+    "size": 67436,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|cbc0ab7858b4620951a15c71e75e7a984394bb46ef9eb509f5191d06b33934ca|14_branch-pattern-prediction.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/kunpeng_920_wechat_article_zh/cbc0ab7858b46209_14_branch-pattern-prediction.png",
+    "objectKey": "wechat/articles/kunpeng_920_wechat_article_zh/cbc0ab7858b46209_14_branch-pattern-prediction.png",
+    "sha256": "cbc0ab7858b4620951a15c71e75e7a984394bb46ef9eb509f5191d06b33934ca",
+    "size": 377054,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|76b3f887b3c2716d727c3d3b91b96deec0cc5a2a66d26f7b20f38a5f46a17e34|15_branch-target-latency.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/kunpeng_920_wechat_article_zh/76b3f887b3c2716d_15_branch-target-latency.png",
+    "objectKey": "wechat/articles/kunpeng_920_wechat_article_zh/76b3f887b3c2716d_15_branch-target-latency.png",
+    "sha256": "76b3f887b3c2716d727c3d3b91b96deec0cc5a2a66d26f7b20f38a5f46a17e34",
+    "size": 63283,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|4d461ea4d5b62b97791f0655adedf07458e78153291678f6ad18021f0cd7c3d2|16_indirect-branch-target-capacity.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/kunpeng_920_wechat_article_zh/4d461ea4d5b62b97_16_indirect-branch-target-capacity.png",
+    "objectKey": "wechat/articles/kunpeng_920_wechat_article_zh/4d461ea4d5b62b97_16_indirect-branch-target-capacity.png",
+    "sha256": "4d461ea4d5b62b97791f0655adedf07458e78153291678f6ad18021f0cd7c3d2",
+    "size": 151433,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|9ecddef482f84c5455b3488e8e99184b574838a0ccbadb3648a14137638234a9|17_spec-cpu2017-branch-accuracy.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/kunpeng_920_wechat_article_zh/9ecddef482f84c54_17_spec-cpu2017-branch-accuracy.png",
+    "objectKey": "wechat/articles/kunpeng_920_wechat_article_zh/9ecddef482f84c54_17_spec-cpu2017-branch-accuracy.png",
+    "sha256": "9ecddef482f84c5455b3488e8e99184b574838a0ccbadb3648a14137638234a9",
+    "size": 204528,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|620fa82b6d27c67327366b38b91fb6ae33a377f923209991e2172c486018c590|18_instruction-fetch-bandwidth.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/kunpeng_920_wechat_article_zh/620fa82b6d27c673_18_instruction-fetch-bandwidth.png",
+    "objectKey": "wechat/articles/kunpeng_920_wechat_article_zh/620fa82b6d27c673_18_instruction-fetch-bandwidth.png",
+    "sha256": "620fa82b6d27c67327366b38b91fb6ae33a377f923209991e2172c486018c590",
+    "size": 106561,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|e7916e991932feaf1e4fe6cabfcbd7f09f1ccc2643f5de6c301b2e7dff654bfc|19_backend-capacity-comparison.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/kunpeng_920_wechat_article_zh/e7916e991932feaf_19_backend-capacity-comparison.jpg",
+    "objectKey": "wechat/articles/kunpeng_920_wechat_article_zh/e7916e991932feaf_19_backend-capacity-comparison.jpg",
+    "sha256": "e7916e991932feaf1e4fe6cabfcbd7f09f1ccc2643f5de6c301b2e7dff654bfc",
+    "size": 50110,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|93b010cd20a92b6d1a097c518be8e96dbb429c169d3065cb54bcd5fd0553f160|20_spec-cpu2017-backend-stalls.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/kunpeng_920_wechat_article_zh/93b010cd20a92b6d_20_spec-cpu2017-backend-stalls.jpg",
+    "objectKey": "wechat/articles/kunpeng_920_wechat_article_zh/93b010cd20a92b6d_20_spec-cpu2017-backend-stalls.jpg",
+    "sha256": "93b010cd20a92b6d1a097c518be8e96dbb429c169d3065cb54bcd5fd0553f160",
+    "size": 142694,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|3a703407c54eda0c1912348b1e933406483dda5ec35153908cb8f7ff40fb6a85|21_store-forwarding-latency.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/kunpeng_920_wechat_article_zh/3a703407c54eda0c_21_store-forwarding-latency.png",
+    "objectKey": "wechat/articles/kunpeng_920_wechat_article_zh/3a703407c54eda0c_21_store-forwarding-latency.png",
+    "sha256": "3a703407c54eda0c1912348b1e933406483dda5ec35153908cb8f7ff40fb6a85",
+    "size": 1907132,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|7267f53e3be189df0e800c517e977bfcf1e9ead3aafd74de22213dc29fd573f4|22_cache-memory-latency.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/kunpeng_920_wechat_article_zh/7267f53e3be189df_22_cache-memory-latency.png",
+    "objectKey": "wechat/articles/kunpeng_920_wechat_article_zh/7267f53e3be189df_22_cache-memory-latency.png",
+    "sha256": "7267f53e3be189df0e800c517e977bfcf1e9ead3aafd74de22213dc29fd573f4",
+    "size": 108098,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|d29dc3854ac4f1d18a38c4eaef1733ade67106ac21f61a2aad6fde1cd0edca4f|23_spec-cpu2017-estimated-scores.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/kunpeng_920_wechat_article_zh/d29dc3854ac4f1d1_23_spec-cpu2017-estimated-scores.png",
+    "objectKey": "wechat/articles/kunpeng_920_wechat_article_zh/d29dc3854ac4f1d1_23_spec-cpu2017-estimated-scores.png",
+    "sha256": "d29dc3854ac4f1d18a38c4eaef1733ade67106ac21f61a2aad6fde1cd0edca4f",
+    "size": 48173,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|c858de3926b078ad799229987ead454d839844c3fa9780e3136cc4117dd638e6|24_spec-cpu2017-subtest-scores.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/kunpeng_920_wechat_article_zh/c858de3926b078ad_24_spec-cpu2017-subtest-scores.png",
+    "objectKey": "wechat/articles/kunpeng_920_wechat_article_zh/c858de3926b078ad_24_spec-cpu2017-subtest-scores.png",
+    "sha256": "c858de3926b078ad799229987ead454d839844c3fa9780e3136cc4117dd638e6",
+    "size": 213872,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|e147c5f8c9d6634720940b46daf9bae9b12b23af094b26bc1250e994f2b1d053|25_branch-mispredict-comparison.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/kunpeng_920_wechat_article_zh/e147c5f8c9d66347_25_branch-mispredict-comparison.png",
+    "objectKey": "wechat/articles/kunpeng_920_wechat_article_zh/e147c5f8c9d66347_25_branch-mispredict-comparison.png",
+    "sha256": "e147c5f8c9d6634720940b46daf9bae9b12b23af094b26bc1250e994f2b1d053",
+    "size": 20247,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|a8c0dc65357c04d857675da0052171e5ee97c1d75665de27ba4a71053f376f89|26_lego-based-products.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/kunpeng_920_wechat_article_zh/a8c0dc65357c04d8_26_lego-based-products.jpg",
+    "objectKey": "wechat/articles/kunpeng_920_wechat_article_zh/a8c0dc65357c04d8_26_lego-based-products.jpg",
+    "sha256": "a8c0dc65357c04d857675da0052171e5ee97c1d75665de27ba4a71053f376f89",
+    "size": 72225,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|6440e7cf8e63dbef7aa7d4aec4ccc50019690f8f203f8a8489e3378be85c1fcb|27_core-spec-area-comparison.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/kunpeng_920_wechat_article_zh/6440e7cf8e63dbef_27_core-spec-area-comparison.png",
+    "objectKey": "wechat/articles/kunpeng_920_wechat_article_zh/6440e7cf8e63dbef_27_core-spec-area-comparison.png",
+    "sha256": "6440e7cf8e63dbef7aa7d4aec4ccc50019690f8f203f8a8489e3378be85c1fcb",
+    "size": 21299,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|a78c8ef1cd64633469f8b33f3a351781c77faed9a15b91c74bebc45786046ca1|28_taishan-v110-official-block-diagram.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/kunpeng_920_wechat_article_zh/a78c8ef1cd646334_28_taishan-v110-official-block-diagram.jpg",
+    "objectKey": "wechat/articles/kunpeng_920_wechat_article_zh/a78c8ef1cd646334_28_taishan-v110-official-block-diagram.jpg",
+    "sha256": "a78c8ef1cd64633469f8b33f3a351781c77faed9a15b91c74bebc45786046ca1",
+    "size": 49059,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|968643b6261826ad78c711ada24429e4eeaed37f1f72f6919fbff21042c73dbb|01_architecture-slide.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/xuantie_c910_wechat_article_zh/968643b6261826ad_01_architecture-slide.jpg",
+    "objectKey": "wechat/articles/xuantie_c910_wechat_article_zh/968643b6261826ad_01_architecture-slide.jpg",
+    "sha256": "968643b6261826ad78c711ada24429e4eeaed37f1f72f6919fbff21042c73dbb",
+    "size": 121979,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|f9afab5204966d2e5f06dd88b64161284994cbd5bb0745d66d623c76039341ab|02_annotated-single-core-floorplan.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/xuantie_c910_wechat_article_zh/f9afab5204966d2e_02_annotated-single-core-floorplan.jpg",
+    "objectKey": "wechat/articles/xuantie_c910_wechat_article_zh/f9afab5204966d2e_02_annotated-single-core-floorplan.jpg",
+    "sha256": "f9afab5204966d2e5f06dd88b64161284994cbd5bb0745d66d623c76039341ab",
+    "size": 104855,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|466b5a725c4c4a5ae21f8d2f66ebee2563f9d9790c485fec6424cae58d9202a3|03_dual-core-floorplan.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/xuantie_c910_wechat_article_zh/466b5a725c4c4a5a_03_dual-core-floorplan.jpg",
+    "objectKey": "wechat/articles/xuantie_c910_wechat_article_zh/466b5a725c4c4a5a_03_dual-core-floorplan.jpg",
+    "sha256": "466b5a725c4c4a5ae21f8d2f66ebee2563f9d9790c485fec6424cae58d9202a3",
+    "size": 54075,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|88c3954fb101be4b90d3dfca1200c4d682f532320a8a977d2a03ed3399476b60|04_official-pipeline.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/xuantie_c910_wechat_article_zh/88c3954fb101be4b_04_official-pipeline.jpg",
+    "objectKey": "wechat/articles/xuantie_c910_wechat_article_zh/88c3954fb101be4b_04_official-pipeline.jpg",
+    "sha256": "88c3954fb101be4b90d3dfca1200c4d682f532320a8a977d2a03ed3399476b60",
+    "size": 31255,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|dc0e8373a1f1703b8bf4543d374a7db5994cda7397f6ef7b8da362f16267c019|05_core-overview.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/xuantie_c910_wechat_article_zh/dc0e8373a1f1703b_05_core-overview.jpg",
+    "objectKey": "wechat/articles/xuantie_c910_wechat_article_zh/dc0e8373a1f1703b_05_core-overview.jpg",
+    "sha256": "dc0e8373a1f1703b8bf4543d374a7db5994cda7397f6ef7b8da362f16267c019",
+    "size": 205794,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|282147e2e416b4c2c869db15319bc8f4a7e074774ab7bc12ddb43c15a0a53159|06_l1i-storage.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/xuantie_c910_wechat_article_zh/282147e2e416b4c2_06_l1i-storage.jpg",
+    "objectKey": "wechat/articles/xuantie_c910_wechat_article_zh/282147e2e416b4c2_06_l1i-storage.jpg",
+    "sha256": "282147e2e416b4c2c869db15319bc8f4a7e074774ab7bc12ddb43c15a0a53159",
+    "size": 94264,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|c6f758576edc92bb16b8ad63b58e3cb614a8557f9e3ea64b2391ca6f7b60562a|07_frontend-sketch.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/xuantie_c910_wechat_article_zh/c6f758576edc92bb_07_frontend-sketch.jpg",
+    "objectKey": "wechat/articles/xuantie_c910_wechat_article_zh/c6f758576edc92bb_07_frontend-sketch.jpg",
+    "sha256": "c6f758576edc92bb16b8ad63b58e3cb614a8557f9e3ea64b2391ca6f7b60562a",
+    "size": 107487,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|6e13d5ce8a2023373da28f8cb4d33daa682793c074e852e0b469dbe1367bd846|08_branch-predictor-resources.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/xuantie_c910_wechat_article_zh/6e13d5ce8a202337_08_branch-predictor-resources.jpg",
+    "objectKey": "wechat/articles/xuantie_c910_wechat_article_zh/6e13d5ce8a202337_08_branch-predictor-resources.jpg",
+    "sha256": "6e13d5ce8a2023373da28f8cb4d33daa682793c074e852e0b469dbe1367bd846",
+    "size": 37840,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|51c7a936b9b4a8bed5191b753d888c9e8f646eec10343d20fde952698fce134c|09_branch-pattern-c910.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/xuantie_c910_wechat_article_zh/51c7a936b9b4a8be_09_branch-pattern-c910.jpg",
+    "objectKey": "wechat/articles/xuantie_c910_wechat_article_zh/51c7a936b9b4a8be_09_branch-pattern-c910.jpg",
+    "sha256": "51c7a936b9b4a8bed5191b753d888c9e8f646eec10343d20fde952698fce134c",
+    "size": 67238,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|ac606163e7bbe6d068363a9845e1500aa57bc4137b9260709a3ae131f4ac3682|10_branch-pattern-a73.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/xuantie_c910_wechat_article_zh/ac606163e7bbe6d0_10_branch-pattern-a73.jpg",
+    "objectKey": "wechat/articles/xuantie_c910_wechat_article_zh/ac606163e7bbe6d0_10_branch-pattern-a73.jpg",
+    "sha256": "ac606163e7bbe6d068363a9845e1500aa57bc4137b9260709a3ae131f4ac3682",
+    "size": 52355,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|465180d4ba36eaddf12f6c6a32b3a7bfcfb48ab33b257daa7afca1d752ca55e6|11_taken-branch-latency.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/xuantie_c910_wechat_article_zh/465180d4ba36eadd_11_taken-branch-latency.jpg",
+    "objectKey": "wechat/articles/xuantie_c910_wechat_article_zh/465180d4ba36eadd_11_taken-branch-latency.jpg",
+    "sha256": "465180d4ba36eaddf12f6c6a32b3a7bfcfb48ab33b257daa7afca1d752ca55e6",
+    "size": 49815,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|d941ff4916238718991c0a16ebe6ea0234d7eac16d9a4569353fb1db7e051d5d|12_decode-rename-flow.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/xuantie_c910_wechat_article_zh/d941ff4916238718_12_decode-rename-flow.png",
+    "objectKey": "wechat/articles/xuantie_c910_wechat_article_zh/d941ff4916238718_12_decode-rename-flow.png",
+    "sha256": "d941ff4916238718991c0a16ebe6ea0234d7eac16d9a4569353fb1db7e051d5d",
+    "size": 100343,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|5216a3165662125b640f21bdcb0971640ff837fb99a541d24c2ee60baae3afa9|13_micro-op-format-notes.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/xuantie_c910_wechat_article_zh/5216a3165662125b_13_micro-op-format-notes.jpg",
+    "objectKey": "wechat/articles/xuantie_c910_wechat_article_zh/5216a3165662125b_13_micro-op-format-notes.jpg",
+    "sha256": "5216a3165662125b640f21bdcb0971640ff837fb99a541d24c2ee60baae3afa9",
+    "size": 245928,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|b75899bdebdad9f9974c7afcdc042cf90c300182e061ee2f35003f798f379573|14_instruction-fetch-bandwidth.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/xuantie_c910_wechat_article_zh/b75899bdebdad9f9_14_instruction-fetch-bandwidth.jpg",
+    "objectKey": "wechat/articles/xuantie_c910_wechat_article_zh/b75899bdebdad9f9_14_instruction-fetch-bandwidth.jpg",
+    "sha256": "b75899bdebdad9f9974c7afcdc042cf90c300182e061ee2f35003f798f379573",
+    "size": 47790,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|70188742e78ebf249257a59f6b39efe81e653519791f490a93d58a5d441f5564|15_rob-capacity.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/xuantie_c910_wechat_article_zh/70188742e78ebf24_15_rob-capacity.jpg",
+    "objectKey": "wechat/articles/xuantie_c910_wechat_article_zh/70188742e78ebf24_15_rob-capacity.jpg",
+    "sha256": "70188742e78ebf249257a59f6b39efe81e653519791f490a93d58a5d441f5564",
+    "size": 20033,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|5a03def5b9902324f84fe02b172c04d6bd166b11a9768ad79f7ebfe25f5fc775|16_structure-capacity-comparison.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/xuantie_c910_wechat_article_zh/5a03def5b9902324_16_structure-capacity-comparison.jpg",
+    "objectKey": "wechat/articles/xuantie_c910_wechat_article_zh/5a03def5b9902324_16_structure-capacity-comparison.jpg",
+    "sha256": "5a03def5b9902324f84fe02b172c04d6bd166b11a9768ad79f7ebfe25f5fc775",
+    "size": 44849,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|0e308e7ac3137b2f61372e16e215a017ffb7cfbca7d75eb6b084f2bcdaa89fe3|17_integer-scheduler-ports.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/xuantie_c910_wechat_article_zh/0e308e7ac3137b2f_17_integer-scheduler-ports.png",
+    "objectKey": "wechat/articles/xuantie_c910_wechat_article_zh/0e308e7ac3137b2f_17_integer-scheduler-ports.png",
+    "sha256": "0e308e7ac3137b2f61372e16e215a017ffb7cfbca7d75eb6b084f2bcdaa89fe3",
+    "size": 48829,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|be6807440caf2256c94d0ee5e360d06f24faa0c6175d1ffc7853847ff809a070|18_fp-vector-scheduler-ports.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/xuantie_c910_wechat_article_zh/be6807440caf2256_18_fp-vector-scheduler-ports.jpg",
+    "objectKey": "wechat/articles/xuantie_c910_wechat_article_zh/be6807440caf2256_18_fp-vector-scheduler-ports.jpg",
+    "sha256": "be6807440caf2256c94d0ee5e360d06f24faa0c6175d1ffc7853847ff809a070",
+    "size": 14201,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|85a53495cc3dc58003f16de15a17d55a00751b1fd857b31539cbb5b5d250268f|19_fp-latency-comparison.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/xuantie_c910_wechat_article_zh/85a53495cc3dc580_19_fp-latency-comparison.jpg",
+    "objectKey": "wechat/articles/xuantie_c910_wechat_article_zh/85a53495cc3dc580_19_fp-latency-comparison.jpg",
+    "sha256": "85a53495cc3dc58003f16de15a17d55a00751b1fd857b31539cbb5b5d250268f",
+    "size": 16231,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|ca2df1bd4eaa12fc050f9bed8cd3fbd091b303475ed2b2da7c3fc5ed365bcc9c|20_official-lsu-pipeline.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/xuantie_c910_wechat_article_zh/ca2df1bd4eaa12fc_20_official-lsu-pipeline.jpg",
+    "objectKey": "wechat/articles/xuantie_c910_wechat_article_zh/ca2df1bd4eaa12fc_20_official-lsu-pipeline.jpg",
+    "sha256": "ca2df1bd4eaa12fc050f9bed8cd3fbd091b303475ed2b2da7c3fc5ed365bcc9c",
+    "size": 24040,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|f509fb062d91ce7f0ccd5ce0a384332877aabe86cf1dd52e99102c550abef5c0|21_l2-tlb-tag-format.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/xuantie_c910_wechat_article_zh/f509fb062d91ce7f_21_l2-tlb-tag-format.png",
+    "objectKey": "wechat/articles/xuantie_c910_wechat_article_zh/f509fb062d91ce7f_21_l2-tlb-tag-format.png",
+    "sha256": "f509fb062d91ce7f0ccd5ce0a384332877aabe86cf1dd52e99102c550abef5c0",
+    "size": 3877,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|7de6d875e7fba5ea6af0fcd748046bf4506a813e26a8e8c7998f68bc0e6f95df|22_load-queue-microbenchmark.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/xuantie_c910_wechat_article_zh/7de6d875e7fba5ea_22_load-queue-microbenchmark.jpg",
+    "objectKey": "wechat/articles/xuantie_c910_wechat_article_zh/7de6d875e7fba5ea_22_load-queue-microbenchmark.jpg",
+    "sha256": "7de6d875e7fba5ea6af0fcd748046bf4506a813e26a8e8c7998f68bc0e6f95df",
+    "size": 27750,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|ada83bf2551d1738f6dad6f8819324de0e692fd84b4ef1d9d43efdb8ec244c13|23_store-forwarding-map.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/xuantie_c910_wechat_article_zh/ada83bf2551d1738_23_store-forwarding-map.jpg",
+    "objectKey": "wechat/articles/xuantie_c910_wechat_article_zh/ada83bf2551d1738_23_store-forwarding-map.jpg",
+    "sha256": "ada83bf2551d1738f6dad6f8819324de0e692fd84b4ef1d9d43efdb8ec244c13",
+    "size": 378254,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|88b34e855349f28cbea91f1d8729cc86bfd6022eb51719e0da5f0e93ee0744f6|24_l1d-storage.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/xuantie_c910_wechat_article_zh/88b34e855349f28c_24_l1d-storage.jpg",
+    "objectKey": "wechat/articles/xuantie_c910_wechat_article_zh/88b34e855349f28c_24_l1d-storage.jpg",
+    "sha256": "88b34e855349f28cbea91f1d8729cc86bfd6022eb51719e0da5f0e93ee0744f6",
+    "size": 72346,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|18ac4dcaeea60be5dd377a9c823362cb112c8eae6f77d75f03b2e517e63c2ae3|25_l2-storage.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/xuantie_c910_wechat_article_zh/18ac4dcaeea60be5_25_l2-storage.png",
+    "objectKey": "wechat/articles/xuantie_c910_wechat_article_zh/18ac4dcaeea60be5_25_l2-storage.png",
+    "sha256": "18ac4dcaeea60be5dd377a9c823362cb112c8eae6f77d75f03b2e517e63c2ae3",
+    "size": 94208,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|b7ed11de31abdd44ba2df9eb55909494379dde72786f5cd408f3ed3c2003410d|26_cache-memory-latency.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/xuantie_c910_wechat_article_zh/b7ed11de31abdd44_26_cache-memory-latency.jpg",
+    "objectKey": "wechat/articles/xuantie_c910_wechat_article_zh/b7ed11de31abdd44_26_cache-memory-latency.jpg",
+    "sha256": "b7ed11de31abdd44ba2df9eb55909494379dde72786f5cd408f3ed3c2003410d",
+    "size": 47425,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|44ae6e314fec77df10e6741bf50485320a33a23324b5558d67101312c611f118|27_quad-core-bandwidth.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/xuantie_c910_wechat_article_zh/44ae6e314fec77df_27_quad-core-bandwidth.png",
+    "objectKey": "wechat/articles/xuantie_c910_wechat_article_zh/44ae6e314fec77df_27_quad-core-bandwidth.png",
+    "sha256": "44ae6e314fec77df10e6741bf50485320a33a23324b5558d67101312c611f118",
+    "size": 30875,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|957ef77540909555a5178a021d10f2e4547d502111c15cf3c73c333f19ac399f|28_dram-comparison.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/xuantie_c910_wechat_article_zh/957ef77540909555_28_dram-comparison.jpg",
+    "objectKey": "wechat/articles/xuantie_c910_wechat_article_zh/957ef77540909555_28_dram-comparison.jpg",
+    "sha256": "957ef77540909555a5178a021d10f2e4547d502111c15cf3c73c333f19ac399f",
+    "size": 29570,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|099e388a0932cc793fcd835710f3ca4d63628f8a96c20460b2cc245d37309865|29_core-to-core-latency.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/xuantie_c910_wechat_article_zh/099e388a0932cc79_29_core-to-core-latency.png",
+    "objectKey": "wechat/articles/xuantie_c910_wechat_article_zh/099e388a0932cc79_29_core-to-core-latency.png",
+    "sha256": "099e388a0932cc793fcd835710f3ca4d63628f8a96c20460b2cc245d37309865",
+    "size": 5892,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|f05637ad07075ac46a71bde6cd315fa4af98ec605581e8e9dbd2400e1fe622cb|30_th1520-chip.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/xuantie_c910_wechat_article_zh/f05637ad07075ac4_30_th1520-chip.jpg",
+    "objectKey": "wechat/articles/xuantie_c910_wechat_article_zh/f05637ad07075ac4_30_th1520-chip.jpg",
+    "sha256": "f05637ad07075ac46a71bde6cd315fa4af98ec605581e8e9dbd2400e1fe622cb",
+    "size": 67952,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|5bbeb8f62729c13cbd5f448f8d0ca5c41197274567786167e09153c265222064|01_x925_microarchitecture_overview.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/cortex_x925_wechat_article_zh/5bbeb8f62729c13c_01_x925_microarchitecture_overview.png",
+    "objectKey": "wechat/articles/cortex_x925_wechat_article_zh/5bbeb8f62729c13c_01_x925_microarchitecture_overview.png",
+    "sha256": "5bbeb8f62729c13cbd5f448f8d0ca5c41197274567786167e09153c265222064",
+    "size": 66320,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|75ec810c92b5af6f949d6f820bc39481059b81db6273ccf689ce226024f79806|02_branch_pattern_history_length.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/cortex_x925_wechat_article_zh/75ec810c92b5af6f_02_branch_pattern_history_length.png",
+    "objectKey": "wechat/articles/cortex_x925_wechat_article_zh/75ec810c92b5af6f_02_branch_pattern_history_length.png",
+    "sha256": "75ec810c92b5af6f949d6f820bc39481059b81db6273ccf689ce226024f79806",
+    "size": 312711,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|5cc35e1288ad55d4ace4be8df8d67e4960349fbc98cd082630bbf658f0fd7a5b|03_zen5_branch_pattern_history_length.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/cortex_x925_wechat_article_zh/5cc35e1288ad55d4_03_zen5_branch_pattern_history_length.png",
+    "objectKey": "wechat/articles/cortex_x925_wechat_article_zh/5cc35e1288ad55d4_03_zen5_branch_pattern_history_length.png",
+    "sha256": "5cc35e1288ad55d4ace4be8df8d67e4960349fbc98cd082630bbf658f0fd7a5b",
+    "size": 335175,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|3040d0359017ef469fa81ab9be1489db989d152ade59d00cb6eae810b578072a|04_branch_target_capacity_latency.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/cortex_x925_wechat_article_zh/3040d0359017ef46_04_branch_target_capacity_latency.png",
+    "objectKey": "wechat/articles/cortex_x925_wechat_article_zh/3040d0359017ef46_04_branch_target_capacity_latency.png",
+    "sha256": "3040d0359017ef469fa81ab9be1489db989d152ade59d00cb6eae810b578072a",
+    "size": 117148,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|6a230862f8d1fd0ef72512b9eb6485ed0a4e7f45252343bca5477fb013da62ab|05_btb_capacity_comparison.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/cortex_x925_wechat_article_zh/6a230862f8d1fd0e_05_btb_capacity_comparison.png",
+    "objectKey": "wechat/articles/cortex_x925_wechat_article_zh/6a230862f8d1fd0e_05_btb_capacity_comparison.png",
+    "sha256": "6a230862f8d1fd0ef72512b9eb6485ed0a4e7f45252343bca5477fb013da62ab",
+    "size": 93096,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|61c24d5b4525cc12fff4d106f0f74d55a1ef8e39797cd87695b5a43ea92be89c|06_spec_int_branch_accuracy.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/cortex_x925_wechat_article_zh/61c24d5b4525cc12_06_spec_int_branch_accuracy.png",
+    "objectKey": "wechat/articles/cortex_x925_wechat_article_zh/61c24d5b4525cc12_06_spec_int_branch_accuracy.png",
+    "sha256": "61c24d5b4525cc12fff4d106f0f74d55a1ef8e39797cd87695b5a43ea92be89c",
+    "size": 23662,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|68e8f999bd4ebae61d92dc117df0d7c52cdaac23342ddc8e317a5336024ccf04|07_spec_fp_branch_accuracy.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/cortex_x925_wechat_article_zh/68e8f999bd4ebae6_07_spec_fp_branch_accuracy.png",
+    "objectKey": "wechat/articles/cortex_x925_wechat_article_zh/68e8f999bd4ebae6_07_spec_fp_branch_accuracy.png",
+    "sha256": "68e8f999bd4ebae61d92dc117df0d7c52cdaac23342ddc8e317a5336024ccf04",
+    "size": 26681,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|47decbe461ff9079d75444ef784d9039ef32fe78a286c9d403bd12c6361078ba|08_instruction_fetch_bandwidth.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/cortex_x925_wechat_article_zh/47decbe461ff9079_08_instruction_fetch_bandwidth.png",
+    "objectKey": "wechat/articles/cortex_x925_wechat_article_zh/47decbe461ff9079_08_instruction_fetch_bandwidth.png",
+    "sha256": "47decbe461ff9079d75444ef784d9039ef32fe78a286c9d403bd12c6361078ba",
+    "size": 132768,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|bfb63b4bd84ea1d7a4dd1bee3d8ad9d924d81391cde3ddc78339ca8399ffc83d|09_move_elimination_throughput.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/cortex_x925_wechat_article_zh/bfb63b4bd84ea1d7_09_move_elimination_throughput.png",
+    "objectKey": "wechat/articles/cortex_x925_wechat_article_zh/bfb63b4bd84ea1d7_09_move_elimination_throughput.png",
+    "sha256": "bfb63b4bd84ea1d7a4dd1bee3d8ad9d924d81391cde3ddc78339ca8399ffc83d",
+    "size": 7038,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|134bdb05ea5acbfe08a2e43062be42278e39a1991ad18c9b4a19d973ec7eaf14|10_reorder_capacity.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/cortex_x925_wechat_article_zh/134bdb05ea5acbfe_10_reorder_capacity.png",
+    "objectKey": "wechat/articles/cortex_x925_wechat_article_zh/134bdb05ea5acbfe_10_reorder_capacity.png",
+    "sha256": "134bdb05ea5acbfe08a2e43062be42278e39a1991ad18c9b4a19d973ec7eaf14",
+    "size": 121903,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|c7c1518243e450015d0b07252fa6bce119483d0fac62a17919512a15cb356b94|11_backend_resource_capacity.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/cortex_x925_wechat_article_zh/c7c1518243e45001_11_backend_resource_capacity.png",
+    "objectKey": "wechat/articles/cortex_x925_wechat_article_zh/c7c1518243e45001_11_backend_resource_capacity.png",
+    "sha256": "c7c1518243e450015d0b07252fa6bce119483d0fac62a17919512a15cb356b94",
+    "size": 25583,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|db3a65f7cc02d843da3ed1a5b1e6aed6b9eeae4e20533281e08911769bdcbd32|12_integer_scheduler_ports.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/cortex_x925_wechat_article_zh/db3a65f7cc02d843_12_integer_scheduler_ports.png",
+    "objectKey": "wechat/articles/cortex_x925_wechat_article_zh/db3a65f7cc02d843_12_integer_scheduler_ports.png",
+    "sha256": "db3a65f7cc02d843da3ed1a5b1e6aed6b9eeae4e20533281e08911769bdcbd32",
+    "size": 37950,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|642bf17e2c0e85e50a4f7764d30b376588a87d5b8dc0a934e793c101a613c992|13_integer_register_read_paths.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/cortex_x925_wechat_article_zh/642bf17e2c0e85e5_13_integer_register_read_paths.png",
+    "objectKey": "wechat/articles/cortex_x925_wechat_article_zh/642bf17e2c0e85e5_13_integer_register_read_paths.png",
+    "sha256": "642bf17e2c0e85e50a4f7764d30b376588a87d5b8dc0a934e793c101a613c992",
+    "size": 15901,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|cab2e3b34a6a7ab236b066de836c1e721c4d553e7388a131d00cecb9379a4a45|14_integer_scheduler_capacity.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/cortex_x925_wechat_article_zh/cab2e3b34a6a7ab2_14_integer_scheduler_capacity.png",
+    "objectKey": "wechat/articles/cortex_x925_wechat_article_zh/cab2e3b34a6a7ab2_14_integer_scheduler_capacity.png",
+    "sha256": "cab2e3b34a6a7ab236b066de836c1e721c4d553e7388a131d00cecb9379a4a45",
+    "size": 44052,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|011aa7eaefec63ab7c92447f63b8f46adbafd1a9ec95dd5b966816e9cc017024|15_fp_scheduler_ports.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/cortex_x925_wechat_article_zh/011aa7eaefec63ab_15_fp_scheduler_ports.png",
+    "objectKey": "wechat/articles/cortex_x925_wechat_article_zh/011aa7eaefec63ab_15_fp_scheduler_ports.png",
+    "sha256": "011aa7eaefec63ab7c92447f63b8f46adbafd1a9ec95dd5b966816e9cc017024",
+    "size": 28113,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|76c2abb6de83736a55109cc474c48091021aa2a343158bad002b63c9b3e3cc7e|16_integer_store_forwarding.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/cortex_x925_wechat_article_zh/76c2abb6de83736a_16_integer_store_forwarding.png",
+    "objectKey": "wechat/articles/cortex_x925_wechat_article_zh/76c2abb6de83736a_16_integer_store_forwarding.png",
+    "sha256": "76c2abb6de83736a55109cc474c48091021aa2a343158bad002b63c9b3e3cc7e",
+    "size": 1746994,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|79b90f64ddeb55bb5393bd126670320ce3bd7b97c692b58e0feceab46ded0f74|17_vector_store_forwarding.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/cortex_x925_wechat_article_zh/79b90f64ddeb55bb_17_vector_store_forwarding.jpg",
+    "objectKey": "wechat/articles/cortex_x925_wechat_article_zh/79b90f64ddeb55bb_17_vector_store_forwarding.jpg",
+    "sha256": "79b90f64ddeb55bb5393bd126670320ce3bd7b97c692b58e0feceab46ded0f74",
+    "size": 314678,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|f2ed8c238a90b00b7d4e03aaebc6e5b4226c6f1f001cd70c8af74c549b0c1c81|18_store_forwarding_summary.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/cortex_x925_wechat_article_zh/f2ed8c238a90b00b_18_store_forwarding_summary.png",
+    "objectKey": "wechat/articles/cortex_x925_wechat_article_zh/f2ed8c238a90b00b_18_store_forwarding_summary.png",
+    "sha256": "f2ed8c238a90b00b7d4e03aaebc6e5b4226c6f1f001cd70c8af74c549b0c1c81",
+    "size": 23126,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|22b0c6dd1295feb4f081d7a9c4f47d821961498201f8bff6316e6b2da6f8e044|19_single_core_read_bandwidth.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/cortex_x925_wechat_article_zh/22b0c6dd1295feb4_19_single_core_read_bandwidth.png",
+    "objectKey": "wechat/articles/cortex_x925_wechat_article_zh/22b0c6dd1295feb4_19_single_core_read_bandwidth.png",
+    "sha256": "22b0c6dd1295feb4f081d7a9c4f47d821961498201f8bff6316e6b2da6f8e044",
+    "size": 119178,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|b5966dec761451b2729734ee23f46ee32cafe0147a48e98965614a08ab183a95|20_spec_cpu2017_overall.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/cortex_x925_wechat_article_zh/b5966dec761451b2_20_spec_cpu2017_overall.png",
+    "objectKey": "wechat/articles/cortex_x925_wechat_article_zh/b5966dec761451b2_20_spec_cpu2017_overall.png",
+    "sha256": "b5966dec761451b2729734ee23f46ee32cafe0147a48e98965614a08ab183a95",
+    "size": 84705,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|41456c2d96a02932f165619fe7a80c946b7a3f92afe2431a9b0ad61657b4ced7|21_spec_int_subtests.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/cortex_x925_wechat_article_zh/41456c2d96a02932_21_spec_int_subtests.png",
+    "objectKey": "wechat/articles/cortex_x925_wechat_article_zh/41456c2d96a02932_21_spec_int_subtests.png",
+    "sha256": "41456c2d96a02932f165619fe7a80c946b7a3f92afe2431a9b0ad61657b4ced7",
+    "size": 98017,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|06cb6b14345a49baa1fec0862386f6456e0662955aeabc2f53e96327f1074efe|22_spec_int_ipc.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/cortex_x925_wechat_article_zh/06cb6b14345a49ba_22_spec_int_ipc.png",
+    "objectKey": "wechat/articles/cortex_x925_wechat_article_zh/06cb6b14345a49ba_22_spec_int_ipc.png",
+    "sha256": "06cb6b14345a49baa1fec0862386f6456e0662955aeabc2f53e96327f1074efe",
+    "size": 18575,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|da9274dfb530ee3f92b75b63b00f08aad2ecf88876148767f9bac054f4624010|23_spec_fp_subtests.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/cortex_x925_wechat_article_zh/da9274dfb530ee3f_23_spec_fp_subtests.png",
+    "objectKey": "wechat/articles/cortex_x925_wechat_article_zh/da9274dfb530ee3f_23_spec_fp_subtests.png",
+    "sha256": "da9274dfb530ee3f92b75b63b00f08aad2ecf88876148767f9bac054f4624010",
+    "size": 120404,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|96dc6af588dcfed89e2e29ba93437ec65bea480fabc3bacdc413a0f240876cb7|24_spec_fp_ipc.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/cortex_x925_wechat_article_zh/96dc6af588dcfed8_24_spec_fp_ipc.png",
+    "objectKey": "wechat/articles/cortex_x925_wechat_article_zh/96dc6af588dcfed8_24_spec_fp_ipc.png",
+    "sha256": "96dc6af588dcfed89e2e29ba93437ec65bea480fabc3bacdc413a0f240876cb7",
+    "size": 21972,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|9427512ac9e7b81c293ac1097d311fe751e82722c273080ebd222a7f3f7aba00|25_spec_fp_instruction_count.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/cortex_x925_wechat_article_zh/9427512ac9e7b81c_25_spec_fp_instruction_count.png",
+    "objectKey": "wechat/articles/cortex_x925_wechat_article_zh/9427512ac9e7b81c_25_spec_fp_instruction_count.png",
+    "sha256": "9427512ac9e7b81c293ac1097d311fe751e82722c273080ebd222a7f3f7aba00",
+    "size": 27992,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|46f2070d53785f367df6568c7e4af9e96b22a640f06c5e33c6d4d593c86a2ac3|23_vector_throughput.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_zen4_part1_wechat_article_zh/46f2070d53785f36_23_vector_throughput.jpg",
+    "objectKey": "wechat/articles/amd_zen4_part1_wechat_article_zh/46f2070d53785f36_23_vector_throughput.jpg",
+    "sha256": "46f2070d53785f367df6568c7e4af9e96b22a640f06c5e33c6d4d593c86a2ac3",
+    "size": 19480,
+    "storageClass": "STANDARD"
   }
 }

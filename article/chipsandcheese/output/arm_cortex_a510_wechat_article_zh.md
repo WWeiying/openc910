@@ -183,7 +183,7 @@ A510 的 L2 可选，容量 128～512 KB、八路组相联；L2 ECC 也是可选
 
 ### 延迟
 
-A510 与 A55 的 L1/L2 延迟接近：简单寻址 L1 为四周期，复杂寻址五周期；L2 约 9～13 周期。因为 L1 dTLB 只有 16 项，使用 4 KB Page 时很快就叠加 L2 TLB 代价。
+后面的 Cache 延迟测试又把简单寻址 L1 访问记为四周期、复杂寻址为五周期，与前述 LSU 段的三/四周期口径并不一致；L2 约 9～13 周期。因为 L1 dTLB 只有 16 项，使用 4 KB Page 时很快就叠加 L2 TLB 代价。
 
 ![图 16：A510 与 A55 的 Cache/Memory 延迟](arm_cortex_a510_figures/16_cache_memory_latency.png)
 

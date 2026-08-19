@@ -6,7 +6,7 @@
 - 署名：Chester Lam
 - 来源：Chips and Cheese
 - 发布日期：2024 年 10 月 3 日
-- 英文标题：Skymont: Intel’s E-Cores Reach for the Sky
+- 英文标题：Skymont: Intel’s E-Cores reach for the Sky
 - 文章链接：https://chipsandcheese.com/p/skymont-intels-e-cores-reach-for-the-sky
 - 阅读原文链接：https://chipsandcheese.com/p/skymont-intels-e-cores-reach-for-the-sky
 
@@ -50,7 +50,7 @@ CPU 微架构
 
 > **文章来源**
 >
-> - 文章：*Skymont: Intel’s E-Cores Reach for the Sky*
+> - 文章：*Skymont: Intel’s E-Cores reach for the Sky*
 > - 撰文：Chester Lam
 > - 首发：Chips and Cheese
 > - 发布：2024 年 10 月 3 日

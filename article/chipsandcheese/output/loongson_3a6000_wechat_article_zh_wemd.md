@@ -130,7 +130,7 @@ libx264 的分支更少、也更容易预测。3A6000 在 4c/4t 下为 1.39 MPKI
 
 ![图 13：libx264 中的分支误预测与正确率](https://gongzhonghao-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/loongson_3a6000_wechat_article_zh/7a59267cf997226e_13_libx264_branch_prediction.png)
 
-*图 13：3A6000 的 1.39/1.51 MPKI 低于图中的多颗 x86 对照，但正确率 97.32%/97.11%并非最高。3950X 4c/4t 为 1.49 MPKI、97.56%，说明 MPKI 差异中包含分支密度和指令流差异。*
+*图 13：3A6000 的 1.39/1.51 MPKI 低于图中的多颗 x86 对照，但正确率 97.32%/97.11% 并非最高。3950X 4c/4t 为 1.49 MPKI、97.56%，说明 MPKI 差异中包含分支密度和指令流差异。*
 
 ### 体系结构视角：预测器的输出必须“准、快、可恢复”
 

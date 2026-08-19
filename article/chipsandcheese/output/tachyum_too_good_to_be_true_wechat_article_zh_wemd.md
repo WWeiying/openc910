@@ -5,7 +5,7 @@ title: "tachyum_too_good_to_be_true_wechat_article_zh"
 ---
 
 > 英文标题：Tachyum: Too Good to be True?
-> 撰文：George Cozma
+> 撰文：George Cozma、Chester Lam
 > 首发：Chips and Cheese，2022 年 6 月 28 日
 > 链接：https://chipsandcheese.com/p/tachyum-too-good-to-be-true
 

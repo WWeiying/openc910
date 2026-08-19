@@ -5,7 +5,7 @@ title: "x86_ace_readiness_wechat_article_zh"
 ---
 
 > 英文标题：Is x86 ready to ACE it?
-> 撰文：Chester Lam
+> 撰文：Chester Lam、Aurora Nockert
 > 首发：Chips and Cheese，2026 年 7 月 14 日
 > 链接：https://chipsandcheese.com/p/is-x86-ready-to-ace-it
 
@@ -49,7 +49,7 @@ Inner/Outer Product 在数学上可互换，硬件代价却不同。Outer-produc
 
 ## 低比特 Quantization：ACE 更灵活，SME2 更紧凑
 
-Model Weight 常量化到很低 Bit-width，以减轻 Capacity 与 Bandwidth。ACE/SME 不像 Nvidia Tensor Core 那样让输入经 Register File 来回搬运，而由软件在向 Accelerator 喂数据前完成 De-quantization。
+Model Weight 量化到很低 Bit-width，以减轻 Capacity 与 Bandwidth。ACE/SME 不像 Nvidia Tensor Core 那样让输入经 Register File 来回搬运，而由软件在向 Accelerator 喂数据前完成 De-quantization。
 
 ACE 借固定 512 bit AVX-512/AVX10 Register：`VPERMB` 可把一张至多 6 bit Input→8 bit Output 的完整 Lookup Table 放入一条 Vector；7 bit 用 `VPERMI2B` 组合两条 512 bit Register。AVX10.3 新 `VUNPACKB` 先把 2～7 bit Element 展开到 Byte-aligned Position，再由 Permute 查表。
 

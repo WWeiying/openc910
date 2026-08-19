@@ -13,7 +13,7 @@ title: "arm_or_x86_isa_wechat_article_zh"
 
 ## RISC/CISC 的旧边界已经收敛
 
-x86 曾以较少、复杂指令为 CISC，Arm 以简单、易执行指令为 RISC。Jim Keller 指出，早期 x86 大量 Die 是 Microcode ROM，而现代 ROM、Adder 在大核面积中已很小；今天主要限制是指令/分支可预测性和数据局部性。
+x86 传统上用较少但更复杂的指令完成工作，被归为 CISC；Arm 则因采用更简单、易执行的指令而被归为 RISC。Jim Keller 指出，早期 x86 大量 Die 是 Microcode ROM，而现代 ROM、Adder 在大核面积中已很小；今天主要限制是指令/分支可预测性和数据局部性。
 
 高性能核心要做的是持续喂对的指令与数据：Cache、Branch Prediction、Prefetch、Memory Dependence Prediction 才是大头。
 
@@ -21,9 +21,9 @@ x86 曾以较少、复杂指令为 CISC，Arm 以简单、易执行指令为 RIS
 
 ![图 1：论文总结 Arm 与 x86 的实现收敛](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/arm_or_x86_isa_wechat_article_zh/54fee2d6bc7a845b_01_figure.jpg)
 
-研究报告：实现之间性能差异很大，但指令数与 Mix 在一阶上与 ISA 无关；性能和能耗主要由 ISA-independent Microarchitecture 差异产生，没有一种 ISA 根本更省电。Arm 与 x86 产品只是针对不同性能点优化。
+研究报告显示：实现之间性能差异很大，但指令数与 Mix 在一阶上与 ISA 无关；性能和能耗主要由 ISA-independent Microarchitecture 差异产生，没有一种 ISA 根本更省电。Arm 与 x86 产品只是针对不同性能点优化。
 
-Intel Bonnell Atom 也说明 x86 可做低功耗。一项以 Cortex-A9 与顺序 Bonnell Cluster 比较 Multi-level Parallelism 的研究中，Atom 在所测项目的性能与能效均领先，尽管 A9 是乱序。单项研究不能代表所有实现，却足以反驳“ISA 决定功耗”。
+Intel Bonnell Atom 也说明 x86 可做低功耗。一项比较 Cortex-A9 与顺序执行 Bonnell 集群多级并行能力的研究中，Atom 在所测项目的性能与能效均领先，尽管 A9 是乱序。单项研究不能代表所有实现，却足以反驳“ISA 决定功耗”。
 
 ## x86 Decode Tax 有多大
 
@@ -47,7 +47,7 @@ Ivy Bridge 的在线功耗建模也显示 Fetch+Decode 远小于其他核心组�
 
 ## Arm 同样使用 Micro-op Cache
 
-Arm Decode 也值得绕过。Cortex-A77 在 2019 年加入约 1.5K 项 Op Cache，团队至少花六个月 Debug；A78、A710、X1、X2 延续。Samsung M5 也因从四宽走向六宽、未来八宽时 Fetch/Decode Power 显著，加入 Micro-operation Cache 供重复 Kernel。
+Arm Decode 也值得绕过。Cortex-A77 在 2019 年加入约 1.5K 项 Op Cache，团队至少花六个月 Debug；后续 A78、A710、X1、X2 延续了这一设计。Samsung M5 也因为从四宽走向六宽、未来扩到八宽时 Fetch/Decode Power 显著，加入 Micro-operation Cache 供重复 Kernel。
 
 因此 Fixed-length 并没有让高性能 Arm 免于 Decode 成本；两边都用相同思路降低它。
 
@@ -65,7 +65,7 @@ A64FX Manual 也列出一条 Armv8 Base Instruction 对应多个 Micro-op。
 
 ## 两种 ISA 都有历史包袱
 
-Arm 与 x86 在 64 bit 化时都清理过，却仍因多年需求增加扩展。RISC-V 生命周期更早、Legacy 少，今天实现新核心可能更简单；但 Legacy Operation 可以放到慢 Microcode，不必在 Fast Path 花大面积。现代大核面积主要在 Cache、Wide Execution、OoO Scheduler 和 BPU，Legacy 支持通常不是主导。
+Arm 与 x86 在 64 bit 化时都清理过，却仍因多年需求增加扩展。RISC-V 发展历史更短、Legacy 少，今天实现新核心可能更简单；但 Legacy Operation 可以放到慢 Microcode，不必在 Fast Path 花大面积。现代大核面积主要在 Cache、Wide Execution、OoO Scheduler 和 BPU，Legacy 支持通常不是主导。
 
 ## ISA 何时仍然重要
 
@@ -73,7 +73,7 @@ Arm 与 x86 在 64 bit 化时都清理过，却仍因多年需求增加扩展。
 
 ![图 6：Zen 2 与 Ampere 编译 gem5 的时间](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/arm_or_x86_isa_wechat_article_zh/329cbe0e769abb72_06_figure.png)
 
-编译中两边大致同一范围，考虑 Zen 2 更大、更高频，N1 表现合理。
+在编译测试中，两边大致处于同一范围；考虑到 Zen 2 更大、频率更高，N1 的表现合理。
 
 ![图 7：HEVC/x265 编码的巨大差距](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/arm_or_x86_isa_wechat_article_zh/62f3de2236b1fa4d_07_figure.png)
 

@@ -44,7 +44,7 @@ IPC 是退休指令数除以周期数。若两个平台为了完成同一任务�
 
 ## 三、libx264：AVX-512 让指令数先变少
 
-libx264 在 Zen 5 上平均超过 2 IPC。Redwood Cove 的 IPC与移动 Zen 5、Zen 4 相近，但执行指令数并不相同。Zen 4/5 走 AVX-512 路径，Skylake、Zen 2、Meteor Lake 走 AVX2，Bulldozer 使用 AVX/XOP/FMA4，Husky 主要使用 SSE，形成数个明显的指令数档位。
+libx264 在 Zen 5 上平均超过 2 IPC。Redwood Cove 的 IPC 与移动 Zen 5、Zen 4 相近，但执行指令数并不相同。Zen 4/5 走 AVX-512 路径，Skylake、Zen 2、Meteor Lake 走 AVX2，Bulldozer 使用 AVX/XOP/FMA4，Husky 主要使用 SSE，形成数个明显的指令数档位。
 
 ![图 6：libx264 IPC](amd_zen5_variants_figures/06_figure.png)
 
@@ -52,13 +52,13 @@ libx264 在 Zen 5 上平均超过 2 IPC。Redwood Cove 的 IPC与移动 Zen 5、
 
 ![图 8：libx264 退休指令数](amd_zen5_variants_figures/08_figure.png)
 
-*图 6～8：桌面 Zen 5 同时有更高 IPC 和更少指令；Redwood Cove 的高 IPC则不能脱离 AVX2 路径的额外指令解释。*
+*图 6～8：桌面 Zen 5 同时有更高 IPC 和更少指令；Redwood Cove 的高 IPC 则不能脱离 AVX2 路径的额外指令解释。*
 
 7-Zip 各平台都执行约 1.69 万亿条指令，此时 IPC 与每周期性能更接近。它本身 IPC 较低，Redwood Cove 相对 Skylake 的优势很小，说明更宽、更深的乱序核心没有得到有利的指令级并行性。
 
 ![图 9：7-Zip IPC](amd_zen5_variants_figures/09_figure.png)
 
-内核编译的指令数也较接近，约 0.75～0.77 万亿，因此更能看出新核心的每周期优势：Zen 5 超过 Zen 4，Redwood Cove 超过 Skylake，Crestmont 大致达到 Skylake；Bulldozer仍落后 Husky。
+内核编译的指令数也较接近，约 0.75～0.77 万亿，因此更能看出新核心的每周期优势：Zen 5 超过 Zen 4，Redwood Cove 超过 Skylake，Crestmont 大致达到 Skylake；Bulldozer 仍落后 Husky。
 
 ![图 10：Linux 内核编译 IPC](amd_zen5_variants_figures/10_figure.png)
 
@@ -72,7 +72,7 @@ libx264 的分支不算特别多，新核心准确率接近；FX-8150 与 Athlon
 
 ![图 12：7-Zip 分支准确率与 MPKI](amd_zen5_variants_figures/12_figure.png)
 
-Redwood Cove 相比 Skylake 将每指令误预测降低约 17.6%，但绝对频率仍足以限制其大后端。内核编译约 21.7% 指令是分支，不过模式更容易预测：Zen 5 相比 Bulldozer 将每指令误预测降低 60.2%，而在 7-Zip 中只降低 33.38%。
+Redwood Cove 相比 Skylake 将每指令误预测降低约 17.6%，但误预测的绝对频率仍足以限制其大后端。内核编译约 21.7% 指令是分支，不过模式更容易预测：Zen 5 相比 Bulldozer 将每指令误预测降低 60.2%，而在 7-Zip 中只降低 33.38%。
 
 ![图 13：内核编译的分支预测](amd_zen5_variants_figures/13_figure.png)
 

@@ -162,7 +162,7 @@ Zen 4 更健壮：只要 Load 完全包含于旧 Store 就能转发，精确地�
 
 ### 体系结构视角：Forwarding 设计是在快路覆盖率与慢路深度间取舍
 
-X2 只为常见半部匹配做短快路，因此逻辑简单、最坏约 10～11；Zen 4 覆盖范围大、最佳可零额外延迟，却有 19～20 周期回退。真实收益取决于编译器生成的宽度、对齐和重叠分布。
+X2 只为常见半部匹配做短快路，因此逻辑简单、最坏约 10～11 周期；Zen 4 覆盖范围大、最佳可零额外延迟，却有 19～20 周期回退。真实收益取决于编译器生成的宽度、对齐和重叠分布。
 
 测试要区分完全包含、部分重叠、不同大小、跨 32/64 B、跨页和异常页，并结合 Replay/Recovery 事件。矩阵只能确认输入到延迟的行为，不能单独确定 Store Queue 比较粒度或旁路拓扑。
 
@@ -202,7 +202,7 @@ L3 按 Slice 组织，由私有 Cache Victim 填充。X2 在 4 MB 工作集处�
 
 *图 20：来自 Arm DSU-110 TRM。L3 Data RAM、ECC、输出等部分可配 5～7 周期；程序可见延迟还包括 Tag、互连、上级 Cache/TLB 和仲裁，不能把 18.18 ns 只归给 SRAM。*
 
-1 GB 工作集 DRAM 延迟约 202 ns。L2 TLB miss 与 Page Walk 可能很重，却因 Android 无 Huge Page 难以拆出。手机 SoC 中不算离谱，但远落后桌面/笔记本，也差于 Apple M1。Apple 12 MB 共享 L2承担 Snapdragon 6 MB L3 的类似系统角色，却同时更大、更快。
+1 GB 工作集 DRAM 延迟约 202 ns。L2 TLB miss 与 Page Walk 可能很重，却因 Android 无 Huge Page 难以拆出。手机 SoC 中不算离谱，但远落后桌面/笔记本，也差于 Apple M1。Apple 12 MB 共享 L2 承担 Snapdragon 6 MB L3 的类似系统角色，却同时更大、更快。
 
 ![图 21：X2 与 Apple M1 的 Cache/Memory 延迟](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/arm_cortex_x2_wechat_article_zh/c7aa11ba0262065e_21_cache_memory_latency_comparison.png)
 

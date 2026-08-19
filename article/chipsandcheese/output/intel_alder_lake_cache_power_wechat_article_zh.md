@@ -39,13 +39,13 @@ Gracemont 虽支持 AVX，但 256-bit 操作会拆成两个 128-bit 操作，更
 
 ![图 5：Gracemont 与 Golden Cove 的指令侧能耗](intel_alder_lake_cache_power_figures/05_figure.png)
 
-Gracemont 的 L1I+译码略优于 Golden Cove，但不如后者 uop cache；差距都小于 10%。进入 L2 后 Gracemont略胜，进入 L3/DRAM 后则大体重复数据侧趋势。DRAM 区域 Gracemont 胜出，主要因为内存瓶颈下它较小的乱序后端耗电更少。
+Gracemont 的 L1I+译码略优于 Golden Cove，但不如后者 uop cache；差距都小于 10%。进入 L2 后 Gracemont 略胜，进入 L3/DRAM 后则大体重复数据侧趋势。DRAM 区域 Gracemont 胜出，主要因为内存瓶颈下它较小的乱序后端耗电更少。
 
 ## Golden Cove 与旧 Intel 大核
 
 ![图 6：Golden Cove 与 Skylake 的数据侧能耗和带宽；Skylake 使用双通道 DDR4-2133](intel_alder_lake_cache_power_figures/06_figure.png)
 
-Golden Cove L1D 在带宽显著增加、load port 更多且频率更高的情况下，单位搬运能耗仍与 Skylake 接近；L2 容量和带宽更高，能效还略好。L3 结果更复杂：Skylake 的 ring 更短、L3 更小，单次读取更省能；Golden Cove 的大 L3 则能减少昂贵的 DRAM 访问。DRAM 区域第一代 Skylake略优，因为它没有让超大的乱序结构在高频下等待内存。
+Golden Cove L1D 在带宽显著增加、load port 更多且频率更高的情况下，单位搬运能耗仍与 Skylake 接近；L2 容量和带宽更高，能效还略好。L3 结果更复杂：Skylake 的 ring 更短、L3 更小，单次读取更省能；Golden Cove 的大 L3 则能减少昂贵的 DRAM 访问。DRAM 区域第一代 Skylake 略优，因为它没有让超大的乱序结构在高频下等待内存。
 
 ![图 7：Golden Cove 与 Haswell 数据侧对比；Haswell 使用双通道 DDR3-1333](intel_alder_lake_cache_power_figures/07_figure.png)
 

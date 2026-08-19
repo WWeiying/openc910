@@ -70,7 +70,7 @@ A55 依然没有大核那种数百或数千项 BTB，预测器不能远远跑在
 
 ![图 8：Taken Branch 足迹与延迟](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/arm_cortex_a55_wechat_article_zh/faf86bda894b4eaf_08_taken_branch_latency.png)
 
-*图 8：小足迹约三周期；超过 L1I/L2 覆盖后多条曲线分层上升。A55 在大 Footprint 回归不是漂亮结果，却揭示“更好方向预测”无法替代大 BTB 与强代码供给。*
+*图 8：小足迹约三周期；超过 L1I/L2 覆盖后多条曲线分层上升。A55 在大 Footprint 下的退步并不漂亮，却揭示“更好方向预测”无法替代大 BTB 与强代码供给。*
 
 ### 体系结构视角：预测得对，还要尽早知道往哪里取
 
@@ -186,7 +186,7 @@ A55 L1 TLB 从 A53 的 10 项增至 16 项，依然远小于旧乱序核——At
 
 *图 21：A55/A53 的 L1 TLB 为 16/10，L2 为 1024/512；IPA Cache 与 Walk Cache 均为 64 项、四路。A55 的 L2 TLB Hit 多三周期，A53 为两周期。*
 
-更大一级 TLB 降低访问二级的频率，二级多一周期是合理交换；三周期仍优于不少低频乱序核心，A78 二级命中例如多五周期。Page Walk 更难隐藏，因此 A55 还保留 64 项 IPA Cache 和 64 项 Walk Cache：前者缓存 Guest Physical→Host Physical，后者保存倒数第二级 Page Table Entry，让 Walk 从最后一步开始。4 KB 页下，一个 Table 覆盖 512 页，64 项 Walk Cache 理论上可加速约 128 MB 地址空间。
+更大的一级 TLB 降低访问二级的频率，二级多一周期是合理交换；三周期仍优于不少低频乱序核心，A78 二级命中例如多五周期。Page Walk 更难隐藏，因此 A55 还保留 64 项 IPA Cache 和 64 项 Walk Cache：前者缓存 Guest Physical→Host Physical，后者保存倒数第二级 Page Table Entry，让 Walk 从最后一步开始。4 KB 页下，一个 Table 覆盖 512 页，64 项 Walk Cache 理论上可加速约 128 MB 地址空间。
 
 L2 TLB 有 Parity；检测错误时失效对应 Entry，再重新 Page Walk。
 
@@ -198,7 +198,7 @@ L2 TLB 有 Parity；检测错误时失效对应 Entry，再重新 Page Walk。
 
 ## Cache：私有 L2 与 DynamIQ L3
 
-A55 的 L1D 同样可选 16/32/64 KB、四路。Data 与 Tag 有 ECC：单 Bit Error 通过 Evict、纠错写出并从 L2 重载处理。相联度比 A53 更高，通常可略微改善命中率。
+A55 的 L1D 同样可选 16/32/64 KB、四路。Data 与 Tag 均有 ECC：出现单 bit 错误时，会在逐出 Cache Line 的过程中纠错，再从 L2 重载。相联度比 A53 更高，通常可略微改善命中率。
 
 寻址从 A53 的 Physically Indexed, Physically Tagged（PIPT）改为 Virtually Indexed, Physically Tagged（VIPT），32/64 KB 选项也仍是 VIPT。VIPT 并不要求所有 Index Bit 都落在 4 KB Page Offset 内；只要实现处理可能的 Synonym 与物理 Tag 校验即可。
 

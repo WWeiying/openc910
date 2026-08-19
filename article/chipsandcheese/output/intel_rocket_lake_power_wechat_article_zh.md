@@ -23,7 +23,7 @@ libx264 进行 4K 视频转码，包含大量 AVX/AVX2，Rocket Lake 还可使�
 
 ![图 3：libx264 完成任务的总能量随频率变化](intel_rocket_lake_power_figures/03_figure.png)
 
-默认频率下，Rocket Lake 比 Skylake 快 71.5%，完成任务却接近两倍能量。中 3 GHz 区间能效可追平 Skylake，最佳区约 2.5—3 GHz，与 Kaby Lake 3.5 GHz、Skylake 3 GHz 或 Golden Cove 4.2—4.5 GHz 相近。弱点是低于 30 W 后性能陡降，2.5 GHz 以下也不再改善能效。
+默认频率下，Rocket Lake 比 Skylake 快 71.5%，完成任务却接近两倍能量。3 GHz 中段的能效可追平 Skylake，最佳区约 2.5—3 GHz，与 Kaby Lake 3.5 GHz、Skylake 3 GHz 或 Golden Cove 4.2—4.5 GHz 相近。弱点是低于 30 W 后性能陡降，2.5 GHz 以下也不再改善能效。
 
 图中 i5-6600K 在 3.6 GHz 后呈平线，是因为横轴绘制的最高 boost 来自单线程加法延迟；libx264 用满四线程时全核 boost 仍是 3.6 GHz，不是测试失效。
 

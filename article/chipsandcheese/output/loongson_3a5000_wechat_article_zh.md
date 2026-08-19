@@ -3,7 +3,7 @@
 > **文章来源**
 >
 > - 文章：*Loongson’s 3A5000: China’s Best Shot?*
-> - 撰文：Chester Lam
+> - 撰文：Chester Lam、George Cozma
 > - 首发：Chips and Cheese
 > - 发布：2023 年 4 月 9 日
 > - 链接：https://chipsandcheese.com/p/loongsons-3a5000-chinas-best-shot
@@ -206,7 +206,7 @@ DDR4-2666 Dual-channel、两 Slot 都插满，Latency 约 144 ns；旧 Dual-chan
 
 *图 30：正式图注来源 *An Introduction to CPU and DSP Design in China*；列出的 GS464E Key Parameter 与 LA464 相同。微基准看 LA464 更像 GS464E 后一代，而 GS464E 本就以追赶 2010 年代早期 Western Core 同频为目标。*
 
-软件生态同样关键。LoongArch 为解决 MIPS Application/Toolchain 弱而新建不兼容 ISA，却仍大量复用 MIPS Toolchain；Old World Commercial 与 New World Community ABI 一度不兼容。文中引用 x86-64 Binary Translation 在 Loongnix 上 Geekbench 立即 Segfault，x86 32-bit 可运行；即使能跑，Translation 仍给低性能核心增加开销。该状态是文章发布时点观察，不能外推为今天所有发行版。
+软件生态同样关键。LoongArch 为摆脱 MIPS 应用与工具链的限制，采用了不兼容的新 ISA，但早期仍大量复用 MIPS 工具链；Old World Commercial 与 New World Community ABI 一度不兼容。文中引用 x86-64 Binary Translation 在 Loongnix 上运行 Geekbench 时立即 Segfault，而 x86 32-bit 可运行；即使能跑，Translation 仍会给低性能核心增加开销。该状态是文章发布时点的观察，不能外推为今天所有发行版。
 
 ### 体系结构视角：从 3A5000 可以归纳出的七点认识
 

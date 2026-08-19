@@ -86,7 +86,7 @@ Zen 4 的普通 misaligned Load 为约 1 周期，misaligned Store 为 2 周期�
 
 *图 6：Zen 4 L1D/L2 约 4/14 周期，Golden Cove 为 5/15；共享 L3 上 Intel 因非核心频率 Ring、两个 E-Core 集群和 iGPU 节点，接近比 Zen 多 20 周期。Golden Cove 用更大 L2 与更深窗口补偿。*
 
-频率改变了真实时间。Zen 4 最高约 5.7 GHz，4-cycle L1D 只有约 0.7 ns；多数访问 L1 hitrate 超过 80%～90%，这条快路影响很大。1 MB L2 虽多两个周期，7950X 测得约 2.44 ns，只比 5950X 的 2.40 ns 略慢。
+频率改变了真实时间。Zen 4 最高约 5.7 GHz，4-cycle L1D 只有约 0.7 ns；L1 命中率通常超过 80%～90%，因此多数内存访问都能走这条低延迟快路。1 MB L2 虽多两个周期，7950X 测得约 2.44 ns，只比 5950X 的 2.40 ns 略慢。
 
 ![图 7：2 MB 页下的真实纳秒延迟](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_zen4_part2_wechat_article_zh/becbb99761b3c9f1_07_cache_latency_ns_2mb_pages.png)
 
@@ -136,7 +136,7 @@ AMD 的 L3 是 Victim Cache，只接收从 L2 驱逐的行，不在 L3 预取；
 
 ![图 11：用 Little’s Law 估算 L2 miss 跟踪深度](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_zen4_part2_wechat_article_zh/5c2d685c656704d6_11_l2_miss_queue_estimate.jpg)
 
-*图 11：按 64 B/请求计算，Zen 4 为 `(57.29 GB/s ÷ 64 B) × 78.72 ns ≈ 70.45` 项；Zen 3 约 49.72，Zen 2 约 36.46。4 KB 页测试还混入 Page Walk 请求，因此只能说明 Zen 4 可能有更积极 L2 预取、更深队列，或两者兼具。*
+*图 11：按 64 B/请求计算，Zen 4 为 `(57.29 GB/s ÷ 64 B) × 78.72 ns ≈ 70.45` 项；Zen 3 约 49.72，Zen 2 约 36.46。4 KB 页测试还混入 Page Walk 请求，因此只能说明 Zen 4 可能有更积极的 L2 预取、更深队列，或两者兼具。*
 
 ## 多核带宽：频率把同宽总线推到更高 GB/s
 
@@ -180,7 +180,7 @@ Zen 4 像 Zen 2 一样，把架构更新与新制程合并，同时避免最激�
 
 ![图 15：Zen 4 与 Zen 2 的代际升级路径](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_zen4_part2_wechat_article_zh/df18b79c0712e975_15_zen_generation_summary.jpg)
 
-*图 15：Zen 4 相对 Zen 3 的要点包括：L1 BTB 约增 50%、L2 BTB 适度扩容、微操作 Cache 约增 68%、向量寄存器扩至 512 bit、调度与执行布局不变、L1D 仍 2×256-bit Load/1×256-bit Store、L2 TLB 从 2K 到 3K、L2 从 512 KB 到 1 MB并增加 2 周期。右栏把许多容量增长与制程密度联系起来。*
+*图 15：Zen 4 相对 Zen 3 的要点包括：L1 BTB 约增 50%、L2 BTB 适度扩容、微操作 Cache 约增 68%、向量寄存器扩至 512 bit、调度与执行布局不变、L1D 仍 2×256-bit Load/1×256-bit Store、L2 TLB 从 2K 到 3K、L2 从 512 KB 到 1 MB，并增加 2 周期。右栏把许多容量增长与制程密度联系起来。*
 
 原始执行宽度从 Zen 2 到 Zen 4 变化不大，L1D 峰值也没增加；Zen 4 沿用 Zen 3 调度。AMD 宣称约 13% performance per clock 增长，看起来不如前两代醒目，却与 Ivy Bridge 到 Haswell 的 11.2% 同量级。更重要的是，频率大幅提高：只要 Cache 不让 DRAM 成为主瓶颈，性能通常近似随频率增长。文章认为 AMD 可能放弃调度器和 Store Queue 扩容，以换取高频；Raptor Lake 也用相似路线把 Thermal Velocity Boost 推到 5.8 GHz、普通 Turbo Boost 3.0 推到 5.7 GHz。
 

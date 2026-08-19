@@ -59,7 +59,7 @@ Intel 官方称 SPR/Golden Cove 整数物理寄存器从 Sunny Cove 的 280 增�
 
 ![图 7：微基准未观察到 Golden Cove 比 Sunny Cove 更深的整数 rename 窗口](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/intel_golden_cove_vector_rf_spr_wechat_article_zh/cf4c3a4e0e3cf42e_07_figure.png)
 
-无论使用是否设置 flags 的指令，测试都未看到更多 speculative 容量。这意味着新增 8 项被某种体系结构状态占用，没有让后端看得更远。Sunny Cove 用 32 项保存两个 SMT 线程的 16 个整数架构寄存器；若按差值推算，Golden Cove 每线程似乎又用 4 项做别的事情。整数状态即使 sibling 未激活也为两线程保留，与向量寄存器行为不同。
+无论使用设置 flags 还是不设置 flags 的指令，测试都未看到更多 speculative 容量。这意味着新增 8 项被某种体系结构状态占用，没有让后端看得更远。Sunny Cove 用 32 项保存两个 SMT 线程的 16 个整数架构寄存器；若按差值推算，Golden Cove 每线程似乎又用 4 项做别的事情。整数状态即使 sibling 未激活也为两线程保留，与向量寄存器行为不同。
 
 即使 8 项全部可投机使用，相对 512-entry ROB 也很小。大量代码超过半数指令会写整数寄存器，248+8 也只有 256，Golden Cove 仍可能先耗尽整数寄存器而非 ROB。
 

@@ -104,11 +104,11 @@ Zen 1 为 32 KB、8-way L1D；3A5000/N1 为 64 KB、4-way。7-Zip 中龙芯命�
 
 ![图 16：libx264 的 Cache Hit Rate](loongson_3a5000_counters_figures/16_figure.png)
 
-*图 16：更大 Data Footprint 让各级都下降；N1 大 L1D、Zen 1 大 L2分别提供缓冲。*
+*图 16：更大 Data Footprint 让各级都下降；N1 的大 L1D、Zen 1 的大 L2 分别提供缓冲。*
 
 ![图 17：libx264 的 Cache Miss/Instruction](loongson_3a5000_counters_figures/17_figure.png)
 
-*图 17：龙芯按指令值看似好，绝对 L2 miss 却超过 2440 亿，Zen 1单线程约 1820 亿，Altra 1760 亿；L3差距较小，且事件定义未知。*
+*图 17：龙芯按指令值看似好，绝对 L2 miss 却超过 2440 亿，Zen 1 单线程约 1820 亿，Altra 为 1760 亿；L3 差距较小，且事件定义未知。*
 
 ## 第一印象与方法边界
 

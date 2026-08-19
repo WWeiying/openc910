@@ -7,7 +7,7 @@
 
 Intel 的大核用大型乱序窗口和高频追求单线程；Atom 则选择不同的功耗、性能与面积平衡。Alder Lake 用大量 Gracemont 提高每面积吞吐之前，Xeon Phi 已把小核堆到更极端。
 
-第二代 Xeon Phi，代号 Knights Landing（KNL），在 14 nm 上最多集成 72 核。实测 Xeon Phi 7210 启用 64 核，每核 4-way SMT，共 256 线程；封装内另有 16 GB MCDRAM，可作为独立地址空间或 DDR4 cache。它不是普通客户端/服务器 CPU，而是面向 HPC、试图站在 CPU 可编程性与 GPU 吞吐之间的 many-core。
+第二代 Xeon Phi，代号 Knights Landing（KNL），在 14 nm 上最多集成 72 核。实测 Xeon Phi 7210 启用 64 核，每核 4-way SMT，共 256 线程；封装内另有 16 GB MCDRAM，可作为独立地址空间或 DDR4 cache。它不是普通客户端/服务器 CPU，而是面向 HPC、试图站在 CPU 可编程性与 GPU 吞吐之间的众核处理器。
 
 ## 从 Silvermont 出发，围绕 AVX-512 重做
 
@@ -223,7 +223,7 @@ KNL 72-entry ROB、各类 rename 全覆盖、branch 无额外独立限制，所�
 
 ![图 38：旧版 Y-Cruncher 在 DDR4/MCDRAM 和不同线程数下的性能](intel_knights_landing_figures/38_figure.png)
 
-使用旧版是因为新版不支持 KNL AVX-512。DDR4 下超过物理核数后因 cache thrash 和带宽瓶颈变慢；MCDRAM 则让 256 线程 KNL 大幅超过 Zen 2 Ryzen 3950X。3950X 已完全受内存限制，开 boost 只让 IPC 同比下降，性能不增。MCDRAM 对 libx264/7-Zip 无帮助，7-Zip甚至因更高延迟略慢。
+使用旧版是因为新版不支持 KNL AVX-512。DDR4 下超过物理核数后因 cache thrash 和带宽瓶颈变慢；MCDRAM 则让 256 线程 KNL 大幅超过 Zen 2 Ryzen 3950X。3950X 已完全受内存限制，开 boost 只让 IPC 同比下降，性能不增。MCDRAM 对 libx264/7-Zip 无帮助，7-Zip 甚至因更高延迟略慢。
 
 ### 体系结构视角：SMT 只填执行空洞，不创造 Cache 或内存带宽
 

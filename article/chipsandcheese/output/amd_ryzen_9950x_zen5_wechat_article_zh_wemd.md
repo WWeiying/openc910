@@ -298,7 +298,7 @@ AMD 自 Golden Cove 于 2021 年发布后已经推出 Zen 4 和 Zen 5，二者�
 
 第一，核心宽度只提供上限，延迟决定兑现率。Zen 5 增加 Slot，却仍被 Branch Response 与 Memory Access 拉出大量空洞。
 
-第二，桌面与移动核心可以共享 Architecture、采用不同 Physical Resource。完整 512-bit Unit 与较保守的移动实现都可能是各自功耗区间的正确答案。
+第二，桌面与移动核心可以共享 Architecture、采用不同的物理资源配置。完整 512-bit Unit 与较保守的移动实现都可能是各自功耗区间的正确答案。
 
 第三，晚分配是一种资源虚拟化。把 Vector Rename 放到 NSQ 后，用 Queue Entry 承接等待，避免昂贵 Vector RF 被尚不能执行的操作占满。
 

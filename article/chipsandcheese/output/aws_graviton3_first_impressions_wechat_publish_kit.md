@@ -7,11 +7,11 @@ AWS Graviton 3 初探：Arm Server 大核真正进入第一梯队
 ## 基本信息
 
 - 英文题目：Graviton 3: First Impressions
-- 作者：George Cozma
+- 作者：George Cozma、Chester Lam
 - 首发：Chips and Cheese
 - 日期：2022 年 5 月 29 日
 - 阅读原文：https://chipsandcheese.com/p/graviton-3-first-impressions
-- 后台作者栏：George Cozma
+- 后台作者栏：George Cozma、Chester Lam
 
 ## 摘要
 

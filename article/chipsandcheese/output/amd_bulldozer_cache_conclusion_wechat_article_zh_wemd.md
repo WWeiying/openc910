@@ -188,7 +188,7 @@ K10 即便 L2 TLB Miss 仍有更低 L3 Latency。文章推测 K10 的 24-entry P
 
 ### 32 nm 与高频目标
 
-AMD 原计划维持 Phenom IPC、靠 Clock 提升 Single-thread；若每线程 Integer/LSU 保持 K10 规模，共享 Frontend/FPU 又更强，确有可能。但一次工程同时加入大量新机制、迁移新 Node、为结构加 Multithreading，最终不得不削减。
+AMD 原计划维持 Phenom IPC、靠 Clock 提升 Single-thread；若每线程 Integer/LSU 保持 K10 规模，共享 Frontend/FPU 又更强，确有可能。但一次工程同时加入大量新机制、迁移新 Node、为架构加入 Multithreading，最终不得不削减。
 
 ISSCC 解释：45 nm 6T→32 nm 8T 是为改善 Low-voltage Margin/Read Timing、降功耗，并消除 D-cache Read-modify-write Critical Path。8T 又不够，Bitline Loading 从每线 16 Cell 降到 8；前 AMD Engineer 提供的信息称 L1D 从 64→32→16 KB。Write-through/Parity 也可能与省面积有关，但这是推断。
 
@@ -198,7 +198,7 @@ Integer RF 为移除 Critical Wire Delay 而复制，占用本可用于执行单
 
 ### 还没追够、每线程也不够大
 
-Predictor 比 K10 强，仍不及 Sandy Bridge 速度/准确率；Store Forwarding 覆盖改善，Intel 覆盖更多且 Penalty 更低；AMD 只 Fusion CMP/TEST+Branch，Intel 从 Core 2 迭代到多数 ALU+Branch Fusion。FX-8150 Boost 4.2 GHz，Llano 同 Node 顶级只有 3 GHz，但 Sandy Bridge 同样高频，优势不大。
+Predictor 比 K10 强，仍不及 Sandy Bridge 速度/准确率；Store Forwarding 覆盖改善，Intel 覆盖更多且 Penalty 更低；AMD 只融合 CMP/TEST+Branch，Intel 从 Core 2 迭代到多数 ALU+Branch Fusion。FX-8150 Boost 4.2 GHz，Llano 同 Node 顶级只有 3 GHz，但 Sandy Bridge 同样高频，优势不大。
 
 Northbridge/L3 没现代化，Ring 是 Sandy Bridge 巨大跃升。糟糕 L3 强迫 AMD 配大 L2，大 L2 又慢，尤其惩罚小 Write-through L1D。
 

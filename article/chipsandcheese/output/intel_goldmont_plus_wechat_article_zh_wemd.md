@@ -101,7 +101,7 @@ Zen 同样使用 128-bit 执行单元，却分布在四条 pipe，配合更大 s
 
 ### 体系结构视角：小核不是把大核按比例缩小
 
-GLP 把资源集中在“够用的乱序窗口”和常见整数路径：93 项 ROB、PRF、分布式 scheduler、专用 branch port；把昂贵宽向量、额外 AGU 和更大 cache hierarchy 留掉。队列过小会经常 full，过大又只在罕见长延迟场景有收益。它追求的是每平方毫米和每瓦的平均效率，而非峰值 IPC。
+GLP 把资源集中在“够用的乱序窗口”和常见整数路径：93 项 ROB、PRF、分布式 scheduler、专用 branch port；舍去昂贵的宽向量、额外 AGU 和更大的 cache hierarchy。队列过小会经常 full，过大又只在罕见长延迟场景有收益。它追求的是每平方毫米和每瓦的平均效率，而非峰值 IPC。
 
 ## Load/Store：一条 load AGU、一条 store AGU
 
@@ -187,7 +187,7 @@ locked compare-and-exchange 在两核间反复转移 cache line，可观察 owne
 
 GLP 的 register file、queue 和 scheduler 已足够让乱序执行发挥作用，明显强于 Silvermont；相对 A72 也有更好的 L2 与 branch prediction。它没有像大核那样追逐宽向量和巨型窗口的边际收益，许多取舍对低功耗设计合理。
 
-弱点同样集中：DRAM 性能差，24 KB L1D 太小且需要真正 full write-back；一条 load AGU 限制常见访存组合；缺少把 256-bit AVX 拆成两个 128-bit half 的能力；BTB 路径慢。Tremont 随后修补了不少问题。
+弱点同样集中：DRAM 性能差，24 KB L1D 太小且缺少真正的 full write-back 机制；一条 load AGU 限制常见访存组合；缺少把 256-bit AVX 拆成两个 128-bit half 的能力；BTB 路径慢。Tremont 随后修补了不少问题。
 
 最大矛盾仍是定位。更大 buffer/scheduler 让全核功耗轻易超过 13 W，在无风扇 tablet/phone 中会严重 throttle；只要加一个小风扇，2C/4T Skylake ULV 又能给出更强单线程。GLP 比早期 Atom 平衡，却处在无法主导任何一端的空档。
 

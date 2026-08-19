@@ -5,11 +5,11 @@ title: "aws_graviton3_first_impressions_wechat_article_zh"
 ---
 
 > 英文标题：Graviton 3: First Impressions
-> 撰文：George Cozma
+> 撰文：George Cozma、Chester Lam
 > 首发：Chips and Cheese，2022 年 5 月 29 日
 > 链接：https://chipsandcheese.com/p/graviton-3-first-impressions
 
-AWS 在 2022 年 5 月公开 Graviton 3，它是首款广泛可用、支持 SVE 的通用 Arm Server CPU。此前 Graviton 2 和 Ampere Altra 都以 Neoverse N1 为主：前者 64 核 2.5 GHz，后者最多 80 核 3 GHz。本文用 N1、Zen 3 Milan 和 Ice Lake-SP/Sunny Cove 作参照；The Next Platform 的分析支持 Graviton 3 基于修改版 Neoverse V1，但 AWS 未公开全部实现细节。
+AWS 在 2022 年 5 月公开 Graviton 3，它是首款广泛可用、支持 SVE 的通用 Arm Server CPU。此前 Graviton 2 和 Ampere Altra 都以 Neoverse N1 为主：前者 64 核 2.5 GHz，后者最多 80 核 3 GHz。本文用 N1、Zen 3 Milan 和 Ice Lake-SP/Sunny Cove 作参照；The Next Platform 的分析认为 Graviton 3 可能基于修改版 Neoverse V1，但 AWS 未公开全部实现细节。
 
 ![图 1：Graviton 3 与 V1 关系及系统概览](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/aws_graviton3_first_impressions_wechat_article_zh/240f7d52f48f7da0_01_figure.png)
 
@@ -67,7 +67,7 @@ Rename 看来为六宽。它不能像 Zen 3/Sunny Cove 那样按 Rename Width �
 
 把 0 写 Register 的指令可被完全消除，达到六条/cycle。Ice Lake 只能断依赖而不能消除，Zen 3 则有同等 Zeroing Elimination。
 
-常规 NOP 测试暗示 512 项 ROB，但可能只是每项存两个融合 NOP。交替 Integer/FP 的测试仍超过 256，因此更支持真实 512 项，以及融合 NOP 在 Rename 后重新展开；解释尚未完全确认。
+常规 NOP 测试暗示 512 项 ROB，但可能只是每项存两个融合 NOP。交替 Integer/FP 的测试仍超过 256，因此更支持 ROB 实际有 512 项的解释，以及融合 NOP 在 Rename 后重新展开；解释尚未完全确认。
 
 ![图 14：ROB 容量测试与 256/512 两种解释](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/aws_graviton3_first_impressions_wechat_article_zh/5f46115745a460dc_14_figure.png)
 
@@ -119,11 +119,11 @@ Graviton 3 DRAM 反而更慢，可能来自 DDR5 固有延迟与独立 I/O Chipl
 
 ![图 24：三种 Server Cache Strategy](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/aws_graviton3_first_impressions_wechat_article_zh/fe3628ff64886075_24_figure.png)
 
-Zen 3 与 Sunny Cove 还要服务 Client，可在 4 GHz 以上；Milan/Ice Lake Cloud 实例明显高于 Graviton 3。按纳秒看，低频让 Arm 的周期优势缩小。
+Zen 3 与 Sunny Cove 还要服务 Client，可在 4 GHz 以上；Milan/Ice Lake 云实例的频率明显高于 Graviton 3。按纳秒看，低频让 Arm 的周期优势缩小。
 
 ![图 25：以实际时间比较 L1、L2、L3 与 DRAM](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/aws_graviton3_first_impressions_wechat_article_zh/cb2fd6808d6bb19a_25_figure.png)
 
-Ice Lake 约 3.5 GHz、EPYC 约 3.23 GHz（由 Register Add Latency 推断）。其小而快 L1/L2 在纳秒上领先；Intel/Arm Mesh L3 接近，AMD Cluster L3 很快。两者同为跨 Chiplet Memory，AMD DRAM 仍约低 10 ns，文章倾向归因于 DDR4/DDR5 差异。
+Ice Lake 约 3.5 GHz、EPYC 约 3.23 GHz（由 Register Add Latency 推断）。其小而快 L1/L2 在纳秒上领先；Intel/Arm Mesh L3 接近，AMD Cluster L3 很快。Graviton 3 与 EPYC 的 DRAM 访问同样都要跨 Chiplet，AMD DRAM 仍约低 10 ns，文章倾向归因于 DDR4/DDR5 差异。
 
 ## Bandwidth：SVE 与 DDR5 的价值
 
@@ -139,7 +139,7 @@ DDR5 的高延迟换来高带宽，Graviton 3 在 Memory Bandwidth 明显领先�
 
 ![图 28：整芯片可获得数据下的层级带宽](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/aws_graviton3_first_impressions_wechat_article_zh/6f1c5987b7baeb2e_28_figure.png)
 
-与 V-Cache EPYC 比，Graviton 3 领先 L1/L2/DRAM；AMD 巨大且低延迟 L3 在一段工作集内反超。整机样本有限，不能作全产品线排名。
+与 V-Cache EPYC 比，Graviton 3 领先 L1/L2/DRAM；AMD 巨大且低延迟的 L3 在一段工作集内反超。整机样本有限，不能作全产品线排名。
 
 ### 体系结构视角：周期、纳秒与 Byte/cycle 要同时看
 
@@ -149,7 +149,7 @@ DDR5 的高延迟换来高带宽，Graviton 3 在 Memory Bandwidth 明显领先�
 
 Graviton 3 是首个通用、广泛可用的 SVE Server；A64FX 更早但专为超算。短期优势有限：当时软件几乎没有 SVE，GCC 甚至在作者经验中拒绝生成，测试用 Clang 汇编。其处境类似 2017 年 AVX-512；SVE2 已发布，若未来软件直接要求 SVE2，Graviton 3 的初代 SVE 还可能被绕过。
 
-按预测、窗口、执行资源和宽度，Graviton 3 已进入 Zen 3/Ice Lake 同一大区间，但 2.6 GHz 与对手相差很大，也没有用更巨大的核心弥补。
+按预测、窗口、执行资源和宽度，Graviton 3 已进入 Zen 3/Ice Lake 同一大区间，但 2.6 GHz 与对手相差很大，也未以更庞大的核心规模弥补频率差距。
 
 AWS 的目标是 Cloud Compute Density。2.6 GHz 仅比 Graviton 2 高 100 MHz，核心数不增，性能提升几乎全来自 IPC；TSMC 5 nm 用于降低功耗，而不是冲高频。中等规模核心在低频下可让一个 Node 放三颗芯片，以更低单核售价提供比 Graviton 2 更强性能。
 

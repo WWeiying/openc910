@@ -80,7 +80,7 @@ Redwood Cove 增加 MOV+OP、LD+OP Macro-fusion。Register MOV+Math 可表达非
 
 ![图 12：SPEC CPU2017 FP 的 Micro-op/Instruction](intel_redwood_cove_figures/12_figure.png)
 
-*图 12：FP Suite 不再一边倒；526.blender Intel 更高效，503.bwaves、510.parset AMD 更好。*
+*图 12：FP Suite 不再一边倒；526.blender Intel 更高效，503.bwaves、510.parest AMD 更好。*
 
 ### 体系结构视角：Fusion 是“逻辑宽度”优化
 
@@ -134,7 +134,7 @@ Array-of-pointers（AOP）Prefetcher 面向 Pointer Array。Apple M1 已有类�
 
 ![图 19：单线程可占 RF 比例](intel_redwood_cove_figures/19_figure.png)
 
-*图 19：Redwood Cove 一线程可占约四分之三 Integer RF，AMD 约 58%。高 Watermark 提高一繁一闲时利用率，也需防一个 Thread 饥饿另一个。*
+*图 19：Redwood Cove 一线程可占约四分之三 Integer RF，AMD 约 58%。高 Watermark 提高一忙一闲时的利用率，也需防止一个 Thread 让另一个饥饿。*
 
 SPEC CPU2017 Rate 在同一 Core Pin 两份，GCC 14.2，`-mtune=native -march=native`，可用本机全部 ISA。
 

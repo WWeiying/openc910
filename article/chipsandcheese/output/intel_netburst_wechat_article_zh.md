@@ -51,7 +51,7 @@ Merom 仅 4 条、Westmere 仅 8 条后就出现 1 周期 bubble，小 footprint
 
 ## Trace Cache：不缓存字节，而缓存执行路径
 
-NetBurst 没有传统 L1I，而是 12K-entry trace cache。它存放已译码 uop，并按动态顺序执行 trace 组织；同一指令若是多个分支目标，可能在多个 trace 中重复出现。目标是从取指角度把 taken branch 变成 trace 内连续流，避免越过分支的 fetch/decode 槽浪费。
+NetBurst 没有传统 L1I，而是 12K-entry trace cache。它存放已译码 uop，并按动态执行顺序组织 trace；同一指令若是多个分支目标，可能在多个 trace 中重复出现。目标是从取指角度把 taken branch 变成 trace 内连续流，避免越过分支的 fetch/decode 槽浪费。
 
 ![图 9：Prescott 前端；decoder 区可能包含复杂 trace building 逻辑](intel_netburst_figures/09_figure.jpg)
 
@@ -161,7 +161,7 @@ Write-through 简化 dirty tracking 和错误恢复，L1 不保留唯一修改�
 
 ## 为什么失败，又留下了什么
 
-NetBurst 是“优秀快速路径 + 恐怖异常路径”的集合：trace 命中和小 BTB footprint 很快；trace miss、BTB miss、跨 line、转发失败则是几十到上百周期。Replay 与不能及时清错误路径让流水线做大量无用功，带来低 IPC 与低能效；工艺也没有提供设想中的极高频率，无法靠 MHz 覆盖问题。
+NetBurst 是“优秀快速路径 + 恐怖异常路径”的集合：trace 命中和小 BTB footprint 很快；trace miss、BTB miss、跨 line、转发失败则是几十到上百周期。Replay 与不能及时清除错误路径让流水线做大量无用功，带来低 IPC 与低能效；工艺也没有提供设想中的极高频率，无法靠 MHz 覆盖问题。
 
 ![图 28：Prescott 裸片推测标注，所有区域识别都需谨慎](intel_netburst_figures/28_figure.jpg)
 

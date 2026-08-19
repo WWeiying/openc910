@@ -3,7 +3,7 @@
 ## 正式发布信息
 
 - 正式标题：SC23 上的 SW26010-Pro：峰值算力之外，Sunway 被什么卡住
-- 署名：Chester Lam
+- 署名：Chester Lam、George Cozma
 - 来源：Chips and Cheese
 - 日期：2023 年 11 月 20 日
 - 英文标题：China’s New(ish) SW26010-Pro Supercomputer at SC23
@@ -36,4 +36,4 @@
 - 双通道DDR4-3200与2.7 TB/s Uplink为公开数字反推/假设。
 - CPE部分延迟沿用旧SW26010是假设；“为榜单设计”是文章判断。
 - 核对6×64 CPE、96 GB、307.2 GB/s、256 KB、0.11 B/FLOP、41,140,224/107,136、10.54/34 GB/s及22图。
-- 后台作者 Chester Lam；阅读原文完整链接；原创关闭，AI标识按要求开启。
+- 后台作者 Chester Lam、George Cozma；阅读原文完整链接；原创关闭，AI标识按要求开启。

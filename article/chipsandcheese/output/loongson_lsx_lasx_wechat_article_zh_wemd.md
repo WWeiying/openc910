@@ -16,7 +16,7 @@ title: "loongson_lsx_lasx_wechat_article_zh"
 
 ## 寄存器别名与指令覆盖
 
-LSX 有 VR0～VR31，LASX 有 XR0～XR31，分别是同一物理架构状态的低 128/256 bit；64-bit FP F0～F31 也与其别名，例如 F1=XR1低64 bit、VR1=低128 bit。
+LSX 有 VR0～VR31，LASX 有 XR0～XR31，分别是同一物理架构状态的低 128/256 bit；64-bit FP F0～F31 也与其别名，例如 F1=XR1 的低 64 bit、VR1=XR1 的低 128 bit。
 
 ![图 1：F、VR、XR 的别名关系](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/loongson_lsx_lasx_wechat_article_zh/d224bd7d3d8681d6_01_figure.png)
 

@@ -86,7 +86,7 @@ XBAR PMU 把 Onion 统计为 I/O→Memory，Garlic 不过 XBAR、只能在 DRAM 
 
 ![图 11：CPU 访问 iGPU Memory 的带宽与延迟](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_trinity_northbridge_wechat_article_zh/c35234267dc87f3f_11_figure.png)
 
-*图 11：缺少 Memory-Level Parallelism 后带宽骤降；仅 8 KB Pointer Chain 就约 93.11 ns，而 2 MB页的普通 Cacheable 内存在 1 GB 工作集仍低于 70 ns。驱动页大小未披露，8 KB 用于尽量排除 TLB miss。Ryzen 8840HS 上 GPU 映射仍可 Cache，访问两边延迟无明显差别，但绝对主存延迟超过 100 ns。*
+*图 11：缺少 Memory-Level Parallelism 后带宽骤降；仅 8 KB Pointer Chain 就约 93.11 ns，而 2 MB 页的普通 Cacheable 内存在 1 GB 工作集仍低于 70 ns。驱动页大小未披露，8 KB 用于尽量排除 TLB miss。Ryzen 8840HS 上 GPU 映射仍可 Cache，访问两边延迟无明显差别，但绝对主存延迟超过 100 ns。*
 
 ## 实际工作负载中的两条链路
 
@@ -110,7 +110,7 @@ FF14 Heavensward 用 1280×720、Standard (Laptop)，平均 25.6 FPS；DRAM 峰�
 
 *图 15：DDR3-1866 已承受较高流量，但仍有余量。*
 
-ESO 使用 1920×1080 Low、FSR Quality，常低于 20 FPS；CPU 在多人区域可到高 4 GB/s，总流量低于 16 GB/s。
+ESO 使用 1920×1080 Low、FSR Quality，常低于 20 FPS；CPU 在多人区域可达 4 GB/s 高位区间，总流量低于 16 GB/s。
 
 ![图 16：ESO 的互连流量](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_trinity_northbridge_wechat_article_zh/070fd96ffa76a5a6_16_figure.png)
 

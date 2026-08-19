@@ -5,7 +5,7 @@ title: "tachyum_prodigy_revised_wechat_article_zh"
 ---
 
 > 英文标题：Tachyum’s Revised Prodigy Architecture
-> 撰文：Chester Lam
+> 撰文：Chester Lam、Dr. Ian Cutress
 > 首发：Chips and Cheese，2022 年 8 月 26 日
 > 链接：https://chipsandcheese.com/p/tachyums-revised-prodigy-architecture
 

@@ -67,7 +67,7 @@ LPE-Core 仍更多访问 DRAM；标准核心也付 L2/L3 延迟，因此数据�
 
 ### 体系结构视角：Frontend 也会遭遇“内存墙”
 
-取指 cacheline 同样需要 TLB、L2/L3、MSHR 与 DRAM。Branch predictor 可提前生成多个目标，增加 instruction MLP，但无法跨越数百周期且并发资源有限。验证代码大 footprint 时，应看 L1I MPKI、ITLB、BAClear/resteer、instruction fetch miss latency，而不是把低 IPC全部归给 decoder width。
+取指 cacheline 同样需要 TLB、L2/L3、MSHR 与 DRAM。Branch predictor 可提前生成多个目标，增加 instruction MLP，但无法跨越数百周期且并发资源有限。验证代码大 footprint 时，应看 L1I MPKI、ITLB、BAClear/resteer、instruction fetch miss latency，而不是把低 IPC 全部归给 decoder width。
 
 ## 反例：7-Zip 的问题主要在核心本身
 
@@ -97,7 +97,7 @@ Scheduler 经常满。7-Zip 几乎没有 FP/vector，因此分布式 integer sch
 
 ![图 18：标准 Crestmont 24 MB L3 在 7-Zip 中仅约 35% hitrate](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/intel_crestmont_comparison_wechat_article_zh/93d1328bf4be72d7_18_figure.png)
 
-L2 再 miss 的访问局部性很差，L3 也难救。标准 E-Core IPC 只高 10.2%。实际性能差大于 10%，因为 LPE-Core 频率更低；若无 L3却提高频率，DRAM 延迟换算成更多 core cycle，scaling 也会变差。
+L2 再 miss 的访问局部性很差，L3 也难救。标准 E-Core IPC 只高 10.2%。实际性能差大于 10%，因为 LPE-Core 频率更低；若无 L3 却提高频率，DRAM 延迟换算成更多 core cycle，scaling 也会变差。
 
 ## 结语：LPE-Core 的架构潜力被系统层级限制
 

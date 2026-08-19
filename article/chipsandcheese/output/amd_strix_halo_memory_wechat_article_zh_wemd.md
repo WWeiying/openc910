@@ -30,7 +30,7 @@ GPU 分成两个 Shader Array，每个拥有 256 KB L1 Mid-Level Cache，整颗 
 
 ![图 3：不同 Radeon 的 Infinity Cache 容量与延迟](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_strix_halo_memory_wechat_article_zh/ee108f905a8d7051_03_figure.png)
 
-*图 3：Strix Halo 约 174～207 ns/16 MB 区间，高于多款独显；离散卡的更大 Cache 和独立显存路径不能与移动统一内存直接等同。*
+*图 3：Strix Halo 在 16 MB 工作集区间约为 174～207 ns，高于多款独显；离散卡的更大 Cache 和独立显存路径不能与移动统一内存直接等同。*
 
 Nemes 的 Vulkan 测试从 Infinity Cache 获得接近 1 TB/s。结合 2 GHz FCLK，结果支持 GPU 到 Fabric 约 512 B/cycle 的总通路；若八个 Endpoint 对称，则每个约 64 B/cycle。这是按性能曲线反推，不是 AMD 公布的端口位宽。
 

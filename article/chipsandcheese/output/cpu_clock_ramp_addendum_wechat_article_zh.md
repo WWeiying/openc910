@@ -15,7 +15,7 @@
 
 ## Intel：Speed Shift 把闭环交给硬件
 
-Core i5-12600 只有 6 个 Golden Cove 核。默认开启 Speed Shift 时，CPU 不必等待 OS 逐级请求频率，约 5 ms 多一点到达最高 boost；虽然比 i5-6600K 高近 1 GHz，反而略快。
+Core i5-12600 只有 6 个 Golden Cove 核。默认开启 Speed Shift 时，CPU 不必等待 OS 逐级请求频率，略多于 5 ms 即可到达最高 boost；虽然比 i5-6600K 高近 1 GHz，反而略快。
 
 ![图 2：Alder Lake 默认与静态 1.29 V/BCLK 超频状态的升频轨迹](cpu_clock_ramp_addendum_figures/02_figure.png)
 
@@ -71,7 +71,7 @@ M1 通常约 20 ms 后开始升频，逐步爬到 3.2 GHz，整个过程略超 1
 
 ![图 12：Snapdragon 821 的历史结果；接电且满电时大核可在 19.6 ms 到 2.34 GHz](cpu_clock_ramp_addendum_figures/12_figure.png)
 
-M1 测的是不会依赖电池的 Mac mini，因此渐进策略有些意外。可能是 Apple 没有为平板、超轻薄本和小型桌面分别实现策略，但缺少其他 M1 设备复测，无法验证。
+M1 测的是不使用电池的 Mac mini，因此渐进策略有些意外。可能是 Apple 没有为平板、超轻薄本和小型桌面分别实现策略，但缺少其他 M1 设备复测，无法验证。
 
 ![图 13：M1 Max 在 High Power 与 Low Power 下的多次轨迹](cpu_clock_ramp_addendum_figures/13_figure.png)
 

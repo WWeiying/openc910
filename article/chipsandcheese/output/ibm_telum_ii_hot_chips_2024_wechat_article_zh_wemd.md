@@ -9,7 +9,7 @@ title: "ibm_telum_ii_hot_chips_2024_wechat_article_zh"
 > 首发：Chips and Cheese，2024 年 9 月 8 日<br>
 > 原始链接：https://chipsandcheese.com/p/telum-ii-at-hot-chips-2024-mainframe-with-a-unique-caching-strategy
 
-大型机仍承担金融交易等要求极高可用性与低延迟的任务。IBM 最新 Telum II 与普通服务器 CPU 很不一样：只有 8 个核心，却运行在 5.5 GHz，并配置 360 MB 片上缓存；另有加速 I/O 的 DPU 与片上 AI accelerator，采用 Samsung 5 nm 工艺。
+大型机仍承担金融交易等要求极高的可用性与低延迟的任务。IBM 最新 Telum II 与普通服务器 CPU 很不一样：只有 8 个核心，却运行在 5.5 GHz，并配置 360 MB 片上缓存；另有加速 I/O 的 DPU 与片上 AI accelerator，采用 Samsung 5 nm 工艺。
 
 ![图 1：Telum II 裸片中的 8 个 5.5 GHz 核心、10 个 36 MB L2、DPU 与 24 TOPS AI 加速器](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/ibm_telum_ii_hot_chips_2024_wechat_article_zh/45c66e306e455263_01_figure.jpg)
 
@@ -75,11 +75,11 @@ Telum II 在三个层级上继续扩容。IBM 交流时还使用“congruence cl
 
 ## 单线程优先的大型机
 
-server CPU 通常追求多线程吞吐，client CPU 更偏单线程。Telum II 服务金融交易等服务器任务，却显著优先单线程：IBM 从 z15 每 die 12 核降到 Telum/Telum II 的 8 核，并用高频与巨大低延迟缓存服务每个 thread。单线程能获得接近客户端的 L2/L3 延迟，却有高一个数量级的容量。
+服务器 CPU 通常追求多线程吞吐，client CPU 更偏单线程。Telum II 服务金融交易等服务器任务，却显著优先单线程：IBM 从 z15 每 die 12 核降到 Telum/Telum II 的 8 核，并用高频与巨大低延迟缓存服务每个 thread。单线程能获得接近客户端的 L2/L3 延迟，却有高一个数量级的容量。
 
 ![图 11：IBM 官方 Telum II 芯片渲染图](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/ibm_telum_ii_hot_chips_2024_wechat_article_zh/c1e6514cb8fd45ca_11_figure.jpg)
 
-这种 virtual cache 能否进入客户端很诱人。Ryzen 9 9950X 两块 CCD 合计有 64 MB L3 与 16 MB L2，共 80 MB；若单线程能使用全部，已接近一块 V-Cache CCD 的 96 MB。双 CCD 都堆 V-Cache 的假想产品甚至可提供超过 200 MB virtual L3。
+把这种 virtual cache 引入客户端很有吸引力。Ryzen 9 9950X 两块 CCD 合计有 64 MB L3 与 16 MB L2，共 80 MB；若单线程能使用全部，已接近一块 V-Cache CCD 的 96 MB。双 CCD 都堆 V-Cache 的假想产品甚至可提供超过 200 MB virtual L3。
 
 真正障碍是互连。Zen 5 CCD 的 Infinity Fabric 读/写只有约 64/32 GB/s；上一代 Telum 的 dual-chip module 之间已有约两倍带宽，同 module 芯片间更高。
 

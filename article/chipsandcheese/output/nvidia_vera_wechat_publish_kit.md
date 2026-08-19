@@ -12,7 +12,7 @@ NVIDIA Vera 白皮书的线头：强大的 CPU，不需要脆弱的论证
 
 ## 作者与来源
 
-- 作者栏：George Cozma
+- 作者栏：George Cozma、Chester Lam
 - 首发：Chips and Cheese
 - 英文题目：*NVIDIA’s Vera Whitepaper Has a Thread Loose*
 - 发布日期：2026 年 8 月 5 日
@@ -59,7 +59,7 @@ Vera 的 Olympus 核心、值预测和 1.2 TB/s 内存很有吸引力；但 SMT�
 ## 后台设置
 
 - 标题：使用“正式标题”
-- 作者栏：George Cozma
+- 作者栏：George Cozma、Chester Lam
 - 摘要：使用本文件摘要
 - 阅读原文：https://chipsandcheese.com/p/nvidias-vera-whitepaper-has-a-thread
 - 原创声明：关闭

@@ -104,7 +104,7 @@ Taken Branch 会切断连续块，降低宽取指收益。Op Cache 吞吐与动�
 
 *图 12：Palworld 显示 Lion Cove 192 KB L1.5 的价值；Intel 3 MB L2 也把更多请求留在核心。Zen 5 的 1 MB L2 更快，32 MB L3 延迟又低于 Arrow Lake。*
 
-Zen 5 三款游戏的 Demand L3 Hitrate 分别约 64.5%、67.6% 和 55.43%。大多数 L3 miss 去 DRAM，跨 CCX 占比很小；从 L3 采样看，跨 CCX 延迟接近或略优于 DRAM。
+Zen 5 三款游戏的 Demand L3 Hit Rate 分别约 64.5%、67.6% 和 55.43%。大多数 L3 miss 去 DRAM，跨 CCX 占比很小；从 L3 采样看，跨 CCX 延迟接近或略优于 DRAM。
 
 ![图 13：L3 Miss 的本地 DRAM 与跨 CCX 延迟](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_zen5_gaming_wechat_article_zh/416cd4f925d03751_13_figure.png)
 
@@ -126,7 +126,7 @@ Zen 5 三款游戏的 Demand L3 Hitrate 分别约 64.5%、67.6% 和 55.43%。大
 
 ## 六、Zen 5 与 Lion Cove 在游戏里卡在不同位置
 
-游戏的数据与代码局部性都差，是典型低 IPC 工作负载。Zen 5 的 L2/L3/DRAM 延迟较低，数据侧有优势；前端却因 32 KB L1I、更多 Redirect 和指令 miss 被明显低估利用。Lion Cove 的 64 KB L1I 很强，却被 Arrow Lake 较慢 L3/DRAM 削弱。
+游戏的数据与代码局部性都差，是典型低 IPC 工作负载。Zen 5 的 L2/L3/DRAM 延迟较低，数据侧有优势；前端却因 32 KB L1I、更多 Redirect 和指令 miss 而明显限制后端利用率。Lion Cove 的 64 KB L1I 很强，却被 Arrow Lake 较慢的 L3/DRAM 削弱。
 
 ![图 15：游戏与 SPEC CPU2017 的 Zen 5 平均 IPC](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/amd_zen5_gaming_wechat_article_zh/ebc00f4ffa443baa_15_figure.png)
 
@@ -150,7 +150,7 @@ Intel 的 64 KB L1I 值得肯定，不过 Redwood Cove 已经采用；Zen 5 的 
 2. 大 Op Cache 覆盖率高，32 KB L1I 和少数 L2/L3 Code Miss 仍会在 Redirect 后暴露长等待。
 3. 448 项 ROB 与统一 Scheduler 能有效容忍后端延迟；整数寄存器文件成为更现实的窗口限制。
 4. Lion Cove 的大 L1I/L1.5/L2 与 Zen 5 的低延迟 L2/L3 是不同解法，各自在不同游戏/数据局部性下占优。
-5. 正常游戏很少跨 CCX；强制 3＋3 核会损失约 7%，说明硬件问题存在，也说明调度策略正在有效规避它。
+5. 正常游戏很少跨 CCX；本次强制 3＋3 核测得约 7% 损失，说明硬件问题存在，也说明调度策略正在有效规避它。
 6. 继续提升高 IPC 峰值，对低 IPC 游戏的收益越来越小；下一代更值得把预算投向难分支、指令足迹和长延迟路径。
 
 AMD 与 Intel 必须同时服务生产力、HPC、服务器和游戏。文章并不要求架构只为游戏重做，而是希望设计重心从“让容易的高 IPC 片段更快”稍微转向“让困难片段少停一些”。这也是 Zen 5 游戏表现看似平淡背后的真正体系结构问题。

@@ -7,11 +7,11 @@ x86 准备好 ACE 了吗：从 AMX 内积走向外积矩阵加速
 ## 基本信息
 
 - 英文题目：Is x86 ready to ACE it?
-- 作者：Chester Lam
+- 作者：Chester Lam、Aurora Nockert
 - 首发：Chips and Cheese
 - 日期：2026 年 7 月 14 日
 - 阅读原文：https://chipsandcheese.com/p/is-x86-ready-to-ace-it
-- 后台作者栏：Chester Lam
+- 后台作者栏：Chester Lam、Aurora Nockert
 
 ## 摘要
 

@@ -124,7 +124,7 @@ Arm TRM 给出 L1I 到 L2 的 128-bit（16 B）读接口，但实测没有接近
 
 ![图 11：整数指令的吞吐和延迟](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/arm_cortex_a53_wechat_article_zh/5b11fc7f40b28aef_11_integer_execution_throughput.jpg)
 
-*图 11：整数 Add 为 1.77 IPC、1 周期延迟；不 Taken 分支 0.95 IPC；64-bit 整数乘法 0.95 IPC、4 周期；64-bit Load 约 1 IPC，延迟见 Cache 章节。IPC 大于 1 表明该类指令可以双发射。*
+*图 11：整数 Add 为 1.77 IPC、1 周期延迟；Not-taken 分支 0.95 IPC；64-bit 整数乘法 0.95 IPC、4 周期；64-bit Load 约 1 IPC，延迟见 Cache 章节。IPC 大于 1 表明该类指令可以双发射。*
 
 ### 浮点与 NEON
 
@@ -160,7 +160,7 @@ A53 看起来以 8 B 对齐块访问 L1D。标量访问跨越 8 B 边界增加 1
 
 ![图 13：32-bit 标量 Store-to-Load Forwarding](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/arm_cortex_a53_wechat_article_zh/b4d0a8426d41e8c2_13_scalar_store_forwarding.png)
 
-*图 13：列为 32-bit Load Offset，行为 64-bit Store Offset，格内为周期。绿色约 2.19、黄色约 3.19～4.19，部分重叠慢路约 4.99～5.98；每 8 B 边界形成重复结构。高密度矩阵应点击原图查看。*
+*图 13：列对应 32-bit Load Offset，行对应 64-bit Store Offset，格内为周期。绿色约 2.19、黄色约 3.19～4.19，部分重叠慢路约 4.99～5.98；每 8 B 边界形成重复结构。高密度矩阵应点击原图查看。*
 
 Neoverse N1 在 Load 没有位于 Store 内部的 4 B 对齐位置时会多付 10～11 周期；Kryo 的完全包含为 12～13 周期、部分重叠为 14～15 周期。A53 的简单设计反而避开了复杂乱序 LSU 的某些极慢恢复路径。一种可能是它并没有复杂的直接转发网络，而是短暂延迟 Load，待 Store 提交后再从 L1D 正常读取；现有延迟矩阵无法确认这一实现。
 
@@ -168,7 +168,7 @@ NEON 访问更依赖 16 B 对齐。128-bit Load/Store 未对齐时增加 1 周�
 
 ![图 14：128-bit NEON Store-to-Load Forwarding](https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/arm_cortex_a53_wechat_article_zh/3da7e58c4c04a615_14_neon_store_forwarding.png)
 
-*图 14：列为 128-bit Load Offset，行为 128-bit Store Offset。16 B 对齐点约 2.99 周期，常见组合约 3.99～4.99，部分高地址 Load 重叠区约 5.98。矩阵的 16 B 周期性比标量图更明显。*
+*图 14：列对应 128-bit Load Offset，行对应 128-bit Store Offset。16 B 对齐点约 2.99 周期，常见组合约 3.99～4.99，部分高地址 Load 重叠区约 5.98。矩阵的 16 B 周期性比标量图更明显。*
 
 A53 跨越 4 KB 页边界没有额外惩罚；更高性能的 N1 在 Store 跨 4 KB 边界时反而会多约 12 周期。这再次说明，复杂 LSU 为高并发和投机付出的恢复代价，有时会在边界条件下输给简单顺序路径。
 
