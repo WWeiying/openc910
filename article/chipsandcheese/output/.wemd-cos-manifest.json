@@ -22615,5 +22615,96 @@
     "sha256": "46f2070d53785f367df6568c7e4af9e96b22a640f06c5e33c6d4d593c86a2ac3",
     "size": 19480,
     "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|b0b7cf49a1543e58d6f68a4d2ca87172e925c48e4e0268f565de0abcef8cf29d|01_branch_pattern_sweep.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/cpu_microarchitecture_measurement_methodology_wechat_article_zh/b0b7cf49a1543e58_01_branch_pattern_sweep.jpg",
+    "objectKey": "wechat/articles/cpu_microarchitecture_measurement_methodology_wechat_article_zh/b0b7cf49a1543e58_01_branch_pattern_sweep.jpg",
+    "sha256": "b0b7cf49a1543e58d6f68a4d2ca87172e925c48e4e0268f565de0abcef8cf29d",
+    "size": 50587,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|cedb89d1bc152a1c1350e5686e8045491462a1b247d26d7541c8e60ccee8edb8|02_btb_capacity_latency.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/cpu_microarchitecture_measurement_methodology_wechat_article_zh/cedb89d1bc152a1c_02_btb_capacity_latency.png",
+    "objectKey": "wechat/articles/cpu_microarchitecture_measurement_methodology_wechat_article_zh/cedb89d1bc152a1c_02_btb_capacity_latency.png",
+    "sha256": "cedb89d1bc152a1c1350e5686e8045491462a1b247d26d7541c8e60ccee8edb8",
+    "size": 13523,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|edcb3fa0e7c079a61974dadb753ee304946b45fad700ecd6c8c24416898d8540|03_ras_depth.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/cpu_microarchitecture_measurement_methodology_wechat_article_zh/edcb3fa0e7c079a6_03_ras_depth.png",
+    "objectKey": "wechat/articles/cpu_microarchitecture_measurement_methodology_wechat_article_zh/edcb3fa0e7c079a6_03_ras_depth.png",
+    "sha256": "edcb3fa0e7c079a61974dadb753ee304946b45fad700ecd6c8c24416898d8540",
+    "size": 12770,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|d909948c0f41463163b2d3af5db6044ff0e6251ccb65b0e20e7da95920d160ae|04_fetch_bandwidth.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/cpu_microarchitecture_measurement_methodology_wechat_article_zh/d909948c0f414631_04_fetch_bandwidth.png",
+    "objectKey": "wechat/articles/cpu_microarchitecture_measurement_methodology_wechat_article_zh/d909948c0f414631_04_fetch_bandwidth.png",
+    "sha256": "d909948c0f41463163b2d3af5db6044ff0e6251ccb65b0e20e7da95920d160ae",
+    "size": 22907,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|3a6c809295d8a3921117a464ac8f707d7d750b5c21d1bdf9a0e214098308569d|05_reorder_capacity.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/cpu_microarchitecture_measurement_methodology_wechat_article_zh/3a6c809295d8a392_05_reorder_capacity.jpg",
+    "objectKey": "wechat/articles/cpu_microarchitecture_measurement_methodology_wechat_article_zh/3a6c809295d8a392_05_reorder_capacity.jpg",
+    "sha256": "3a6c809295d8a3921117a464ac8f707d7d750b5c21d1bdf9a0e214098308569d",
+    "size": 40614,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|cab2e3b34a6a7ab236b066de836c1e721c4d553e7388a131d00cecb9379a4a45|06_scheduler_partitioning.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/cpu_microarchitecture_measurement_methodology_wechat_article_zh/cab2e3b34a6a7ab2_06_scheduler_partitioning.png",
+    "objectKey": "wechat/articles/cpu_microarchitecture_measurement_methodology_wechat_article_zh/cab2e3b34a6a7ab2_06_scheduler_partitioning.png",
+    "sha256": "cab2e3b34a6a7ab236b066de836c1e721c4d553e7388a131d00cecb9379a4a45",
+    "size": 44052,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|1115a05077d996f415120ad06dea4d752c7beb120b0c1acfdade6f35ffdbe432|07_store_forwarding_matrix.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/cpu_microarchitecture_measurement_methodology_wechat_article_zh/1115a05077d996f4_07_store_forwarding_matrix.jpg",
+    "objectKey": "wechat/articles/cpu_microarchitecture_measurement_methodology_wechat_article_zh/1115a05077d996f4_07_store_forwarding_matrix.jpg",
+    "sha256": "1115a05077d996f415120ad06dea4d752c7beb120b0c1acfdade6f35ffdbe432",
+    "size": 319200,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|0ae98195bd6481d59fd2b30fd050c3bdeeae0e456d28d8c42219405468c45b92|08_tlb_capacity.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/cpu_microarchitecture_measurement_methodology_wechat_article_zh/0ae98195bd6481d5_08_tlb_capacity.png",
+    "objectKey": "wechat/articles/cpu_microarchitecture_measurement_methodology_wechat_article_zh/0ae98195bd6481d5_08_tlb_capacity.png",
+    "sha256": "0ae98195bd6481d59fd2b30fd050c3bdeeae0e456d28d8c42219405468c45b92",
+    "size": 12154,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|5d3471e25c37bd6e44cfcccfdcdbcd5cd16e2053e1037f5189bb57752499d1d5|09_cache_latency_stairs.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/cpu_microarchitecture_measurement_methodology_wechat_article_zh/5d3471e25c37bd6e_09_cache_latency_stairs.png",
+    "objectKey": "wechat/articles/cpu_microarchitecture_measurement_methodology_wechat_article_zh/5d3471e25c37bd6e_09_cache_latency_stairs.png",
+    "sha256": "5d3471e25c37bd6e44cfcccfdcdbcd5cd16e2053e1037f5189bb57752499d1d5",
+    "size": 23586,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|5c2d685c656704d66d11215cfdc2ae71221443a624139d24f29d7e500aa85f14|10_l2_miss_queue_littles_law.jpg": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/cpu_microarchitecture_measurement_methodology_wechat_article_zh/5c2d685c656704d6_10_l2_miss_queue_littles_law.jpg",
+    "objectKey": "wechat/articles/cpu_microarchitecture_measurement_methodology_wechat_article_zh/5c2d685c656704d6_10_l2_miss_queue_littles_law.jpg",
+    "sha256": "5c2d685c656704d66d11215cfdc2ae71221443a624139d24f29d7e500aa85f14",
+    "size": 21594,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|8a4cd2caaaaa4b845ab7d050f79b56e21348750e8f0150eadda35581ec405b1d|11_core_to_core_latency_matrix.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/cpu_microarchitecture_measurement_methodology_wechat_article_zh/8a4cd2caaaaa4b84_11_core_to_core_latency_matrix.png",
+    "objectKey": "wechat/articles/cpu_microarchitecture_measurement_methodology_wechat_article_zh/8a4cd2caaaaa4b84_11_core_to_core_latency_matrix.png",
+    "sha256": "8a4cd2caaaaa4b845ab7d050f79b56e21348750e8f0150eadda35581ec405b1d",
+    "size": 713915,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|8dbe050d1cea2c7d4b2af0cac7c59c1bfdd54629aaad60418bdc1a5c3fc92609|12_spec_topdown.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/cpu_microarchitecture_measurement_methodology_wechat_article_zh/8dbe050d1cea2c7d_12_spec_topdown.png",
+    "objectKey": "wechat/articles/cpu_microarchitecture_measurement_methodology_wechat_article_zh/8dbe050d1cea2c7d_12_spec_topdown.png",
+    "sha256": "8dbe050d1cea2c7d4b2af0cac7c59c1bfdd54629aaad60418bdc1a5c3fc92609",
+    "size": 23011,
+    "storageClass": "STANDARD"
+  },
+  "gongzhonghao1-1402552401|ap-shanghai|https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com|wechat/articles|STANDARD|8f22081acb5e5b122f95a6028d15042a4ae8335d383cc76aca936b96521ed878|13_frequency_ramp.png": {
+    "url": "https://gongzhonghao1-1402552401.cos.ap-shanghai.myqcloud.com/wechat/articles/cpu_microarchitecture_measurement_methodology_wechat_article_zh/8f22081acb5e5b12_13_frequency_ramp.png",
+    "objectKey": "wechat/articles/cpu_microarchitecture_measurement_methodology_wechat_article_zh/8f22081acb5e5b12_13_frequency_ramp.png",
+    "sha256": "8f22081acb5e5b122f95a6028d15042a4ae8335d383cc76aca936b96521ed878",
+    "size": 13579,
+    "storageClass": "STANDARD"
   }
 }

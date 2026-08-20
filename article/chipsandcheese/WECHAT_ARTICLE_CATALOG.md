@@ -1,8 +1,8 @@
 # Chips and Cheese 中文公众号文章目录
 
-本目录收录 `article/chipsandcheese/output/` 中的全部 144 篇公众号母稿，为每篇标注分类并统一编号。内容简介只用于快速选题和导航；具体测试平台、参数、限制条件、证据边界与体系结构分析以链接文章为准。
+本目录收录 `article/chipsandcheese/output/` 中的全部 145 篇公众号母稿，为每篇标注分类并统一编号。内容简介只用于快速选题和导航；具体测试平台、参数、限制条件、证据边界与体系结构分析以链接文章为准。
 
-更新时间：2026-08-19
+更新时间：2026-08-20
 
 | 编号 | 分类 | 文章 | 内容简介 |
 | ---: | --- | --- | --- |
@@ -150,3 +150,4 @@
 | 142 | 基准、软件与系统机制 | [x86 准备好 ACE 了吗：从 AMX 内积走向外积矩阵加速](output/x86_ace_readiness_wechat_article_zh.md) | ACE 把 AMX 框架从内积扩展到外积，以 AVX-512 输入、8 KB Tile Accumulator、灵活 2～7 bit 反量化和 Block Scaling 服务新一代矩阵计算。与 Arm SME2 相比各有取舍，但尚无硬件，真实性能仍取决于实现。 |
 | 143 | 基准、软件与系统机制 | [x86 不需要消失，RISC 与 CISC 的旧争论才需要](output/x86_does_not_need_to_die_wechat_article_zh.md) | Zen 4 与 Cortex-X2 都依赖预测、乱序、重命名与多级缓存；复杂指令甚至能节省 Rename/Scheduler 资源。现代处理器的胜负更多由微架构实现、工程投入与软件兼容生态决定，而非 RISC/CISC 的历史标签。 |
 | 144 | 基准、软件与系统机制 | [x86-64 Split Lock：一次跨 Cache Line 的原子操作，能拖慢多少邻居](output/x86_split_locks_wechat_article_zh.md) | 七代 Intel/AMD 平台展现了完全不同的 Split Lock 实现：Arrow Lake 约 7 μs 但保护 L2，Zen 5 约 500 ns 却让所有 L1D Miss 受重罚，Piledriver 反而兼顾低延迟与良好隔离。现代“Bus Lock”并不是统一微结构。 |
+| 145 | 基准、软件与系统机制 | [如何系统测懂一颗 CPU：从 Benchmark 到微结构容量反推](output/cpu_microarchitecture_measurement_methodology_wechat_article_zh.md) | 从依赖链、独立链、容量扫描、资源干扰和二维矩阵出发，系统讲解如何测量分支、BTB、RAS、ROB、物理寄存器、调度器、LSU、TLB、Cache、并发 miss、核间一致性、频率与真实负载，并用 PMU 和正交实验控制结论边界。 |
